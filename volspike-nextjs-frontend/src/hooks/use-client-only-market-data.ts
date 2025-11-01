@@ -54,6 +54,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const onDataUpdateRef = useRef<typeof onDataUpdate>(onDataUpdate);
     const tickersRef = useRef<Map<string, any>>(new Map());
     const fundingRef = useRef<Map<string, any>>(new Map());
+    const allowedSymbolsRef = useRef<Set<string> | null>(null);
     const lastRenderRef = useRef<number>(0);
     const firstPaintDoneRef = useRef<boolean>(false);
     const connectedAtRef = useRef<number>(0);
@@ -76,6 +77,8 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         for (const [sym, t] of Array.from(tickersRef.current.entries())) {
             // Filter for USDT perpetual pairs only
             if (!sym.endsWith('USDT')) continue;
+            // If we have an allowlist from exchangeInfo, require membership
+            if (allowedSymbolsRef.current && !allowedSymbolsRef.current.has(sym)) continue;
 
             const volume24h = Number(t.q || t.quoteVolume || t.v || 0);
 
@@ -162,6 +165,44 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         }
     }, [buildSnapshot, render, tier, CADENCE]);
 
+    // Fetch active perpetual USDT symbols to exclude delisted/expired contracts
+    const primeActiveSymbols = useCallback(async () => {
+        try {
+            // Cache to localStorage for 1 hour to reduce requests
+            const cacheKey = 'volspike:exchangeInfo:perpUsdt';
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed?.t && Date.now() - parsed.t < 60 * 60 * 1000 && Array.isArray(parsed.list)) {
+                    allowedSymbolsRef.current = new Set(parsed.list);
+                }
+            }
+
+            const response = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
+            if (!response.ok) return;
+            const info = await response.json();
+            const list: string[] = [];
+            for (const s of info?.symbols || []) {
+                if (
+                    s?.contractType === 'PERPETUAL' &&
+                    s?.quoteAsset === 'USDT' &&
+                    s?.status === 'TRADING' &&
+                    typeof s?.symbol === 'string'
+                ) {
+                    list.push(s.symbol);
+                }
+            }
+            if (list.length) {
+                allowedSymbolsRef.current = new Set(list);
+                try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), list })); } catch {}
+            }
+        } catch (error) {
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('Failed to fetch exchangeInfo (allowlist):', error);
+            }
+        }
+    }, []);
+
     // Optionally seed tickers map with a one-shot 24h ticker REST call to avoid
     // missing symbols right after connect (some browsers may not process the
     // first !ticker@arr payload fast enough and tier throttling would freeze it).
@@ -239,6 +280,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 }
 
                 void primeFundingSnapshot();
+                void primeActiveSymbols();
                 // Warm start: try to seed from REST in parallel (best-effort)
                 void primeTickersSnapshot();
             };
@@ -370,7 +412,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
             setStatus('error');
         }
-    }, [tier, CADENCE, geofenceFallback, primeFundingSnapshot, primeTickersSnapshot, render]);
+    }, [tier, CADENCE, geofenceFallback, primeFundingSnapshot, primeActiveSymbols, primeTickersSnapshot, render]);
 
     useEffect(() => {
         connect();
