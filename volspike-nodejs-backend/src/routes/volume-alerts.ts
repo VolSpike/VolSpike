@@ -1,7 +1,10 @@
 import { Hono } from 'hono'
-import { prisma } from '../lib/prisma'
+import { prisma } from '../index'
 import { z } from 'zod'
-import { logger } from '../lib/logger'
+import { createLogger } from '../lib/logger'
+import { requireUser } from '../lib/hono-extensions'
+
+const logger = createLogger()
 
 const volumeAlertsRouter = new Hono()
 
@@ -138,13 +141,9 @@ volumeAlertsRouter.get('/recent', async (c) => {
 
 // GET /api/volume-alerts/subscriptions - Get user's alert subscriptions
 volumeAlertsRouter.get('/subscriptions', async (c) => {
-  const user = c.get('user')
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
-  
   try {
+    const user = requireUser(c)
+    
     const subscriptions = await prisma.alertSubscription.findMany({
       where: { userId: user.id },
     })
@@ -158,17 +157,13 @@ volumeAlertsRouter.get('/subscriptions', async (c) => {
 
 // POST /api/volume-alerts/subscriptions - Subscribe to symbol alerts (Pro/Elite)
 volumeAlertsRouter.post('/subscriptions', async (c) => {
-  const user = c.get('user')
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
-  
-  if (user.tier === 'free') {
-    return c.json({ error: 'Pro or Elite tier required' }, 403)
-  }
-  
   try {
+    const user = requireUser(c)
+    
+    if (user.tier === 'free') {
+      return c.json({ error: 'Pro or Elite tier required' }, 403)
+    }
+    
     const body = await c.req.json()
     const { symbol } = z.object({ symbol: z.string() }).parse(body)
     
@@ -195,13 +190,8 @@ volumeAlertsRouter.post('/subscriptions', async (c) => {
 
 // DELETE /api/volume-alerts/subscriptions/:symbol - Unsubscribe from symbol alerts
 volumeAlertsRouter.delete('/subscriptions/:symbol', async (c) => {
-  const user = c.get('user')
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized' }, 401)
-  }
-  
   try {
+    const user = requireUser(c)
     const symbol = c.req.param('symbol')
     
     await prisma.alertSubscription.deleteMany({
