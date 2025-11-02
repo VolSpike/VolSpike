@@ -52,6 +52,7 @@ model User {
   // Relations
   watchlists        Watchlist[]
   alerts            Alert[]
+  alertSubscriptions AlertSubscription[]
   preferences       Preference?
   sessions          Session[]
   accounts          Account[]
@@ -167,6 +168,47 @@ model Alert {
   
   @@index([userId, createdAt])
   @@map("alerts")
+}
+
+// Volume spike alerts from Digital Ocean monitoring
+model VolumeAlert {
+  id              String    @id @default(cuid())
+  symbol          String    // e.g., "BTCUSDT"
+  asset           String    // e.g., "BTC"
+  currentVolume   Float     // Current hour volume
+  previousVolume  Float     // Previous hour volume
+  volumeRatio     Float     // currentVolume / previousVolume
+  price           Float?    // Current price
+  fundingRate     Float?    // Current funding rate
+  alertType       AlertType @default(SPIKE)
+  message         String    // Human-readable alert message
+  timestamp       DateTime  @default(now())
+  hourTimestamp   DateTime  // The hour this alert is for (rounded)
+  isUpdate        Boolean   @default(false) // true for HALF-UPDATE/UPDATE
+  
+  @@index([symbol, timestamp])
+  @@index([timestamp])
+  @@index([hourTimestamp])
+  @@map("volume_alerts")
+}
+
+enum AlertType {
+  SPIKE
+  HALF_UPDATE
+  FULL_UPDATE
+}
+
+// User alert subscriptions (Pro/Elite feature)
+model AlertSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol    String   // e.g., "BTCUSDT" or "*" for all
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, symbol])
+  @@index([userId])
+  @@map("alert_subscriptions")
 }
 
 model Watchlist {

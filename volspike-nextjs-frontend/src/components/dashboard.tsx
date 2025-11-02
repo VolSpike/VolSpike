@@ -7,6 +7,7 @@ import { useClientOnlyMarketData } from '@/hooks/use-client-only-market-data'
 import { Header } from '@/components/header'
 import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
+import { VolumeAlertsPanel } from '@/components/volume-alerts-panel'
 import { TierUpgrade } from '@/components/tier-upgrade'
 import { AdBanner } from '@/components/ad-banner'
 import { AlertBuilder } from '@/components/alert-builder'
@@ -201,6 +202,7 @@ export function Dashboard() {
     )
 
     const alertsCard = <AlertPanel alerts={alerts} userTier={userTier as 'free' | 'pro' | 'elite'} />
+    const volumeAlertsCard = <VolumeAlertsPanel />
 
     return (
         <div className="flex-1 bg-background relative">
@@ -217,13 +219,13 @@ export function Dashboard() {
                         <Tabs defaultValue="market" className="w-full">
                             <TabsList className="grid grid-cols-2">
                                 <TabsTrigger value="market">Market Data</TabsTrigger>
-                                <TabsTrigger value="alerts">Volume Alerts</TabsTrigger>
+                                <TabsTrigger value="alerts">Volume Spikes</TabsTrigger>
                             </TabsList>
                             <TabsContent value="market" className="mt-4">
                                 {marketDataCard}
                             </TabsContent>
                             <TabsContent value="alerts" className="mt-4">
-                                {alertsCard}
+                                {volumeAlertsCard}
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -233,7 +235,7 @@ export function Dashboard() {
                             {marketDataCard}
                         </div>
                         <div className="lg:col-span-1">
-                            {alertsCard}
+                            {volumeAlertsCard}
                         </div>
                     </div>
                 </div>

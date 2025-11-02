@@ -11,6 +11,7 @@ import { authRoutes } from './routes/auth'
 import { marketRoutes } from './routes/market'
 import { watchlistRoutes } from './routes/watchlist'
 import { alertRoutes } from './routes/alerts'
+import volumeAlertsRouter from './routes/volume-alerts'
 import { paymentRoutes } from './routes/payments'
 import { adminRoutes } from './routes/admin'
 import { setupSocketHandlers } from './websocket/handlers'
@@ -81,7 +82,8 @@ app.use('*', cors({
         'Origin',
         'X-Requested-With',
         'X-Wallet-Address',
-        'X-Wallet-Nonce'  // ✅ Add custom header for SIWE nonce
+        'X-Wallet-Nonce',  // ✅ Add custom header for SIWE nonce
+        'X-API-Key'  // For volume alert ingestion from Digital Ocean
     ],
     exposeHeaders: ['Content-Length', 'X-Total-Count', 'X-Page-Count'],
     maxAge: 86400, // 24 hours
@@ -114,6 +116,7 @@ app.route('/api/market', marketRoutes)
 
 app.route('/api/watchlist', watchlistRoutes)
 app.route('/api/alerts', alertRoutes)
+app.route('/api/volume-alerts', volumeAlertsRouter)
 app.route('/api/payments', paymentRoutes)
 
 // Admin routes (protected with admin middleware)
