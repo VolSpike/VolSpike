@@ -42,7 +42,7 @@ export function VolumeAlertsPanel() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
-              Volume Spike Alerts
+              Volume Alerts
             </CardTitle>
             <CardDescription>
               Real-time volume spike notifications from Binance
