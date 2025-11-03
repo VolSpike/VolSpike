@@ -54,7 +54,8 @@ export function VolumeAlertsPanel() {
   }
   
   const formatRelativeTime = (timestamp: string) => {
-    return formatDistanceToNow(new Date(timestamp), { addSuffix: true }) // e.g., "10 minutes ago"
+    const relative = formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+    return relative.replace('about ', '') // Remove "about" prefix
   }
   
   return (
