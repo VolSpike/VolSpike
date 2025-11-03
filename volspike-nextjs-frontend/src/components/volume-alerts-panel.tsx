@@ -121,9 +121,9 @@ export function VolumeAlertsPanel() {
                         )}
                       </div>
                       
-                      {/* Volume on one line with inline span */}
-                      <p className="text-sm text-muted-foreground mb-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                        Volume: {formatVolume(alert.currentVolume)} <span className="text-xs">(prev: {formatVolume(alert.previousVolume)})</span>
+                      {/* Volume information - compact single line */}
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Vol: {formatVolume(alert.currentVolume)} <span className="text-xs opacity-70">(was {formatVolume(alert.previousVolume)})</span>
                       </p>
                       
                       {(alert.price || alert.fundingRate) && (
