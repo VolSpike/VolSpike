@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { io, Socket } from 'socket.io-client'
 
 export interface VolumeAlert {
   id: string
@@ -20,17 +21,19 @@ export interface VolumeAlert {
 }
 
 interface UseVolumeAlertsOptions {
-  pollInterval?: number // milliseconds
+  pollInterval?: number // milliseconds (fallback when WebSocket disconnected)
   autoFetch?: boolean
 }
 
 export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
-  const { pollInterval = 60000, autoFetch = true } = options // Default: 1 minute polling
+  const { pollInterval = 15000, autoFetch = true } = options // Default: 15 seconds polling as fallback
   const { data: session } = useSession()
   const [alerts, setAlerts] = useState<VolumeAlert[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const socketRef = useRef<Socket | null>(null)
   
   // Get tier from session, default to free
   const tier = (session?.user as any)?.tier || 'free'
@@ -69,7 +72,56 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     }
   }, [autoFetch, fetchAlerts])
   
-  // Set up polling
+  // Set up WebSocket connection for real-time alerts
+  useEffect(() => {
+    if (typeof window === 'undefined') return // Skip on server-side
+    
+    const apiUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    
+    // Connect to Socket.IO
+    const socket = io(apiUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5,
+    })
+    
+    socketRef.current = socket
+    
+    socket.on('connect', () => {
+      console.log('✅ Connected to volume alerts WebSocket')
+      setIsConnected(true)
+      setError(null)
+    })
+    
+    socket.on('disconnect', () => {
+      console.log('❌ Disconnected from volume alerts WebSocket')
+      setIsConnected(false)
+    })
+    
+    socket.on('connect_error', (err) => {
+      console.error('WebSocket connection error:', err)
+      setIsConnected(false)
+      // Fallback to polling when WebSocket fails
+    })
+    
+    // Listen for new volume alerts
+    socket.on('volume-alert', (newAlert: VolumeAlert) => {
+      console.log('📢 Received real-time volume alert:', newAlert.asset)
+      setAlerts(prev => {
+        // Add new alert at the beginning, remove duplicates
+        const filtered = prev.filter(a => a.id !== newAlert.id)
+        return [newAlert, ...filtered].slice(0, getTierLimit(tier))
+      })
+    })
+    
+    // Cleanup on unmount
+    return () => {
+      socket.disconnect()
+    }
+  }, [tier])
+  
+  // Set up polling as fallback (only when disconnected)
   useEffect(() => {
     if (!autoFetch || pollInterval <= 0) return
     
@@ -78,10 +130,12 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       clearInterval(intervalRef.current)
     }
     
-    // Set up new interval
-    intervalRef.current = setInterval(() => {
-      fetchAlerts()
-    }, pollInterval)
+    // Only poll if WebSocket is disconnected
+    if (!isConnected) {
+      intervalRef.current = setInterval(() => {
+        fetchAlerts()
+      }, pollInterval)
+    }
     
     // Cleanup on unmount
     return () => {
@@ -89,7 +143,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
         clearInterval(intervalRef.current)
       }
     }
-  }, [autoFetch, pollInterval, fetchAlerts])
+  }, [autoFetch, pollInterval, fetchAlerts, isConnected])
   
   return {
     alerts,
@@ -97,6 +151,16 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     error,
     refetch: fetchAlerts,
     tier,
+    isConnected, // Expose connection status
   }
+}
+
+function getTierLimit(tier: string): number {
+  const limits: Record<string, number> = {
+    free: 10,
+    pro: 50,
+    elite: 100,
+  }
+  return limits[tier] || 10
 }
 

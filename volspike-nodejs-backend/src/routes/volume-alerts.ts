@@ -3,6 +3,7 @@ import { prisma } from '../index'
 import { z } from 'zod'
 import { createLogger } from '../lib/logger'
 import { requireUser } from '../lib/hono-extensions'
+import { broadcastVolumeAlert } from '../services/alert-broadcaster'
 
 const logger = createLogger()
 
@@ -68,7 +69,8 @@ volumeAlertsRouter.post('/ingest', verifyIngestAuth, async (c) => {
     
     logger.info(`Volume alert ingested: ${data.asset} (${data.volumeRatio.toFixed(2)}x)`)
     
-    // TODO: Broadcast to WebSocket clients in future update
+    // Broadcast to all connected WebSocket clients in real-time
+    broadcastVolumeAlert(alert)
     
     return c.json({ success: true, alertId: alert.id })
   } catch (error) {

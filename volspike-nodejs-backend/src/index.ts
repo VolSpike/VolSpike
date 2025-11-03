@@ -15,6 +15,7 @@ import volumeAlertsRouter from './routes/volume-alerts'
 import { paymentRoutes } from './routes/payments'
 import { adminRoutes } from './routes/admin'
 import { setupSocketHandlers } from './websocket/handlers'
+import { setSocketIO } from './services/alert-broadcaster'
 import type { AppBindings, AppVariables } from './types/hono'
 
 // Initialize Prisma
@@ -181,6 +182,9 @@ const io = new SocketIOServer(httpServer, {
 
 logger.info('✅ Socket.IO attached to HTTP server')
 
+// Initialize alert broadcaster with Socket.IO instance
+setSocketIO(io)
+
 // Setup Socket.IO handlers first
 setupSocketHandlers(io, prisma, logger)
 
@@ -232,4 +236,6 @@ const shutdown = async (signal: string) => {
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
 
+// Export io instance for broadcasting from routes
+export { io }
 export default app

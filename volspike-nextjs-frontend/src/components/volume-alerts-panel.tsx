@@ -9,8 +9,8 @@ import { TrendingUp, Bell, RefreshCw, AlertCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 export function VolumeAlertsPanel() {
-  const { alerts, isLoading, error, refetch, tier } = useVolumeAlerts({
-    pollInterval: 15000, // Poll every 15 seconds for faster updates
+  const { alerts, isLoading, error, refetch, tier, isConnected } = useVolumeAlerts({
+    pollInterval: 15000, // Poll every 15 seconds as fallback
     autoFetch: true,
   })
   
@@ -49,8 +49,12 @@ export function VolumeAlertsPanel() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="capitalize">
-              {tier}
+            <Badge 
+              variant="outline" 
+              className={`text-xs ${isConnected ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' : 'border-muted'}`}
+            >
+              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-muted-foreground'}`} />
+              {isConnected ? 'Live' : tier}
             </Badge>
             <Button
               variant="ghost"
