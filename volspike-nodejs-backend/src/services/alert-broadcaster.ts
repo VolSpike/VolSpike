@@ -35,28 +35,39 @@ export function broadcastVolumeAlert(alert: VolumeAlert) {
 function startTierBasedBroadcasting() {
   if (!ioInstance) return
   
-  // Pro tier: every 5 minutes
-  setInterval(() => {
-    if (alertQueues.pro.length > 0 && ioInstance) {
-      const io = ioInstance // Capture in local variable for TypeScript
-      alertQueues.pro.forEach(alert => {
-        io.to('tier-pro').emit('volume-alert', alert)
-      })
-      console.log(`📢 Broadcasted ${alertQueues.pro.length} alerts to Pro tier`)
-      alertQueues.pro = []
-    }
-  }, 5 * 60 * 1000) // 5 minutes
+  // Helper to check if current time matches wall-clock interval
+  const isAtInterval = (minutes: number): boolean => {
+    const now = new Date()
+    return now.getMinutes() % minutes === 0 && now.getSeconds() === 0
+  }
   
-  // Free tier: every 15 minutes
+  // Check every second for wall-clock alignment
   setInterval(() => {
-    if (alertQueues.free.length > 0 && ioInstance) {
-      const io = ioInstance // Capture in local variable for TypeScript
-      alertQueues.free.forEach(alert => {
-        io.to('tier-free').emit('volume-alert', alert)
-      })
-      console.log(`📢 Broadcasted ${alertQueues.free.length} alerts to Free tier`)
-      alertQueues.free = []
+    if (!ioInstance) return
+    
+    const io = ioInstance
+    
+    // Pro tier: broadcast at :00, :05, :10, :15, :20, etc.
+    if (isAtInterval(5)) {
+      if (alertQueues.pro.length > 0) {
+        alertQueues.pro.forEach(alert => {
+          io.to('tier-pro').emit('volume-alert', alert)
+        })
+        console.log(`📢 [${new Date().toISOString()}] Broadcasted ${alertQueues.pro.length} alerts to Pro tier`)
+        alertQueues.pro = []
+      }
     }
-  }, 15 * 60 * 1000) // 15 minutes
+    
+    // Free tier: broadcast at :00, :15, :30, :45
+    if (isAtInterval(15)) {
+      if (alertQueues.free.length > 0) {
+        alertQueues.free.forEach(alert => {
+          io.to('tier-free').emit('volume-alert', alert)
+        })
+        console.log(`📢 [${new Date().toISOString()}] Broadcasted ${alertQueues.free.length} alerts to Free tier`)
+        alertQueues.free = []
+      }
+    }
+  }, 1000) // Check every second for wall-clock alignment
 }
 
