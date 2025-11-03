@@ -126,7 +126,13 @@ export function VolumeAlertsPanel() {
                     <div className="flex items-center gap-2">
                       <Badge 
                         variant="outline" 
-                        className="text-xs font-mono-tabular bg-brand-500/10 border-brand-500/30"
+                        className={`text-xs font-mono-tabular ${
+                          isBullish 
+                            ? 'bg-brand-500/10 border-brand-500/30 text-brand-600 dark:text-brand-400' 
+                            : isBearish 
+                              ? 'bg-danger-500/10 border-danger-500/30 text-danger-600 dark:text-danger-400'
+                              : 'bg-brand-500/10 border-brand-500/30'
+                        }`}
                       >
                         {alert.volumeRatio.toFixed(2)}x
                       </Badge>
