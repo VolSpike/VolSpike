@@ -66,6 +66,28 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     // Tier-based update intervals
     const CADENCE = tier === 'elite' ? 0 : (tier === 'pro' ? 300_000 : 900_000); // 0ms, 5min, 15min
 
+    // Calculate next wall-clock update time
+    const getNextWallClockUpdate = useCallback(() => {
+        if (tier === 'elite') return 0; // Elite is real-time
+        
+        const now = new Date();
+        const currentMinute = now.getMinutes();
+        
+        if (tier === 'pro') {
+            // Pro: next :00, :05, :10, etc.
+            const nextMinute = Math.ceil((currentMinute + 1) / 5) * 5;
+            const next = new Date(now);
+            next.setMinutes(nextMinute, 0, 0);
+            return next.getTime();
+        } else {
+            // Free: next :00, :15, :30, :45
+            const nextMinute = Math.ceil((currentMinute + 1) / 15) * 15;
+            const next = new Date(now);
+            next.setMinutes(nextMinute, 0, 0);
+            return next.getTime();
+        }
+    }, [tier]);
+
     // Keep callback stable via ref to avoid effect/deps churn
     useEffect(() => {
         onDataUpdateRef.current = onDataUpdate;
@@ -153,8 +175,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     render(snapshot);
                     lastRenderRef.current = Date.now();
                     if (tier !== 'elite') {
-                        const nextUpdateTime = lastRenderRef.current + CADENCE;
-                        setNextUpdate(nextUpdateTime);
+                        setNextUpdate(getNextWallClockUpdate());
                     }
                 }
             }
@@ -274,9 +295,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
                 // Initialize countdown for non-elite tiers
                 if (tier !== 'elite') {
-                    const now = Date.now();
-                    const nextUpdateTime = now + CADENCE;
-                    setNextUpdate(nextUpdateTime);
+                    setNextUpdate(getNextWallClockUpdate());
                 }
 
                 void primeFundingSnapshot();
@@ -329,10 +348,9 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                             render(snapshot);
                             firstPaintDoneRef.current = true;
                             lastRenderRef.current = now;
-                            // For non-elite tiers, next update schedule begins now
+                            // For non-elite tiers, set countdown to next wall-clock time
                             if (tier !== 'elite') {
-                                const nextUpdateTime = lastRenderRef.current + CADENCE;
-                                setNextUpdate(nextUpdateTime);
+                                setNextUpdate(getNextWallClockUpdate());
                             }
                             return;
                         }
@@ -355,10 +373,9 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                         lastRenderRef.current = now;
                     }
 
-                    // Update next update countdown
+                    // Update next update countdown to next wall-clock time
                     if (tier !== 'elite') {
-                        const nextUpdateTime = lastRenderRef.current + CADENCE;
-                        setNextUpdate(nextUpdateTime);
+                        setNextUpdate(getNextWallClockUpdate());
                     }
 
                 } catch (error) {
@@ -412,7 +429,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
             setStatus('error');
         }
-    }, [tier, CADENCE, geofenceFallback, primeFundingSnapshot, primeActiveSymbols, primeTickersSnapshot, render]);
+    }, [tier, CADENCE, geofenceFallback, primeFundingSnapshot, primeActiveSymbols, primeTickersSnapshot, render, getNextWallClockUpdate]);
 
     useEffect(() => {
         connect();

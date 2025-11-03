@@ -9,10 +9,24 @@ import { TrendingUp, Bell, RefreshCw, AlertCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 export function VolumeAlertsPanel() {
-  const { alerts, isLoading, error, refetch, tier, isConnected } = useVolumeAlerts({
+  const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
     pollInterval: 15000, // Poll every 15 seconds as fallback
     autoFetch: true,
   })
+  
+  // Format countdown timer
+  const getCountdownDisplay = () => {
+    if (tier === 'elite' || nextUpdate === 0) return ''
+    
+    const now = Date.now()
+    const remaining = Math.max(0, nextUpdate - now)
+    
+    if (remaining === 0) return ''
+    
+    const minutes = Math.floor(remaining / 60000)
+    const seconds = Math.floor((remaining % 60000) / 1000)
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
   
   const formatVolume = (value: number) => {
     const abs = Math.abs(value)
@@ -46,6 +60,11 @@ export function VolumeAlertsPanel() {
             </CardTitle>
             <CardDescription>
               Real-time volume spike notifications from Binance
+              {tier !== 'elite' && nextUpdate > 0 && (
+                <span className="ml-2 text-blue-500">
+                  • Next update in {getCountdownDisplay()}
+                </span>
+              )}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">

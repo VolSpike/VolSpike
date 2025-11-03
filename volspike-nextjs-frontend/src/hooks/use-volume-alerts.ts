@@ -33,6 +33,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [nextUpdate, setNextUpdate] = useState<number>(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const socketRef = useRef<Socket | null>(null)
   
@@ -58,6 +59,28 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       const lastBroadcast = new Date(now)
       lastBroadcast.setMinutes(lastBroadcastMinute, 0, 0)
       return lastBroadcast
+    }
+  }, [tier])
+  
+  // Calculate the next broadcast time for countdown
+  const getNextBroadcastTime = useCallback(() => {
+    const now = new Date()
+    const currentMinute = now.getMinutes()
+    
+    if (tier === 'elite') {
+      return 0 // Elite is real-time, no countdown
+    } else if (tier === 'pro') {
+      // Pro tier: next 5-minute mark
+      const nextBroadcastMinute = Math.ceil((currentMinute + 1) / 5) * 5
+      const nextBroadcast = new Date(now)
+      nextBroadcast.setMinutes(nextBroadcastMinute, 0, 0)
+      return nextBroadcast.getTime()
+    } else {
+      // Free tier: next 15-minute mark (:00, :15, :30, :45)
+      const nextBroadcastMinute = Math.ceil((currentMinute + 1) / 15) * 15
+      const nextBroadcast = new Date(now)
+      nextBroadcast.setMinutes(nextBroadcastMinute, 0, 0)
+      return nextBroadcast.getTime()
     }
   }, [tier])
   
@@ -105,6 +128,27 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       fetchAlerts()
     }
   }, [autoFetch, fetchAlerts])
+  
+  // Update countdown timer for next alert batch
+  useEffect(() => {
+    if (tier === 'elite') {
+      setNextUpdate(0) // No countdown for elite
+      return
+    }
+    
+    const updateCountdown = () => {
+      const next = getNextBroadcastTime()
+      setNextUpdate(next)
+    }
+    
+    // Update immediately
+    updateCountdown()
+    
+    // Update every second
+    const interval = setInterval(updateCountdown, 1000)
+    
+    return () => clearInterval(interval)
+  }, [tier, getNextBroadcastTime])
   
   // Set up WebSocket connection for real-time alerts
   useEffect(() => {
@@ -192,6 +236,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     refetch: fetchAlerts,
     tier,
     isConnected, // Expose connection status
+    nextUpdate, // Expose next broadcast time for countdown
   }
 }
 
