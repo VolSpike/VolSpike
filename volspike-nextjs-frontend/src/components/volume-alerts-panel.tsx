@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, Bell, RefreshCw, AlertCircle } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle } from 'lucide-react'
+import { formatDistanceToNow, format } from 'date-fns'
 
 export function VolumeAlertsPanel() {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
@@ -47,6 +47,13 @@ export function VolumeAlertsPanel() {
       return `$${price.toFixed(2)}`
     }
     return `$${price.toFixed(4)}`
+  }
+  
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const exactTime = format(date, 'h:mm a') // e.g., "3:12 PM"
+    const relativeTime = formatDistanceToNow(date, { addSuffix: true }) // e.g., "10 minutes ago"
+    return `${exactTime} (${relativeTime})`
   }
   
   return (
@@ -131,13 +138,17 @@ export function VolumeAlertsPanel() {
                     {/* Header: Asset name and timestamp */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className={`h-4 w-4 flex-shrink-0 ${
-                          isBullish ? 'text-brand-500' : isBearish ? 'text-danger-500' : 'text-muted-foreground'
-                        }`} />
+                        {isBearish ? (
+                          <TrendingDown className="h-4 w-4 flex-shrink-0 text-danger-500" />
+                        ) : (
+                          <TrendingUp className={`h-4 w-4 flex-shrink-0 ${
+                            isBullish ? 'text-brand-500' : 'text-muted-foreground'
+                          }`} />
+                        )}
                         <span className="font-semibold text-base">{alert.asset}</span>
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDistanceToNow(new Date(alert.timestamp), { addSuffix: true })}
+                        {formatTimestamp(alert.timestamp)}
                       </span>
                     </div>
                     
