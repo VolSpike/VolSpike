@@ -250,7 +250,7 @@ export function MarketTable({
                                     onClick={() => handleSort('change')}
                                     className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
                                 >
-                                    <span className="mr-1.5">Price Change</span>
+                                    <span className="mr-1.5">24h Change</span>
                                     <SortIcon column="change" />
                                 </Button>
                             </th>
