@@ -49,11 +49,12 @@ export function VolumeAlertsPanel() {
     return `$${price.toFixed(4)}`
   }
   
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
-    const exactTime = format(date, 'h:mm a') // e.g., "3:12 PM"
-    const relativeTime = formatDistanceToNow(date, { addSuffix: true }) // e.g., "10 minutes ago"
-    return `${exactTime} (${relativeTime})`
+  const formatExactTime = (timestamp: string) => {
+    return format(new Date(timestamp), 'h:mm a') // e.g., "3:12 PM"
+  }
+  
+  const formatRelativeTime = (timestamp: string) => {
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true }) // e.g., "10 minutes ago"
   }
   
   return (
@@ -136,7 +137,7 @@ export function VolumeAlertsPanel() {
                 >
                   <div className="space-y-2">
                     {/* Header: Asset name and timestamp */}
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-2">
                         {isBearish ? (
                           <TrendingDown className="h-4 w-4 flex-shrink-0 text-danger-500" />
@@ -147,9 +148,14 @@ export function VolumeAlertsPanel() {
                         )}
                         <span className="font-semibold text-base">{alert.asset}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatTimestamp(alert.timestamp)}
-                      </span>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatExactTime(alert.timestamp)}
+                        </div>
+                        <div className="text-xs text-muted-foreground/70 whitespace-nowrap">
+                          ({formatRelativeTime(alert.timestamp)})
+                        </div>
+                      </div>
                     </div>
                     
                     {/* Multiplier and Update badges on second line */}
