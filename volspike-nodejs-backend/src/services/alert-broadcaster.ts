@@ -38,8 +38,9 @@ function startTierBasedBroadcasting() {
   // Pro tier: every 5 minutes
   setInterval(() => {
     if (alertQueues.pro.length > 0 && ioInstance) {
+      const io = ioInstance // Capture in local variable for TypeScript
       alertQueues.pro.forEach(alert => {
-        ioInstance.to('tier-pro').emit('volume-alert', alert)
+        io.to('tier-pro').emit('volume-alert', alert)
       })
       console.log(`📢 Broadcasted ${alertQueues.pro.length} alerts to Pro tier`)
       alertQueues.pro = []
@@ -49,8 +50,9 @@ function startTierBasedBroadcasting() {
   // Free tier: every 15 minutes
   setInterval(() => {
     if (alertQueues.free.length > 0 && ioInstance) {
+      const io = ioInstance // Capture in local variable for TypeScript
       alertQueues.free.forEach(alert => {
-        ioInstance.to('tier-free').emit('volume-alert', alert)
+        io.to('tier-free').emit('volume-alert', alert)
       })
       console.log(`📢 Broadcasted ${alertQueues.free.length} alerts to Free tier`)
       alertQueues.free = []
