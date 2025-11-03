@@ -56,15 +56,18 @@ export function VolumeAlertsPanel() {
               <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-muted-foreground'}`} />
               {isConnected ? 'Live' : tier}
             </Badge>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => refetch()}
-              disabled={isLoading}
-              title="Refresh alerts"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
+            {/* Only show refresh button for Pro/Elite tiers */}
+            {tier !== 'free' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                title="Refresh alerts"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
