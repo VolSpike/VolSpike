@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns'
 
 export function VolumeAlertsPanel() {
   const { alerts, isLoading, error, refetch, tier } = useVolumeAlerts({
-    pollInterval: 60000, // Poll every 60 seconds
+    pollInterval: 15000, // Poll every 15 seconds for faster updates
     autoFetch: true,
   })
   
