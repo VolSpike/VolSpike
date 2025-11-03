@@ -98,59 +98,57 @@ export function VolumeAlertsPanel() {
                       : 'border-border hover:bg-muted/50'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      {/* Asset name and icon on first line */}
-                      <div className="flex items-center gap-2 mb-1">
+                  <div className="space-y-2">
+                    {/* Header: Asset name and timestamp */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-brand-500 flex-shrink-0" />
                         <span className="font-semibold text-base">{alert.asset}</span>
                       </div>
-                      
-                      {/* Multiplier and Update badges always on second line */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge 
-                          variant="outline" 
-                          className="text-xs font-mono-tabular bg-brand-500/10 border-brand-500/30"
-                        >
-                          {alert.volumeRatio.toFixed(2)}x
-                        </Badge>
-                        {alert.isUpdate && (
-                          <Badge variant="secondary" className="text-xs">
-                            {alert.alertType === 'HALF_UPDATE' ? 'Half Update' : 'Update'}
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      {/* Volume information - compact single line */}
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Vol: {formatVolume(alert.currentVolume)} <span className="text-xs opacity-70">(was {formatVolume(alert.previousVolume)})</span>
-                      </p>
-                      
-                      {(alert.price || alert.fundingRate) && (
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                          {alert.price && (
-                            <span>Price: {formatPrice(alert.price)}</span>
-                          )}
-                          {alert.fundingRate !== undefined && alert.fundingRate !== null && (
-                            <span className={
-                              alert.fundingRate > 0.03 
-                                ? 'text-brand-600 dark:text-brand-400' 
-                                : alert.fundingRate < -0.03 
-                                  ? 'text-danger-600 dark:text-danger-400' 
-                                  : ''
-                            }>
-                              Funding: {(alert.fundingRate * 100).toFixed(3)}%
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="text-right flex-shrink-0">
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {formatDistanceToNow(new Date(alert.timestamp), { addSuffix: true })}
                       </span>
                     </div>
+                    
+                    {/* Multiplier and Update badges on second line */}
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs font-mono-tabular bg-brand-500/10 border-brand-500/30"
+                      >
+                        {alert.volumeRatio.toFixed(2)}x
+                      </Badge>
+                      {alert.isUpdate && (
+                        <Badge variant="secondary" className="text-xs">
+                          {alert.alertType === 'HALF_UPDATE' ? 'Half Update' : 'Update'}
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {/* Volume information - compact format */}
+                    <div className="text-sm text-muted-foreground">
+                      {formatVolume(alert.currentVolume)} <span className="text-xs opacity-70">({alert.volumeRatio.toFixed(1)}x prev)</span>
+                    </div>
+                    
+                    {/* Price and funding on one line */}
+                    {(alert.price || alert.fundingRate) && (
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {alert.price && (
+                          <span>Price: {formatPrice(alert.price)}</span>
+                        )}
+                        {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                          <span className={
+                            alert.fundingRate > 0.03 
+                              ? 'text-brand-600 dark:text-brand-400' 
+                              : alert.fundingRate < -0.03 
+                                ? 'text-danger-600 dark:text-danger-400' 
+                                : ''
+                          }>
+                            Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
