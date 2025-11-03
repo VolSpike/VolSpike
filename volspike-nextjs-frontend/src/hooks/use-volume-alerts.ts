@@ -39,6 +39,28 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   // Get tier from session, default to free
   const tier = (session?.user as any)?.tier || 'free'
   
+  // Calculate the last broadcast time for the current tier
+  const getLastBroadcastTime = useCallback(() => {
+    const now = new Date()
+    const currentMinute = now.getMinutes()
+    
+    if (tier === 'elite') {
+      return now // Elite gets everything in real-time
+    } else if (tier === 'pro') {
+      // Pro tier: :00, :05, :10, :15, etc. - find last 5-minute mark
+      const lastBroadcastMinute = Math.floor(currentMinute / 5) * 5
+      const lastBroadcast = new Date(now)
+      lastBroadcast.setMinutes(lastBroadcastMinute, 0, 0)
+      return lastBroadcast
+    } else {
+      // Free tier: :00, :15, :30, :45 - find last 15-minute mark
+      const lastBroadcastMinute = Math.floor(currentMinute / 15) * 15
+      const lastBroadcast = new Date(now)
+      lastBroadcast.setMinutes(lastBroadcastMinute, 0, 0)
+      return lastBroadcast
+    }
+  }, [tier])
+  
   // Fetch alerts from API
   const fetchAlerts = useCallback(async () => {
     try {
@@ -53,9 +75,20 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       
       const data = await response.json()
       
-      // Only update if we have new data
+      // Filter alerts based on last broadcast time for non-elite tiers
       if (data.alerts && Array.isArray(data.alerts)) {
-        setAlerts(data.alerts)
+        let filteredAlerts = data.alerts
+        
+        // For Pro/Free tiers, only show alerts from before the last broadcast time
+        if (tier !== 'elite') {
+          const lastBroadcast = getLastBroadcastTime()
+          filteredAlerts = data.alerts.filter((alert: VolumeAlert) => {
+            const alertTime = new Date(alert.timestamp)
+            return alertTime < lastBroadcast
+          })
+        }
+        
+        setAlerts(filteredAlerts)
       }
       
       setIsLoading(false)
@@ -64,7 +97,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [tier])
+  }, [tier, getLastBroadcastTime])
   
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {
