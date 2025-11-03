@@ -125,9 +125,9 @@ export function VolumeAlertsPanel() {
                       )}
                     </div>
                     
-                    {/* Volume information - compact format */}
+                    {/* Volume information - current and previous */}
                     <div className="text-sm text-muted-foreground">
-                      {formatVolume(alert.currentVolume)} <span className="text-xs opacity-70">({alert.volumeRatio.toFixed(1)}x prev)</span>
+                      {formatVolume(alert.currentVolume)} <span className="text-xs opacity-70">({formatVolume(alert.previousVolume)})</span>
                     </div>
                     
                     {/* Price and funding on one line */}
