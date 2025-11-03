@@ -180,6 +180,7 @@ model VolumeAlert {
   volumeRatio     Float     // currentVolume / previousVolume
   price           Float?    // Current price
   fundingRate     Float?    // Current funding rate
+  candleDirection String?   // "bullish" or "bearish" - indicates if volume spike on up or down candle
   alertType       AlertType @default(SPIKE)
   message         String    // Human-readable alert message
   timestamp       DateTime  @default(now())

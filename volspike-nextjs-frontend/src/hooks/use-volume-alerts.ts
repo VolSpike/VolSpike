@@ -13,6 +13,7 @@ export interface VolumeAlert {
   volumeRatio: number
   price?: number
   fundingRate?: number
+  candleDirection?: 'bullish' | 'bearish' | null
   message: string
   timestamp: string
   hourTimestamp: string

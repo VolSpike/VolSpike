@@ -89,20 +89,29 @@ export function VolumeAlertsPanel() {
             </div>
           ) : (
             <div className="space-y-3">
-              {alerts.map((alert) => (
+              {alerts.map((alert) => {
+                // Determine color based on candle direction
+                const isBullish = alert.candleDirection === 'bullish'
+                const isBearish = alert.candleDirection === 'bearish'
+                
+                return (
                 <div
                   key={alert.id}
                   className={`p-3 rounded-lg border transition-all duration-150 hover:shadow-md ${
-                    alert.alertType === 'SPIKE' 
+                    isBullish
                       ? 'border-brand-500/30 bg-brand-500/5 hover:bg-brand-500/10' 
-                      : 'border-border hover:bg-muted/50'
+                      : isBearish
+                        ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
+                        : 'border-border hover:bg-muted/50'
                   }`}
                 >
                   <div className="space-y-2">
                     {/* Header: Asset name and timestamp */}
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-brand-500 flex-shrink-0" />
+                        <TrendingUp className={`h-4 w-4 flex-shrink-0 ${
+                          isBullish ? 'text-brand-500' : isBearish ? 'text-danger-500' : 'text-muted-foreground'
+                        }`} />
                         <span className="font-semibold text-base">{alert.asset}</span>
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -151,7 +160,8 @@ export function VolumeAlertsPanel() {
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </ScrollArea>
