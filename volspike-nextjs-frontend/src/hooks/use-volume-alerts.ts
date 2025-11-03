@@ -74,12 +74,18 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   
   // Set up WebSocket connection for real-time alerts
   useEffect(() => {
-    if (typeof window === 'undefined') return // Skip on server-side
+    if (typeof window === 'undefined' || !session) return // Skip on server-side or when not logged in
     
     const apiUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    const userEmail = session.user?.email
     
-    // Connect to Socket.IO
+    if (!userEmail) return
+    
+    // Connect to Socket.IO with user email as token
     const socket = io(apiUrl, {
+      auth: {
+        token: userEmail, // Backend uses email to look up user and tier
+      },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -89,7 +95,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     socketRef.current = socket
     
     socket.on('connect', () => {
-      console.log('✅ Connected to volume alerts WebSocket')
+      console.log(`✅ Connected to volume alerts WebSocket (${tier} tier)`)
       setIsConnected(true)
       setError(null)
     })
@@ -119,7 +125,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     return () => {
       socket.disconnect()
     }
-  }, [tier])
+  }, [tier, session])
   
   // Set up polling as fallback (only when disconnected)
   useEffect(() => {

@@ -100,9 +100,14 @@ export function VolumeAlertsPanel() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      {/* Asset name and icon on first line */}
+                      <div className="flex items-center gap-2 mb-1">
                         <TrendingUp className="h-4 w-4 text-brand-500 flex-shrink-0" />
                         <span className="font-semibold text-base">{alert.asset}</span>
+                      </div>
+                      
+                      {/* Multiplier and Update badges always on second line */}
+                      <div className="flex items-center gap-2 mb-2">
                         <Badge 
                           variant="outline" 
                           className="text-xs font-mono-tabular bg-brand-500/10 border-brand-500/30"
@@ -116,11 +121,9 @@ export function VolumeAlertsPanel() {
                         )}
                       </div>
                       
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Volume: {formatVolume(alert.currentVolume)} 
-                        <span className="text-xs ml-1">
-                          (prev: {formatVolume(alert.previousVolume)})
-                        </span>
+                      {/* Volume on one line with inline span */}
+                      <p className="text-sm text-muted-foreground mb-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                        Volume: {formatVolume(alert.currentVolume)} <span className="text-xs">(prev: {formatVolume(alert.previousVolume)})</span>
                       </p>
                       
                       {(alert.price || alert.fundingRate) && (
