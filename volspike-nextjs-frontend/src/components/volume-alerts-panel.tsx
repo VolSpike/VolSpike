@@ -186,8 +186,9 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                     </div>
                     
                     {/* Volume information - current and previous */}
-                    <div className="text-sm text-muted-foreground">
-                      This hour: {formatVolume(alert.currentVolume)} <span className="text-xs opacity-70">(Last hour: {formatVolume(alert.previousVolume)})</span>
+                    <div className="text-sm text-muted-foreground space-y-0.5">
+                      <div>This hour: {formatVolume(alert.currentVolume)}</div>
+                      <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                     </div>
                     
                     {/* Price and funding on one line */}
