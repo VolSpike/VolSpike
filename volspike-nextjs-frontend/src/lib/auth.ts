@@ -3,7 +3,11 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import type { NextAuthConfig } from 'next-auth'
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const BACKEND_API_URL = process.env.BACKEND_API_URL 
+    || process.env.NEXT_PUBLIC_API_URL 
+    || (typeof window === 'undefined' && process.env.NODE_ENV === 'production' 
+        ? 'https://volspike-production.up.railway.app' 
+        : 'http://localhost:3001')
 
 export const authConfig: NextAuthConfig = {
     debug: process.env.NODE_ENV === 'development',
