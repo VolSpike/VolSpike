@@ -16,6 +16,7 @@ const tiers = [
     popular: false,
     cta: 'Start Free',
     ctaVariant: 'outline' as const,
+    isComingSoon: false,
     features: [
       { text: '15-minute market data updates', highlight: false },
       { text: 'Top 50 symbols by volume', highlight: false },
@@ -40,6 +41,7 @@ const tiers = [
     popular: true,
     cta: 'Upgrade to Pro',
     ctaVariant: 'default' as const,
+    isComingSoon: false,
     features: [
       { text: '5-minute market data updates', highlight: true },
       { text: 'Top 100 symbols by volume', highlight: true },
@@ -61,8 +63,9 @@ const tiers = [
     icon: Sparkles,
     iconColor: 'text-elite-600 dark:text-elite-400',
     popular: false,
-    cta: 'Go Elite',
-    ctaVariant: 'default' as const,
+    cta: 'Coming Soon',
+    ctaVariant: 'outline' as const,
+    isComingSoon: true,
     features: [
       { text: 'Real-time streaming updates', highlight: true },
       { text: 'ALL active symbols (unlimited)', highlight: true },
@@ -99,6 +102,14 @@ export function PricingTiers() {
                 <Badge className="bg-gradient-to-r from-brand-600 to-sec-600 text-white border-0 shadow-lg px-4 py-1">
                   <Star className="h-3 w-3 mr-1" />
                   Most Popular
+                </Badge>
+              </div>
+            )}
+            
+            {tier.isComingSoon && (
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
+                <Badge className="bg-muted text-muted-foreground border border-border shadow-lg px-4 py-1">
+                  Coming Soon
                 </Badge>
               </div>
             )}
@@ -159,18 +170,25 @@ export function PricingTiers() {
               {/* CTA Button */}
               <Button
                 variant={tier.ctaVariant}
+                disabled={tier.isComingSoon}
                 className={`w-full mt-6 ${
                   tier.name === 'Pro'
                     ? 'bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-lg'
-                    : tier.name === 'Elite'
+                    : tier.name === 'Elite' && !tier.isComingSoon
                       ? 'bg-elite-600 hover:bg-elite-700 text-white'
-                      : ''
+                      : tier.isComingSoon
+                        ? 'opacity-50 cursor-not-allowed'
+                        : ''
                 }`}
-                asChild
+                asChild={!tier.isComingSoon}
               >
-                <a href={tier.name === 'Free' ? '/auth' : '/settings'}>
-                  {tier.cta}
-                </a>
+                {tier.isComingSoon ? (
+                  <span>{tier.cta}</span>
+                ) : (
+                  <a href={tier.name === 'Free' ? '/auth' : '/settings'}>
+                    {tier.cta}
+                  </a>
+                )}
               </Button>
             </CardContent>
           </Card>
