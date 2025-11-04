@@ -8,10 +8,15 @@ import { Button } from '@/components/ui/button'
 import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
-export function VolumeAlertsPanel() {
+interface VolumeAlertsPanelProps {
+  onNewAlert?: () => void
+}
+
+export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
     pollInterval: 15000, // Poll every 15 seconds as fallback
     autoFetch: true,
+    onNewAlert, // Pass callback to hook
   })
   
   // Format countdown timer

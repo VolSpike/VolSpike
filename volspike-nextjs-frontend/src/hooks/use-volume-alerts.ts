@@ -24,10 +24,11 @@ export interface VolumeAlert {
 interface UseVolumeAlertsOptions {
   pollInterval?: number // milliseconds (fallback when WebSocket disconnected)
   autoFetch?: boolean
+  onNewAlert?: () => void // Callback when new alert arrives
 }
 
 export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
-  const { pollInterval = 15000, autoFetch = true } = options // Default: 15 seconds polling as fallback
+  const { pollInterval = 15000, autoFetch = true, onNewAlert } = options
   const { data: session } = useSession()
   const [alerts, setAlerts] = useState<VolumeAlert[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -197,6 +198,11 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
         const filtered = prev.filter(a => a.id !== newAlert.id)
         return [newAlert, ...filtered].slice(0, getTierLimit(tier))
       })
+      
+      // Notify parent component (for unread badge on mobile)
+      if (onNewAlert) {
+        onNewAlert()
+      }
     })
     
     // Cleanup on unmount

@@ -25,6 +25,8 @@ export function Dashboard() {
     const [countdownDisplay, setCountdownDisplay] = useState<string>('')
     const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
     const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')
+    const [unreadAlertsCount, setUnreadAlertsCount] = useState(0)
+    const [currentTab, setCurrentTab] = useState('market')
 
     // Debug session status
     console.log('[Dashboard] useSession status:', status)
@@ -202,7 +204,16 @@ export function Dashboard() {
     )
 
     const alertsCard = <AlertPanel alerts={alerts} userTier={userTier as 'free' | 'pro' | 'elite'} />
-    const volumeAlertsCard = <VolumeAlertsPanel />
+    const volumeAlertsCard = (
+        <VolumeAlertsPanel 
+            onNewAlert={() => {
+                // Only increment if user is on Market Data tab (mobile only)
+                if (currentTab === 'market') {
+                    setUnreadAlertsCount(prev => prev + 1)
+                }
+            }}
+        />
+    )
 
     return (
         <div className="flex-1 bg-background relative">
@@ -216,10 +227,28 @@ export function Dashboard() {
                         <AdBanner userTier={userTier} />
                     )}
                     <div className="lg:hidden">
-                        <Tabs defaultValue="market" className="w-full">
+                        <Tabs 
+                            defaultValue="market" 
+                            className="w-full"
+                            value={currentTab}
+                            onValueChange={(value) => {
+                                setCurrentTab(value)
+                                // Clear unread count when user switches to alerts tab
+                                if (value === 'alerts') {
+                                    setUnreadAlertsCount(0)
+                                }
+                            }}
+                        >
                             <TabsList className="grid grid-cols-2">
                                 <TabsTrigger value="market">Market Data</TabsTrigger>
-                                <TabsTrigger value="alerts">Volume Spikes</TabsTrigger>
+                                <TabsTrigger value="alerts" className="relative">
+                                    Volume Spikes
+                                    {unreadAlertsCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold text-white bg-danger-500 rounded-full animate-pulse">
+                                            {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
+                                        </span>
+                                    )}
+                                </TabsTrigger>
                             </TabsList>
                             <TabsContent value="market" className="mt-4">
                                 {marketDataCard}
