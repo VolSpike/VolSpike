@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useUserIdentity } from '@/hooks/use-user-identity'
-import { useTheme } from 'next-themes'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,9 +28,6 @@ import {
     Bell,
     Star,
     Zap,
-    Moon,
-    Sun,
-    Monitor,
     TrendingUp,
     FileText,
     Key,
@@ -43,7 +39,6 @@ import Link from 'next/link'
 export function UserMenu() {
     const router = useRouter()
     const identity = useUserIdentity()
-    const { theme, setTheme } = useTheme()
     const [isOpen, setIsOpen] = useState(false)
 
     const handleCopy = async (text: string, label: string) => {
@@ -252,45 +247,6 @@ export function UserMenu() {
                         <TrendingUp className="h-4 w-4 mr-2.5 text-muted-foreground" />
                         <span className="flex-1">Watchlist</span>
                     </DropdownMenuItem>
-                </div>
-
-                <DropdownMenuSeparator className="my-1" />
-
-                {/* Theme Toggle Sub-menu */}
-                <div className="py-1">
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted">
-                            {theme === 'light' && <Sun className="h-4 w-4 mr-2.5 text-muted-foreground" />}
-                            {theme === 'dark' && <Moon className="h-4 w-4 mr-2.5 text-muted-foreground" />}
-                            {theme === 'system' && <Monitor className="h-4 w-4 mr-2.5 text-muted-foreground" />}
-                            <span className="flex-1">Theme</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuPortal>
-                            <DropdownMenuSubContent className="backdrop-blur-lg bg-popover/95 border-border/50 rounded-lg">
-                                <DropdownMenuItem 
-                                    onClick={() => setTheme('light')}
-                                    className="rounded-md"
-                                >
-                                    <Sun className="h-4 w-4 mr-2.5" />
-                                    <span>Light</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                    onClick={() => setTheme('dark')}
-                                    className="rounded-md"
-                                >
-                                    <Moon className="h-4 w-4 mr-2.5" />
-                                    <span>Dark</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                    onClick={() => setTheme('system')}
-                                    className="rounded-md"
-                                >
-                                    <Monitor className="h-4 w-4 mr-2.5" />
-                                    <span>System</span>
-                                </DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                    </DropdownMenuSub>
                 </div>
 
                 <DropdownMenuSeparator className="my-1" />
