@@ -104,9 +104,6 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
             const volume24h = Number(t.q || t.quoteVolume || t.v || 0);
 
-            // Filter for >$100M in 24h volume
-            if (volume24h < 100_000_000) continue;
-
             const f = fundingRef.current.get(sym);
             const fundingRate = parseFundingRate(f);
             out.push({
@@ -120,10 +117,19 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             });
         }
 
-        // Sort by volume (highest to lowest) - no limit, show all qualifying pairs
+        // Sort by volume (highest to lowest)
         out.sort((a, b) => b.volume24h - a.volume24h);
-        return out;
-    }, []);
+        
+        // Apply tier-based limits
+        const tierLimits = {
+            free: 50,
+            pro: 100,
+            elite: out.length // Elite gets all symbols
+        };
+        
+        const limit = tierLimits[tier as keyof typeof tierLimits] || 50;
+        return out.slice(0, limit);
+    }, [tier]);
 
     const render = useCallback((snapshot: MarketData[]) => {
         setData(snapshot);
