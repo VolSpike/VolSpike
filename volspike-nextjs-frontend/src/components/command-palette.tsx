@@ -109,7 +109,7 @@ export function CommandPalette({ userTier = 'free', onCreateAlert }: CommandPale
                     </CommandItem>
                     {userTier === 'free' && (
                         <CommandItem
-                            onSelect={() => runCommand(() => router.push('/settings'))}
+                            onSelect={() => runCommand(() => router.push('/pricing'))}
                         >
                             <Zap className="mr-2 h-4 w-4 text-brand-500" />
                             <span>Upgrade to Pro</span>

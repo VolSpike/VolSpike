@@ -39,6 +39,22 @@ export function Header() {
                     </span>
                 </Link>
 
+                {/* Navigation Links */}
+                <nav className="hidden md:flex items-center gap-1 ml-8">
+                    <Link
+                        href="/pricing"
+                        className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-150"
+                    >
+                        Pricing
+                    </Link>
+                    <Link
+                        href="/dashboard"
+                        className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-150"
+                    >
+                        Dashboard
+                    </Link>
+                </nav>
+
                 {/* Right side actions */}
                 <div className="ml-auto flex items-center gap-2 sm:gap-3">
                     <ThemeToggle />

@@ -21,7 +21,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
     }
 
     const handleUpgrade = () => {
-        router.push('/settings')
+        router.push('/pricing')
     }
 
     return (

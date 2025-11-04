@@ -280,7 +280,7 @@ export function UserMenu() {
                         <div className="p-2">
                             <Button
                                 onClick={() => {
-                                    router.push('/settings')
+                                    router.push('/pricing')
                                     setIsOpen(false)
                                 }}
                                 size="sm"
