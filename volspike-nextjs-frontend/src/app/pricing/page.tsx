@@ -1,5 +1,4 @@
 import { Header } from '@/components/header'
-import { Footer } from '@/components/footer'
 import { PricingTiers } from '@/components/pricing-tiers'
 import { FeatureComparison } from '@/components/feature-comparison'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
@@ -92,8 +91,6 @@ export default async function PricingPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
     </SessionProvider>
   )

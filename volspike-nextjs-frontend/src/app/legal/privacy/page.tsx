@@ -1,5 +1,4 @@
 import { Header } from '@/components/header'
-import { Footer } from '@/components/footer'
 import { SessionProvider } from 'next-auth/react'
 import { getNextAuthSession } from '@/lib/auth-server'
 
@@ -69,8 +68,6 @@ export default async function PrivacyPage() {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
     </SessionProvider>
   )
