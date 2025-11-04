@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
@@ -8,13 +9,17 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Bell, Zap, Star, Sparkles } from 'lucide-react'
+import { Bell, Zap, Star, Sparkles, Menu, X, Home, LayoutDashboard, Tag, Settings, LogOut } from 'lucide-react'
 import { UserMenu } from '@/components/user-menu'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Separator } from '@/components/ui/separator'
+import { signOut } from 'next-auth/react'
 
 export function Header() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const tier = session?.user?.tier || 'free'
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm transition-all duration-200">
@@ -57,6 +62,130 @@ export function Header() {
 
                 {/* Right side actions */}
                 <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                    {/* Mobile Menu - visible only on mobile/tablet */}
+                    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                        <SheetTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="md:hidden h-9 w-9 rounded-full"
+                                aria-label="Open menu"
+                            >
+                                <Menu className="h-5 w-5" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="w-[280px] sm:w-[320px]">
+                            <SheetHeader>
+                                <SheetTitle className="flex items-center gap-2">
+                                    <Image
+                                        src="/volspike-logo.svg"
+                                        alt="VolSpike"
+                                        width={28}
+                                        height={28}
+                                    />
+                                    <span className="text-lg">VolSpike</span>
+                                </SheetTitle>
+                            </SheetHeader>
+
+                            {/* Navigation Links */}
+                            <nav className="mt-8 flex flex-col gap-1">
+                                <Link
+                                    href="/"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                >
+                                    <Home className="h-4 w-4" />
+                                    Home
+                                </Link>
+                                
+                                <Link
+                                    href="/dashboard"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                >
+                                    <LayoutDashboard className="h-4 w-4" />
+                                    Dashboard
+                                </Link>
+
+                                <Link
+                                    href="/pricing"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                >
+                                    <Tag className="h-4 w-4" />
+                                    Pricing
+                                </Link>
+
+                                <Separator className="my-4" />
+
+                                {session ? (
+                                    <>
+                                        {/* Tier Badge */}
+                                        <div className="px-3 py-2 mb-2">
+                                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
+                                                {tier === 'free' && <Zap className="h-4 w-4 text-muted-foreground" />}
+                                                {tier === 'pro' && <Star className="h-4 w-4 text-sec-600 dark:text-sec-400" />}
+                                                {tier === 'elite' && <Sparkles className="h-4 w-4 text-elite-600 dark:text-elite-400" />}
+                                                <span className="text-sm font-medium capitalize">
+                                                    {tier} Tier
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <Link
+                                            href="/settings"
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                        >
+                                            <Settings className="h-4 w-4" />
+                                            Settings
+                                        </Link>
+
+                                        <button
+                                            onClick={() => {
+                                                setMobileMenuOpen(false)
+                                                signOut()
+                                            }}
+                                            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors text-left w-full"
+                                        >
+                                            <LogOut className="h-4 w-4" />
+                                            Sign Out
+                                        </button>
+
+                                        {/* Upgrade CTA for free tier */}
+                                        {tier === 'free' && (
+                                            <>
+                                                <Separator className="my-4" />
+                                                <Button
+                                                    onClick={() => {
+                                                        setMobileMenuOpen(false)
+                                                        router.push('/pricing')
+                                                    }}
+                                                    className="w-full bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-lg"
+                                                >
+                                                    <Sparkles className="h-4 w-4 mr-2" />
+                                                    Upgrade to Pro
+                                                </Button>
+                                            </>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <Button
+                                            onClick={() => {
+                                                setMobileMenuOpen(false)
+                                                signIn()
+                                            }}
+                                            className="w-full bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white"
+                                        >
+                                            Sign In
+                                        </Button>
+                                    </>
+                                )}
+                            </nav>
+                        </SheetContent>
+                    </Sheet>
+
                     <ThemeToggle />
 
                     {status === 'loading' ? (
