@@ -60,8 +60,8 @@ export default async function PrivacyPage() {
               <h2 className="text-2xl font-semibold mb-4">Contact Us</h2>
               <p className="text-muted-foreground">
                 If you have questions about this Privacy Policy, please contact us at{' '}
-                <a href="mailto:privacy@volspike.com" className="text-brand-600 hover:text-brand-700">
-                  privacy@volspike.com
+                <a href="mailto:support@volspike.com" className="text-brand-600 hover:text-brand-700">
+                  support@volspike.com
                 </a>
               </p>
             </section>
