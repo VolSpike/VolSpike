@@ -175,7 +175,7 @@ export function VolumeAlertsPanel() {
                       </Badge>
                       {alert.isUpdate && (
                         <Badge variant="secondary" className="text-xs">
-                          {alert.alertType === 'HALF_UPDATE' ? 'Half Update' : 'Update'}
+                          {alert.alertType === 'HALF_UPDATE' ? '30m Update' : 'Hourly Update'}
                         </Badge>
                       )}
                     </div>
