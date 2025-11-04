@@ -31,6 +31,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                 'bg-card hover:shadow-brand-lg transition-all duration-300',
                 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-brand-500/8 before:via-brand-500/4 before:to-transparent before:pointer-events-none dark:before:from-brand-400/12 dark:before:via-brand-400/6',
                 'after:absolute after:inset-0 after:bg-gradient-to-br after:from-transparent after:via-transparent after:to-sec-500/5 after:pointer-events-none',
+                'animate-fade-in', // Add smooth fade-in animation
                 'group',
                 className
             )}

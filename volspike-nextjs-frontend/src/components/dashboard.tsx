@@ -223,10 +223,12 @@ export function Dashboard() {
             <main className="container mx-auto px-4 py-8">
                 <div className="space-y-6">
                     {/* Advertisement Banner for Free Tier Users */}
-                    {userTier === 'free' && (
-                        <AdBanner userTier={userTier} />
-                    )}
-                    <div className="lg:hidden">
+                    <div className="min-h-0 transition-all duration-300">
+                        {userTier === 'free' && (
+                            <AdBanner userTier={userTier} />
+                        )}
+                    </div>
+                    <div className="lg:hidden animate-fade-in">
                         <Tabs 
                             defaultValue="market" 
                             className="w-full"
@@ -250,16 +252,16 @@ export function Dashboard() {
                                     )}
                                 </TabsTrigger>
                             </TabsList>
-                            <TabsContent value="market" className="mt-4">
+                            <TabsContent value="market" className="mt-4 animate-fade-in">
                                 {marketDataCard}
                             </TabsContent>
-                            <TabsContent value="alerts" className="mt-4">
+                            <TabsContent value="alerts" className="mt-4 animate-fade-in">
                                 {volumeAlertsCard}
                             </TabsContent>
                         </Tabs>
                     </div>
 
-                    <div className="hidden gap-6 lg:grid lg:grid-cols-4">
+                    <div className="hidden gap-6 lg:grid lg:grid-cols-4 animate-fade-in">
                         <div className="lg:col-span-3">
                             {marketDataCard}
                         </div>
