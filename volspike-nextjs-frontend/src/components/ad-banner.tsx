@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight, Zap, Mail, Clock } from 'lucide-react'
+import { ArrowRight, Zap, Mail, Clock, TrendingUp, Download, RefreshCw } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -64,27 +64,45 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                             </div>
 
                             <p className="text-sm text-muted-foreground leading-relaxed">
-                                Get faster market updates, real-time email alerts, and access to all trading symbols with Pro tier.
+                                Upgrade to Pro and unlock 3x faster updates, 2x more symbols, 5x more alerts, email notifications, data export capabilities, and more.
                             </p>
 
-                            <div className="flex flex-wrap items-center gap-4 pt-1">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
                                 <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '100ms' }}>
-                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20">
+                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20 flex-shrink-0">
                                         <Clock className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                                     </div>
-                                    <span className="font-medium">5-minute updates</span>
+                                    <span className="font-medium text-xs sm:text-sm">5-min updates</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '200ms' }}>
-                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20">
-                                        <Mail className="h-4 w-4 text-brand-600 dark:text-brand-400" />
-                                    </div>
-                                    <span className="font-medium">Email alerts</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '300ms' }}>
-                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20">
+                                <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '150ms' }}>
+                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20 flex-shrink-0">
                                         <Zap className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                                     </div>
-                                    <span className="font-medium">All symbols</span>
+                                    <span className="font-medium text-xs sm:text-sm">100 symbols</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '200ms' }}>
+                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20 flex-shrink-0">
+                                        <TrendingUp className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                                    </div>
+                                    <span className="font-medium text-xs sm:text-sm">50 alerts</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '250ms' }}>
+                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20 flex-shrink-0">
+                                        <Mail className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                                    </div>
+                                    <span className="font-medium text-xs sm:text-sm">Email alerts</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '300ms' }}>
+                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20 flex-shrink-0">
+                                        <Download className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                                    </div>
+                                    <span className="font-medium text-xs sm:text-sm">CSV/JSON export</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm text-foreground animate-fade-in" style={{ animationDelay: '350ms' }}>
+                                    <div className="flex items-center justify-center w-6 h-6 rounded-md bg-brand-500/10 dark:bg-brand-400/20 transition-colors group-hover:bg-brand-500/20 flex-shrink-0">
+                                        <RefreshCw className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                                    </div>
+                                    <span className="font-medium text-xs sm:text-sm">Manual refresh</span>
                                 </div>
                             </div>
                         </div>
