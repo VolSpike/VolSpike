@@ -83,30 +83,6 @@ export default function PricingPage() {
             </div>
           </div>
         </div>
-
-        {/* Final CTA */}
-        <div className="mt-24 text-center">
-          <div className="p-8 rounded-xl border-2 border-brand-500/30 bg-gradient-to-br from-brand-500/5 to-sec-500/5">
-            <h2 className="text-2xl font-bold mb-4">Ready to elevate your trading?</h2>
-            <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
-              Join thousands of traders using VolSpike to catch volume spikes before the market reacts.
-            </p>
-            <div className="flex items-center justify-center gap-4 flex-wrap">
-              <a 
-                href="/auth" 
-                className="px-6 py-3 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Start Free
-              </a>
-              <a 
-                href="/dashboard" 
-                className="px-6 py-3 rounded-lg border-2 border-border hover:bg-muted text-foreground font-semibold transition-all duration-200"
-              >
-                View Demo
-              </a>
-            </div>
-          </div>
-        </div>
       </main>
 
       <Footer />
