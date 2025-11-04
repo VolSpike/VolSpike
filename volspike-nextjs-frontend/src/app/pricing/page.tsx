@@ -4,6 +4,8 @@ import { PricingTiers } from '@/components/pricing-tiers'
 import { FeatureComparison } from '@/components/feature-comparison'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Pricing - VolSpike',
   description: 'Choose the perfect plan for your trading needs. From free real-time data to professional-grade tools.',
