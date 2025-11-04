@@ -78,7 +78,7 @@ export default function PricingPage() {
             <div className="p-6 rounded-lg border border-border bg-muted/30">
               <h3 className="font-semibold mb-2">Can I cancel anytime?</h3>
               <p className="text-sm text-muted-foreground">
-                Absolutely. No long-term commitments. Cancel from your settings page, and you'll retain access until the end of your billing period.
+                Absolutely. No long-term commitments. Cancel from your settings page, and you&apos;ll retain access until the end of your billing period.
               </p>
             </div>
           </div>
