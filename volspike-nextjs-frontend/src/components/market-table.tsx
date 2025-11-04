@@ -23,6 +23,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet'
+import { WatchlistExportButton } from '@/components/watchlist-export-button'
 
 const FUNDING_ALERT_THRESHOLD = 0.0003
 
@@ -211,9 +212,15 @@ export function MarketTable({
                         </span>
                     )}
                 </div>
-                <span className="text-xs text-muted-foreground">
-                    {sortedData.length} symbols
-                </span>
+                <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">
+                        {sortedData.length} symbols
+                    </span>
+                    <WatchlistExportButton 
+                        data={sortedData}
+                        userTier={userTier}
+                    />
+                </div>
             </div>
 
             {/* Table with sticky header */}
