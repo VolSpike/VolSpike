@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,7 @@ import { signOut } from 'next-auth/react'
 export function Header() {
     const { data: session, status } = useSession()
     const router = useRouter()
+    const pathname = usePathname()
     const tier = session?.user?.tier || 'free'
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -48,14 +49,28 @@ export function Header() {
                 <nav className="hidden md:flex items-center gap-1 ml-8">
                     <Link
                         href="/pricing"
-                        className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-150"
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
+                            pathname === '/pricing'
+                                ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }`}
                     >
+                        {pathname === '/pricing' && (
+                            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
+                        )}
                         Pricing
                     </Link>
                     <Link
                         href="/dashboard"
-                        className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-150"
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
+                            pathname === '/dashboard'
+                                ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }`}
                     >
+                        {pathname === '/dashboard' && (
+                            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
+                        )}
                         Dashboard
                     </Link>
                 </nav>
@@ -92,7 +107,11 @@ export function Header() {
                                 <Link
                                     href="/"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                                        pathname === '/'
+                                            ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
+                                            : 'hover:bg-muted'
+                                    }`}
                                 >
                                     <Home className="h-4 w-4" />
                                     Home
@@ -101,7 +120,11 @@ export function Header() {
                                 <Link
                                     href="/dashboard"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                                        pathname === '/dashboard'
+                                            ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
+                                            : 'hover:bg-muted'
+                                    }`}
                                 >
                                     <LayoutDashboard className="h-4 w-4" />
                                     Dashboard
@@ -110,7 +133,11 @@ export function Header() {
                                 <Link
                                     href="/pricing"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg hover:bg-muted transition-colors"
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                                        pathname === '/pricing'
+                                            ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
+                                            : 'hover:bg-muted'
+                                    }`}
                                 >
                                     <Tag className="h-4 w-4" />
                                     Pricing
