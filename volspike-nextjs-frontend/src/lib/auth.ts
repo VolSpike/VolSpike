@@ -81,9 +81,9 @@ export const authConfig: NextAuthConfig = {
                         id: user.id,
                         email: user.email,
                         name: user.email,
-                        tier: user.tier,
+                        tier: user.tier || 'free', // Default to 'free' if undefined
                         emailVerified: user.emailVerified,
-                        role: user.role,
+                        role: user.role || 'USER', // Default to 'USER' if undefined
                         status: user.status,
                         twoFactorEnabled: user.twoFactorEnabled,
                         accessToken: token,
@@ -156,15 +156,15 @@ export const authConfig: NextAuthConfig = {
             if (user) {
                 token.id = user.id
                 token.email = user.email
-                token.tier = user.tier
+                token.tier = user.tier || 'free' // Default to 'free' if undefined
                 token.emailVerified = user.emailVerified
-                token.role = user.role
+                token.role = user.role || 'USER' // Default to 'USER' if undefined
                 token.status = user.status
                 token.twoFactorEnabled = user.twoFactorEnabled
                 token.accessToken = user.accessToken
                 token.walletAddress = user.walletAddress
                 token.walletProvider = user.walletProvider
-                console.log(`[Auth] JWT callback - User logged in: ${user.email}`)
+                console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}`)
             }
 
             // Handle Google OAuth account linking
@@ -191,9 +191,9 @@ export const authConfig: NextAuthConfig = {
                     if (response.ok) {
                         const { user: dbUser, token: dbToken } = await response.json()
                         token.id = dbUser.id
-                        token.tier = dbUser.tier
+                        token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
                         token.emailVerified = dbUser.emailVerified
-                        token.role = dbUser.role
+                        token.role = dbUser.role || 'USER' // Default to 'USER' if undefined
                         token.status = dbUser.status
                         token.twoFactorEnabled = dbUser.twoFactorEnabled
                         token.accessToken = dbToken
@@ -210,15 +210,15 @@ export const authConfig: NextAuthConfig = {
                 session.user.id = token.id
                 session.user.email = token.email
                 session.user.name = session.user.name || token.email?.split('@')[0] || 'VolSpike User'
-                session.user.tier = token.tier
+                session.user.tier = token.tier || 'free' // Default to 'free' if undefined
                 session.user.emailVerified = token.emailVerified
-                session.user.role = token.role
+                session.user.role = token.role || 'USER' // Default to 'USER' if undefined
                 session.user.status = token.status
                 session.user.twoFactorEnabled = token.twoFactorEnabled
                 session.user.walletAddress = token.walletAddress
                 session.user.walletProvider = token.walletProvider
                 session.accessToken = token.accessToken
-                console.log(`[Auth] Session callback - User: ${token.email}, AccessToken set to JWT`)
+                console.log(`[Auth] Session callback - User: ${token.email}, tier: ${session.user.tier}, AccessToken set to JWT`)
             }
             return session
         },

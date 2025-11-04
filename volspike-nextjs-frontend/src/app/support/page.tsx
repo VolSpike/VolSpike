@@ -1,15 +1,23 @@
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
+import { SessionProvider } from 'next-auth/react'
+import { getNextAuthSession } from '@/lib/auth-server'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export const metadata = {
   title: 'Support - VolSpike',
   description: 'Get help and support for VolSpike',
 }
 
-export default function SupportPage() {
+export default async function SupportPage() {
+  const session = await getNextAuthSession()
+
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <SessionProvider session={session}>
+      <div className="min-h-screen bg-background">
+        <Header />
       
       <main className="container mx-auto px-4 py-16">
         <div className="max-w-3xl mx-auto text-center">
@@ -33,6 +41,7 @@ export default function SupportPage() {
 
       <Footer />
     </div>
+    </SessionProvider>
   )
 }
 

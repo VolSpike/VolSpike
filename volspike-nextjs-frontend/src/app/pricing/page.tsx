@@ -3,19 +3,25 @@ import { Footer } from '@/components/footer'
 import { PricingTiers } from '@/components/pricing-tiers'
 import { FeatureComparison } from '@/components/feature-comparison'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
+import { SessionProvider } from 'next-auth/react'
+import { getNextAuthSession } from '@/lib/auth-server'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export const metadata = {
   title: 'Pricing - VolSpike',
   description: 'Choose the perfect plan for your trading needs. From free real-time data to professional-grade tools.',
 }
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const session = await getNextAuthSession()
+
   return (
-    <div className="min-h-screen bg-background relative">
-      <BackgroundPattern />
-      <Header />
+    <SessionProvider session={session}>
+      <div className="min-h-screen bg-background relative">
+        <BackgroundPattern />
+        <Header />
       
       <main className="container mx-auto px-4 py-16 relative">
         {/* Hero Section */}
@@ -89,6 +95,7 @@ export default function PricingPage() {
 
       <Footer />
     </div>
+    </SessionProvider>
   )
 }
 
