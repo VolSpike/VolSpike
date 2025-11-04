@@ -77,16 +77,18 @@ export function KeyboardShortcuts() {
 
     return (
         <>
-            {/* Keyboard hint */}
+            {/* Keyboard hint - compact by default, expands on hover */}
             <div className="fixed bottom-4 right-4 z-40 hidden lg:block">
                 <button
                     onClick={() => setOpen(true)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/80 backdrop-blur-sm border border-border/50 shadow-sm hover:shadow-md hover:bg-muted transition-all duration-200 text-xs text-muted-foreground group"
+                    className="flex items-center gap-2 px-2 py-2 rounded-full bg-muted/80 backdrop-blur-sm border border-border/50 shadow-sm hover:shadow-md hover:bg-muted hover:rounded-lg hover:px-3 transition-all duration-200 text-xs text-muted-foreground group"
                 >
-                    <span className="group-hover:text-foreground transition-colors">Keyboard shortcuts</span>
-                    <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0.5">
+                    <span className="hidden group-hover:inline-block group-hover:text-foreground transition-colors whitespace-nowrap">
+                        Keyboard shortcuts
+                    </span>
+                    <div className="flex items-center justify-center h-5 w-5 rounded-full bg-background border border-border/50 text-[11px] font-semibold text-foreground">
                         ?
-                    </Badge>
+                    </div>
                 </button>
             </div>
 
