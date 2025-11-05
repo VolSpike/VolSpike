@@ -121,7 +121,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
               <Bell className="h-5 w-5" />
               Volume Alerts
             </CardTitle>
-            <CardDescription className="flex items-center gap-3 flex-wrap">
+            <CardDescription className="flex items-center gap-2 flex-wrap">
               <Badge 
                 variant="outline" 
                 className={`text-xs ${isConnected ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' : 'border-muted'}`}
@@ -129,6 +129,18 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                 <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-muted-foreground'}`} />
                 {isConnected ? 'Live' : tier}
               </Badge>
+              {/* Sound toggle - compact icon-only button */}
+              <button
+                onClick={() => setSoundsEnabled(!soundsEnabled)}
+                title={soundsEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted transition-colors"
+              >
+                {soundsEnabled ? (
+                  <Volume2 className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </button>
               {tier !== 'elite' && nextUpdate > 0 && (
                 <span className="text-blue-500 text-xs">
                   • Next update in {getCountdownDisplay()}
@@ -137,20 +149,6 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Sound toggle button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSoundsEnabled(!soundsEnabled)}
-              title={soundsEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
-              className="h-8 w-8"
-            >
-              {soundsEnabled ? (
-                <Volume2 className="h-4 w-4 text-brand-600 dark:text-brand-400" />
-              ) : (
-                <VolumeX className="h-4 w-4 text-muted-foreground" />
-              )}
-            </Button>
             {/* Only show refresh button for Pro/Elite tiers */}
             {tier !== 'free' && (
               <Button
