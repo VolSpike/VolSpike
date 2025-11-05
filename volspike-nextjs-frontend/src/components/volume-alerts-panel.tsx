@@ -260,44 +260,85 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
               
               <div>
                 <p className="text-xs font-semibold mb-2 text-muted-foreground">Create Test Alerts (click them to test):</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => createTestAlert('spike', 'bullish')}
-                    className="text-xs bg-brand-500/10 hover:bg-brand-500/20"
-                  >
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    Bullish Spike
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => createTestAlert('spike', 'bearish')}
-                    className="text-xs bg-danger-500/10 hover:bg-danger-500/20"
-                  >
-                    <TrendingDown className="h-3 w-3 mr-1" />
-                    Bearish Spike
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => createTestAlert('half_update', 'bullish')}
-                    className="text-xs"
-                  >
-                    <Play className="h-3 w-3 mr-1" />
-                    30m Update
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => createTestAlert('full_update', 'bullish')}
-                    className="text-xs"
-                  >
-                    <Play className="h-3 w-3 mr-1" />
-                    Hourly Update
-                  </Button>
-                  {testAlerts.length > 0 && (
+                
+                {/* Spike Alerts */}
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1.5">⚡ Spike Alerts (Maximum Drama):</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => createTestAlert('spike', 'bullish')}
+                      className="text-xs bg-brand-500/10 hover:bg-brand-500/20 border-brand-500/30"
+                    >
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      ⚡ Lightning (Green)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => createTestAlert('spike', 'bearish')}
+                      className="text-xs bg-danger-500/10 hover:bg-danger-500/20 border-danger-500/30"
+                    >
+                      <TrendingDown className="h-3 w-3 mr-1" />
+                      ☄️ Meteor (Red)
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 30m Updates */}
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1.5">⚡ 30m Updates (Medium Drama):</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => createTestAlert('half_update', 'bullish')}
+                      className="text-xs bg-brand-500/10 hover:bg-brand-500/20 border-brand-500/30"
+                    >
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      ✨ Quantum (Green)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => createTestAlert('half_update', 'bearish')}
+                      className="text-xs bg-danger-500/10 hover:bg-danger-500/20 border-danger-500/30"
+                    >
+                      <TrendingDown className="h-3 w-3 mr-1" />
+                      🚨 Warning (Red)
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Hourly Updates */}
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1.5">🌅 Hourly Updates (Elegant Subtlety):</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => createTestAlert('full_update', 'bullish')}
+                      className="text-xs bg-brand-500/10 hover:bg-brand-500/20 border-brand-500/30"
+                    >
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      🌅 Aurora (Green)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => createTestAlert('full_update', 'bearish')}
+                      className="text-xs bg-danger-500/10 hover:bg-danger-500/20 border-danger-500/30"
+                    >
+                      <TrendingDown className="h-3 w-3 mr-1" />
+                      🔥 Ember (Red)
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Clear button */}
+                {testAlerts.length > 0 && (
+                  <div className="mb-2">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -306,9 +347,10 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                     >
                       Clear Test Alerts
                     </Button>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
                   💡 Tip: Test alerts appear at the top. Click any alert card to re-trigger its animation!
                 </p>
               </div>
