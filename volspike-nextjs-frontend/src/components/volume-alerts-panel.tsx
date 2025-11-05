@@ -1,11 +1,13 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
+import { useAlertSounds } from '@/hooks/use-alert-sounds'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
 interface VolumeAlertsPanelProps {
@@ -18,6 +20,43 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
     autoFetch: true,
     onNewAlert, // Pass callback to hook
   })
+  
+  const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled } = useAlertSounds()
+  const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
+  const prevAlertsRef = useRef<typeof alerts>([])
+  
+  // Detect new alerts and play sounds
+  useEffect(() => {
+    if (alerts.length === 0 || prevAlertsRef.current.length === 0) {
+      prevAlertsRef.current = alerts
+      return
+    }
+    
+    const prevIds = new Set(prevAlertsRef.current.map(a => a.id))
+    const newAlerts = alerts.filter(a => !prevIds.has(a.id))
+    
+    if (newAlerts.length > 0) {
+      // Mark new alerts for animation
+      setNewAlertIds(new Set(newAlerts.map(a => a.id)))
+      
+      // Play sound for the first new alert
+      const firstNew = newAlerts[0]
+      const soundType = firstNew.alertType === 'HALF_UPDATE' 
+        ? 'half_update' 
+        : firstNew.alertType === 'FULL_UPDATE'
+          ? 'full_update'
+          : 'spike'
+      
+      playSound(soundType)
+      
+      // Clear "new" status after animation completes (2 seconds)
+      setTimeout(() => {
+        setNewAlertIds(new Set())
+      }, 2000)
+    }
+    
+    prevAlertsRef.current = alerts
+  }, [alerts, playSound])
   
   // Format countdown timer
   const getCountdownDisplay = () => {
@@ -89,6 +128,20 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
               <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-muted-foreground'}`} />
               {isConnected ? 'Live' : tier}
             </Badge>
+            {/* Sound toggle button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSoundsEnabled(!soundsEnabled)}
+              title={soundsEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
+              className="h-8 w-8"
+            >
+              {soundsEnabled ? (
+                <Volume2 className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+              ) : (
+                <VolumeX className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
             {/* Only show refresh button for Pro/Elite tiers */}
             {tier !== 'free' && (
               <Button
@@ -129,6 +182,15 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                 // Determine color based on candle direction
                 const isBullish = alert.candleDirection === 'bullish'
                 const isBearish = alert.candleDirection === 'bearish'
+                const isNew = newAlertIds.has(alert.id)
+                
+                // Determine animation class based on alert type
+                const getAnimationClass = () => {
+                  if (!isNew) return ''
+                  if (alert.alertType === 'HALF_UPDATE') return 'animate-scale-in'
+                  if (alert.alertType === 'FULL_UPDATE') return 'animate-fade-in'
+                  return 'animate-slide-in-right' // New spike
+                }
                 
                 return (
                 <div
@@ -139,6 +201,8 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                       : isBearish
                         ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
                         : 'border-border hover:bg-muted/50'
+                  } ${getAnimationClass()} ${
+                    isNew ? 'ring-2 ring-brand-500/50 shadow-lg shadow-brand-500/20' : ''
                   }`}
                 >
                   <div className="space-y-2">
