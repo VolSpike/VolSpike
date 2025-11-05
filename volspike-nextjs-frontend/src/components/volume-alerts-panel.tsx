@@ -115,28 +115,28 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 whitespace-nowrap">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2 whitespace-nowrap mb-1.5">
               <Bell className="h-5 w-5" />
               Volume Alerts
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="flex items-center gap-3 flex-wrap">
+              <Badge 
+                variant="outline" 
+                className={`text-xs ${isConnected ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' : 'border-muted'}`}
+              >
+                <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-muted-foreground'}`} />
+                {isConnected ? 'Live' : tier}
+              </Badge>
               {tier !== 'elite' && nextUpdate > 0 && (
-                <span className="text-blue-500">
-                  Next update in {getCountdownDisplay()}
+                <span className="text-blue-500 text-xs">
+                  • Next update in {getCountdownDisplay()}
                 </span>
               )}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge 
-              variant="outline" 
-              className={`text-xs ${isConnected ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' : 'border-muted'}`}
-            >
-              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-muted-foreground'}`} />
-              {isConnected ? 'Live' : tier}
-            </Badge>
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Sound toggle button */}
             <Button
               variant="ghost"
