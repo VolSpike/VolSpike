@@ -224,7 +224,8 @@ export function MarketTable({
             </div>
 
             {/* Table with sticky header */}
-            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+            <div className="relative max-h-[600px] overflow-y-auto overflow-x-hidden">
+                <div className="min-w-full">
                 <table className="w-full">
                     <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
                         <tr className="border-b border-border/50">
@@ -298,7 +299,7 @@ export function MarketTable({
 
             const rowClasses = [
                 'border-b border-border/40 transition-all duration-200 cursor-pointer group relative',
-                'hover:shadow-md hover:scale-[1.01] hover:z-10'
+                'hover:brightness-105 dark:hover:brightness-110' // Subtle glow instead of scale
             ]
             if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
                 // Make positive funding highlights more prominent with depth
@@ -306,7 +307,8 @@ export function MarketTable({
                     'bg-gradient-to-r from-brand-500/12 via-brand-500/8 to-transparent',
                     'hover:from-brand-500/20 hover:via-brand-500/15 hover:to-brand-500/5',
                     'border-l-4 border-l-brand-500/70',
-                    'shadow-sm shadow-brand-500/10'
+                    'shadow-sm shadow-brand-500/10',
+                    'hover:shadow-md hover:shadow-brand-500/20'
                 )
             } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
                 // Make negative funding highlights more prominent with depth
@@ -314,11 +316,13 @@ export function MarketTable({
                     'bg-gradient-to-r from-danger-500/12 via-danger-500/8 to-transparent',
                     'hover:from-danger-500/20 hover:via-danger-500/15 hover:to-danger-500/5',
                     'border-l-4 border-l-danger-500/70',
-                    'shadow-sm shadow-danger-500/10'
+                    'shadow-sm shadow-danger-500/10',
+                    'hover:shadow-md hover:shadow-danger-500/20'
                 )
             } else {
                 rowClasses.push(
-                    'hover:bg-gradient-to-r hover:from-muted/60 hover:via-muted/40 hover:to-transparent'
+                    'hover:bg-gradient-to-r hover:from-muted/60 hover:via-muted/40 hover:to-transparent',
+                    'hover:shadow-sm'
                 )
             }
 
@@ -395,6 +399,7 @@ export function MarketTable({
                         })}
                     </tbody>
                 </table>
+                </div>
             </div>
 
             {/* Detail Drawer */}
