@@ -146,9 +146,6 @@ export function Dashboard() {
 
     const marketDataCard = (
         <Card className="group">
-            {/* Gradient accent bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-500 via-secondary-500 to-brand-500 opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
-            
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <span className="bg-gradient-to-br from-brand-600 to-brand-500 dark:from-brand-400 dark:to-brand-600 bg-clip-text text-transparent">

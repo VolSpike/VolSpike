@@ -11,14 +11,12 @@ const TabsList = React.forwardRef<
     <TabsPrimitive.List
         ref={ref}
         className={cn(
-            "flex h-12 items-center justify-center rounded-xl p-1",
-            // Vibrant gradient background with color tints
-            "bg-gradient-to-br from-brand-50/60 via-slate-100/80 to-secondary-50/60",
-            "dark:from-brand-950/40 dark:via-slate-800/80 dark:to-secondary-950/40",
-            "backdrop-blur-md",
-            // Colored border and shadow
-            "border border-brand-200/40 dark:border-brand-800/40",
-            "shadow-md shadow-brand-500/10 dark:shadow-brand-500/20",
+            "flex h-11 items-center justify-center rounded-lg p-1",
+            // Simple, clean background
+            "bg-muted/50",
+            "backdrop-blur-sm",
+            // Minimal border
+            "border border-border/50",
             // Ensure proper containment
             "w-full max-w-full",
             className
@@ -35,20 +33,19 @@ const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Trigger
         ref={ref}
         className={cn(
-            "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-2",
-            "text-sm font-semibold transition-all duration-300",
+            "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2",
+            "text-sm font-semibold transition-all duration-200",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
             "disabled:pointer-events-none disabled:opacity-50",
             "flex-1", // Equal width distribution
             // Inactive state - subtle and blended
-            "text-slate-600 dark:text-slate-400",
-            "hover:text-slate-900 dark:hover:text-slate-100",
-            "hover:bg-white/50 dark:hover:bg-slate-800/50",
-            // Active state - clean and refined
-            "data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900",
+            "text-muted-foreground",
+            "hover:text-foreground",
+            "hover:bg-background/50",
+            // Active state - clean, simple, effective
+            "data-[state=active]:bg-card",
             "data-[state=active]:text-brand-600 dark:data-[state=active]:text-brand-400",
-            "data-[state=active]:shadow-sm data-[state=active]:shadow-brand-500/10",
-            "dark:data-[state=active]:shadow-brand-500/20",
+            "data-[state=active]:shadow-sm",
             className
         )}
         {...props}

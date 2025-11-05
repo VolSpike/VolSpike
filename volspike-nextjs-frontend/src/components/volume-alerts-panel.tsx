@@ -153,9 +153,6 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   
   return (
     <Card className="group">
-      {/* Gradient accent bar - orange/red theme for alerts */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-warning-500 via-danger-500 to-warning-500 opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
-      
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
