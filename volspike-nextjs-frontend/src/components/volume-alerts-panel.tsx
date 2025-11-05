@@ -435,10 +435,9 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                   return ''
                 }
                 
-                // Handler for testing animations by clicking on alert cards
+                // Handler for replaying animations by clicking on alert cards
+                // Available for ALL users (desktop click or mobile tap)
                 const handleAlertClick = () => {
-                  if (!isTestMode) return // Only work in debug mode
-                  
                   // Determine sound type based on alert type
                   const soundType = alert.alertType === 'HALF_UPDATE' 
                     ? 'half_update' 
@@ -460,7 +459,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                 <div
                   key={alert.id}
                   onClick={handleAlertClick}
-                  className={`p-3 rounded-lg border transition-all duration-150 hover:shadow-md ${
+                  className={`p-3 rounded-lg border transition-all duration-150 cursor-pointer hover:shadow-md ${
                     isBullish
                       ? 'border-brand-500/30 bg-brand-500/5 hover:bg-brand-500/10' 
                       : isBearish
@@ -468,8 +467,8 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                         : 'border-border hover:bg-muted/50'
                   } ${getAnimationClass()} ${getGlowClass()} ${
                     isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
-                  } ${isTestMode ? 'cursor-pointer' : ''}`}
-                  title={isTestMode ? 'Click to test animation' : undefined}
+                  }`}
+                  title="Click to replay animation and sound"
                 >
                   <div className="space-y-2">
                     {/* Header: Asset name and timestamp */}
