@@ -185,34 +185,99 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                 {process.env.NODE_ENV === 'development' && 'Development mode'}
               </span>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => playSound('spike')}
-                className="text-xs"
-              >
-                <Play className="h-3 w-3 mr-1" />
-                Test Spike Sound
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => playSound('half_update')}
-                className="text-xs"
-              >
-                <Play className="h-3 w-3 mr-1" />
-                Test 30m Update
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => playSound('full_update')}
-                className="text-xs"
-              >
-                <Play className="h-3 w-3 mr-1" />
-                Test Hourly Update
-              </Button>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold mb-2 text-muted-foreground">Test Sounds:</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => playSound('spike')}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Spike Alert
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => playSound('half_update')}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    30m Update
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => playSound('full_update')}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Hourly Update
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <p className="text-xs font-semibold mb-2 text-muted-foreground">Test Animations:</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      // Simulate a new spike alert
+                      const mockAlert = {
+                        id: `test-spike-${Date.now()}`,
+                        alertType: 'SPIKE' as const,
+                      }
+                      setNewAlertIds(new Set([mockAlert.id]))
+                      playSound('spike')
+                      setTimeout(() => setNewAlertIds(new Set()), 2000)
+                    }}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Spike Animation
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      // Simulate a 30m update
+                      const mockAlert = {
+                        id: `test-half-${Date.now()}`,
+                        alertType: 'HALF_UPDATE' as const,
+                      }
+                      setNewAlertIds(new Set([mockAlert.id]))
+                      playSound('half_update')
+                      setTimeout(() => setNewAlertIds(new Set()), 2000)
+                    }}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    30m Animation
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      // Simulate hourly update
+                      const mockAlert = {
+                        id: `test-full-${Date.now()}`,
+                        alertType: 'FULL_UPDATE' as const,
+                      }
+                      setNewAlertIds(new Set([mockAlert.id]))
+                      playSound('full_update')
+                      setTimeout(() => setNewAlertIds(new Set()), 2000)
+                    }}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Hourly Animation
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         )}
