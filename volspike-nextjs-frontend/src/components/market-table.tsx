@@ -496,9 +496,6 @@ export function MarketTable({
         <Card className="overflow-hidden">
             <CardHeader>
                 <CardTitle>Market Data</CardTitle>
-                <CardDescription>
-                    Real-time volume spikes and market movements
-                </CardDescription>
             </CardHeader>
             <CardContent className="p-0">{tableContent}</CardContent>
         </Card>

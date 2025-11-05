@@ -154,17 +154,16 @@ export function Dashboard() {
                     </span>
                 </CardTitle>
                 <CardDescription>
-                    Real-time volume spikes and market movements
                     {isLive ? (
-                        <span className="ml-2 text-green-500">● Live Data (Binance WebSocket)</span>
+                        <span className="text-green-500">● Live Data (Binance WebSocket)</span>
                     ) : isConnecting ? (
-                        <span className="ml-2 text-yellow-500">● Connecting to Binance...</span>
+                        <span className="text-yellow-500">● Connecting to Binance...</span>
                     ) : isReconnecting ? (
-                        <span className="ml-2 text-yellow-500">● Reconnecting...</span>
+                        <span className="text-yellow-500">● Reconnecting...</span>
                     ) : hasError ? (
-                        <span className="ml-2 text-red-500">● Connection Failed</span>
+                        <span className="text-red-500">● Connection Failed</span>
                     ) : (
-                        <span className="ml-2 text-blue-500">● Loading...</span>
+                        <span className="text-blue-500">● Loading...</span>
                     )}
                     {lastUpdate > 0 && (
                         <span className="ml-2 text-gray-500">

@@ -122,10 +122,9 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
               Volume Alerts
             </CardTitle>
             <CardDescription>
-              Real-time volume spike notifications from Binance
               {tier !== 'elite' && nextUpdate > 0 && (
-                <span className="ml-2 text-blue-500">
-                  • Next update in {getCountdownDisplay()}
+                <span className="text-blue-500">
+                  Next update in {getCountdownDisplay()}
                 </span>
               )}
             </CardDescription>
