@@ -309,6 +309,14 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                   return 'animate-slide-in-right' // New spike
                 }
                 
+                // Add glow animation for new alerts
+                const getGlowClass = () => {
+                  if (!isNew) return ''
+                  if (isBullish) return 'animate-glow-pulse-green'
+                  if (isBearish) return 'animate-glow-pulse-red'
+                  return ''
+                }
+                
                 return (
                 <div
                   key={alert.id}
@@ -318,8 +326,8 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                       : isBearish
                         ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
                         : 'border-border hover:bg-muted/50'
-                  } ${getAnimationClass()} ${
-                    isNew ? 'ring-2 ring-brand-500/50 shadow-lg shadow-brand-500/20' : ''
+                  } ${getAnimationClass()} ${getGlowClass()} ${
+                    isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
                   }`}
                 >
                   <div className="space-y-2">

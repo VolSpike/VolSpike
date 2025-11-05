@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { Howl } from 'howler'
 
 /**
  * Custom hook for managing alert notification sounds
- * Provides different sounds for different alert types with user controls
+ * Uses Howler.js for professional audio playback with Web Audio API fallback
  */
 
 export type AlertType = 'spike' | 'half_update' | 'full_update'
@@ -12,6 +13,12 @@ export type AlertType = 'spike' | 'half_update' | 'full_update'
 interface UseAlertSoundsOptions {
   enabled?: boolean
   volume?: number // 0-1
+}
+
+interface SoundConfig {
+  spike: Howl | null
+  half_update: Howl | null
+  full_update: Howl | null
 }
 
 export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
@@ -27,9 +34,81 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
     return stored !== null ? parseFloat(stored) : (options.volume ?? 0.5)
   })
 
+  const [loading, setLoading] = useState(true)
+  const soundsRef = useRef<SoundConfig>({
+    spike: null,
+    half_update: null,
+    full_update: null,
+  })
   const audioContextRef = useRef<AudioContext | null>(null)
 
-  // Initialize AudioContext on first interaction (browser requirement)
+  // Initialize Howler sounds on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    try {
+      // Initialize each sound with Howler
+      // Note: Files will be created at public/sounds/*.mp3
+      // For now, we provide paths and gracefully fall back if they don't exist
+      soundsRef.current = {
+        spike: new Howl({
+          src: ['/sounds/spike-alert.mp3', '/sounds/spike-alert.webm'],
+          volume: volume,
+          preload: true,
+          html5: true, // Use HTML5 Audio for better mobile support
+          onload: () => {
+            console.log('✅ Spike alert sound loaded')
+            setLoading(false)
+          },
+          onloaderror: (_id, err) => {
+            console.log('ℹ️ Spike alert MP3 not found, will use Web Audio API fallback')
+            setLoading(false)
+          },
+        }),
+        half_update: new Howl({
+          src: ['/sounds/half-update.mp3', '/sounds/half-update.webm'],
+          volume: volume,
+          preload: true,
+          html5: true,
+          onloaderror: (_id, err) => {
+            console.log('ℹ️ Half update MP3 not found, will use Web Audio API fallback')
+          },
+        }),
+        full_update: new Howl({
+          src: ['/sounds/full-update.mp3', '/sounds/full-update.webm'],
+          volume: volume,
+          preload: true,
+          html5: true,
+          onloaderror: (_id, err) => {
+            console.log('ℹ️ Full update MP3 not found, will use Web Audio API fallback')
+          },
+        }),
+      }
+    } catch (err) {
+      console.warn('Howler.js initialization failed, using Web Audio API:', err)
+      setLoading(false)
+    }
+
+    // Cleanup on unmount
+    return () => {
+      Object.values(soundsRef.current).forEach(sound => {
+        if (sound) {
+          sound.unload()
+        }
+      })
+    }
+  }, [])
+
+  // Update volume when it changes
+  useEffect(() => {
+    Object.values(soundsRef.current).forEach(sound => {
+      if (sound) {
+        sound.volume(volume)
+      }
+    })
+  }, [volume])
+
+  // Initialize Web Audio API context (fallback)
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -57,10 +136,11 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
   }, [enabled, volume])
 
   /**
-   * Generate different sounds using Web Audio API
+   * Fallback to Web Audio API if MP3 files don't exist
+   * This is a temporary solution until professional MP3s are added
    */
-  const playSound = (type: AlertType) => {
-    if (!enabled || !audioContextRef.current) return
+  const playFallbackSound = useCallback((type: AlertType) => {
+    if (!audioContextRef.current) return
 
     const ctx = audioContextRef.current
     const now = ctx.currentTime
@@ -72,8 +152,7 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
 
     switch (type) {
       case 'spike': {
-        // New Volume Spike: Exciting two-tone chime (higher pitch, attention-grabbing)
-        // First tone: 800Hz
+        // New Volume Spike: Two-tone chime
         const osc1 = ctx.createOscillator()
         osc1.type = 'sine'
         osc1.frequency.setValueAtTime(800, now)
@@ -81,7 +160,6 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
         osc1.start(now)
         osc1.stop(now + 0.1)
 
-        // Second tone: 1000Hz (slightly delayed for chime effect)
         const osc2 = ctx.createOscillator()
         osc2.type = 'sine'
         osc2.frequency.setValueAtTime(1000, now + 0.08)
@@ -92,7 +170,7 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
       }
 
       case 'half_update': {
-        // 30m Update: Softer pop sound (medium pitch, informative)
+        // 30m Update: Softer pop
         const osc = ctx.createOscillator()
         osc.type = 'sine'
         osc.frequency.setValueAtTime(600, now)
@@ -100,7 +178,7 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
         
         const envelope = ctx.createGain()
         envelope.connect(gainNode)
-        envelope.gain.setValueAtTime(volume * 0.7, now) // Softer than spike
+        envelope.gain.setValueAtTime(volume * 0.7, now)
         envelope.gain.exponentialRampToValueAtTime(0.01, now + 0.15)
         
         osc.connect(envelope)
@@ -110,14 +188,14 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
       }
 
       case 'full_update': {
-        // Hourly Update: Gentle beep (low pitch, subtle reminder)
+        // Hourly Update: Gentle beep
         const osc = ctx.createOscillator()
         osc.type = 'sine'
         osc.frequency.setValueAtTime(500, now)
         
         const envelope = ctx.createGain()
         envelope.connect(gainNode)
-        envelope.gain.setValueAtTime(volume * 0.5, now) // Even softer
+        envelope.gain.setValueAtTime(volume * 0.5, now)
         envelope.gain.exponentialRampToValueAtTime(0.01, now + 0.12)
         
         osc.connect(envelope)
@@ -126,7 +204,25 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
         break
       }
     }
-  }
+  }, [volume])
+
+  /**
+   * Play alert sound - tries Howler first, falls back to Web Audio API
+   */
+  const playSound = useCallback((type: AlertType) => {
+    if (!enabled) return
+
+    const sound = soundsRef.current[type]
+
+    // Try Howler first
+    if (sound && sound.state() === 'loaded') {
+      sound.play()
+      return
+    }
+
+    // Fallback to Web Audio API
+    playFallbackSound(type)
+  }, [enabled, playFallbackSound])
 
   return {
     playSound,
@@ -134,6 +230,6 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
     setEnabled,
     volume,
     setVolume,
+    loading,
   }
 }
-

@@ -181,16 +181,54 @@ module.exports = {
                     '50%': { opacity: 0.7 },
                 },
                 "slide-in-right": {
-                    '0%': { transform: 'translateX(100%)', opacity: 0 },
-                    '100%': { transform: 'translateX(0)', opacity: 1 },
+                    '0%': { 
+                        transform: 'translateX(100%) scale(0.95)', 
+                        opacity: 0 
+                    },
+                    '60%': { 
+                        transform: 'translateX(-2%) scale(1.01)', 
+                        opacity: 1 
+                    },
+                    '100%': { 
+                        transform: 'translateX(0) scale(1)', 
+                        opacity: 1 
+                    },
                 },
                 "fade-in": {
-                    '0%': { opacity: 0 },
-                    '100%': { opacity: 1 },
+                    '0%': { 
+                        opacity: 0,
+                        transform: 'translateY(-5px)'
+                    },
+                    '100%': { 
+                        opacity: 1,
+                        transform: 'translateY(0)'
+                    },
                 },
                 "scale-in": {
-                    '0%': { transform: 'scale(0.95)', opacity: 0 },
-                    '100%': { transform: 'scale(1)', opacity: 1 },
+                    '0%': { 
+                        transform: 'scale(0.98) translateY(-10px)', 
+                        opacity: 0 
+                    },
+                    '100%': { 
+                        transform: 'scale(1) translateY(0)', 
+                        opacity: 1 
+                    },
+                },
+                "glow-pulse-green": {
+                    '0%, 100%': { 
+                        boxShadow: '0 0 0 rgba(16, 185, 129, 0)' 
+                    },
+                    '50%': { 
+                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.3)' 
+                    },
+                },
+                "glow-pulse-red": {
+                    '0%, 100%': { 
+                        boxShadow: '0 0 0 rgba(239, 68, 68, 0)' 
+                    },
+                    '50%': { 
+                        boxShadow: '0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.3)' 
+                    },
                 },
                 "confetti": {
                     '0%': { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
@@ -202,9 +240,11 @@ module.exports = {
                 "accordion-up": "accordion-up 0.2s ease-out",
                 "shimmer": "shimmer 2s infinite",
                 "pulse-glow": "pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                "slide-in-right": "slide-in-right 0.3s ease-out",
-                "fade-in": "fade-in 0.2s ease-out",
-                "scale-in": "scale-in 0.15s ease-out",
+                "slide-in-right": "slide-in-right 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                "fade-in": "fade-in 0.3s ease-out",
+                "scale-in": "scale-in 0.4s ease-out",
+                "glow-pulse-green": "glow-pulse-green 1.5s ease-in-out 3",
+                "glow-pulse-red": "glow-pulse-red 1.5s ease-in-out 3",
                 "confetti": "confetti 1s ease-out forwards",
             },
         },
