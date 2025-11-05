@@ -223,9 +223,11 @@ export function Dashboard() {
         <div className="flex-1 bg-background relative min-h-screen">
             <BackgroundPattern />
             
-            {/* Sophisticated gradient overlays for depth */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-500/3 via-transparent to-secondary-500/3 dark:from-brand-500/5 dark:to-secondary-500/5 pointer-events-none" />
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-500/20 to-transparent" />
+            {/* Vibrant multi-layered gradient overlays for depth and color */}
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-500/8 via-secondary-500/5 to-tertiary-500/6 dark:from-brand-500/12 dark:via-secondary-500/8 dark:to-tertiary-500/10 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-brand-500/3 to-transparent dark:via-brand-500/6 pointer-events-none animate-pulse-glow" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-secondary-500/30 to-transparent" />
             
             <Header />
 

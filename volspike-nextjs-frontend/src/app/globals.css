@@ -71,11 +71,11 @@
         --danger-900: 0 63% 31%;
         --danger-950: 0 75% 16%;
 
-        /* Background Layers (Light) */
-        --bg-base: 210 20% 98%; /* #F8FAFB */
-        --bg-surface: 0 0% 100%; /* #FFFFFF */
-        --bg-elevated: 0 0% 100%;
-        --bg-hover: 210 20% 95%; /* #F0F4F7 */
+        /* Background Layers (Light) - Subtle cool tints */
+        --bg-base: 210 40% 97%; /* Soft blue-gray tint instead of stark white */
+        --bg-surface: 200 30% 99%; /* Subtle cyan tint for cards */
+        --bg-elevated: 195 35% 98%; /* Slightly more saturated for elevation */
+        --bg-hover: 205 35% 94%; /* Cool hover state */
 
         /* Shadcn compatible tokens (mapped to new system) */
         --background: var(--bg-base);
@@ -88,14 +88,14 @@
         --primary-foreground: 0 0% 100%;
         --secondary: var(--secondary-500);
         --secondary-foreground: 0 0% 100%;
-        --muted: 210 20% 96%;
-        --muted-foreground: 215 16% 47%;
-        --accent: 210 20% 96%;
+        --muted: 210 30% 94%; /* More saturated muted */
+        --muted-foreground: 215 20% 45%; /* Darker for better contrast */
+        --accent: 195 40% 93%; /* Cyan-tinted accent */
         --accent-foreground: 222 47% 11%;
         --destructive: var(--danger-500);
         --destructive-foreground: 0 0% 100%;
-        --border: 214 32% 91%;
-        --input: 214 32% 91%;
+        --border: 210 30% 88%; /* More saturated border */
+        --input: 210 30% 90%;
         --ring: var(--brand-500);
         --radius: 0.75rem;
         
@@ -113,31 +113,31 @@
         /* Brand stays similar but slightly adjusted for dark */
         --brand-glow: 150 100% 42% / 0.22;
 
-        /* Background Layers (Dark) - Financial Terminal Dark Blue-Black */
-        --bg-base: 222 47% 4%; /* #0A0E1A */
-        --bg-surface: 221 39% 8%; /* #121829 */
-        --bg-elevated: 219 32% 12%; /* #1A2138 */
-        --bg-hover: 218 28% 15%; /* #222B47 */
+        /* Background Layers (Dark) - Rich blue-purple tints for depth */
+        --bg-base: 230 35% 8%; /* Deep blue-purple base instead of pure black */
+        --bg-surface: 225 30% 11%; /* Rich blue-tinted cards */
+        --bg-elevated: 220 28% 14%; /* More saturated for elevation */
+        --bg-hover: 218 25% 17%; /* Vibrant hover state */
 
         /* Shadcn tokens for dark mode */
         --background: var(--bg-base);
-        --foreground: 210 40% 98%;
+        --foreground: 210 50% 96%; /* Slightly warmer white */
         --card: var(--bg-surface);
-        --card-foreground: 210 40% 98%;
+        --card-foreground: 210 50% 96%;
         --popover: var(--bg-elevated);
-        --popover-foreground: 210 40% 98%;
+        --popover-foreground: 210 50% 96%;
         --primary: var(--brand-500);
         --primary-foreground: 220 50% 6%;
         --secondary: var(--secondary-500);
         --secondary-foreground: 220 50% 6%;
-        --muted: 217 33% 18%;
-        --muted-foreground: 215 20% 65%;
-        --accent: 217 33% 18%;
-        --accent-foreground: 210 40% 98%;
+        --muted: 220 30% 20%; /* More saturated muted */
+        --muted-foreground: 215 25% 68%; /* Brighter for contrast */
+        --accent: 225 35% 18%; /* Blue-tinted accent */
+        --accent-foreground: 210 50% 96%;
         --destructive: var(--danger-500);
-        --destructive-foreground: 210 40% 98%;
-        --border: 217 33% 18%;
-        --input: 217 33% 18%;
+        --destructive-foreground: 210 50% 96%;
+        --border: 220 28% 22%; /* More visible border */
+        --input: 220 28% 20%;
         --ring: var(--brand-500);
     }
 }

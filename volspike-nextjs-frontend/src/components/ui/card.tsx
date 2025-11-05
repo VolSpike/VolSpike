@@ -9,10 +9,21 @@ const Card = React.forwardRef<
     <div
         ref={ref}
         className={cn(
-            "rounded-xl border bg-card text-card-foreground",
-            "shadow-lg shadow-slate-200/50 dark:shadow-slate-950/50",
-            "backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95",
-            "hover:shadow-xl hover:shadow-slate-200/60 dark:hover:shadow-slate-950/60",
+            "rounded-xl border",
+            // Colored background with subtle gradient tint
+            "bg-gradient-to-br from-white/95 via-card to-brand-50/40",
+            "dark:from-slate-900/95 dark:via-card dark:to-brand-950/30",
+            "text-card-foreground",
+            // Enhanced shadows with brand color tint
+            "shadow-lg shadow-brand-500/8 dark:shadow-brand-500/15",
+            "border-brand-200/30 dark:border-brand-900/30",
+            // Glassmorphism
+            "backdrop-blur-sm",
+            // Hover effects with more color
+            "hover:shadow-xl hover:shadow-brand-500/15 dark:hover:shadow-brand-500/25",
+            "hover:border-brand-300/50 dark:hover:border-brand-800/50",
+            "hover:from-white via-brand-50/20 hover:to-brand-50/50",
+            "dark:hover:from-slate-900 dark:hover:via-brand-950/20 dark:hover:to-brand-950/40",
             "transition-all duration-300",
             "relative overflow-hidden",
             className
