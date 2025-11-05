@@ -35,25 +35,20 @@ const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Trigger
         ref={ref}
         className={cn(
-            "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2.5",
+            "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-2",
             "text-sm font-semibold transition-all duration-300",
-            "ring-offset-white focus-visible:outline-none focus-visible:ring-2",
-            "focus-visible:ring-brand-400 focus-visible:ring-offset-2",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
             "disabled:pointer-events-none disabled:opacity-50",
-            // Inactive state
+            "flex-1", // Equal width distribution
+            // Inactive state - subtle and blended
             "text-slate-600 dark:text-slate-400",
             "hover:text-slate-900 dark:hover:text-slate-100",
-            "hover:bg-white/60 dark:hover:bg-slate-800/60",
-            // Active state - vibrant with depth
-            "data-[state=active]:bg-gradient-to-br data-[state=active]:from-white data-[state=active]:to-slate-50",
-            "dark:data-[state=active]:from-slate-900 dark:data-[state=active]:to-slate-800",
+            "hover:bg-white/50 dark:hover:bg-slate-800/50",
+            // Active state - clean and refined
+            "data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900",
             "data-[state=active]:text-brand-600 dark:data-[state=active]:text-brand-400",
-            "data-[state=active]:shadow-lg data-[state=active]:shadow-brand-500/20",
-            "dark:data-[state=active]:shadow-brand-500/30",
-            "data-[state=active]:border data-[state=active]:border-brand-200/50",
-            "dark:data-[state=active]:border-brand-900/50",
-            "data-[state=active]:ring-2 data-[state=active]:ring-brand-500/20",
-            "dark:ring-offset-slate-950",
+            "data-[state=active]:shadow-sm data-[state=active]:shadow-brand-500/10",
+            "dark:data-[state=active]:shadow-brand-500/20",
             className
         )}
         {...props}
