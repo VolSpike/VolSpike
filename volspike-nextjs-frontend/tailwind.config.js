@@ -180,59 +180,238 @@ module.exports = {
                     '0%, 100%': { opacity: 1 },
                     '50%': { opacity: 0.7 },
                 },
-                "slide-in-right": {
+                "confetti": {
+                    '0%': { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+                    '100%': { transform: 'translateY(100vh) rotate(360deg)', opacity: 0 },
+                },
+                // 🎯 SPIKE ALERTS - Maximum Drama
+                "lightning-strike-green": {
                     '0%': { 
-                        transform: 'translateX(100%) scale(0.95)', 
-                        opacity: 0 
+                        transform: 'translateY(-100%) translateX(50%) scale(0.3) rotateX(90deg)', 
+                        opacity: 0,
+                        filter: 'brightness(3) blur(10px)',
+                    },
+                    '30%': {
+                        transform: 'translateY(-20%) translateX(10%) scale(0.9) rotateX(45deg)',
+                        opacity: 1,
+                        filter: 'brightness(2) blur(5px)',
+                    },
+                    '50%': {
+                        transform: 'translateY(0) translateX(0) scale(1.05) rotateX(0deg)',
+                        opacity: 1,
+                        filter: 'brightness(1.5) blur(0px)',
+                    },
+                    '70%': {
+                        transform: 'translateY(0) translateX(0) scale(0.98) rotateX(0deg)',
+                        opacity: 1,
+                        filter: 'brightness(1.2) blur(0px)',
+                    },
+                    '100%': { 
+                        transform: 'translateY(0) translateX(0) scale(1) rotateX(0deg)', 
+                        opacity: 1,
+                        filter: 'brightness(1) blur(0px)',
+                    },
+                },
+                "electric-charge-green": {
+                    '0%, 100%': { 
+                        boxShadow: '0 0 0 rgba(16, 185, 129, 0), inset 0 0 0 rgba(16, 185, 129, 0)' 
+                    },
+                    '20%': { 
+                        boxShadow: '0 0 40px rgba(16, 185, 129, 0.8), 0 0 80px rgba(16, 185, 129, 0.4), inset 0 0 20px rgba(16, 185, 129, 0.3)' 
+                    },
+                    '40%': { 
+                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.6), 0 0 40px rgba(16, 185, 129, 0.3), inset 0 0 10px rgba(16, 185, 129, 0.2)' 
                     },
                     '60%': { 
-                        transform: 'translateX(-2%) scale(1.01)', 
-                        opacity: 1 
-                    },
-                    '100%': { 
-                        transform: 'translateX(0) scale(1)', 
-                        opacity: 1 
+                        boxShadow: '0 0 30px rgba(16, 185, 129, 0.7), 0 0 60px rgba(16, 185, 129, 0.35), inset 0 0 15px rgba(16, 185, 129, 0.25)' 
                     },
                 },
-                "fade-in": {
+                "meteor-impact-red": {
                     '0%': { 
+                        transform: 'translate(100%, -100%) scale(0.3) rotate(45deg)', 
                         opacity: 0,
-                        transform: 'translateY(-5px)'
+                        filter: 'brightness(3) blur(10px)',
                     },
-                    '100%': { 
+                    '40%': {
+                        transform: 'translate(20%, -20%) scale(0.9) rotate(20deg)',
                         opacity: 1,
-                        transform: 'translateY(0)'
+                        filter: 'brightness(2) blur(5px)',
                     },
-                },
-                "scale-in": {
-                    '0%': { 
-                        transform: 'scale(0.98) translateY(-10px)', 
-                        opacity: 0 
+                    '60%': {
+                        transform: 'translate(0, 0) scale(1.08) rotate(0deg)',
+                        opacity: 1,
+                        filter: 'brightness(1.5) blur(0px)',
+                    },
+                    '80%': {
+                        transform: 'translate(0, 0) scale(0.96) rotate(0deg)',
+                        opacity: 1,
+                        filter: 'brightness(1.2) blur(0px)',
                     },
                     '100%': { 
-                        transform: 'scale(1) translateY(0)', 
-                        opacity: 1 
+                        transform: 'translate(0, 0) scale(1) rotate(0deg)', 
+                        opacity: 1,
+                        filter: 'brightness(1) blur(0px)',
                     },
                 },
-                "glow-pulse-green": {
+                "shockwave-red": {
+                    '0%, 100%': { 
+                        boxShadow: '0 0 0 rgba(239, 68, 68, 0), 0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 rgba(239, 68, 68, 0)' 
+                    },
+                    '25%': { 
+                        boxShadow: '0 0 50px rgba(239, 68, 68, 0.9), 0 0 100px rgba(239, 68, 68, 0.5), inset 0 0 25px rgba(239, 68, 68, 0.4)' 
+                    },
+                    '50%': { 
+                        boxShadow: '0 0 30px rgba(239, 68, 68, 0.7), 0 0 60px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.3)' 
+                    },
+                    '75%': { 
+                        boxShadow: '0 0 40px rgba(239, 68, 68, 0.8), 0 0 80px rgba(239, 68, 68, 0.45), inset 0 0 20px rgba(239, 68, 68, 0.35)' 
+                    },
+                },
+                // ⚡ 30M UPDATES - Medium Drama
+                "quantum-shimmer-green": {
+                    '0%': { 
+                        transform: 'scale(0.5) rotateY(90deg)',
+                        opacity: 0,
+                        filter: 'blur(20px) hue-rotate(0deg)',
+                    },
+                    '25%': {
+                        transform: 'scale(0.7) rotateY(45deg)',
+                        opacity: 0.5,
+                        filter: 'blur(10px) hue-rotate(90deg)',
+                    },
+                    '50%': {
+                        transform: 'scale(0.9) rotateY(15deg)',
+                        opacity: 0.8,
+                        filter: 'blur(5px) hue-rotate(180deg)',
+                    },
+                    '75%': {
+                        transform: 'scale(1.03) rotateY(-5deg)',
+                        opacity: 1,
+                        filter: 'blur(2px) hue-rotate(90deg)',
+                    },
+                    '100%': { 
+                        transform: 'scale(1) rotateY(0deg)',
+                        opacity: 1,
+                        filter: 'blur(0px) hue-rotate(0deg)',
+                    },
+                },
+                "energy-wave-green": {
+                    '0%, 100%': { 
+                        boxShadow: '0 0 0 rgba(16, 185, 129, 0), 0 0 0 rgba(16, 185, 129, 0)' 
+                    },
+                    '33%': { 
+                        boxShadow: '0 0 25px rgba(16, 185, 129, 0.6), 0 0 50px rgba(16, 185, 129, 0.3), inset 0 0 15px rgba(16, 185, 129, 0.2)' 
+                    },
+                    '66%': { 
+                        boxShadow: '0 0 15px rgba(16, 185, 129, 0.5), 0 0 30px rgba(16, 185, 129, 0.25), inset 0 0 10px rgba(16, 185, 129, 0.15)' 
+                    },
+                },
+                "warning-pulse-red": {
+                    '0%': { 
+                        transform: 'scale(0.8)',
+                        opacity: 0,
+                        filter: 'brightness(2)',
+                    },
+                    '20%': {
+                        transform: 'scale(1.1)',
+                        opacity: 1,
+                        filter: 'brightness(1.8)',
+                    },
+                    '40%': {
+                        transform: 'scale(0.95)',
+                        opacity: 1,
+                        filter: 'brightness(1.3)',
+                    },
+                    '60%': {
+                        transform: 'scale(1.05)',
+                        opacity: 1,
+                        filter: 'brightness(1.5)',
+                    },
+                    '80%': {
+                        transform: 'scale(0.98)',
+                        opacity: 1,
+                        filter: 'brightness(1.2)',
+                    },
+                    '100%': { 
+                        transform: 'scale(1)',
+                        opacity: 1,
+                        filter: 'brightness(1)',
+                    },
+                },
+                "alert-beacon-red": {
+                    '0%, 100%': { 
+                        boxShadow: '0 0 0 rgba(239, 68, 68, 0), inset 0 0 0 rgba(239, 68, 68, 0)' 
+                    },
+                    '25%': { 
+                        boxShadow: '0 0 30px rgba(239, 68, 68, 0.7), 0 0 60px rgba(239, 68, 68, 0.35), inset 0 0 20px rgba(239, 68, 68, 0.25)' 
+                    },
+                    '50%': { 
+                        boxShadow: '0 0 15px rgba(239, 68, 68, 0.5), 0 0 30px rgba(239, 68, 68, 0.25), inset 0 0 10px rgba(239, 68, 68, 0.15)' 
+                    },
+                    '75%': { 
+                        boxShadow: '0 0 25px rgba(239, 68, 68, 0.65), 0 0 50px rgba(239, 68, 68, 0.3), inset 0 0 15px rgba(239, 68, 68, 0.2)' 
+                    },
+                },
+                // 🌅 HOURLY UPDATES - Elegant Subtlety
+                "aurora-wave-green": {
+                    '0%': { 
+                        transform: 'translateX(-50%) scale(0.95)',
+                        opacity: 0,
+                        filter: 'blur(15px) saturate(0)',
+                    },
+                    '30%': {
+                        transform: 'translateX(-10%) scale(0.98)',
+                        opacity: 0.5,
+                        filter: 'blur(8px) saturate(0.5)',
+                    },
+                    '60%': {
+                        transform: 'translateX(5%) scale(1.01)',
+                        opacity: 0.9,
+                        filter: 'blur(3px) saturate(1.2)',
+                    },
+                    '100%': { 
+                        transform: 'translateX(0) scale(1)',
+                        opacity: 1,
+                        filter: 'blur(0px) saturate(1)',
+                    },
+                },
+                "gentle-glow-green": {
                     '0%, 100%': { 
                         boxShadow: '0 0 0 rgba(16, 185, 129, 0)' 
                     },
                     '50%': { 
-                        boxShadow: '0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.3)' 
+                        boxShadow: '0 0 15px rgba(16, 185, 129, 0.4), 0 0 30px rgba(16, 185, 129, 0.2), inset 0 0 10px rgba(16, 185, 129, 0.1)' 
                     },
                 },
-                "glow-pulse-red": {
+                "ember-glow-red": {
+                    '0%': { 
+                        transform: 'translateY(-20px) scale(0.9)',
+                        opacity: 0,
+                        filter: 'blur(10px) brightness(2)',
+                    },
+                    '40%': {
+                        transform: 'translateY(-5px) scale(0.97)',
+                        opacity: 0.7,
+                        filter: 'blur(5px) brightness(1.5)',
+                    },
+                    '70%': {
+                        transform: 'translateY(2px) scale(1.01)',
+                        opacity: 0.95,
+                        filter: 'blur(2px) brightness(1.2)',
+                    },
+                    '100%': { 
+                        transform: 'translateY(0) scale(1)',
+                        opacity: 1,
+                        filter: 'blur(0px) brightness(1)',
+                    },
+                },
+                "soft-pulse-red": {
                     '0%, 100%': { 
                         boxShadow: '0 0 0 rgba(239, 68, 68, 0)' 
                     },
                     '50%': { 
-                        boxShadow: '0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.3)' 
+                        boxShadow: '0 0 18px rgba(239, 68, 68, 0.45), 0 0 35px rgba(239, 68, 68, 0.22), inset 0 0 12px rgba(239, 68, 68, 0.12)' 
                     },
-                },
-                "confetti": {
-                    '0%': { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
-                    '100%': { transform: 'translateY(100vh) rotate(360deg)', opacity: 0 },
                 },
             },
             animation: {
@@ -240,12 +419,22 @@ module.exports = {
                 "accordion-up": "accordion-up 0.2s ease-out",
                 "shimmer": "shimmer 2s infinite",
                 "pulse-glow": "pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-                "slide-in-right": "slide-in-right 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                "fade-in": "fade-in 0.3s ease-out",
-                "scale-in": "scale-in 0.4s ease-out",
-                "glow-pulse-green": "glow-pulse-green 1.5s ease-in-out 3",
-                "glow-pulse-red": "glow-pulse-red 1.5s ease-in-out 3",
                 "confetti": "confetti 1s ease-out forwards",
+                // 🎯 SPIKE ALERTS - Maximum Drama
+                "lightning-strike-green": "lightning-strike-green 0.8s cubic-bezier(0.16, 1, 0.3, 1)",
+                "electric-charge-green": "electric-charge-green 2s ease-in-out 2",
+                "meteor-impact-red": "meteor-impact-red 0.9s cubic-bezier(0.16, 1, 0.3, 1)",
+                "shockwave-red": "shockwave-red 2.2s ease-in-out 2",
+                // ⚡ 30M UPDATES - Medium Drama
+                "quantum-shimmer-green": "quantum-shimmer-green 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                "energy-wave-green": "energy-wave-green 1.8s ease-in-out 3",
+                "warning-pulse-red": "warning-pulse-red 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                "alert-beacon-red": "alert-beacon-red 2s ease-in-out 3",
+                // 🌅 HOURLY UPDATES - Elegant Subtlety
+                "aurora-wave-green": "aurora-wave-green 0.9s ease-out",
+                "gentle-glow-green": "gentle-glow-green 2.5s ease-in-out 2",
+                "ember-glow-red": "ember-glow-red 0.8s ease-out",
+                "soft-pulse-red": "soft-pulse-red 2.5s ease-in-out 2",
             },
         },
     },

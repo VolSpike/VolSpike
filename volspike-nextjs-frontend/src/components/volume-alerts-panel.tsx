@@ -328,26 +328,66 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
               <p className="text-xs mt-1">Check back soon for new alerts</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
               {displayAlerts.map((alert) => {
                 // Determine color based on candle direction
                 const isBullish = alert.candleDirection === 'bullish'
                 const isBearish = alert.candleDirection === 'bearish'
                 const isNew = newAlertIds.has(alert.id)
                 
-                // Determine animation class based on alert type
+                // 🎨 Sophisticated animation selection based on type AND direction
                 const getAnimationClass = () => {
                   if (!isNew) return ''
-                  if (alert.alertType === 'HALF_UPDATE') return 'animate-scale-in'
-                  if (alert.alertType === 'FULL_UPDATE') return 'animate-fade-in'
-                  return 'animate-slide-in-right' // New spike
+                  
+                  // SPIKE ALERTS - Maximum Drama
+                  if (alert.alertType === 'SPIKE' || !alert.isUpdate) {
+                    return isBullish 
+                      ? 'animate-lightning-strike-green' // ⚡ Lightning from above
+                      : 'animate-meteor-impact-red'      // ☄️ Meteor from diagonal
+                  }
+                  
+                  // 30M UPDATES - Medium Drama
+                  if (alert.alertType === 'HALF_UPDATE') {
+                    return isBullish
+                      ? 'animate-quantum-shimmer-green'  // ✨ Quantum phase-in
+                      : 'animate-warning-pulse-red'      // 🚨 Warning pulse
+                  }
+                  
+                  // HOURLY UPDATES - Elegant Subtlety
+                  if (alert.alertType === 'FULL_UPDATE') {
+                    return isBullish
+                      ? 'animate-aurora-wave-green'      // 🌅 Aurora wave
+                      : 'animate-ember-glow-red'         // 🔥 Ember glow
+                  }
+                  
+                  return ''
                 }
                 
-                // Add glow animation for new alerts
+                // 🌟 Complementary glow effects for each animation
                 const getGlowClass = () => {
                   if (!isNew) return ''
-                  if (isBullish) return 'animate-glow-pulse-green'
-                  if (isBearish) return 'animate-glow-pulse-red'
+                  
+                  // SPIKE ALERTS
+                  if (alert.alertType === 'SPIKE' || !alert.isUpdate) {
+                    return isBullish
+                      ? 'animate-electric-charge-green'  // Electric charge pulses
+                      : 'animate-shockwave-red'          // Shockwave ripples
+                  }
+                  
+                  // 30M UPDATES
+                  if (alert.alertType === 'HALF_UPDATE') {
+                    return isBullish
+                      ? 'animate-energy-wave-green'      // Energy waves
+                      : 'animate-alert-beacon-red'       // Alert beacon
+                  }
+                  
+                  // HOURLY UPDATES
+                  if (alert.alertType === 'FULL_UPDATE') {
+                    return isBullish
+                      ? 'animate-gentle-glow-green'      // Gentle glow
+                      : 'animate-soft-pulse-red'         // Soft pulse
+                  }
+                  
                   return ''
                 }
                 
