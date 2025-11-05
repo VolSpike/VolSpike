@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
 import { useAlertSounds } from '@/hooks/use-alert-sounds'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX } from 'lucide-react'
+import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
 interface VolumeAlertsPanelProps {
@@ -24,6 +26,14 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled } = useAlertSounds()
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
   const prevAlertsRef = useRef<typeof alerts>([])
+  const searchParams = useSearchParams()
+  const { data: session } = useSession()
+  
+  // Test mode: Show test buttons only for admins or when ?debug=true
+  const isTestMode = 
+    searchParams?.get('debug') === 'true' || 
+    (session?.user as any)?.role === 'ADMIN' ||
+    process.env.NODE_ENV === 'development'
   
   // Detect new alerts and play sounds
   useEffect(() => {
@@ -107,7 +117,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 whitespace-nowrap">
               <Bell className="h-5 w-5" />
               Volume Alerts
             </CardTitle>
@@ -162,6 +172,51 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
           <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-danger-500/10 border border-danger-500/30">
             <AlertCircle className="h-4 w-4 text-danger-500" />
             <span className="text-sm text-danger-600 dark:text-danger-400">{error}</span>
+          </div>
+        )}
+        
+        {/* Test Buttons - Only visible in test mode */}
+        {isTestMode && (
+          <div className="mb-4 p-3 rounded-lg bg-warning-500/10 border border-warning-500/30">
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant="outline" className="text-xs bg-warning-500/20 border-warning-500/50 text-warning-600">
+                Test Mode
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {searchParams?.get('debug') === 'true' && 'Debug enabled'}
+                {(session?.user as any)?.role === 'ADMIN' && 'Admin user'}
+                {process.env.NODE_ENV === 'development' && 'Development mode'}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => playSound('spike')}
+                className="text-xs"
+              >
+                <Play className="h-3 w-3 mr-1" />
+                Test Spike Sound
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => playSound('half_update')}
+                className="text-xs"
+              >
+                <Play className="h-3 w-3 mr-1" />
+                Test 30m Update
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => playSound('full_update')}
+                className="text-xs"
+              >
+                <Play className="h-3 w-3 mr-1" />
+                Test Hourly Update
+              </Button>
+            </div>
           </div>
         )}
         
