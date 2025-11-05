@@ -11,7 +11,7 @@ const TabsList = React.forwardRef<
     <TabsPrimitive.List
         ref={ref}
         className={cn(
-            "inline-flex h-12 items-center justify-center rounded-xl p-1.5",
+            "flex h-12 items-center justify-center rounded-xl p-1",
             // Vibrant gradient background with color tints
             "bg-gradient-to-br from-brand-50/60 via-slate-100/80 to-secondary-50/60",
             "dark:from-brand-950/40 dark:via-slate-800/80 dark:to-secondary-950/40",
@@ -19,6 +19,8 @@ const TabsList = React.forwardRef<
             // Colored border and shadow
             "border border-brand-200/40 dark:border-brand-800/40",
             "shadow-md shadow-brand-500/10 dark:shadow-brand-500/20",
+            // Ensure proper containment
+            "w-full max-w-full",
             className
         )}
         {...props}
