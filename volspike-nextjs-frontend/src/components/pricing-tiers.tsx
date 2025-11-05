@@ -91,11 +91,11 @@ export function PricingTiers() {
         return (
           <Card
             key={tier.name}
-            className={`relative transition-all duration-200 ${
+            className={`relative transition-all duration-300 ease-out cursor-pointer ${
               isPopular
-                ? 'ring-2 ring-brand-500 shadow-xl scale-105 md:scale-110 z-10'
-                : 'hover:shadow-lg'
-            }`}
+                ? 'ring-2 ring-brand-500 shadow-xl scale-105 md:scale-110 hover:scale-110 md:hover:scale-[1.15] hover:ring-brand-400 hover:shadow-2xl hover:shadow-brand-500/30 z-10'
+                : 'hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-brand-500/50 hover:z-20'
+            } hover:-translate-y-2 hover:brightness-105`}
           >
             <CardHeader className="text-center pb-8 pt-6">
               {/* Badge inside card header - always visible */}
