@@ -165,10 +165,10 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
             <CardDescription className="flex items-center gap-2 flex-wrap">
               <Badge 
                 variant="outline" 
-                className={`text-xs ${isConnected ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' : 'border-muted'}`}
+                className={`text-xs transition-all duration-300 ${isConnected ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' : 'border-warning-500/30 text-warning-600 dark:text-warning-400'}`}
               >
-                <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-muted-foreground'}`} />
-                {isConnected ? 'Live' : tier}
+                <span className={`mr-1.5 h-1.5 w-1.5 rounded-full transition-all duration-300 ${isConnected ? 'bg-brand-500 animate-pulse' : 'bg-warning-500 animate-pulse'}`} />
+                {isConnected ? 'Live' : 'Connecting'}
               </Badge>
               {/* Sound toggle - compact icon-only button */}
               <button
