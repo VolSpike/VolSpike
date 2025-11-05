@@ -25,6 +25,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   
   const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled } = useAlertSounds()
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
+  const [testAlerts, setTestAlerts] = useState<typeof alerts>([])
   const prevAlertsRef = useRef<typeof alerts>([])
   const searchParams = useSearchParams()
   const { data: session } = useSession()
@@ -34,6 +35,44 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
     searchParams?.get('debug') === 'true' || 
     (session?.user as any)?.role === 'ADMIN' ||
     process.env.NODE_ENV === 'development'
+  
+  // Create mock test alerts
+  const createTestAlert = (type: 'spike' | 'half_update' | 'full_update', direction: 'bullish' | 'bearish' = 'bullish') => {
+    const now = new Date().toISOString()
+    const mockAlert = {
+      id: `test-${type}-${Date.now()}`,
+      asset: type === 'spike' ? 'TEST' : type === 'half_update' ? 'HALF' : 'HOUR',
+      currentVolume: 50000000,
+      previousVolume: 15000000,
+      volumeRatio: 3.33,
+      price: 45000,
+      fundingRate: direction === 'bullish' ? 0.001 : -0.001,
+      candleDirection: direction,
+      timestamp: now,
+      isUpdate: type !== 'spike',
+      alertType: type === 'spike' ? 'SPIKE' : type === 'half_update' ? 'HALF_UPDATE' : 'FULL_UPDATE',
+      createdAt: now,
+      updatedAt: now,
+    }
+    
+    // Add to test alerts
+    setTestAlerts(prev => [mockAlert as any, ...prev.slice(0, 4)]) // Keep max 5 test alerts
+    
+    // Mark as new for animation
+    setNewAlertIds(new Set([mockAlert.id]))
+    
+    // Play sound
+    const soundType = type === 'spike' ? 'spike' : type === 'half_update' ? 'half_update' : 'full_update'
+    playSound(soundType)
+    
+    // Clear animation after 2 seconds
+    setTimeout(() => {
+      setNewAlertIds(new Set())
+    }, 2000)
+  }
+  
+  // Merge real alerts with test alerts
+  const displayAlerts = [...testAlerts, ...alerts]
   
   // Detect new alerts and play sounds
   useEffect(() => {
@@ -220,74 +259,69 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
               </div>
               
               <div>
-                <p className="text-xs font-semibold mb-2 text-muted-foreground">Test Animations:</p>
+                <p className="text-xs font-semibold mb-2 text-muted-foreground">Create Test Alerts (click them to test):</p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      // Simulate a new spike alert
-                      const mockAlert = {
-                        id: `test-spike-${Date.now()}`,
-                        alertType: 'SPIKE' as const,
-                      }
-                      setNewAlertIds(new Set([mockAlert.id]))
-                      playSound('spike')
-                      setTimeout(() => setNewAlertIds(new Set()), 2000)
-                    }}
-                    className="text-xs"
+                    onClick={() => createTestAlert('spike', 'bullish')}
+                    className="text-xs bg-brand-500/10 hover:bg-brand-500/20"
                   >
-                    <Play className="h-3 w-3 mr-1" />
-                    Spike Animation
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Bullish Spike
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      // Simulate a 30m update
-                      const mockAlert = {
-                        id: `test-half-${Date.now()}`,
-                        alertType: 'HALF_UPDATE' as const,
-                      }
-                      setNewAlertIds(new Set([mockAlert.id]))
-                      playSound('half_update')
-                      setTimeout(() => setNewAlertIds(new Set()), 2000)
-                    }}
-                    className="text-xs"
+                    onClick={() => createTestAlert('spike', 'bearish')}
+                    className="text-xs bg-danger-500/10 hover:bg-danger-500/20"
                   >
-                    <Play className="h-3 w-3 mr-1" />
-                    30m Animation
+                    <TrendingDown className="h-3 w-3 mr-1" />
+                    Bearish Spike
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      // Simulate hourly update
-                      const mockAlert = {
-                        id: `test-full-${Date.now()}`,
-                        alertType: 'FULL_UPDATE' as const,
-                      }
-                      setNewAlertIds(new Set([mockAlert.id]))
-                      playSound('full_update')
-                      setTimeout(() => setNewAlertIds(new Set()), 2000)
-                    }}
+                    onClick={() => createTestAlert('half_update', 'bullish')}
                     className="text-xs"
                   >
                     <Play className="h-3 w-3 mr-1" />
-                    Hourly Animation
+                    30m Update
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => createTestAlert('full_update', 'bullish')}
+                    className="text-xs"
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Hourly Update
+                  </Button>
+                  {testAlerts.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setTestAlerts([])}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Clear Test Alerts
+                    </Button>
+                  )}
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  💡 Tip: Test alerts appear at the top. Click any alert card to re-trigger its animation!
+                </p>
               </div>
             </div>
           </div>
         )}
         
         <ScrollArea className="h-[500px]">
-          {isLoading && alerts.length === 0 ? (
+          {isLoading && displayAlerts.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               Loading alerts...
             </div>
-          ) : alerts.length === 0 ? (
+          ) : displayAlerts.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               <Bell className="h-12 w-12 mx-auto mb-3 opacity-20" />
               <p>No recent volume spikes</p>
@@ -295,7 +329,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
             </div>
           ) : (
             <div className="space-y-3">
-              {alerts.map((alert) => {
+              {displayAlerts.map((alert) => {
                 // Determine color based on candle direction
                 const isBullish = alert.candleDirection === 'bullish'
                 const isBearish = alert.candleDirection === 'bearish'
@@ -430,8 +464,13 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
           )}
         </ScrollArea>
         
-        {alerts.length > 0 && (
+        {displayAlerts.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground text-center">
+            {testAlerts.length > 0 && (
+              <span className="text-warning-600 dark:text-warning-400">
+                {testAlerts.length} test alert{testAlerts.length !== 1 ? 's' : ''} + {' '}
+              </span>
+            )}
             Showing last {alerts.length} alert{alerts.length !== 1 ? 's' : ''} 
             {tier === 'free' && ' (Free tier: 10 max)'}
             {tier === 'pro' && ' (Pro tier: 50 max)'}
