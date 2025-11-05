@@ -224,9 +224,8 @@ export function MarketTable({
             </div>
 
             {/* Table with sticky header */}
-            <div className="relative max-h-[600px] overflow-y-auto overflow-x-hidden">
-                <div className="min-w-full">
-                <table className="w-full">
+            <div className="relative max-h-[600px] overflow-y-auto overflow-x-auto -mx-6 px-6">
+                <table className="w-full min-w-[800px]">
                     <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
                         <tr className="border-b border-border/50">
                             <th className="text-left p-3">
@@ -399,7 +398,6 @@ export function MarketTable({
                         })}
                     </tbody>
                 </table>
-                </div>
             </div>
 
             {/* Detail Drawer */}
