@@ -1,49 +1,31 @@
 # VolSpike Alert Sounds
 
-This directory contains professional alert sound files for the VolSpike trading dashboard.
+This directory contains the professional alert sound file for the VolSpike trading dashboard.
 
-## 📁 Required Files
+## 📁 Required File
 
-Place the following MP3 files in this directory:
+Place your MP3 file in this directory:
 
 ```
 public/sounds/
-├── spike-alert.mp3       # New volume spike (urgent, attention-grabbing)
-├── half-update.mp3       # 30-minute update (softer, informative)
-└── full-update.mp3       # Hourly update (gentle, subtle)
+└── alert.mp3       # Single alert sound for all notification types
 ```
+
+**Note**: VolSpike uses **one unified sound** for all alert types (spike, 30m update, hourly update). This creates a consistent audio brand and simplifies the user experience.
 
 ## 🔊 Sound Specifications
 
-### 1. `spike-alert.mp3` (Volume Spike Alert)
-- **Purpose**: Notifies user of new significant volume spike (most important alert)
-- **Character**: Urgent, attention-grabbing, confident
-- **Duration**: 250-400ms
-- **Pitch**: Mid-high (600-1200Hz)
-- **Volume**: 100% (loudest of three)
-- **Style**: Bloomberg Terminal-style chime, professional notification sound
-- **References**: TradingView price alert, Slack notification
-- **When**: First detection of 3x+ volume increase
+### `alert.mp3` (Universal Alert Sound)
+- **Purpose**: Notifies user of all volume alerts (spike, 30m update, hourly update)
+- **Character**: Professional, attention-grabbing but not annoying
+- **Duration**: 200-400ms (short and snappy)
+- **Pitch**: Mid (500-1000Hz)
+- **Volume**: Moderate (comfortable for repeated listening)
+- **Style**: Bloomberg Terminal-style notification, professional chime
+- **References**: TradingView alert, Slack notification, "Confident" tone
+- **When**: Any volume alert (spike, update, or hourly refresh)
 
-### 2. `half-update.mp3` (30-Minute Update)
-- **Purpose**: Updates existing alert at 30-minute mark
-- **Character**: Softer, informative, less intrusive
-- **Duration**: 150-250ms
-- **Pitch**: Mid (400-800Hz)
-- **Volume**: 70% of spike volume
-- **Style**: Gentle pop or soft woodblock tap
-- **References**: macOS "Pop" sound, Notion notification
-- **When**: Mid-hour check-in for already-alerted assets
-
-### 3. `full-update.mp3` (Hourly Update)
-- **Purpose**: Routine hourly refresh (least urgent)
-- **Character**: Subtle, gentle, background-appropriate
-- **Duration**: 100-200ms
-- **Pitch**: Low-mid (300-600Hz)
-- **Volume**: 50% of spike volume
-- **Style**: Soft bell ping, gentle reminder
-- **References**: iOS "Tink", calendar reminder tone
-- **When**: Top-of-hour update for tracked assets
+**Design Principle**: One consistent sound creates a **unified audio brand** and prevents alert fatigue. Users recognize the sound instantly without needing to distinguish between types (visual alerts already show the type).
 
 ## 📋 Technical Requirements
 
@@ -69,28 +51,31 @@ public/sounds/
 
 **Status**: ⚠️ **Using Web Audio API Fallback**
 
-The application currently uses synthesized sounds from the Web Audio API as a fallback. These are temporary placeholders until professional MP3 files are added.
+The application currently uses synthesized sounds from the Web Audio API as a fallback. This is a temporary placeholder until your professional MP3 file is added.
 
 **Next Steps**:
-1. Consult with audio expert using `SOUND_DESIGN_BRIEF.md`
-2. Receive 3 professional MP3 files
-3. Add files to this directory
-4. Test in debug mode (`?debug=true`)
-5. Deploy to production
+1. Download your chosen sound from NotificationSounds.com (MP3 format)
+2. Save it as `alert.mp3` in this directory
+3. Test locally (`npm run dev`)
+4. Deploy to production (`git push`)
 
 ## 🧪 Testing
 
-Once MP3 files are added, test them using:
+Once the MP3 file is added, test it using:
 
 ```
 1. Go to: https://volspike.com/dashboard?debug=true
 2. Sign in with any account
 3. Scroll to Volume Alerts panel
 4. Look for yellow "Test Mode" panel
-5. Click test buttons:
-   - "Test Spike Sound" → spike-alert.mp3
-   - "Test 30m Update" → half-update.mp3
-   - "Test Hourly Update" → full-update.mp3
+5. Click any test button to hear the alert sound:
+   - "Test Spike Sound" → alert.mp3
+   - "Test 30m Update" → alert.mp3
+   - "Test Hourly Update" → alert.mp3
+   
+Or create test alerts and click them:
+   - Click any "Create Test Alert" button
+   - Click the created alert card to hear sound
 ```
 
 ## 📚 References
@@ -101,12 +86,14 @@ Once MP3 files are added, test them using:
 
 ## 🛠️ Fallback Behavior
 
-If MP3 files are not present, the system automatically falls back to Web Audio API synthesized sounds. This ensures the application continues to work, but the sounds will be less professional.
+If the MP3 file is not present, the system automatically falls back to Web Audio API synthesized sounds. This ensures the application continues to work, but the sounds will be less professional.
 
-**Fallback Sounds**:
+**Fallback Sounds** (type-specific for variety):
 - Spike: Two-tone sine wave (800Hz → 1000Hz)
-- Half Update: Descending sine wave (600Hz → 400Hz)
-- Full Update: Single sine wave (500Hz)
+- 30m Update: Descending sine wave (600Hz → 400Hz)
+- Hourly Update: Single sine wave (500Hz)
+
+**Note**: Once `alert.mp3` is added, **all alerts will use the same professional sound** (fallback is no longer used).
 
 ## 💡 Tips for Sound Designers
 

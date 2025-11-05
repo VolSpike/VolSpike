@@ -15,12 +15,6 @@ interface UseAlertSoundsOptions {
   volume?: number // 0-1
 }
 
-interface SoundConfig {
-  spike: Howl | null
-  half_update: Howl | null
-  full_update: Howl | null
-}
-
 export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
   const [enabled, setEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false
@@ -35,55 +29,30 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
   })
 
   const [loading, setLoading] = useState(true)
-  const soundsRef = useRef<SoundConfig>({
-    spike: null,
-    half_update: null,
-    full_update: null,
-  })
+  const soundRef = useRef<Howl | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
 
-  // Initialize Howler sounds on mount
+  // Initialize single Howler sound on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     try {
-      // Initialize each sound with Howler
-      // Note: Files will be created at public/sounds/*.mp3
-      // For now, we provide paths and gracefully fall back if they don't exist
-      soundsRef.current = {
-        spike: new Howl({
-          src: ['/sounds/spike-alert.mp3', '/sounds/spike-alert.webm'],
-          volume: volume,
-          preload: true,
-          html5: true, // Use HTML5 Audio for better mobile support
-          onload: () => {
-            console.log('✅ Spike alert sound loaded')
-            setLoading(false)
-          },
-          onloaderror: (_id, err) => {
-            console.log('ℹ️ Spike alert MP3 not found, will use Web Audio API fallback')
-            setLoading(false)
-          },
-        }),
-        half_update: new Howl({
-          src: ['/sounds/half-update.mp3', '/sounds/half-update.webm'],
-          volume: volume,
-          preload: true,
-          html5: true,
-          onloaderror: (_id, err) => {
-            console.log('ℹ️ Half update MP3 not found, will use Web Audio API fallback')
-          },
-        }),
-        full_update: new Howl({
-          src: ['/sounds/full-update.mp3', '/sounds/full-update.webm'],
-          volume: volume,
-          preload: true,
-          html5: true,
-          onloaderror: (_id, err) => {
-            console.log('ℹ️ Full update MP3 not found, will use Web Audio API fallback')
-          },
-        }),
-      }
+      // Initialize single alert sound
+      // Uses one MP3 file for all alert types (cleaner approach)
+      soundRef.current = new Howl({
+        src: ['/sounds/alert.mp3', '/sounds/alert.webm'],
+        volume: volume,
+        preload: true,
+        html5: true, // Use HTML5 Audio for better mobile support
+        onload: () => {
+          console.log('✅ Alert sound loaded successfully')
+          setLoading(false)
+        },
+        onloaderror: (_id, err) => {
+          console.log('ℹ️ Alert MP3 not found, will use Web Audio API fallback')
+          setLoading(false)
+        },
+      })
     } catch (err) {
       console.warn('Howler.js initialization failed, using Web Audio API:', err)
       setLoading(false)
@@ -91,21 +60,17 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
 
     // Cleanup on unmount
     return () => {
-      Object.values(soundsRef.current).forEach(sound => {
-        if (sound) {
-          sound.unload()
-        }
-      })
+      if (soundRef.current) {
+        soundRef.current.unload()
+      }
     }
   }, [])
 
   // Update volume when it changes
   useEffect(() => {
-    Object.values(soundsRef.current).forEach(sound => {
-      if (sound) {
-        sound.volume(volume)
-      }
-    })
+    if (soundRef.current) {
+      soundRef.current.volume(volume)
+    }
   }, [volume])
 
   // Initialize Web Audio API context (fallback)
@@ -208,19 +173,18 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
 
   /**
    * Play alert sound - tries Howler first, falls back to Web Audio API
+   * Note: Uses single sound file for all alert types (simpler, cleaner)
    */
   const playSound = useCallback((type: AlertType) => {
     if (!enabled) return
 
-    const sound = soundsRef.current[type]
-
-    // Try Howler first
-    if (sound && sound.state() === 'loaded') {
-      sound.play()
+    // Try Howler first (single sound for all types)
+    if (soundRef.current && soundRef.current.state() === 'loaded') {
+      soundRef.current.play()
       return
     }
 
-    // Fallback to Web Audio API
+    // Fallback to Web Audio API (still type-specific for variety)
     playFallbackSound(type)
   }, [enabled, playFallbackSound])
 
