@@ -97,24 +97,26 @@ export function PricingTiers() {
                 : 'hover:shadow-lg'
             }`}
           >
-            {isPopular && (
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
-                <Badge className="bg-gradient-to-r from-brand-600 to-sec-600 text-white border-0 shadow-lg px-4 py-1">
-                  <Star className="h-3 w-3 mr-1" />
-                  Most Popular
-                </Badge>
-              </div>
-            )}
-            
-            {tier.isComingSoon && (
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
-                <Badge className="bg-muted text-muted-foreground border border-border shadow-lg px-4 py-1">
-                  Coming Soon
-                </Badge>
-              </div>
-            )}
-
-            <CardHeader className="text-center pb-8 pt-8">
+            <CardHeader className="text-center pb-8 pt-6">
+              {/* Badge inside card header - always visible */}
+              {isPopular && (
+                <div className="mb-4">
+                  <Badge className="bg-gradient-to-r from-brand-600 to-sec-600 text-white border-0 shadow-lg px-4 py-1.5">
+                    <Star className="h-3.5 w-3.5 mr-1.5 fill-white" />
+                    Most Popular
+                  </Badge>
+                </div>
+              )}
+              
+              {tier.isComingSoon && (
+                <div className="mb-4">
+                  <Badge className="bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/30 shadow-md px-4 py-1.5">
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    Coming Soon
+                  </Badge>
+                </div>
+              )}
+              
               <div className="mx-auto mb-4 p-3 rounded-full bg-muted w-fit">
                 <Icon className={`h-8 w-8 ${tier.iconColor}`} />
               </div>

@@ -22,9 +22,9 @@ export default async function PricingPage() {
         <BackgroundPattern />
         <Header />
       
-      <main className="container mx-auto px-4 py-16 relative">
+      <main className="container mx-auto px-4 py-12 relative">
         {/* Hero Section */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className="text-center max-w-3xl mx-auto mb-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 pb-1 bg-gradient-to-r from-brand-600 to-sec-600 bg-clip-text text-transparent">
             Simple, Transparent Pricing
           </h1>
