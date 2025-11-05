@@ -45,8 +45,8 @@ export function PhantomSignInSection() {
         )}
       </Button>
       )}
-      {(error || connectError) && (
-        <p className="text-xs text-red-400 text-center">{error || connectError}</p>
+      {error && (
+        <p className="text-xs text-red-400 text-center">{error}</p>
       )}
     </div>
   )
