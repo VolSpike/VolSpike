@@ -152,13 +152,18 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   }
   
   return (
-    <Card>
+    <Card className="group">
+      {/* Gradient accent bar - orange/red theme for alerts */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-warning-500 via-danger-500 to-warning-500 opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
+      
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <CardTitle className="flex items-center gap-2 whitespace-nowrap mb-1.5">
-              <Bell className="h-5 w-5" />
-              Volume Alerts
+              <Bell className="h-5 w-5 text-warning-600 dark:text-warning-400" />
+              <span className="bg-gradient-to-br from-warning-600 to-danger-600 dark:from-warning-400 dark:to-danger-400 bg-clip-text text-transparent">
+                Volume Alerts
+              </span>
             </CardTitle>
             <CardDescription className="flex items-center gap-2 flex-wrap">
               <Badge 

@@ -296,15 +296,30 @@ export function MarketTable({
                             const changeValue = item.change24h ?? item.volumeChange ?? 0
                             const isHovered = hoveredRow === item.symbol
 
-            const rowClasses = ['border-b border-border/40 transition-all duration-150 cursor-pointer group relative']
+            const rowClasses = [
+                'border-b border-border/40 transition-all duration-200 cursor-pointer group relative',
+                'hover:shadow-md hover:scale-[1.01] hover:z-10'
+            ]
             if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
-                // Make positive funding highlights more prominent
-                rowClasses.push('bg-brand-500/15 hover:bg-brand-500/25 border-l-4 border-l-brand-500/60')
+                // Make positive funding highlights more prominent with depth
+                rowClasses.push(
+                    'bg-gradient-to-r from-brand-500/12 via-brand-500/8 to-transparent',
+                    'hover:from-brand-500/20 hover:via-brand-500/15 hover:to-brand-500/5',
+                    'border-l-4 border-l-brand-500/70',
+                    'shadow-sm shadow-brand-500/10'
+                )
             } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
-                // Make negative funding highlights more prominent
-                rowClasses.push('bg-danger-500/15 hover:bg-danger-500/25 border-l-4 border-l-danger-500/60')
+                // Make negative funding highlights more prominent with depth
+                rowClasses.push(
+                    'bg-gradient-to-r from-danger-500/12 via-danger-500/8 to-transparent',
+                    'hover:from-danger-500/20 hover:via-danger-500/15 hover:to-danger-500/5',
+                    'border-l-4 border-l-danger-500/70',
+                    'shadow-sm shadow-danger-500/10'
+                )
             } else {
-                rowClasses.push('hover:bg-muted/50')
+                rowClasses.push(
+                    'hover:bg-gradient-to-r hover:from-muted/60 hover:via-muted/40 hover:to-transparent'
+                )
             }
 
                             const fundingClass = exceedsThreshold

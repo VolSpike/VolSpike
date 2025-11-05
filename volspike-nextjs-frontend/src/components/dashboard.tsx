@@ -145,12 +145,17 @@ export function Dashboard() {
     }
 
     const marketDataCard = (
-        <Card>
+        <Card className="group">
+            {/* Gradient accent bar */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-500 via-secondary-500 to-brand-500 opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
+            
             <CardHeader>
-                <CardTitle>
-                    Market Data
-                    <span className="ml-2 text-sm font-normal text-gray-500">
-                        ({userTier.toUpperCase()} Tier)
+                <CardTitle className="flex items-center gap-2">
+                    <span className="bg-gradient-to-br from-brand-600 to-brand-500 dark:from-brand-400 dark:to-brand-600 bg-clip-text text-transparent">
+                        Market Data
+                    </span>
+                    <span className="text-sm font-normal text-muted-foreground px-2 py-0.5 rounded-md bg-muted/50 border border-border">
+                        {userTier.toUpperCase()} Tier
                     </span>
                 </CardTitle>
                 <CardDescription>
@@ -215,11 +220,16 @@ export function Dashboard() {
     )
 
     return (
-        <div className="flex-1 bg-background relative">
+        <div className="flex-1 bg-background relative min-h-screen">
             <BackgroundPattern />
+            
+            {/* Sophisticated gradient overlays for depth */}
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-500/3 via-transparent to-secondary-500/3 dark:from-brand-500/5 dark:to-secondary-500/5 pointer-events-none" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-500/20 to-transparent" />
+            
             <Header />
 
-            <main className="container mx-auto px-4 py-8">
+            <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="space-y-6">
                     {/* Advertisement Banner for Free Tier Users */}
                     <div className="min-h-0 transition-all duration-300">
