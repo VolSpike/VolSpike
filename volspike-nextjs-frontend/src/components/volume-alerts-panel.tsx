@@ -317,9 +317,31 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                   return ''
                 }
                 
+                // Handler for testing animations by clicking on alert cards
+                const handleAlertClick = () => {
+                  if (!isTestMode) return // Only work in debug mode
+                  
+                  // Determine sound type based on alert type
+                  const soundType = alert.alertType === 'HALF_UPDATE' 
+                    ? 'half_update' 
+                    : alert.alertType === 'FULL_UPDATE'
+                      ? 'full_update'
+                      : 'spike'
+                  
+                  // Trigger animation and sound
+                  setNewAlertIds(new Set([alert.id]))
+                  playSound(soundType)
+                  
+                  // Clear animation after completion
+                  setTimeout(() => {
+                    setNewAlertIds(new Set())
+                  }, 2000)
+                }
+                
                 return (
                 <div
                   key={alert.id}
+                  onClick={handleAlertClick}
                   className={`p-3 rounded-lg border transition-all duration-150 hover:shadow-md ${
                     isBullish
                       ? 'border-brand-500/30 bg-brand-500/5 hover:bg-brand-500/10' 
@@ -328,7 +350,8 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                         : 'border-border hover:bg-muted/50'
                   } ${getAnimationClass()} ${getGlowClass()} ${
                     isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
-                  }`}
+                  } ${isTestMode ? 'cursor-pointer' : ''}`}
+                  title={isTestMode ? 'Click to test animation' : undefined}
                 >
                   <div className="space-y-2">
                     {/* Header: Asset name and timestamp */}

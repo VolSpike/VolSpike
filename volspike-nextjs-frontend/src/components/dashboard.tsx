@@ -223,9 +223,9 @@ export function Dashboard() {
                 <div className="space-y-6">
                     {/* Advertisement Banner for Free Tier Users */}
                     <div className="min-h-0 transition-all duration-300">
-                        {userTier === 'free' && (
-                            <AdBanner userTier={userTier} />
-                        )}
+                    {userTier === 'free' && (
+                        <AdBanner userTier={userTier} />
+                    )}
                     </div>
                     <div className="lg:hidden animate-fade-in">
                         <Tabs 
