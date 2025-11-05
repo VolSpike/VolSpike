@@ -109,8 +109,14 @@ auth.post('/signin', async (c) => {
         const { email, password } = signInSchema.parse(body)
         logger.info(`[AUTH] Schema validation passed for: ${email}`)
 
-        const user = await prisma.user.findUnique({
-            where: { email },
+        // Case-insensitive email lookup
+        const user = await prisma.user.findFirst({
+            where: { 
+                email: {
+                    equals: email,
+                    mode: 'insensitive'
+                }
+            },
         })
 
         if (!user) {
@@ -180,9 +186,17 @@ auth.post('/signup', async (c) => {
         const body = await c.req.json()
         const { email, password, tier } = signUpSchema.parse(body)
 
-        // Check if user already exists
-        const existingUser = await prisma.user.findUnique({
-            where: { email },
+        // Normalize email to lowercase
+        const normalizedEmail = email.toLowerCase().trim()
+
+        // Check if user already exists (case-insensitive)
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                email: {
+                    equals: normalizedEmail,
+                    mode: 'insensitive'
+                }
+            },
         })
 
         if (existingUser) {
@@ -192,10 +206,10 @@ auth.post('/signup', async (c) => {
         // Hash password
         const passwordHash = await hashPassword(password)
 
-        // Create new user with hashed password
+        // Create new user with hashed password and normalized email
         const user = await prisma.user.create({
             data: {
-                email,
+                email: normalizedEmail,
                 tier,
                 passwordHash,
                 emailVerified: null, // Will be set after email verification
