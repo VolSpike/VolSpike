@@ -915,16 +915,58 @@ For more information, visit the [GitHub repository](https://github.com/NikolaySi
 
 ---
 
-*Last Updated: October 2025*
-*Version: 3.1.0 (Client-Only Architecture)*
-*Status: Production Ready - All Authentication Issues Resolved, Production Deployment Successful*
+*Last Updated: November 2025*
+*Version: 4.0.0 (Client-Only Architecture + Volume Alerts)*
+*Status: Production Ready - Volume Alerts Live, Professional UI/UX, Testing Infrastructure Complete*
 
-### Recent Production Updates (October 2025)
-- ✅ **Dynamic route fixes** - Dashboard, home, and admin routes marked as force-dynamic to prevent build errors
-- ✅ **Backend resilience** - Binance REST failures gracefully handled (return empty arrays instead of crashing)
-- ✅ **Production environment** - DISABLE_SERVER_MARKET_POLL=true set in Railway to disable backend market polling
-- ✅ **Database sync** - Production Neon database schema synced with passwordHash field
-- ✅ **Test user** - test@volspike.com seeded in production for testing
-- ✅ **Build stability** - All Vercel build errors resolved (DYNAMIC_SERVER_USAGE fixed)
-- ✅ **Environment variables** - Production env vars properly configured for Vercel and Railway
- - ✅ **Email Verification UX** - Gmail-safe preheader, bulletproof CTA, and site-hosted logo; verify success leads to sign-in
+### Recent Production Updates (November 2025)
+
+#### Volume Alerts System - COMPLETED ✅
+- ✅ **Digital Ocean Integration** - Script running on DO server posting alerts to VolSpike backend
+- ✅ **Backend API Endpoints** - `/api/volume-alerts/ingest` (authenticated) and `/api/volume-alerts` (tier-based)
+- ✅ **WebSocket Broadcasting** - Real-time Socket.IO delivery with tier-based rooms
+- ✅ **Wall-Clock Synchronization** - Free (15min at :00, :15, :30, :45), Pro (5min at :00, :05, :10, etc.), Elite (instant)
+- ✅ **Database Schema** - `VolumeAlert` and `AlertSubscription` models with Prisma
+- ✅ **UI Components** - Volume Alerts panel with countdown timers, color-coded alerts (green/red by candle direction)
+- ✅ **Initial Alert Loading** - New users see last 10 alerts immediately upon login
+- ✅ **Alert Display** - "Exact Time (Relative Time ago)" format, two-line volume display, directional arrows
+
+#### UI/UX Improvements - COMPLETED ✅
+- ✅ **Pricing Page** - Beautiful tier comparison with feature breakdown, mobile-responsive
+- ✅ **Terms of Service** - Comprehensive legal page with 18 sections
+- ✅ **Privacy Policy** - Updated contact to support@volspike.com
+- ✅ **Mobile Navigation** - Hamburger menu with active state indicators
+- ✅ **Market Data Table** - Tier-based symbol limits (50 Free, 100 Pro, all Elite), removed >$100M filter
+- ✅ **"Unlock Pro Features" Banner** - Enhanced with 6 detailed feature highlights
+- ✅ **Gradient Text Fix** - Resolved "g" clipping with padding-bottom
+- ✅ **Footer Consolidation** - Removed duplicate footers across all pages
+- ✅ **Active Navigation** - Green highlighting for current page in desktop/mobile menus
+- ✅ **Smooth Transitions** - Removed flickering animations, unified fade-in effects
+
+#### Testing Infrastructure - COMPLETED ✅
+- ✅ **Test Accounts** - `free-test@volspike.com` and `pro-test@volspike.com` (password: Test123456!) in dev and prod
+- ✅ **PRO_TIER_TEST_PLAN.md** - Comprehensive 100+ check test plan for Free vs Pro functionality
+- ✅ **TESTING_STRATEGY.md** - Feature branch workflow with Vercel preview deployments
+- ✅ **Debug Mode** - `?debug=true` query param for test buttons and diagnostic features
+- ✅ **Elite Tier Marked "Coming Soon"** - All UI references updated, purchase disabled
+
+#### Authentication Improvements - COMPLETED ✅
+- ✅ **Case-Insensitive Login** - Email lookup uses `mode: 'insensitive'` for better UX
+- ✅ **Email Normalization** - All signups normalized to lowercase for consistency
+- ✅ **Tier Defaults** - Users default to `free` tier with fallbacks in all auth callbacks
+- ✅ **Production Auth** - `NEXTAUTH_URL` fallback ensures production backend connectivity
+- ✅ **Phantom Wallet Fix** - Removed "Not Found" error for undetected wallets
+
+#### Alert Sounds & Animations - IN PROGRESS 🚧
+- ✅ **useAlertSounds Hook** - Web Audio API implementation (placeholder for MP3s)
+- ✅ **SOUND_DESIGN_BRIEF.md** - Detailed expert brief for professional sound design
+- ✅ **Animation Classes** - Tailwind animations for slide-in, scale, fade effects
+- ✅ **Test Buttons** - Debug mode buttons for testing sounds and animations
+- 🚧 **Awaiting Expert** - Professional MP3 files for spike, 30m update, and hourly update sounds
+
+### Previous Updates (October 2025)
+- ✅ **Dynamic route fixes** - Dashboard, home, and admin routes marked as force-dynamic
+- ✅ **Backend resilience** - Binance REST failures gracefully handled
+- ✅ **Production database synced** - Neon schema updated with all required fields
+- ✅ **Build stability** - All Vercel build errors resolved
+- ✅ **Email Verification UX** - Gmail-safe preheader, bulletproof CTA, site-hosted logo

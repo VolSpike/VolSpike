@@ -602,36 +602,98 @@ npm install && npm run dev
 - **Direct Binance connection** (no IP blocking issues)
 - **Tier-based throttling** in frontend (scales with users)
 
-## 🔧 Recent Fixes Applied (October 2025)
+## 🔧 Recent Updates & Features (November 2025)
 
-### Authentication System Fixes
-- ✅ **Password verification enabled** - Fixed critical security vulnerability where any password worked
-- ✅ **Error message display** - Users now see proper error messages for invalid credentials
-- ✅ **Password visibility toggle** - Eye icon now works to show/hide passwords
-- ✅ **Admin redirect logic** - Admin users stay on admin page with proper error handling
-- ✅ **NextAuth error handling** - Proper error mapping and display in frontend
-- ✅ **Web3 provider setup** - RainbowKit properly configured to prevent "Loading wallet..." stuck state
+### Volume Alerts System - COMPLETED ✅
+- ✅ **Digital Ocean Integration** - Python script on DO server detects volume spikes and posts to VolSpike backend
+- ✅ **Backend API Endpoints**:
+  - `/api/volume-alerts/ingest` - Authenticated endpoint for alert ingestion (API key required)
+  - `/api/volume-alerts` - Tier-based alert retrieval with filtering
+- ✅ **WebSocket Broadcasting** - Real-time Socket.IO delivery with tier-based rooms (`tier-free`, `tier-pro`, `tier-elite`)
+- ✅ **Wall-Clock Synchronization**:
+  - Free Tier: 15-minute batches at :00, :15, :30, :45
+  - Pro Tier: 5-minute batches at :00, :05, :10, :15, :20, :25, :30, :35, :40, :45, :50, :55
+  - Elite Tier: Instant real-time delivery
+- ✅ **Database Schema** - New `VolumeAlert` and `AlertSubscription` Prisma models
+- ✅ **UI Components**:
+  - Volume Alerts panel with countdown timers
+  - Color-coded alerts (green for bullish, red for bearish)
+  - "Exact Time (Relative Time ago)" timestamp format
+  - Two-line volume display: "This hour: $X" / "Last hour: $Y"
+  - Directional arrows (up for bullish, down for bearish)
+- ✅ **Initial Alert Loading** - New users see last 10 alerts immediately upon login
+- ✅ **Candle Direction** - Bearish/bullish detection based on open vs close prices
 
-### Build System Fixes
-- ✅ **TypeScript errors resolved** - Fixed getMarketData() function signature issues
-- ✅ **ESLint errors fixed** - Escaped apostrophes and resolved linting issues
-- ✅ **Prisma schema updated** - Added passwordHash field for proper authentication
-- ✅ **Environment variables aligned** - JWT secrets properly matched between frontend/backend
+### UI/UX Improvements - COMPLETED ✅
+- ✅ **Pricing Page** - Beautiful tier comparison with detailed feature breakdown, fully responsive
+- ✅ **Terms of Service** - Comprehensive 18-section legal page
+- ✅ **Privacy Policy** - Updated email contact to support@volspike.com
+- ✅ **Mobile Navigation** - Hamburger menu with active state indicators (green highlighting)
+- ✅ **Market Data Table**:
+  - Tier-based symbol limits (50 for Free, 100 for Pro, unlimited for Elite)
+  - Removed arbitrary >$100M volume filter
+  - Clarified "24h Change" column name
+- ✅ **"Unlock Pro Features" Banner** - Enhanced with 6 specific feature highlights and icons
+- ✅ **Visual Fixes**:
+  - Fixed gradient text "g" clipping with padding-bottom
+  - Removed duplicate footers from all pages
+  - Removed redundant descriptive text under section headings
+  - Improved spacing in Volume Alerts header
+- ✅ **Active Navigation** - Green text, background, and underline for current page
+- ✅ **Smooth Transitions** - Removed flickering animations, unified fade-in effects
 
-### Production Readiness
-- ✅ **Backend builds successfully** on Railway
-- ✅ **Frontend builds successfully** on Vercel
-- ✅ **All authentication flows working** end-to-end
-- ✅ **Error handling implemented** throughout the system
-- ✅ **Security vulnerabilities patched** and tested
-- ✅ **Dynamic routes properly configured** (dashboard, home, admin marked as force-dynamic)
-- ✅ **Backend resilience** - Binance REST failures no longer crash the server
-- ✅ **Production database synced** - Neon production schema updated with passwordHash
-- ✅ **Test user seeded** - test@volspike.com available in production
+### Testing Infrastructure - COMPLETED ✅
+- ✅ **Test Accounts** - Created in both dev and production:
+  - `free-test@volspike.com` / Test123456! (Free tier)
+  - `pro-test@volspike.com` / Test123456! (Pro tier)
+- ✅ **PRO_TIER_TEST_PLAN.md** - Comprehensive 14-category, 100+ check test plan
+- ✅ **TESTING_STRATEGY.md** - Feature branch workflow with Vercel preview deployments
+- ✅ **Debug Mode** - `?debug=true` query parameter enables:
+  - Test buttons for alert sounds (3 types)
+  - Test buttons for alert animations (3 types)
+  - Diagnostic information
+- ✅ **Elite Tier "Coming Soon"** - All UI references updated, purchase button disabled
+
+### Authentication Improvements - COMPLETED ✅
+- ✅ **Case-Insensitive Login** - `findFirst` with `mode: 'insensitive'` for better UX
+- ✅ **Email Normalization** - All signups convert email to lowercase for consistency
+- ✅ **Tier Defaults** - Added `|| 'free'` fallbacks in all NextAuth callbacks
+- ✅ **Production Auth** - `NEXTAUTH_URL` fallback to Railway production URL
+- ✅ **Phantom Wallet Fix** - Removed "Not Found" error when wallet not detected
+
+### Alert Sounds & Animations - IN PROGRESS 🚧
+- ✅ **useAlertSounds Hook** - Web Audio API-based hook with localStorage preferences (placeholder for MP3s)
+- ✅ **SOUND_DESIGN_BRIEF.md** - Comprehensive expert brief for professional sound design:
+  - 3 distinct sound specifications (Spike Alert, 30m Update, Hourly Update)
+  - Technical requirements (MP3, duration, pitch, volume)
+  - Professional references (Bloomberg Terminal, TradingView)
+  - Budget guidance and deliverables checklist
+- ✅ **Animation Classes** - Tailwind CSS animations:
+  - `animate-slide-in-right` - Spring animation with bounce
+  - `animate-scale-in` - Zoom from center
+  - `animate-fade-in` - Smooth opacity transition
+- ✅ **Test Buttons** - Available in debug mode (`?debug=true`) for immediate testing
+- ✅ **Alert Card Effects** - Glowing ring, shadow pulse, and color-coded borders
+- 🚧 **Awaiting Expert** - Professional MP3 files to replace Web Audio API sounds
+
+### Previous Fixes (October 2025)
+- ✅ **Password verification enabled** - Fixed critical security vulnerability
+- ✅ **Error message display** - Proper error handling for invalid credentials
+- ✅ **Password visibility toggle** - Eye icon functionality working
+- ✅ **Admin redirect logic** - Proper error handling for admin users
+- ✅ **NextAuth error handling** - Error mapping and display in frontend
+- ✅ **Web3 provider setup** - RainbowKit configuration complete
+- ✅ **TypeScript errors resolved** - All build errors fixed
+- ✅ **ESLint errors fixed** - Code linting issues resolved
+- ✅ **Prisma schema updated** - passwordHash field added
+- ✅ **Dynamic routes configured** - Dashboard, home, admin marked as force-dynamic
+- ✅ **Backend resilience** - Binance REST failures handled gracefully
+- ✅ **Production database synced** - Neon schema up-to-date
 
 ### Production Configuration
-- **Frontend (Vercel)**: Set `NEXTAUTH_URL` to production domain (e.g., `https://volspike.com`)
-- **Backend (Railway)**: Set `DISABLE_SERVER_MARKET_POLL=true` to disable backend market polling (frontend handles Binance WebSocket directly)
-- **Database (Neon)**: Production schema synced, test user available
+- **Frontend (Vercel)**: `NEXTAUTH_URL=https://volspike.com`, connected to Railway backend
+- **Backend (Railway)**: `DISABLE_SERVER_MARKET_POLL=true`, `ALERT_INGEST_API_KEY` configured
+- **Database (Neon)**: Production schema synced with `VolumeAlert` and `AlertSubscription` models
+- **Digital Ocean**: Python script running as systemd service, posting alerts every 5 minutes
 
-**Note**: This is the new client-only architecture with zero Redis dependency, replacing the previous server-side data ingestion for better performance, scalability, and developer experience.
+**Note**: This is the new client-only architecture with zero Redis dependency, plus real-time volume alerts via WebSocket, replacing the previous server-side data ingestion for better performance, scalability, and developer experience.
