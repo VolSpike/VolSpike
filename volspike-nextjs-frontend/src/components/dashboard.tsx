@@ -269,11 +269,11 @@ export function Dashboard() {
                         </Tabs>
                     </div>
 
-                    <div className="hidden gap-6 lg:grid lg:grid-cols-4 items-start animate-fade-in">
-                        <div className="lg:col-span-3">
+                    <div className="hidden gap-6 lg:grid lg:grid-cols-4 animate-fade-in">
+                        <div className="lg:col-span-3 self-start">
                             {marketDataCard}
                         </div>
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-1 self-start">
                             {volumeAlertsCard}
                         </div>
                     </div>
