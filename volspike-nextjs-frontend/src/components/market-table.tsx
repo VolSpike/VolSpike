@@ -63,7 +63,7 @@ export function MarketTable({
     isConnected = true,
     onCreateAlert 
 }: MarketTableProps) {
-    const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding'>('volume')
+    const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
@@ -126,6 +126,10 @@ export function MarketTable({
                     aValue = a.fundingRate ?? 0
                     bValue = b.fundingRate ?? 0
                     break
+                case 'openInterest':
+                    aValue = a.openInterest ?? 0
+                    bValue = b.openInterest ?? 0
+                    break
                 default:
                     return 0
             }
@@ -134,7 +138,7 @@ export function MarketTable({
         })
     }, [data, sortBy, sortOrder])
 
-    const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding') => {
+    const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest') => {
         if (sortBy === column) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
             return
@@ -284,7 +288,17 @@ export function MarketTable({
                                 </Button>
                             </th>
                             {userTier !== 'free' && (
-                                <th className="text-right p-3 text-sm font-semibold">Open Interest</th>
+                                <th className="text-right p-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleSort('openInterest')}
+                                        className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
+                                    >
+                                        <span className="mr-1.5">Open Interest</span>
+                                        <SortIcon column="openInterest" />
+                                    </Button>
+                                </th>
                             )}
                             <th className="w-24"></th>
                         </tr>

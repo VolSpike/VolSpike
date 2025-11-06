@@ -12,6 +12,7 @@ import { marketRoutes } from './routes/market'
 import { watchlistRoutes } from './routes/watchlist'
 import { alertRoutes } from './routes/alerts'
 import volumeAlertsRouter from './routes/volume-alerts'
+import openInterestRouter from './routes/open-interest'
 import { paymentRoutes } from './routes/payments'
 import { adminRoutes } from './routes/admin'
 import { setupSocketHandlers } from './websocket/handlers'
@@ -110,6 +111,10 @@ app.get('/health', (c) => {
 
 // API routes
 app.route('/api/auth', authRoutes)
+
+// Open Interest routes (GET is public, POST validates API key internally)
+// MUST be before market auth middleware to avoid requiring auth for GET
+app.route('/api/market/open-interest', openInterestRouter)
 
 // Apply auth middleware to market routes
 app.use('/api/market/*', authMiddleware)

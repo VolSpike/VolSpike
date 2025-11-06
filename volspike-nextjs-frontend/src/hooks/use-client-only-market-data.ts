@@ -54,6 +54,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const onDataUpdateRef = useRef<typeof onDataUpdate>(onDataUpdate);
     const tickersRef = useRef<Map<string, any>>(new Map());
     const fundingRef = useRef<Map<string, any>>(new Map());
+    const openInterestRef = useRef<Map<string, number>>(new Map()); // Symbol -> OI in USD
     const allowedSymbolsRef = useRef<Set<string> | null>(null);
     const lastRenderRef = useRef<number>(0);
     const firstPaintDoneRef = useRef<boolean>(false);
@@ -106,13 +107,17 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
             const f = fundingRef.current.get(sym);
             const fundingRate = parseFundingRate(f);
+            
+            // Get Open Interest from ref (fetched from backend)
+            const openInterest = openInterestRef.current.get(sym) || 0;
+            
             out.push({
                 symbol: sym,
                 price: Number(t.c || t.lastPrice || 0),
                 volume24h: volume24h,
                 change24h: Number(t.P || t.priceChangePercent || 0),
                 fundingRate,
-                openInterest: 0, // Not available in ticker stream
+                openInterest, // From backend (via Digital Ocean script)
                 timestamp: Date.now(),
             });
         }
@@ -191,6 +196,48 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
         }
     }, [buildSnapshot, render, tier, CADENCE]);
+
+    // Fetch Open Interest from VolSpike backend (sourced from Digital Ocean script)
+    const fetchOpenInterest = useCallback(async () => {
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            const response = await fetch(`${apiUrl}/api/market/open-interest`);
+            
+            if (!response.ok) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn(`Open Interest fetch failed: ${response.status}`);
+                }
+                return;
+            }
+
+            const payload = await response.json();
+            
+            // payload.data is { symbol: openInterestUsd, ... }
+            if (payload.data && typeof payload.data === 'object') {
+                for (const [symbol, oiUsd] of Object.entries(payload.data)) {
+                    if (typeof oiUsd === 'number') {
+                        openInterestRef.current.set(symbol, oiUsd);
+                    }
+                }
+                
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`📊 Fetched Open Interest: ${Object.keys(payload.data).length} symbols`);
+                }
+
+                // Re-render with updated OI data if we have tickers
+                if (tickersRef.current.size > 0) {
+                    const snapshot = buildSnapshot();
+                    if (snapshot.length > 0) {
+                        render(snapshot);
+                    }
+                }
+            }
+        } catch (error) {
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('Failed to fetch Open Interest from backend:', error);
+            }
+        }
+    }, [buildSnapshot, render]);
 
     // Fetch active perpetual USDT symbols to exclude delisted/expired contracts
     const primeActiveSymbols = useCallback(async () => {
@@ -306,6 +353,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
                 void primeFundingSnapshot();
                 void primeActiveSymbols();
+                void fetchOpenInterest(); // Fetch Open Interest from backend on connection
                 // Warm start: try to seed from REST in parallel (best-effort)
                 void primeTickersSnapshot();
             };
@@ -460,6 +508,16 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
         return () => clearInterval(interval);
     }, [nextUpdate, tier]);
+
+    // Fetch Open Interest every 5 minutes
+    useEffect(() => {
+        // Fetch immediately on mount (after initial connection)
+        const interval = setInterval(() => {
+            void fetchOpenInterest();
+        }, 5 * 60 * 1000); // 5 minutes
+
+        return () => clearInterval(interval);
+    }, [fetchOpenInterest]);
 
     return {
         data,
