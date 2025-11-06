@@ -269,7 +269,7 @@ export function Dashboard() {
                         </Tabs>
                     </div>
 
-                    <div className="hidden lg:flex gap-6 animate-fade-in h-full">
+                    <div className="hidden lg:flex gap-4 animate-fade-in h-full">
                         <div className="flex-1 lg:w-3/4 flex">
                             {marketDataCard}
                         </div>
