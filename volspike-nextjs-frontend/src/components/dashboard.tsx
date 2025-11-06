@@ -148,7 +148,7 @@ export function Dashboard() {
         <Card className="group">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <span className="bg-gradient-to-br from-brand-600 to-brand-500 dark:from-brand-400 dark:to-brand-600 bg-clip-text text-transparent">
+                    <span className="text-foreground">
                         Market Data
                     </span>
                     <span className="text-sm font-normal text-muted-foreground px-2 py-0.5 rounded-md bg-muted/50 border border-border">
