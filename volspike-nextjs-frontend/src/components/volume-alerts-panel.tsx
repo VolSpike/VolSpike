@@ -152,8 +152,8 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   }
   
   return (
-    <Card className="group">
-      <CardHeader>
+    <Card className="group h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <CardTitle className="flex items-center gap-2 whitespace-nowrap mb-1.5">
@@ -205,7 +205,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 min-h-0">
         {error && (
           <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-danger-500/10 border border-danger-500/30">
             <AlertCircle className="h-4 w-4 text-danger-500" />
@@ -360,7 +360,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
           </div>
         )}
         
-        <ScrollArea className="h-[500px]">
+        <ScrollArea className="h-[600px] pr-4">
           {isLoading && displayAlerts.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               Loading alerts...

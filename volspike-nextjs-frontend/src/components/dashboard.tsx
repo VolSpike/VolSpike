@@ -145,8 +145,8 @@ export function Dashboard() {
     }
 
     const marketDataCard = (
-        <Card className="group">
-            <CardHeader>
+        <Card className="group h-full flex flex-col">
+            <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">
                     <span className="text-foreground">
                         Market Data
@@ -179,7 +179,7 @@ export function Dashboard() {
                     )}
                 </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 min-h-0">
                 {isConnecting ? (
                     <LoadingSpinner variant="brand" text="Connecting to Binance WebSocket..." />
                 ) : hasError ? (
@@ -269,11 +269,11 @@ export function Dashboard() {
                         </Tabs>
                     </div>
 
-                    <div className="hidden gap-6 lg:flex animate-fade-in">
-                        <div className="flex-1 lg:w-3/4">
+                    <div className="hidden lg:flex gap-6 animate-fade-in h-full">
+                        <div className="flex-1 lg:w-3/4 flex">
                             {marketDataCard}
                         </div>
-                        <div className="lg:w-1/4">
+                        <div className="lg:w-1/4 flex">
                             {volumeAlertsCard}
                         </div>
                     </div>
