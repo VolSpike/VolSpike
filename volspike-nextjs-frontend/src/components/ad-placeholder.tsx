@@ -1,6 +1,6 @@
 'use client'
 
-import { ExternalLink, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -49,21 +49,25 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
           <div className="flex items-center gap-3 flex-shrink-0">
             <Link href="/pricing">
               <Button 
-                size="sm" 
-                className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm"
+                size="default" 
+                className="min-w-[160px] font-semibold shadow-brand hover:shadow-brand-lg transition-all duration-300 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 dark:from-brand-500 dark:to-brand-400 dark:hover:from-brand-600 dark:hover:to-brand-500 text-white group relative overflow-hidden"
               >
-                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                Upgrade to Pro
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                <span className="relative z-10 flex items-center">
+                  Upgrade to Pro
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </span>
               </Button>
             </Link>
             
-            {/* Dismiss button */}
+            {/* Dismiss button - more clickable */}
             <button
               onClick={() => setDismissed(true)}
-              className="p-1 rounded hover:bg-muted/50 transition-colors"
-              title="Dismiss"
+              className="p-2 rounded-md hover:bg-muted border border-border/50 hover:border-border transition-all duration-200 hover:shadow-sm active:scale-95"
+              title="Dismiss ad"
             >
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
             </button>
           </div>
         </div>
@@ -87,10 +91,10 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
           </Badge>
           <button
             onClick={() => setDismissed(true)}
-            className="p-1 rounded hover:bg-muted/50 transition-colors"
-            title="Dismiss"
+            className="p-1.5 rounded-md hover:bg-muted border border-border/50 hover:border-border transition-all duration-200 hover:shadow-sm active:scale-95"
+            title="Dismiss ad"
           >
-            <X className="h-3.5 w-3.5 text-muted-foreground" />
+            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
           </button>
         </div>
 
@@ -113,10 +117,14 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
           <Link href="/pricing">
             <Button 
               size="sm" 
-              className="w-full bg-brand-600 hover:bg-brand-700 text-white text-xs"
+              className="w-full font-semibold shadow-brand hover:shadow-brand-lg transition-all duration-300 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 dark:from-brand-500 dark:to-brand-400 dark:hover:from-brand-600 dark:hover:to-brand-500 text-white group relative overflow-hidden text-xs"
             >
-              <Sparkles className="h-3 w-3 mr-1" />
-              Go Pro
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+              <span className="relative z-10 flex items-center justify-center">
+                Go Pro
+                <ArrowRight className="ml-1.5 h-3 w-3 transition-transform group-hover:translate-x-1" />
+              </span>
             </Button>
           </Link>
         </div>
