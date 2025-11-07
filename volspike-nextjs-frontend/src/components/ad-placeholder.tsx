@@ -21,9 +21,9 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
     return (
       <Card className={`relative group overflow-hidden ${className}`}>
         {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 pointer-events-none" />
         
-        <div className="relative p-6 flex items-center justify-between gap-6">
+        <div className="relative p-6 flex items-center justify-between gap-6 z-10">
           {/* Left: Ad content */}
           <div className="flex-1 flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -73,7 +73,7 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
         </div>
 
         {/* Subtle animation */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </Card>
     )
   }
@@ -82,9 +82,9 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
   return (
     <Card className={`relative overflow-hidden ${className}`}>
       {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-muted/30 via-muted/20 to-muted/30" />
+      <div className="absolute inset-0 bg-gradient-to-b from-muted/30 via-muted/20 to-muted/30 pointer-events-none" />
       
-      <div className="relative p-4 space-y-3">
+      <div className="relative p-4 space-y-3 z-10">
         <div className="flex items-center justify-between">
           <Badge variant="outline" className="text-xs bg-muted/50 border-muted-foreground/20">
             Advertisement
