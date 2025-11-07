@@ -228,7 +228,7 @@ export function MarketTable({
             </div>
 
             {/* Table with sticky header */}
-            <div className="relative max-h-[600px] overflow-y-auto overflow-x-auto -mx-6 px-6">
+            <div className="relative max-h-[600px] overflow-y-auto overflow-x-auto -mx-6 px-6" style={{ overscrollBehavior: 'contain', touchAction: 'pan-x pan-y' }}>
                 <table className="w-full min-w-[800px]">
                     <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
                         <tr className="border-b border-border/50">
