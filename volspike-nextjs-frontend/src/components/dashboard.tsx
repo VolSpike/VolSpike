@@ -23,7 +23,6 @@ export function Dashboard() {
     const { data: session, status } = useSession()
     const { socket, isConnected } = useSocket()
     const [alerts, setAlerts] = useState<any[]>([])
-    const [countdownDisplay, setCountdownDisplay] = useState<string>('')
     const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
     const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')
     const [unreadAlertsCount, setUnreadAlertsCount] = useState(0)
@@ -67,36 +66,6 @@ export function Dashboard() {
         tier: userTier as 'elite' | 'pro' | 'free',
         onDataUpdate: handleDataUpdate
     })
-
-    // Real-time countdown timer for next update (non-elite tiers)
-    useEffect(() => {
-        if (userTier === 'elite' || nextUpdate === 0) {
-            setCountdownDisplay('')
-            return
-        }
-
-        const updateCountdown = () => {
-            const now = Date.now()
-            const remaining = Math.max(0, nextUpdate - now)
-
-            if (remaining === 0) {
-                setCountdownDisplay('')
-                return
-            }
-
-            const minutes = Math.floor(remaining / 60000)
-            const seconds = Math.floor((remaining % 60000) / 1000)
-            setCountdownDisplay(`${minutes}:${seconds.toString().padStart(2, '0')}`)
-        }
-
-        // Update immediately
-        updateCountdown()
-
-        // Update every second
-        const interval = setInterval(updateCountdown, 1000)
-
-        return () => clearInterval(interval)
-    }, [nextUpdate, userTier])
 
     useEffect(() => {
         if (socket && isConnected) {
@@ -158,7 +127,7 @@ export function Dashboard() {
                 </CardTitle>
                 <CardDescription>
                     {isLive ? (
-                        <span className="text-green-500">● Live Data (Binance WebSocket)</span>
+                        <span className="text-green-500">● Live Data (Binance WebSocket) • Real-time Updates</span>
                     ) : isConnecting ? (
                         <span className="text-yellow-500">● Connecting to Binance...</span>
                     ) : isReconnecting ? (
@@ -171,11 +140,6 @@ export function Dashboard() {
                     {lastUpdate > 0 && (
                         <span className="ml-2 text-gray-500">
                             (Updated {Math.floor((Date.now() - lastUpdate) / 1000)}s ago)
-                        </span>
-                    )}
-                    {countdownDisplay && (
-                        <span className="ml-2 text-blue-500">
-                            • Next update in {countdownDisplay}
                         </span>
                     )}
                 </CardDescription>

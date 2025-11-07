@@ -64,30 +64,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const reconnectAttemptsRef = useRef<number>(0);
     const renderPendingRef = useRef<boolean>(false);
 
-    // Tier-based update intervals
-    const CADENCE = tier === 'elite' ? 0 : (tier === 'pro' ? 300_000 : 900_000); // 0ms, 5min, 15min
-
-    // Calculate next wall-clock update time
-    const getNextWallClockUpdate = useCallback(() => {
-        if (tier === 'elite') return 0; // Elite is real-time
-        
-        const now = new Date();
-        const currentMinute = now.getMinutes();
-        
-        if (tier === 'pro') {
-            // Pro: next :00, :05, :10, etc.
-            const nextMinute = Math.ceil((currentMinute + 1) / 5) * 5;
-            const next = new Date(now);
-            next.setMinutes(nextMinute, 0, 0);
-            return next.getTime();
-        } else {
-            // Free: next :00, :15, :30, :45
-            const nextMinute = Math.ceil((currentMinute + 1) / 15) * 15;
-            const next = new Date(now);
-            next.setMinutes(nextMinute, 0, 0);
-            return next.getTime();
-        }
-    }, [tier]);
+    // All tiers now get real-time WebSocket data (Open Interest still fetches every 5min separately)
 
     // Keep callback stable via ref to avoid effect/deps churn
     useEffect(() => {
@@ -185,9 +162,6 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 if (snapshot.length > 0) {
                     render(snapshot);
                     lastRenderRef.current = Date.now();
-                    if (tier !== 'elite') {
-                        setNextUpdate(getNextWallClockUpdate());
-                    }
                 }
             }
         } catch (error) {
@@ -195,7 +169,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 console.warn('Failed to seed funding rates from REST:', error);
             }
         }
-    }, [buildSnapshot, render, tier, CADENCE]);
+    }, [buildSnapshot, render, tier]);
 
     // Fetch Open Interest from VolSpike backend (sourced from Digital Ocean script)
     const fetchOpenInterest = useCallback(async () => {
@@ -342,14 +316,9 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 opened = true;
                 reconnectAttemptsRef.current = 0;
                 setStatus('live');
-                console.log('✅ Binance WebSocket connected');
+                console.log('✅ Binance WebSocket connected - Real-time for all tiers');
                 connectedAtRef.current = Date.now();
                 firstPaintDoneRef.current = false; // reset on each connect
-
-                // Initialize countdown for non-elite tiers
-                if (tier !== 'elite') {
-                    setNextUpdate(getNextWallClockUpdate());
-                }
 
                 void primeFundingSnapshot();
                 void primeActiveSymbols();
@@ -402,34 +371,18 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                             render(snapshot);
                             firstPaintDoneRef.current = true;
                             lastRenderRef.current = now;
-                            // For non-elite tiers, set countdown to next wall-clock time
-                            if (tier !== 'elite') {
-                                setNextUpdate(getNextWallClockUpdate());
-                            }
                             return;
                         }
                         // Otherwise keep accumulating without rendering
                     }
 
-                    // Elite tier - render with debouncing
-                    if (tier === 'elite') {
-                        if (!renderPendingRef.current) {
-                            renderPendingRef.current = true;
-                            setTimeout(() => {
-                                render(snapshot);
-                                renderPendingRef.current = false;
-                            }, 200); // 200ms debounce
-                        }
-                    }
-                    // Pro/Free tiers - render based on cadence
-                    else if (now - lastRenderRef.current >= CADENCE) {
-                        render(snapshot);
-                        lastRenderRef.current = now;
-                    }
-
-                    // Update next update countdown to next wall-clock time
-                    if (tier !== 'elite') {
-                        setNextUpdate(getNextWallClockUpdate());
+                    // Real-time rendering for ALL tiers with debouncing
+                    if (!renderPendingRef.current) {
+                        renderPendingRef.current = true;
+                        setTimeout(() => {
+                            render(snapshot);
+                            renderPendingRef.current = false;
+                        }, 200); // 200ms debounce for smooth updates
                     }
 
                 } catch (error) {
@@ -483,7 +436,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
             setStatus('error');
         }
-    }, [tier, CADENCE, geofenceFallback, primeFundingSnapshot, primeActiveSymbols, primeTickersSnapshot, render, getNextWallClockUpdate]);
+    }, [tier, geofenceFallback, primeFundingSnapshot, primeActiveSymbols, primeTickersSnapshot, render]);
 
     useEffect(() => {
         connect();
@@ -495,21 +448,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         };
     }, [tier, connect]);
 
-    // Update countdown timer
-    useEffect(() => {
-        if (tier === 'elite' || nextUpdate === 0) return;
-
-        const interval = setInterval(() => {
-            const now = Date.now();
-            if (now >= nextUpdate) {
-                setNextUpdate(0);
-            }
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [nextUpdate, tier]);
-
-    // Fetch Open Interest every 5 minutes
+    // Fetch Open Interest every 5 minutes (independent of tier)
     useEffect(() => {
         // Fetch immediately on mount (after initial connection)
         const interval = setInterval(() => {
@@ -523,7 +462,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         data,
         status,
         lastUpdate,
-        nextUpdate,
+        nextUpdate: 0, // Real-time for all tiers now (no countdown needed)
         isLive: status === 'live',
         isConnecting: status === 'connecting',
         isReconnecting: status === 'reconnecting',
