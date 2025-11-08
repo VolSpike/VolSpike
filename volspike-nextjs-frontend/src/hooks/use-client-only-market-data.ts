@@ -181,7 +181,22 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     // Fetch Open Interest from VolSpike backend (sourced from Digital Ocean script)
     const fetchOpenInterest = useCallback(async () => {
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+            // Resolve backend base URL robustly
+            let apiUrl = process.env.NEXT_PUBLIC_API_URL || ''
+            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || ''
+            let socketOrigin = ''
+            try { socketOrigin = socketUrl ? new URL(socketUrl).origin : '' } catch {}
+
+            // If API URL is missing or points to localhost in prod, fall back to Socket.IO origin
+            const isLocalhost = (u: string) => u.startsWith('http://localhost') || u.startsWith('http://127.0.0.1')
+            if ((!apiUrl || isLocalhost(apiUrl)) && socketOrigin) {
+                apiUrl = socketOrigin
+            }
+            // Final fallback (dev): localhost
+            if (!apiUrl) {
+                apiUrl = 'http://localhost:3001'
+            }
+
             const response = await fetch(`${apiUrl}/api/market/open-interest`);
             
             if (!response.ok) {
