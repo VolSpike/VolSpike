@@ -19,11 +19,8 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
 
   if (variant === 'horizontal') {
     return (
-      <Card className={`relative group overflow-hidden ${className}`}>
-        {/* Gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 pointer-events-none" />
-        
-        {/* Dismiss button - Absolute positioned for consistent placement */}
+      <Card className={`relative overflow-hidden ${className}`}>
+        {/* Dismiss button - Absolute positioned; should NOT trigger banner hover glow */}
         <button
           onClick={() => setDismissed(true)}
           className="absolute top-3 right-3 z-20 p-2 rounded-md hover:bg-muted border border-muted-foreground/40 hover:border-muted-foreground/70 transition-all duration-200 hover:shadow-sm active:scale-95"
@@ -31,8 +28,13 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
         >
           <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
         </button>
-
-        <div className="relative p-4 sm:p-6 z-10">
+        
+        {/* Hover area wrapper - only this area triggers glow */}
+        <div className="relative z-10 group/hover-area">
+          {/* Gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 pointer-events-none" />
+          
+          <div className="relative p-4 sm:p-6 z-10">
           {/* Mobile: Stack vertically, Desktop: Horizontal */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
             
@@ -76,10 +78,11 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
               </Link>
             </div>
           </div>
+          </div>
+          
+          {/* Subtle animation - only when hovering banner content area */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-500/5 to-transparent opacity-0 group-hover/hover-area:opacity-100 transition-opacity duration-500 pointer-events-none" />
         </div>
-
-        {/* Subtle animation */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </Card>
     )
   }
@@ -87,8 +90,10 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
   // Vertical variant (for sidebar placement if needed)
   return (
     <Card className={`relative overflow-hidden ${className}`}>
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-muted/30 via-muted/20 to-muted/30 pointer-events-none" />
+      {/* Hover area wrapper to isolate glow from dismiss button */}
+      <div className="relative z-10 group/hover-area">
+        {/* Gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-muted/30 via-muted/20 to-muted/30 pointer-events-none" />
       
       <div className="relative p-4 space-y-3 z-10">
         <div className="flex items-center justify-between">
@@ -134,6 +139,10 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
             </Button>
           </Link>
         </div>
+      </div>
+      
+      {/* Subtle animation - only when hovering banner content area */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-500/5 to-transparent opacity-0 group-hover/hover-area:opacity-100 transition-opacity duration-500 pointer-events-none" />
       </div>
     </Card>
   )
