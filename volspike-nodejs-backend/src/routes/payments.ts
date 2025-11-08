@@ -224,7 +224,7 @@ payments.post('/webhook', async (c) => {
 
 // Test endpoint to verify webhook route is accessible
 payments.get('/webhook', async (c) => {
-    return c.json({ 
+    return c.json({
         message: 'Webhook endpoint is accessible',
         method: 'Use POST to receive webhooks from Stripe',
         path: '/api/payments/webhook'

@@ -156,7 +156,7 @@ export const authConfig: NextAuthConfig = {
     },
     secret: process.env.NEXTAUTH_SECRET,
     callbacks: {
-        async jwt({ token, user, account }: any) {
+        async jwt({ token, user, account, trigger }: any) {
             if (user) {
                 token.id = user.id
                 token.email = user.email
@@ -169,6 +169,35 @@ export const authConfig: NextAuthConfig = {
                 token.walletAddress = user.walletAddress
                 token.walletProvider = user.walletProvider
                 console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}`)
+            }
+
+            // Fetch fresh user data from database when session is refreshed
+            if (trigger === 'update' && token.id) {
+                try {
+                    console.log('[Auth] Refreshing user data from database for:', token.email)
+                    const response = await fetch(`${BACKEND_API_URL}/api/auth/me`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token.accessToken || token.id}`,
+                        },
+                    })
+
+                    if (response.ok) {
+                        const { user: dbUser } = await response.json()
+                        if (dbUser) {
+                            token.tier = dbUser.tier || 'free'
+                            token.emailVerified = dbUser.emailVerified
+                            token.role = dbUser.role || 'USER'
+                            token.status = dbUser.status
+                            token.twoFactorEnabled = dbUser.twoFactorEnabled
+                            console.log(`[Auth] User data refreshed: ${dbUser.email}, tier: ${token.tier}`)
+                        }
+                    } else {
+                        console.warn('[Auth] Failed to refresh user data, using cached tier')
+                    }
+                } catch (error) {
+                    console.error('[Auth] Error refreshing user data:', error)
+                }
             }
 
             // Handle Google OAuth account linking
