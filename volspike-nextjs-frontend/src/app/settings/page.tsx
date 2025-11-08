@@ -12,10 +12,6 @@ import { useUserIdentity } from '@/hooks/use-user-identity'
 import { Copy, ExternalLink, CreditCard, User } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
-import { startProCheckout } from '@/lib/payments'
-
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 function SettingsContent() {
     const { data: session, status } = useSession()
@@ -24,6 +20,12 @@ function SettingsContent() {
     const identity = useUserIdentity()
     const [activeTab, setActiveTab] = useState('account')
     const [isLoadingCheckout, setIsLoadingCheckout] = useState(false)
+    const [isClient, setIsClient] = useState(false)
+
+    // Ensure we're on the client side
+    useEffect(() => {
+        setIsClient(true)
+    }, [])
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -33,11 +35,28 @@ function SettingsContent() {
 
     // Handle tab query parameter
     useEffect(() => {
-        const tab = searchParams.get('tab')
-        if (tab === 'subscription') {
-            setActiveTab('subscription')
+        if (!isClient) return // Wait for client-side hydration
+        
+        try {
+            const tab = searchParams?.get('tab')
+            if (tab === 'subscription') {
+                setActiveTab('subscription')
+            }
+        } catch (error) {
+            // Fallback: read from window.location if searchParams fails
+            if (typeof window !== 'undefined') {
+                try {
+                    const params = new URLSearchParams(window.location.search)
+                    const tab = params.get('tab')
+                    if (tab === 'subscription') {
+                        setActiveTab('subscription')
+                    }
+                } catch (fallbackError) {
+                    console.warn('Error reading search params:', fallbackError)
+                }
+            }
         }
-    }, [searchParams])
+    }, [searchParams, isClient])
 
     if (status === 'loading' || identity.isLoading) {
         return (
@@ -79,6 +98,8 @@ function SettingsContent() {
 
         setIsLoadingCheckout(true)
         try {
+            // Dynamic import to ensure client-side only
+            const { startProCheckout } = await import('@/lib/payments')
             await startProCheckout(session)
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to start checkout'
