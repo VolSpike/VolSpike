@@ -69,42 +69,9 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    // Minimal vertical boundary guard to prevent rubber-band overscroll at top/bottom on mobile
-    useEffect(() => {
-        const el = scrollContainerRef.current
-        if (!el) return
-
-        let startY = 0
-
-        const onTouchStart = (e: TouchEvent) => {
-            if (e.touches && e.touches.length === 1) {
-                startY = e.touches[0].clientY
-            }
-        }
-
-        const onTouchMove = (e: TouchEvent) => {
-            if (!e.touches || e.touches.length !== 1) return
-            const currentY = e.touches[0].clientY
-            const dy = currentY - startY
-
-            const atTop = el.scrollTop <= 0
-            const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 1
-
-            // Pulling down at top or up at bottom ⇒ prevent rubber-band
-            if ((atTop && dy > 0) || (atBottom && dy < 0)) {
-                e.preventDefault()
-            }
-        }
-
-        // Passive false required to be able to call preventDefault on touchmove
-        el.addEventListener('touchstart', onTouchStart, { passive: true })
-        el.addEventListener('touchmove', onTouchMove, { passive: false })
-
-        return () => {
-            el.removeEventListener('touchstart', onTouchStart as any)
-            el.removeEventListener('touchmove', onTouchMove as any)
-        }
-    }, [])
+    // Note: We purposely allow scroll chaining to the page when the table
+    // reaches top/bottom so the user can continue scrolling the page. The
+    // horizontal overscroll remains clamped via overscrollBehaviorX: 'none'.
 
     const formatVolume = useMemo(() => (value: number) => {
         const abs = Math.abs(value)
@@ -273,8 +240,8 @@ export function MarketTable({
                     WebkitOverflowScrolling: 'touch',
                     // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
                     overscrollBehaviorX: 'none',
-                    // Clamp vertical overscroll as well (where supported)
-                    overscrollBehaviorY: 'none',
+                    // Allow scroll chaining to the page at top/bottom so the page can scroll
+                    overscrollBehaviorY: 'auto',
                     // Ensure proper gesture handling on mobile while preserving momentum scroll
                     touchAction: 'pan-x pan-y pinch-zoom',
                 }}
