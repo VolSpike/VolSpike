@@ -413,6 +413,17 @@ module.exports = {
                         boxShadow: '0 0 18px rgba(239, 68, 68, 0.45), 0 0 35px rgba(239, 68, 68, 0.22), inset 0 0 12px rgba(239, 68, 68, 0.12)' 
                     },
                 },
+                // 🔴 Badge Scale Pulse - Beautiful breathing effect for unread count
+                "badge-scale-pulse": {
+                    '0%, 100%': {
+                        transform: 'scale(1)',
+                        boxShadow: '0 0 0 rgba(239, 68, 68, 0.5)',
+                    },
+                    '50%': {
+                        transform: 'scale(1.2)',
+                        boxShadow: '0 0 20px rgba(239, 68, 68, 0.8)',
+                    },
+                },
             },
             animation: {
                 "accordion-down": "accordion-down 0.2s ease-out",
@@ -435,6 +446,8 @@ module.exports = {
                 "gentle-glow-green": "gentle-glow-green 2.5s ease-in-out 2",
                 "ember-glow-red": "ember-glow-red 0.8s ease-out",
                 "soft-pulse-red": "soft-pulse-red 2.5s ease-in-out 2",
+                // 🔴 Badge Pulse - Breathing scale effect for unread notifications
+                "badge-scale-pulse": "badge-scale-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
             },
         },
     },
