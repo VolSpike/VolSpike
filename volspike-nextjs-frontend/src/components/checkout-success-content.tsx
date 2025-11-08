@@ -17,12 +17,15 @@ export function CheckoutSuccessContent() {
     const currentTier = session?.user?.tier || 'free'
     const isPro = currentTier === 'pro' || currentTier === 'elite'
 
-    // Auto-refresh session with polling until tier updates (only if not already pro)
+    // Auto-refresh session on mount if tier is free (to pick up any recent updates)
     useEffect(() => {
         // If already pro, don't poll
         if (isPro) {
             return
         }
+
+        // Immediately refresh session once on mount to get latest tier
+        update().catch(console.error)
 
         // Start polling after initial delay
         const startPolling = () => {
