@@ -46,6 +46,7 @@ export function CheckoutSuccessContent() {
                     addDebugLog('Calling session.update()...')
                     
                     const beforeTier = currentTier
+                    let freshUserTier: string | null = null
                     
                     // Use Next.js API route to refresh session (server-side)
                     try {
@@ -56,28 +57,20 @@ export function CheckoutSuccessContent() {
                         
                         if (refreshResponse.ok) {
                             const { user: freshUser } = await refreshResponse.json()
-                            addDebugLog(`Refresh API result: tier=${freshUser?.tier || 'unknown'}`)
+                            freshUserTier = freshUser?.tier || null
+                            addDebugLog(`Refresh API result: tier=${freshUserTier || 'unknown'}`)
                             
                             // If backend says pro but session doesn't, force update session
-                            if (freshUser?.tier === 'pro' || freshUser?.tier === 'elite') {
-                                addDebugLog(`✅ Backend confirms tier=${freshUser.tier}`)
+                            if (freshUserTier === 'pro' || freshUserTier === 'elite') {
+                                addDebugLog(`✅ Backend confirms tier=${freshUserTier}`)
                                 
                                 // Force update session with new tier data
                                 // In NextAuth v5, we can pass data to update()
                                 await update({
-                                    tier: freshUser.tier,
+                                    tier: freshUserTier,
                                 } as any)
                                 
-                                addDebugLog(`✅ Session update called with tier=${freshUser.tier}`)
-                                
-                                // Force page refresh to pick up new session
-                                if (freshUser.tier !== currentTier) {
-                                    addDebugLog(`✅ Tier changed from ${currentTier} to ${freshUser.tier}, refreshing page`)
-                                    // Small delay then refresh
-                                    setTimeout(() => {
-                                        window.location.reload()
-                                    }, 500)
-                                }
+                                addDebugLog(`✅ Session update called with tier=${freshUserTier}`)
                             }
                         } else {
                             addDebugLog(`⚠️ Refresh API failed: ${refreshResponse.status}`)
@@ -93,15 +86,22 @@ export function CheckoutSuccessContent() {
                     addDebugLog(`Session update completed. Tier: ${beforeTier} → ${afterTier}`)
                     
                     // If backend confirmed pro but session still shows free, force reload
-                    if (refreshResponse.ok) {
-                        const { user: freshUser } = await refreshResponse.json()
-                        if ((freshUser?.tier === 'pro' || freshUser?.tier === 'elite') && afterTier === 'free') {
-                            addDebugLog(`⚠️ Backend says ${freshUser.tier} but session shows ${afterTier}. Forcing page reload...`)
+                    if (freshUserTier === 'pro' || freshUserTier === 'elite') {
+                        if (afterTier === 'free') {
+                            addDebugLog(`⚠️ Backend says ${freshUserTier} but session shows ${afterTier}. Forcing page reload...`)
                             clearInterval(pollInterval)
                             setIsRefreshing(false)
                             setTimeout(() => {
                                 window.location.reload()
                             }, 1000)
+                            return
+                        } else if (afterTier === 'pro' || afterTier === 'elite') {
+                            addDebugLog(`✅ Tier updated successfully to: ${afterTier}`)
+                            clearInterval(pollInterval)
+                            setIsRefreshing(false)
+                            setTimeout(() => {
+                                window.location.reload()
+                            }, 500)
                             return
                         }
                     }
