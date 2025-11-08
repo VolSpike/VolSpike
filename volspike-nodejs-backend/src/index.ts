@@ -85,7 +85,8 @@ app.use('*', cors({
         'X-Requested-With',
         'X-Wallet-Address',
         'X-Wallet-Nonce',  // ✅ Add custom header for SIWE nonce
-        'X-API-Key'  // For volume alert ingestion from Digital Ocean
+        'X-API-Key',  // For volume alert ingestion from Digital Ocean
+        'stripe-signature'  // ✅ Required for Stripe webhooks
     ],
     exposeHeaders: ['Content-Length', 'X-Total-Count', 'X-Page-Count'],
     maxAge: 86400, // 24 hours

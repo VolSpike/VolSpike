@@ -157,12 +157,22 @@ payments.post('/portal', async (c) => {
 })
 
 // Stripe webhook handler
+// IMPORTANT: This endpoint must be publicly accessible (no auth middleware)
+// Stripe sends webhooks from their servers, not from user browsers
 payments.post('/webhook', async (c) => {
     try {
+        logger.info('Webhook received', {
+            method: c.req.method,
+            path: c.req.path,
+            url: c.req.url,
+            hasSignature: !!c.req.header('stripe-signature'),
+        })
+
         const body = await c.req.text()
         const signature = c.req.header('stripe-signature')
 
         if (!signature) {
+            logger.warn('Webhook missing signature header')
             return c.json({ error: 'Missing signature' }, 400)
         }
 
@@ -200,6 +210,15 @@ payments.post('/webhook', async (c) => {
         logger.error('Webhook error:', error)
         return c.json({ error: 'Webhook processing failed' }, 500)
     }
+})
+
+// Test endpoint to verify webhook route is accessible
+payments.get('/webhook', async (c) => {
+    return c.json({ 
+        message: 'Webhook endpoint is accessible',
+        method: 'Use POST to receive webhooks from Stripe',
+        path: '/api/payments/webhook'
+    })
 })
 
 // Helper functions for webhook handling
