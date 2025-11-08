@@ -824,18 +824,22 @@ Market Downturn:
 
 ---
 
-## 📋 Current Sprint Status (November 2025)
+## 📋 Current Sprint Status (December 2025)
 
 ### Completed This Sprint ✅
-1. **Volume Alerts System** - Full end-to-end implementation from DO script to frontend UI
-2. **Tier-Based Alert Delivery** - Wall-clock synchronized batching for Free/Pro, real-time for Elite
-3. **UI/UX Overhaul** - Pricing page, Terms of Service, mobile navigation, active states
-4. **Testing Infrastructure** - Test accounts, comprehensive test plans, debug mode
-5. **Sound & Animation Framework** - Infrastructure ready, awaiting professional assets
+1. **Mobile UX Fixes** - Fixed horizontal table scrolling on mobile devices
+2. **Open Interest Fix** - Resolved Open Interest display issues with symbol normalization and immediate data fetching
+3. **Touch Handler Optimization** - Improved touch event handling for better mobile performance
+4. **Volume Alerts System** - Full end-to-end implementation from DO script to frontend UI (from previous sprint)
+5. **Tier-Based Alert Delivery** - Wall-clock synchronized batching for Free/Pro, real-time for Elite (from previous sprint)
+6. **UI/UX Overhaul** - Pricing page, Terms of Service, mobile navigation, active states (from previous sprint)
+7. **Testing Infrastructure** - Test accounts, comprehensive test plans, debug mode (from previous sprint)
+8. **Sound & Animation Framework** - Infrastructure ready, awaiting professional assets (from previous sprint)
 
 ### In Progress 🚧
 1. **Professional Sound Design** - External expert consultation with SOUND_DESIGN_BRIEF.md
 2. **Animation Refinement** - Test button implementation for alert animations in debug mode
+3. **Open Interest Testing** - Verifying Open Interest data flow from Digital Ocean script → Backend → Frontend
 
 ### Next Sprint (December 2025) 📋
 1. **Multi-Channel Notifications** - Email alerts (SendGrid) for Pro tier
@@ -872,6 +876,7 @@ Market Downturn:
 - **Test Coverage**: 75% (target: 80% by Elite launch)
 - **Build Success Rate**: 100% (last 30 builds)
 - **Deployment Success**: 100% (Vercel + Railway)
+- **Recent Fixes**: Horizontal scrolling restored, Open Interest display fixed (December 2025)
 
 ### Performance
 - **WebSocket Latency**: <150ms (Elite tier target met)
@@ -914,9 +919,9 @@ Market Downturn:
 
 ---
 
-*Last Updated: November 5, 2025*
-*Version: 4.0.0 (Client-Only Architecture + Volume Alerts)*
-*Status: Production Ready - Phase 3 Core Complete, Advanced Features In Progress*
+*Last Updated: December 2025*
+*Version: 4.1.0 (Client-Only Architecture + Volume Alerts + Mobile UX Fixes)*
+*Status: Production Ready - Phase 3 Core Complete, Mobile Scrolling Fixed, Open Interest Working*
 
 ### Quick Links
 - **Production**: https://volspike.com

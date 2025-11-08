@@ -915,9 +915,9 @@ For more information, visit the [GitHub repository](https://github.com/NikolaySi
 
 ---
 
-*Last Updated: November 2025*
-*Version: 4.0.0 (Client-Only Architecture + Volume Alerts)*
-*Status: Production Ready - Volume Alerts Live, Professional UI/UX, Testing Infrastructure Complete*
+*Last Updated: December 2025*
+*Version: 4.1.0 (Client-Only Architecture + Volume Alerts + Mobile UX Fixes)*
+*Status: Production Ready - Volume Alerts Live, Professional UI/UX, Mobile Scrolling Fixed, Open Interest Working*
 
 ### Recent Production Updates (November 2025)
 
@@ -963,6 +963,12 @@ For more information, visit the [GitHub repository](https://github.com/NikolaySi
 - ✅ **Animation Classes** - Tailwind animations for slide-in, scale, fade effects
 - ✅ **Test Buttons** - Debug mode buttons for testing sounds and animations
 - 🚧 **Awaiting Expert** - Professional MP3 files for spike, 30m update, and hourly update sounds
+
+### Recent Bug Fixes (December 2025)
+- ✅ **Horizontal Scrolling Fix** - Restored horizontal table scrolling on mobile by updating `touchAction` CSS property to allow `pan-x pan-y pinch-zoom`
+- ✅ **Open Interest Display Fix** - Fixed Open Interest showing $0 by normalizing symbols to uppercase for consistent matching, adding immediate fetch on mount, and filtering zero values
+- ✅ **Touch Handler Improvements** - Enhanced touch event handler to only prevent default at boundaries, allowing normal scrolling within bounds
+- ✅ **Open Interest Debugging** - Added comprehensive logging for Open Interest data fetching and symbol matching
 
 ### Previous Updates (October 2025)
 - ✅ **Dynamic route fixes** - Dashboard, home, and admin routes marked as force-dynamic

@@ -676,6 +676,15 @@ npm install && npm run dev
 - ✅ **Alert Card Effects** - Glowing ring, shadow pulse, and color-coded borders
 - 🚧 **Awaiting Expert** - Professional MP3 files to replace Web Audio API sounds
 
+### Recent Bug Fixes (December 2025)
+- ✅ **Horizontal Scrolling Restored** - Fixed mobile table scrolling by updating `touchAction` CSS from `pan-y pinch-zoom` to `pan-x pan-y pinch-zoom`
+- ✅ **Open Interest Data Fix** - Resolved Open Interest showing $0 by:
+  - Normalizing symbols to uppercase for consistent matching between WebSocket data and backend cache
+  - Adding immediate fetch on mount (not just after 5-minute interval)
+  - Filtering zero values when storing Open Interest data
+  - Adding comprehensive debugging logs for symbol matching
+- ✅ **Touch Handler Optimization** - Improved touch event handler to only prevent default at boundaries, allowing normal horizontal scrolling within bounds
+
 ### Previous Fixes (October 2025)
 - ✅ **Password verification enabled** - Fixed critical security vulnerability
 - ✅ **Error message display** - Proper error handling for invalid credentials
@@ -697,3 +706,8 @@ npm install && npm run dev
 - **Digital Ocean**: Python script running as systemd service, posting alerts every 5 minutes
 
 **Note**: This is the new client-only architecture with zero Redis dependency, plus real-time volume alerts via WebSocket, replacing the previous server-side data ingestion for better performance, scalability, and developer experience.
+
+### Latest Production Fixes (December 2025)
+- ✅ **Mobile UX**: Horizontal table scrolling now works correctly on all mobile devices
+- ✅ **Open Interest**: Data displays correctly for Pro/Elite tiers with proper symbol matching
+- ✅ **Touch Handling**: Optimized touch event handlers for better mobile performance
