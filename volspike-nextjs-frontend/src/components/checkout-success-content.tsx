@@ -58,15 +58,25 @@ export function CheckoutSuccessContent() {
                             const { user: freshUser } = await refreshResponse.json()
                             addDebugLog(`Refresh API result: tier=${freshUser?.tier || 'unknown'}`)
                             
-                            // If backend says pro but session doesn't, update session
+                            // If backend says pro but session doesn't, force update session
                             if (freshUser?.tier === 'pro' || freshUser?.tier === 'elite') {
                                 addDebugLog(`✅ Backend confirms tier=${freshUser.tier}`)
-                                // Update session - this should trigger JWT callback
-                                await update()
-                                // Also update local state immediately
+                                
+                                // Force update session with new tier data
+                                // In NextAuth v5, we can pass data to update()
+                                await update({
+                                    tier: freshUser.tier,
+                                } as any)
+                                
+                                addDebugLog(`✅ Session update called with tier=${freshUser.tier}`)
+                                
+                                // Force page refresh to pick up new session
                                 if (freshUser.tier !== currentTier) {
-                                    addDebugLog(`✅ Tier changed from ${currentTier} to ${freshUser.tier}`)
-                                    router.refresh()
+                                    addDebugLog(`✅ Tier changed from ${currentTier} to ${freshUser.tier}, refreshing page`)
+                                    // Small delay then refresh
+                                    setTimeout(() => {
+                                        window.location.reload()
+                                    }, 500)
                                 }
                             }
                         } else {
@@ -76,14 +86,24 @@ export function CheckoutSuccessContent() {
                         addDebugLog(`⚠️ Refresh API error: ${refreshError instanceof Error ? refreshError.message : String(refreshError)}`)
                     }
                     
+                    // Check session after refresh API call
                     const updatedSession = await update()
                     const afterTier = updatedSession?.user?.tier || 'unknown'
                     
                     addDebugLog(`Session update completed. Tier: ${beforeTier} → ${afterTier}`)
                     
-                    // Check if we need to look at network requests
-                    if (beforeTier === afterTier && afterTier === 'free') {
-                        addDebugLog('⚠️ Tier unchanged. Check Network tab for /api/auth/me call')
+                    // If backend confirmed pro but session still shows free, force reload
+                    if (refreshResponse.ok) {
+                        const { user: freshUser } = await refreshResponse.json()
+                        if ((freshUser?.tier === 'pro' || freshUser?.tier === 'elite') && afterTier === 'free') {
+                            addDebugLog(`⚠️ Backend says ${freshUser.tier} but session shows ${afterTier}. Forcing page reload...`)
+                            clearInterval(pollInterval)
+                            setIsRefreshing(false)
+                            setTimeout(() => {
+                                window.location.reload()
+                            }, 1000)
+                            return
+                        }
                     }
                     
                     // Check if tier has been updated
@@ -91,7 +111,9 @@ export function CheckoutSuccessContent() {
                         addDebugLog(`✅ Tier updated successfully to: ${updatedSession.user.tier}`)
                         clearInterval(pollInterval)
                         setIsRefreshing(false)
-                        router.refresh() // Force page refresh to show updated tier
+                        setTimeout(() => {
+                            window.location.reload()
+                        }, 500)
                         return
                     }
                     
