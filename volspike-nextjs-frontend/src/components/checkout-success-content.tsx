@@ -8,48 +8,107 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export function CheckoutSuccessContent() {
-    const { data: session, update } = useSession()
+    const { data: session, update, status } = useSession()
     const router = useRouter()
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [hasRefreshed, setHasRefreshed] = useState(false)
-    const [currentTier, setCurrentTier] = useState(session?.user?.tier || 'free')
+    const [refreshAttempts, setRefreshAttempts] = useState(0)
+    const [debugInfo, setDebugInfo] = useState<string[]>([])
 
-    // Auto-refresh session after a delay to pick up webhook updates
+    // Get current tier from session (will update when session updates)
+    const currentTier = session?.user?.tier || 'free'
+
+    const addDebugLog = (message: string) => {
+        const timestamp = new Date().toLocaleTimeString()
+        setDebugInfo(prev => [...prev.slice(-19), `[${timestamp}] ${message}`]) // Keep last 20 logs
+        console.log(`[CheckoutSuccess] ${message}`)
+    }
+
+    // Auto-refresh session with polling until tier updates
     useEffect(() => {
-        const timer = setTimeout(async () => {
-            if (!hasRefreshed) {
-                setIsRefreshing(true)
+        addDebugLog(`Initial tier: ${currentTier}, Session status: ${status}`)
+        
+        // Start polling after initial delay
+        const startPolling = () => {
+            let attempts = 0
+            const maxAttempts = 10 // Try for 30 seconds (10 attempts * 3 seconds)
+            
+            const pollInterval = setInterval(async () => {
+                attempts++
+                setRefreshAttempts(attempts)
+                
+                addDebugLog(`Polling attempt ${attempts}/${maxAttempts}, current tier: ${currentTier}`)
+                
                 try {
-                    // Refresh session to get updated tier from database
-                    await update()
-                    setHasRefreshed(true)
-                    // Update local state
-                    setCurrentTier(session?.user?.tier || 'free')
+                    setIsRefreshing(true)
+                    
+                    // Call update() which triggers JWT callback with trigger='update'
+                    addDebugLog('Calling session.update()...')
+                    const updatedSession = await update()
+                    
+                    addDebugLog(`Session update completed. New tier: ${updatedSession?.user?.tier || 'unknown'}`)
+                    
+                    // Check if tier has been updated
+                    if (updatedSession?.user?.tier === 'pro' || updatedSession?.user?.tier === 'elite') {
+                        addDebugLog(`✅ Tier updated successfully to: ${updatedSession.user.tier}`)
+                        clearInterval(pollInterval)
+                        setIsRefreshing(false)
+                        router.refresh() // Force page refresh to show updated tier
+                        return
+                    }
+                    
+                    // If not updated yet, continue polling
+                    if (attempts >= maxAttempts) {
+                        addDebugLog(`⚠️ Max polling attempts reached. Tier still: ${currentTier}`)
+                        clearInterval(pollInterval)
+                        setIsRefreshing(false)
+                    } else {
+                        setIsRefreshing(false)
+                    }
                 } catch (error) {
-                    console.error('Failed to refresh session:', error)
-                } finally {
+                    addDebugLog(`❌ Error refreshing session: ${error instanceof Error ? error.message : String(error)}`)
                     setIsRefreshing(false)
+                    
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval)
+                    }
                 }
-            }
-        }, 3000) // Wait 3 seconds for webhook to process
+            }, 3000) // Poll every 3 seconds
+            
+            // Cleanup on unmount
+            return () => clearInterval(pollInterval)
+        }
 
-        return () => clearTimeout(timer)
-    }, [update, hasRefreshed, session])
+        // Start polling after 2 seconds (give webhook time to process)
+        const initialTimer = setTimeout(() => {
+            addDebugLog('Starting automatic tier polling...')
+            startPolling()
+        }, 2000)
+
+        return () => {
+            clearTimeout(initialTimer)
+        }
+    }, []) // Only run once on mount
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true)
+        addDebugLog('Manual refresh triggered')
+        
         try {
-            await update()
-            setHasRefreshed(true)
-            setCurrentTier(session?.user?.tier || 'free')
-            // Small delay to show success
+            addDebugLog(`Current tier before refresh: ${currentTier}`)
+            const updatedSession = await update()
+            addDebugLog(`Session updated. New tier: ${updatedSession?.user?.tier || 'unknown'}`)
+            
+            // Force re-render by refreshing router
             setTimeout(() => {
                 router.refresh()
             }, 500)
         } catch (error) {
+            addDebugLog(`❌ Manual refresh error: ${error instanceof Error ? error.message : String(error)}`)
             console.error('Failed to refresh session:', error)
         } finally {
             setIsRefreshing(false)
+            setHasRefreshed(true)
         }
     }
 
@@ -79,7 +138,7 @@ export function CheckoutSuccessContent() {
                     <div className="mb-6">
                         <p className="text-muted-foreground mb-4">
                             Thank you for upgrading! Your Pro features will be available shortly.
-                            The webhook is processing your subscription update.
+                            {isRefreshing && ` Checking tier status... (Attempt ${refreshAttempts})`}
                         </p>
                         <Button
                             onClick={handleManualRefresh}
@@ -90,7 +149,7 @@ export function CheckoutSuccessContent() {
                             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                             {isRefreshing ? 'Refreshing...' : 'Refresh My Account'}
                         </Button>
-                        {hasRefreshed && (
+                        {hasRefreshed && !isPro && (
                             <p className="text-sm text-muted-foreground mt-2">
                                 Session refreshed. If tier hasn&apos;t updated, please sign out and sign back in.
                             </p>
@@ -98,7 +157,17 @@ export function CheckoutSuccessContent() {
                     </div>
                 )}
 
-                <div className="flex items-center justify-center gap-3">
+                {/* Debug info - always show in production for troubleshooting */}
+                {debugInfo.length > 0 && (
+                    <div className="mt-6 p-4 bg-muted rounded-lg text-left text-xs max-h-40 overflow-y-auto">
+                        <div className="font-semibold mb-2">Debug Log:</div>
+                        {debugInfo.map((log, idx) => (
+                            <div key={idx} className="text-muted-foreground">{log}</div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex items-center justify-center gap-3 mt-6">
                     <Link href="/dashboard" className="inline-flex items-center justify-center rounded-md px-4 py-2 bg-brand-600 text-white hover:bg-brand-700 transition">
                         Go to Dashboard
                     </Link>
@@ -110,4 +179,3 @@ export function CheckoutSuccessContent() {
         </main>
     )
 }
-

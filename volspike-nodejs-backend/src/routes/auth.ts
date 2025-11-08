@@ -766,8 +766,15 @@ auth.get('/me', async (c) => {
         const user = getUser(c)
 
         if (!user) {
+            logger.warn('[Auth] /me endpoint called without authentication')
             return c.json({ error: 'Not authenticated' }, 401)
         }
+
+        logger.info('[Auth] /me endpoint called', {
+            userId: user.id,
+            email: user.email,
+            tier: user.tier,
+        })
 
         return c.json({ user })
     } catch (error) {
