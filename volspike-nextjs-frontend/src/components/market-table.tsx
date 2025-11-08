@@ -74,15 +74,45 @@ export function MarketTable({
         const container = scrollContainerRef.current
         if (!container) return
 
-        const handleScroll = () => {
-            // Prevent scrolling past left edge (scrollLeft should never be negative)
+        // Lock scroll position at start
+        container.scrollLeft = 0
+
+        const preventOverscroll = (e: Event) => {
             if (container.scrollLeft < 0) {
                 container.scrollLeft = 0
             }
         }
 
-        container.addEventListener('scroll', handleScroll, { passive: true })
-        return () => container.removeEventListener('scroll', handleScroll)
+        const preventTouchOverscroll = (e: TouchEvent) => {
+            // If trying to scroll left when already at left edge, prevent
+            if (container.scrollLeft === 0) {
+                const touch = e.touches[0]
+                const startX = touch.clientX
+                
+                const handleTouchMove = (moveEvent: TouchEvent) => {
+                    const currentTouch = moveEvent.touches[0]
+                    const deltaX = currentTouch.clientX - startX
+                    
+                    // If dragging right (deltaX > 0) when at left edge, prevent
+                    if (deltaX > 0 && container.scrollLeft === 0) {
+                        moveEvent.preventDefault()
+                    }
+                }
+                
+                container.addEventListener('touchmove', handleTouchMove, { passive: false })
+                container.addEventListener('touchend', () => {
+                    container.removeEventListener('touchmove', handleTouchMove)
+                }, { once: true })
+            }
+        }
+
+        container.addEventListener('scroll', preventOverscroll, { passive: true })
+        container.addEventListener('touchstart', preventTouchOverscroll, { passive: true })
+        
+        return () => {
+            container.removeEventListener('scroll', preventOverscroll)
+            container.removeEventListener('touchstart', preventTouchOverscroll)
+        }
     }, [])
 
     const formatVolume = useMemo(() => (value: number) => {
@@ -248,7 +278,13 @@ export function MarketTable({
             <div 
                 ref={scrollContainerRef}
                 className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
-                style={{ overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch' }}
+                style={{ 
+                    overscrollBehaviorX: 'none',
+                    overscrollBehaviorY: 'auto',
+                    WebkitOverflowScrolling: 'touch',
+                    position: 'relative',
+                    left: 0
+                }}
             >
                 <table className="w-full min-w-[800px]">
                     <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
