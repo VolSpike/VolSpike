@@ -69,52 +69,105 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    // Allow page scroll at vertical edges by default, but clamp the specific
-    // case where a horizontal pan is active and the gesture tries to drag
-    // vertically past the top/bottom (iOS diagonal gesture rubber-band).
+    // Chrome mobile diagonal rubber-band fix
+    // - Detects gesture direction early (within a small threshold)
+    // - Locks to horizontal or vertical
+    // - While horizontally locked, prevents vertical rubber-band at edges and
+    //   manually drives horizontal scroll for smoothness (keeps momentum)
     useEffect(() => {
         const el = scrollContainerRef.current
         if (!el) return
 
         let startX = 0
         let startY = 0
-        let horizontalActive = false
+        let lastX = 0
+        let lastTime = 0
+        let vx = 0 // px/ms
+        let locked: 'h' | 'v' | null = null
+        const lockThreshold = 10 // px movement before deciding
+        const bias = 0.8 // horizontal bias to catch diagonal swipes
+        let momentumId: number | null = null
+
+        const stopMomentum = () => {
+            if (momentumId != null) {
+                cancelAnimationFrame(momentumId)
+                momentumId = null
+            }
+        }
 
         const onTouchStart = (e: TouchEvent) => {
+            stopMomentum()
             if (e.touches && e.touches.length === 1) {
                 const t = e.touches[0]
-                startX = t.clientX
+                startX = lastX = t.clientX
                 startY = t.clientY
-                horizontalActive = false
+                lastTime = performance.now()
+                locked = null
             }
         }
 
         const onTouchMove = (e: TouchEvent) => {
             if (!e.touches || e.touches.length !== 1) return
             const t = e.touches[0]
+            const now = performance.now()
             const dx = t.clientX - startX
             const dy = t.clientY - startY
 
-            // Once horizontal dominates (with small hysteresis), consider it active
-            if (!horizontalActive && Math.abs(dx) > Math.abs(dy) + 4) {
-                horizontalActive = true
+            // Decide lock early
+            if (!locked) {
+                if (Math.hypot(dx, dy) < lockThreshold) return
+                locked = Math.abs(dx) > Math.abs(dy) * bias ? 'h' : 'v'
+                // If we lock horizontal, prevent default immediately to avoid vertical rubber-band taking over
+                if (locked === 'h') e.preventDefault()
             }
 
-            const atTop = el.scrollTop <= 0
-            const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 1
-
-            // If a horizontal pan is active, block vertical rubber-band at edges only
-            if (horizontalActive && ((atTop && dy > 0) || (atBottom && dy < 0))) {
+            if (locked === 'h') {
+                // Aggressive prevention to stop vertical mixing/bounce
                 e.preventDefault()
+
+                // Manual horizontal scroll with simple velocity capture for momentum
+                const deltaX = lastX - t.clientX
+                const dt = Math.max(1, now - lastTime)
+                vx = deltaX / dt // px per ms
+                el.scrollLeft += deltaX
+                lastX = t.clientX
+                lastTime = now
+            } else {
+                // Vertical lock: allow default; no manual scrolling
             }
         }
 
-        el.addEventListener('touchstart', onTouchStart, { passive: true })
-        el.addEventListener('touchmove', onTouchMove, { passive: false })
+        const onTouchEnd = () => {
+            if (locked === 'h' && Math.abs(vx) > 0.01) {
+                // Apply simple momentum with friction
+                const friction = 0.95
+                const frame = () => {
+                    // 16ms frame approximation
+                    el.scrollLeft += vx * 16
+                    vx *= friction
+                    if (Math.abs(vx) > 0.01) {
+                        momentumId = requestAnimationFrame(frame)
+                    } else {
+                        momentumId = null
+                    }
+                }
+                momentumId = requestAnimationFrame(frame)
+            }
+            locked = null
+        }
+
+        // Non-passive start for immediate control; move must be non-passive to call preventDefault
+        el.addEventListener('touchstart', onTouchStart as any, { passive: false, capture: true })
+        el.addEventListener('touchmove', onTouchMove as any, { passive: false, capture: true })
+        el.addEventListener('touchend', onTouchEnd as any, { passive: true })
+        el.addEventListener('touchcancel', onTouchEnd as any, { passive: true })
 
         return () => {
-            el.removeEventListener('touchstart', onTouchStart as any)
-            el.removeEventListener('touchmove', onTouchMove as any)
+            stopMomentum()
+            el.removeEventListener('touchstart', onTouchStart as any, { capture: true } as any)
+            el.removeEventListener('touchmove', onTouchMove as any, { capture: true } as any)
+            el.removeEventListener('touchend', onTouchEnd as any)
+            el.removeEventListener('touchcancel', onTouchEnd as any)
         }
     }, [])
 
