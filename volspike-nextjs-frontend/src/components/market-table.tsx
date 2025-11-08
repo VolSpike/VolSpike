@@ -234,8 +234,11 @@ export function MarketTable({
                 className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
                 style={{ 
                     WebkitOverflowScrolling: 'touch',
-                    overscrollBehaviorX: 'contain',
+                    // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
+                    overscrollBehaviorX: 'none',
                     overscrollBehaviorY: 'auto',
+                    // Ensure proper gesture handling on mobile while preserving momentum scroll
+                    touchAction: 'pan-x pan-y pinch-zoom',
                 }}
             >
                 <table className="w-full min-w-[800px]">

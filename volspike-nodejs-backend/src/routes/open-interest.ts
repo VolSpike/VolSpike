@@ -2,6 +2,7 @@
  * Open Interest API Routes
  * 
  * POST /api/market/open-interest/ingest - Receive OI data from Digital Ocean script
+ * POST /api/market/open-interest         - Backward-compatible alias for ingest
  * GET /api/market/open-interest - Serve cached OI data to frontend (stale-while-revalidate)
  */
 
@@ -27,12 +28,12 @@ interface OISnapshot {
 
 let oiCache: OISnapshot | null = null
 
-// POST endpoint - receives OI data from Digital Ocean script
-app.post('/ingest', async (c) => {
+// Shared handler for OI ingestion
+const handleIngest = async (c: any) => {
   try {
     // Get API key from environment
     const { ALERT_INGEST_API_KEY } = env(c)
-    
+
     // Validate API key
     const providedKey = c.req.header('X-API-Key')
     if (!providedKey || providedKey !== ALERT_INGEST_API_KEY) {
@@ -42,7 +43,7 @@ app.post('/ingest', async (c) => {
 
     // Parse request body
     const body = await c.req.json()
-    
+
     if (!body.data || !Array.isArray(body.data)) {
       console.log('⚠️  Open Interest ingest: Invalid payload')
       return c.json({ error: 'Invalid payload: data array required' }, 400)
@@ -74,7 +75,13 @@ app.post('/ingest', async (c) => {
     console.error('❌ Open Interest ingest error:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
-})
+}
+
+// POST endpoint - receives OI data from Digital Ocean script
+app.post('/ingest', handleIngest)
+
+// Backward-compatible alias: allow POST to root as ingest
+app.post('/', handleIngest)
 
 // GET endpoint - serves cached OI data with stale-while-revalidate semantics
 app.get('/', async (c) => {
@@ -121,4 +128,3 @@ app.get('/', async (c) => {
 })
 
 export default app
-

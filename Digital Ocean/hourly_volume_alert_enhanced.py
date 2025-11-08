@@ -217,7 +217,7 @@ def fetch_and_post_open_interest() -> None:
         }
         
         r = session.post(
-            f"{VOLSPIKE_API_URL}/api/market/open-interest",
+            f"{VOLSPIKE_API_URL}/api/market/open-interest/ingest",
             json=payload,
             headers={
                 "X-API-Key": VOLSPIKE_API_KEY,
@@ -375,4 +375,3 @@ while True:
         sys.stdout.flush()
         time.sleep(1)
     print()
-
