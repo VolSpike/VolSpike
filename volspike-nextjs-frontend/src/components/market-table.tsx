@@ -76,10 +76,17 @@ export function MarketTable({
         if (!container) return
 
         const clampScroll = () => {
-            // Clamp to valid range (prevents visual glitch)
+            // Horizontal: Prevent scrolling past left or right edges
             if (container.scrollLeft < 0) {
                 container.scrollLeft = 0
             }
+            const maxScrollLeft = container.scrollWidth - container.clientWidth
+            if (container.scrollLeft > maxScrollLeft) {
+                container.scrollLeft = maxScrollLeft
+            }
+
+            // Vertical: Only prevent negative (top edge bounce)
+            // Don't enforce bottom to allow page scroll propagation
             if (container.scrollTop < 0) {
                 container.scrollTop = 0
             }
