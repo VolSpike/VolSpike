@@ -69,43 +69,30 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    // Prevent table from being dragged past edges (top, bottom, left, right) on mobile
+    // Prevent table from being dragged to negative scroll positions (visual glitch fix)
     useEffect(() => {
         const container = scrollContainerRef.current
         if (!container) return
 
-        // Lock scroll position at start
+        // Initialize at 0,0
         container.scrollLeft = 0
         container.scrollTop = 0
 
-        const preventOverscroll = () => {
-            // Prevent horizontal overscroll
+        const preventNegativeScroll = () => {
+            // Only prevent negative scroll (elastic bounce past edges)
+            // Allow natural scroll propagation when at edges
             if (container.scrollLeft < 0) {
                 container.scrollLeft = 0
             }
-            
-            // Prevent vertical overscroll
             if (container.scrollTop < 0) {
                 container.scrollTop = 0
             }
-            
-            // Prevent scrolling past bottom
-            const maxScrollTop = container.scrollHeight - container.clientHeight
-            if (container.scrollTop > maxScrollTop) {
-                container.scrollTop = maxScrollTop
-            }
-            
-            // Prevent scrolling past right edge
-            const maxScrollLeft = container.scrollWidth - container.clientWidth
-            if (container.scrollLeft > maxScrollLeft) {
-                container.scrollLeft = maxScrollLeft
-            }
         }
 
-        container.addEventListener('scroll', preventOverscroll, { passive: true })
+        container.addEventListener('scroll', preventNegativeScroll, { passive: true })
         
         return () => {
-            container.removeEventListener('scroll', preventOverscroll)
+            container.removeEventListener('scroll', preventNegativeScroll)
         }
     }, [])
 
@@ -273,7 +260,7 @@ export function MarketTable({
                 ref={scrollContainerRef}
                 className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
                 style={{ 
-                    overscrollBehavior: 'none',
+                    overscrollBehavior: 'contain',
                     WebkitOverflowScrolling: 'touch',
                     position: 'relative'
                 }}
