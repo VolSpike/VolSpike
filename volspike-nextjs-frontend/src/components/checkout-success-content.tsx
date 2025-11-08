@@ -47,33 +47,33 @@ export function CheckoutSuccessContent() {
                     
                     const beforeTier = currentTier
                     
-                    // Also directly fetch from backend as fallback
+                    // Use Next.js API route to refresh session (server-side)
                     try {
-                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://volspike-production.up.railway.app'
-                        const authToken = (session as any)?.accessToken || session?.user?.id
-                        
-                        addDebugLog(`Directly fetching from ${apiUrl}/api/auth/me...`)
-                        const directResponse = await fetch(`${apiUrl}/api/auth/me`, {
-                            headers: {
-                                'Authorization': `Bearer ${authToken}`,
-                            },
+                        addDebugLog('Calling /api/auth/refresh-session...')
+                        const refreshResponse = await fetch('/api/auth/refresh-session', {
+                            method: 'POST',
                         })
                         
-                        if (directResponse.ok) {
-                            const { user: directUser } = await directResponse.json()
-                            addDebugLog(`Direct fetch result: tier=${directUser?.tier || 'unknown'}`)
+                        if (refreshResponse.ok) {
+                            const { user: freshUser } = await refreshResponse.json()
+                            addDebugLog(`Refresh API result: tier=${freshUser?.tier || 'unknown'}`)
                             
-                            // If backend says pro but session doesn't, force update
-                            if (directUser?.tier === 'pro' || directUser?.tier === 'elite') {
-                                addDebugLog(`✅ Backend confirms tier=${directUser.tier}, forcing session refresh`)
-                                // Force a hard refresh by calling update with data
-                                await update({ tier: directUser.tier } as any)
+                            // If backend says pro but session doesn't, update session
+                            if (freshUser?.tier === 'pro' || freshUser?.tier === 'elite') {
+                                addDebugLog(`✅ Backend confirms tier=${freshUser.tier}`)
+                                // Update session - this should trigger JWT callback
+                                await update()
+                                // Also update local state immediately
+                                if (freshUser.tier !== currentTier) {
+                                    addDebugLog(`✅ Tier changed from ${currentTier} to ${freshUser.tier}`)
+                                    router.refresh()
+                                }
                             }
                         } else {
-                            addDebugLog(`⚠️ Direct fetch failed: ${directResponse.status}`)
+                            addDebugLog(`⚠️ Refresh API failed: ${refreshResponse.status}`)
                         }
-                    } catch (directError) {
-                        addDebugLog(`⚠️ Direct fetch error: ${directError instanceof Error ? directError.message : String(directError)}`)
+                    } catch (refreshError) {
+                        addDebugLog(`⚠️ Refresh API error: ${refreshError instanceof Error ? refreshError.message : String(refreshError)}`)
                     }
                     
                     const updatedSession = await update()
