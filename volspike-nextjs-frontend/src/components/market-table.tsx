@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -67,6 +67,23 @@ export function MarketTable({
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
+
+    // Prevent table from being dragged past the left edge on mobile
+    useEffect(() => {
+        const container = scrollContainerRef.current
+        if (!container) return
+
+        const handleScroll = () => {
+            // Prevent scrolling past left edge (scrollLeft should never be negative)
+            if (container.scrollLeft < 0) {
+                container.scrollLeft = 0
+            }
+        }
+
+        container.addEventListener('scroll', handleScroll, { passive: true })
+        return () => container.removeEventListener('scroll', handleScroll)
+    }, [])
 
     const formatVolume = useMemo(() => (value: number) => {
         const abs = Math.abs(value)
@@ -228,7 +245,11 @@ export function MarketTable({
             </div>
 
             {/* Table with sticky header */}
-            <div className="relative max-h-[600px] overflow-y-auto overflow-x-auto -mx-6 px-6" style={{ overscrollBehavior: 'contain', touchAction: 'pan-x pan-y' }}>
+            <div 
+                ref={scrollContainerRef}
+                className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
+                style={{ overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch' }}
+            >
                 <table className="w-full min-w-[800px]">
                     <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
                         <tr className="border-b border-border/50">
