@@ -69,18 +69,14 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    // Prevent table from being dragged to negative scroll positions (visual glitch fix)
+    // Fix visual glitch: prevent content from appearing outside table borders
+    // while allowing natural scroll chaining to page
     useEffect(() => {
         const container = scrollContainerRef.current
         if (!container) return
 
-        // Initialize at 0,0
-        container.scrollLeft = 0
-        container.scrollTop = 0
-
-        const preventNegativeScroll = () => {
-            // Only prevent negative scroll (elastic bounce past edges)
-            // Allow natural scroll propagation when at edges
+        const clampScroll = () => {
+            // Clamp to valid range (prevents visual glitch)
             if (container.scrollLeft < 0) {
                 container.scrollLeft = 0
             }
@@ -89,10 +85,15 @@ export function MarketTable({
             }
         }
 
-        container.addEventListener('scroll', preventNegativeScroll, { passive: true })
+        // Use requestAnimationFrame for smooth correction without blocking scroll
+        const handleScroll = () => {
+            requestAnimationFrame(clampScroll)
+        }
+
+        container.addEventListener('scroll', handleScroll, { passive: true })
         
         return () => {
-            container.removeEventListener('scroll', preventNegativeScroll)
+            container.removeEventListener('scroll', handleScroll)
         }
     }, [])
 
@@ -260,9 +261,7 @@ export function MarketTable({
                 ref={scrollContainerRef}
                 className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
                 style={{ 
-                    overscrollBehavior: 'contain',
-                    WebkitOverflowScrolling: 'touch',
-                    position: 'relative'
+                    WebkitOverflowScrolling: 'touch'
                 }}
             >
                 <table className="w-full min-w-[800px]">
