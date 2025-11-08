@@ -122,8 +122,6 @@ export function CheckoutSuccessContent() {
         }
     }
 
-    const isPro = currentTier === 'pro' || currentTier === 'elite'
-
     return (
         <main className="container mx-auto px-4 py-12 max-w-2xl">
             <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-lg">
