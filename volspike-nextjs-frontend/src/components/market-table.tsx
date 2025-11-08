@@ -69,9 +69,54 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    // Note: We purposely allow scroll chaining to the page when the table
-    // reaches top/bottom so the user can continue scrolling the page. The
-    // horizontal overscroll remains clamped via overscrollBehaviorX: 'none'.
+    // Allow page scroll at vertical edges by default, but clamp the specific
+    // case where a horizontal pan is active and the gesture tries to drag
+    // vertically past the top/bottom (iOS diagonal gesture rubber-band).
+    useEffect(() => {
+        const el = scrollContainerRef.current
+        if (!el) return
+
+        let startX = 0
+        let startY = 0
+        let horizontalActive = false
+
+        const onTouchStart = (e: TouchEvent) => {
+            if (e.touches && e.touches.length === 1) {
+                const t = e.touches[0]
+                startX = t.clientX
+                startY = t.clientY
+                horizontalActive = false
+            }
+        }
+
+        const onTouchMove = (e: TouchEvent) => {
+            if (!e.touches || e.touches.length !== 1) return
+            const t = e.touches[0]
+            const dx = t.clientX - startX
+            const dy = t.clientY - startY
+
+            // Once horizontal dominates (with small hysteresis), consider it active
+            if (!horizontalActive && Math.abs(dx) > Math.abs(dy) + 4) {
+                horizontalActive = true
+            }
+
+            const atTop = el.scrollTop <= 0
+            const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 1
+
+            // If a horizontal pan is active, block vertical rubber-band at edges only
+            if (horizontalActive && ((atTop && dy > 0) || (atBottom && dy < 0))) {
+                e.preventDefault()
+            }
+        }
+
+        el.addEventListener('touchstart', onTouchStart, { passive: true })
+        el.addEventListener('touchmove', onTouchMove, { passive: false })
+
+        return () => {
+            el.removeEventListener('touchstart', onTouchStart as any)
+            el.removeEventListener('touchmove', onTouchMove as any)
+        }
+    }, [])
 
     const formatVolume = useMemo(() => (value: number) => {
         const abs = Math.abs(value)
