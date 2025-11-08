@@ -144,13 +144,15 @@
 
 /* ===== Market table funding tints (load after shadcn) ===== */
 tr.funding-pos > td {
-    background-color: hsl(var(--brand-500) / 0.12);
+    /* Softer base tint for green rows */
+    background-color: hsl(var(--brand-500) / 0.08);
 }
 tr.funding-pos:hover > td {
     background-color: hsl(var(--brand-500) / 0.18);
 }
 tr.funding-neg > td {
-    background-color: hsl(var(--danger-500) / 0.12);
+    /* Softer base tint for red rows */
+    background-color: hsl(var(--danger-500) / 0.08);
 }
 tr.funding-neg:hover > td {
     background-color: hsl(var(--danger-500) / 0.18);
