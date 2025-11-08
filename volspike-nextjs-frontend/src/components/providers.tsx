@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from 'react-hot-toast'
 import { Footer } from '@/components/footer'
+import { TierChangeListener } from '@/components/tier-change-listener'
 
 // Dynamic import for Web3 providers to prevent hydration mismatches
 const Web3Providers = dynamic(
@@ -43,6 +44,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             <SessionProvider>
+                <TierChangeListener />
                 <Web3Providers>
                     <ThemeProvider
                         attribute="class"

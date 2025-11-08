@@ -69,67 +69,84 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    // Fix visual glitch: prevent content from appearing outside table borders
-    // while allowing natural scroll chaining to page
+    // Improved scroll handling: prevent horizontal overscroll while allowing vertical scroll chaining
     useEffect(() => {
         const container = scrollContainerRef.current
         if (!container) return
 
         let touchStartX = 0
+        let touchStartY = 0
         let touchStartScrollLeft = 0
+        let isHorizontalScroll: boolean | null = null
 
-        const clampScroll = () => {
-            // Horizontal: Prevent scrolling past left or right edges (STRICT)
-            const maxScrollLeft = container.scrollWidth - container.clientWidth
-            
-            if (container.scrollLeft < 0) {
-                container.scrollLeft = 0
-            } else if (container.scrollLeft > maxScrollLeft) {
-                container.scrollLeft = maxScrollLeft
-            }
-
-            // Vertical: Only prevent negative (top edge bounce)
-            if (container.scrollTop < 0) {
-                container.scrollTop = 0
-            }
-        }
+        // Use requestAnimationFrame for smooth scroll clamping
+        let rafId: number | null = null
 
         const handleTouchStart = (e: TouchEvent) => {
             touchStartX = e.touches[0].clientX
+            touchStartY = e.touches[0].clientY
             touchStartScrollLeft = container.scrollLeft
+            isHorizontalScroll = null // Reset direction detection
         }
 
         const handleTouchMove = (e: TouchEvent) => {
             const touchX = e.touches[0].clientX
+            const touchY = e.touches[0].clientY
             const deltaX = touchStartX - touchX
-            const newScrollLeft = touchStartScrollLeft + deltaX
+            const deltaY = touchStartY - touchY
 
-            const maxScrollLeft = container.scrollWidth - container.clientWidth
-
-            // Prevent horizontal overscroll DURING touch
-            if (newScrollLeft < 0) {
-                container.scrollLeft = 0
-                e.preventDefault()
-            } else if (newScrollLeft > maxScrollLeft) {
-                container.scrollLeft = maxScrollLeft
-                e.preventDefault()
+            // Determine scroll direction on first significant move
+            if (isHorizontalScroll === null && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+                isHorizontalScroll = Math.abs(deltaX) > Math.abs(deltaY)
             }
 
-            clampScroll()
+            // Only handle horizontal scrolling - prevent overscroll
+            if (isHorizontalScroll) {
+                const newScrollLeft = touchStartScrollLeft + deltaX
+                const maxScrollLeft = container.scrollWidth - container.clientWidth
+
+                // Prevent horizontal overscroll at boundaries
+                if (newScrollLeft <= 0 || newScrollLeft >= maxScrollLeft) {
+                    e.preventDefault()
+                    // Clamp the scroll position
+                    container.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft))
+                }
+            }
+            // For vertical scrolling, let it bubble up naturally for scroll chaining
         }
 
-        const handleScroll = () => {
-            clampScroll()
+        const handleTouchEnd = () => {
+            isHorizontalScroll = null
         }
 
+        // Clamp horizontal scroll using requestAnimationFrame for smooth performance
+        const preventHorizontalBounce = () => {
+            if (rafId) cancelAnimationFrame(rafId)
+            
+            rafId = requestAnimationFrame(() => {
+                const maxScrollLeft = container.scrollWidth - container.clientWidth
+                
+                // Only intervene if we detect bounce behavior
+                if (container.scrollLeft < 0) {
+                    container.scrollLeft = 0
+                } else if (container.scrollLeft > maxScrollLeft) {
+                    container.scrollLeft = maxScrollLeft
+                }
+            })
+        }
+
+        // Use passive listeners except for touchmove (needs preventDefault for horizontal boundaries)
         container.addEventListener('touchstart', handleTouchStart, { passive: true })
         container.addEventListener('touchmove', handleTouchMove, { passive: false })
-        container.addEventListener('scroll', handleScroll, { passive: true })
+        container.addEventListener('touchend', handleTouchEnd, { passive: true })
+        container.addEventListener('scroll', preventHorizontalBounce, { passive: true })
         
         return () => {
             container.removeEventListener('touchstart', handleTouchStart)
             container.removeEventListener('touchmove', handleTouchMove)
-            container.removeEventListener('scroll', handleScroll)
+            container.removeEventListener('touchend', handleTouchEnd)
+            container.removeEventListener('scroll', preventHorizontalBounce)
+            if (rafId) cancelAnimationFrame(rafId)
         }
     }, [])
 
@@ -295,11 +312,13 @@ export function MarketTable({
             {/* Table with sticky header */}
             <div 
                 ref={scrollContainerRef}
-                className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
+                className="relative max-h-[600px] overflow-y-auto overflow-x-auto touch-pan-y" 
                 style={{ 
                     overscrollBehaviorX: 'none',
                     overscrollBehaviorY: 'auto',
-                    WebkitOverflowScrolling: 'touch'
+                    WebkitOverflowScrolling: 'touch',
+                    touchAction: 'pan-y pinch-zoom',
+                    scrollBehavior: 'smooth',
                 }}
             >
                 <table className="w-full min-w-[800px]">

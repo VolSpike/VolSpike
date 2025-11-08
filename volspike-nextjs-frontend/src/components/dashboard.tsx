@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSocket } from '@/hooks/use-socket'
+import { useTierChangeListener } from '@/hooks/use-tier-change-listener'
 import { useClientOnlyMarketData } from '@/hooks/use-client-only-market-data'
 import { Header } from '@/components/header'
 import { MarketTable } from '@/components/market-table'
@@ -22,6 +23,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export function Dashboard() {
     const { data: session, status } = useSession()
     const { socket, isConnected } = useSocket()
+    
+    // Listen for tier changes via WebSocket and auto-refresh session
+    useTierChangeListener()
+    
     const [alerts, setAlerts] = useState<any[]>([])
     const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
     const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')

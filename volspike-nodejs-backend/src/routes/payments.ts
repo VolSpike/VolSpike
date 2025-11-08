@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import Stripe from 'stripe'
-import { prisma } from '../index'
+import { prisma, io } from '../index'
 import { createLogger } from '../lib/logger'
 import { User } from '../types'
 import { getUser, requireUser } from '../lib/hono-extensions'
@@ -275,6 +275,26 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                     email: userResult.email,
                     tier: userResult.tier,
                 })
+
+                // Broadcast tier change via WebSocket
+                if (io) {
+                    io.to(`user-${session.metadata.userId}`).emit('tier-changed', { tier })
+                    logger.info(`Broadcasted tier change to user ${session.metadata.userId}`)
+                }
+            }
+
+            // Also broadcast to users updated by customerId
+            if (result.count > 0 && io) {
+                const updatedUsers = await prisma.user.findMany({
+                    where: { stripeCustomerId: customerId },
+                    select: { id: true },
+                })
+
+                updatedUsers.forEach(user => {
+                    io.to(`user-${user.id}`).emit('tier-changed', { tier })
+                })
+
+                logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
             }
         }
     } catch (error) {
@@ -320,6 +340,20 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 
         if (result.count === 0) {
             logger.warn(`No users found with stripeCustomerId: ${customerId}`)
+        } else {
+            // Broadcast tier change to affected users via WebSocket
+            if (io) {
+                const updatedUsers = await prisma.user.findMany({
+                    where: { stripeCustomerId: customerId },
+                    select: { id: true },
+                })
+
+                updatedUsers.forEach(user => {
+                    io.to(`user-${user.id}`).emit('tier-changed', { tier })
+                })
+
+                logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
+            }
         }
     } catch (error) {
         logger.error('Error handling subscription change:', error)
@@ -331,12 +365,63 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     const customerId = subscription.customer as string
 
     // Downgrade to free tier
-    await prisma.user.updateMany({
+    const result = await prisma.user.updateMany({
         where: { stripeCustomerId: customerId },
         data: { tier: 'free' },
     })
 
-    logger.info(`User downgraded to free tier for customer ${customerId}`)
+    logger.info(`User downgraded to free tier for customer ${customerId}`, {
+        customerId,
+        usersUpdated: result.count,
+    })
+
+    // If no users were updated, log a warning and try fallback
+    if (result.count === 0) {
+        logger.warn(`No users found with stripeCustomerId: ${customerId} - subscription deleted but user tier not updated`)
+
+        // Try to find user by customer ID in metadata or other means
+        // This is a fallback - ideally stripeCustomerId should always match
+        try {
+            const customer = await stripe.customers.retrieve(customerId)
+            if (!customer.deleted && customer.email) {
+                const emailResult = await prisma.user.updateMany({
+                    where: { email: customer.email },
+                    data: { tier: 'free' },
+                })
+                logger.info(`Fallback: Updated user by email ${customer.email}`, {
+                    usersUpdated: emailResult.count,
+                })
+
+                // Broadcast tier change if user was updated
+                if (emailResult.count > 0 && io) {
+                    const updatedUser = await prisma.user.findFirst({
+                        where: { email: customer.email },
+                        select: { id: true },
+                    })
+                    if (updatedUser) {
+                        io.to(`user-${updatedUser.id}`).emit('tier-changed', { tier: 'free' })
+                        logger.info(`Broadcasted tier change to user ${updatedUser.id}`)
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error(`Failed to retrieve customer ${customerId} for fallback update:`, error)
+        }
+    } else {
+        // Broadcast tier change to affected users via WebSocket
+        if (io && result.count > 0) {
+            const updatedUsers = await prisma.user.findMany({
+                where: { stripeCustomerId: customerId },
+                select: { id: true },
+            })
+
+            updatedUsers.forEach(user => {
+                io.to(`user-${user.id}`).emit('tier-changed', { tier: 'free' })
+            })
+
+            logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
+        }
+    }
 }
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
