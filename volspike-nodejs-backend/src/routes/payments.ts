@@ -71,7 +71,11 @@ payments.post('/checkout', async (c) => {
 
         return c.json({ sessionId: session.id, url: session.url })
     } catch (error) {
-        logger.error('Create checkout error:', error)
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('Create checkout error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
         return c.json({ error: 'Failed to create checkout session' }, 500)
     }
 })
@@ -116,7 +120,11 @@ payments.get('/subscription', async (c) => {
             },
         })
     } catch (error) {
-        logger.error('Get subscription error:', error)
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('Get subscription error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
         return c.json({ error: 'Failed to fetch subscription' }, 500)
     }
 })
@@ -139,7 +147,11 @@ payments.post('/portal', async (c) => {
 
         return c.json({ url: session.url })
     } catch (error) {
-        logger.error('Create portal error:', error)
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('Create portal error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
         return c.json({ error: 'Failed to create billing portal session' }, 500)
     }
 })

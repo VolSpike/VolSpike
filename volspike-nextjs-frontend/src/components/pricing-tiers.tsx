@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
+import { startProCheckout } from '@/lib/payments'
+import { toast } from 'react-hot-toast'
 
 interface PricingTiersProps {
   currentTier?: string
@@ -88,6 +91,7 @@ const tiers = [
 
 export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
   const router = useRouter()
+  const { data: session } = useSession()
   
   const handleTierAction = (tierName: string, isComingSoon: boolean, isCurrent: boolean) => {
     if (isComingSoon || isCurrent) return
@@ -95,7 +99,16 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
     if (tierName === 'Free') {
       router.push('/auth')
     } else if (tierName === 'Pro') {
-      router.push('/settings?tab=subscription')
+      ;(async () => {
+        try {
+          await startProCheckout(session || null)
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Failed to start checkout'
+          toast.error(message)
+          // Fallback: route to settings subscription section
+          router.push('/settings?tab=subscription')
+        }
+      })()
     } else {
       router.push('/dashboard')
     }
