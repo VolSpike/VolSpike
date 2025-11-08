@@ -122,14 +122,21 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
           }
         }
         
+        // Check if this is a downgrade option
+        const isDowngrade = currentTier === 'pro' && tier.name === 'Free'
+        
         return (
           <Card
             key={tier.name}
-            className={`relative transition-all duration-300 ease-out cursor-pointer ${
-              isPopular
-                ? 'ring-2 ring-brand-500 shadow-xl scale-105 md:scale-110 hover:scale-110 md:hover:scale-[1.15] hover:ring-brand-400 hover:shadow-2xl hover:shadow-brand-500/30 z-10'
-                : 'hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-brand-500/50 hover:z-20'
-            } hover:-translate-y-2 hover:brightness-105`}
+            className={`relative transition-all duration-300 ease-out bg-card ${
+              isCurrent 
+                ? 'ring-2 ring-brand-500 shadow-lg cursor-default bg-card/100'
+                : isDowngrade
+                  ? 'ring-1 ring-muted-foreground/30 shadow-md cursor-pointer hover:scale-105 hover:shadow-xl hover:ring-warning-500/50 hover:-translate-y-2 hover:z-20 bg-card/100 hover:bg-card'
+                  : isPopular && !isCurrent
+                    ? 'ring-2 ring-brand-500 shadow-xl scale-105 md:scale-110 hover:scale-110 md:hover:scale-[1.15] hover:ring-brand-400 hover:shadow-2xl hover:shadow-brand-500/30 z-10 cursor-pointer hover:-translate-y-2 bg-card/100 hover:bg-card'
+                    : 'cursor-pointer hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-brand-500/50 hover:z-20 hover:-translate-y-2 bg-card/100 hover:bg-card'
+            }`}
           >
             <CardHeader className="text-center pb-8 pt-6">
               {/* Badge inside card header - always visible */}
@@ -142,7 +149,16 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
                 </div>
               )}
               
-              {!isCurrent && isPopular && (
+              {isDowngrade && (
+                <div className="mb-4">
+                  <Badge className="bg-warning-500/20 text-warning-700 dark:text-warning-400 border border-warning-500/30 shadow-md px-4 py-1.5">
+                    <ArrowRight className="h-3.5 w-3.5 mr-1.5 rotate-180" />
+                    Downgrade Option
+                  </Badge>
+                </div>
+              )}
+              
+              {!isCurrent && !isDowngrade && isPopular && (
                 <div className="mb-4">
                   <Badge className="bg-gradient-to-r from-brand-600 to-sec-600 text-white border-0 shadow-lg px-4 py-1.5">
                     <Star className="h-3.5 w-3.5 mr-1.5 fill-white" />
@@ -219,24 +235,29 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
                 className={`w-full mt-6 font-semibold transition-all duration-300 ${
                   isCurrent
                     ? 'bg-muted text-muted-foreground cursor-default hover:bg-muted border-2 border-brand-500'
-                    : tier.name === 'Pro' && !isCurrent
-                      ? 'bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-brand hover:shadow-brand-lg group relative overflow-hidden'
-                      : tier.name === 'Elite' && !tier.isComingSoon
-                        ? 'bg-elite-600 hover:bg-elite-700 text-white'
-                        : tier.isComingSoon
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'hover:bg-brand-50 dark:hover:bg-brand-950'
+                    : isDowngrade
+                      ? 'bg-warning-500/10 text-warning-700 dark:text-warning-400 border-2 border-warning-500/30 hover:bg-warning-500/20 hover:border-warning-500/50'
+                      : tier.name === 'Pro' && !isCurrent
+                        ? 'bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-brand hover:shadow-brand-lg group relative overflow-hidden'
+                        : tier.name === 'Elite' && !tier.isComingSoon
+                          ? 'bg-elite-600 hover:bg-elite-700 text-white'
+                          : tier.isComingSoon
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-brand hover:shadow-brand-lg group relative overflow-hidden'
                 }`}
               >
-                {/* Shimmer effect for Pro tier upgrade button */}
-                {tier.name === 'Pro' && !isCurrent && (
+                {/* Shimmer effect for upgrade buttons (not for downgrade or current) */}
+                {tier.name === 'Pro' && !isCurrent && !isDowngrade && (
+                  <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                )}
+                {tier.name === 'Free' && !isCurrent && !isDowngrade && (
                   <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 )}
                 
                 <span className="relative z-10 flex items-center justify-center">
                   {isCurrent && <CheckCircle2 className="h-4 w-4 mr-2" />}
                   {buttonText}
-                  {!isCurrent && !tier.isComingSoon && tier.name === 'Pro' && (
+                  {!isCurrent && !tier.isComingSoon && !isDowngrade && tier.name !== 'Free' && (
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   )}
                 </span>
