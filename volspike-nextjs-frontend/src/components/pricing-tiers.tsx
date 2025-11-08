@@ -1,9 +1,14 @@
 'use client'
 
-import { Check, Zap, Star, Sparkles } from 'lucide-react'
+import { Check, Zap, Star, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useRouter } from 'next/navigation'
+
+interface PricingTiersProps {
+  currentTier?: string
+}
 
 const tiers = [
   {
@@ -18,10 +23,10 @@ const tiers = [
     ctaVariant: 'outline' as const,
     isComingSoon: false,
     features: [
-      { text: '15-minute market data updates', highlight: false },
+      { text: 'Real-time market data updates', highlight: true },
       { text: 'Top 50 symbols by volume', highlight: false },
-      { text: '10 volume spike alerts', highlight: false },
-      { text: 'Real-time Binance WebSocket', highlight: false },
+      { text: '10 volume spike alerts (15-min batches)', highlight: false },
+      { text: 'Live Binance WebSocket connection', highlight: false },
       { text: 'TradingView watchlist export', highlight: false },
       { text: 'Basic volume analytics', highlight: false },
     ],
@@ -43,9 +48,9 @@ const tiers = [
     ctaVariant: 'default' as const,
     isComingSoon: false,
     features: [
-      { text: '5-minute market data updates', highlight: true },
+      { text: 'Real-time market data updates', highlight: true },
       { text: 'Top 100 symbols by volume', highlight: true },
-      { text: '50 volume spike alerts', highlight: true },
+      { text: '50 volume spike alerts (5-min batches)', highlight: true },
       { text: 'Open Interest column visible', highlight: true },
       { text: 'Email notifications', highlight: true },
       { text: 'Subscribe to specific symbols', highlight: true },
@@ -81,12 +86,41 @@ const tiers = [
   },
 ]
 
-export function PricingTiers() {
+export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
+  const router = useRouter()
+  
+  const handleTierAction = (tierName: string, isComingSoon: boolean, isCurrent: boolean) => {
+    if (isComingSoon || isCurrent) return
+    
+    if (tierName === 'Free') {
+      router.push('/auth')
+    } else if (tierName === 'Pro') {
+      router.push('/settings?tab=subscription')
+    } else {
+      router.push('/dashboard')
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
       {tiers.map((tier) => {
         const Icon = tier.icon
         const isPopular = tier.popular
+        const isCurrent = tier.name.toLowerCase() === currentTier.toLowerCase()
+        
+        // Determine button text and behavior
+        let buttonText = tier.cta
+        let buttonDisabled = tier.isComingSoon || isCurrent
+        
+        if (isCurrent) {
+          buttonText = 'Your Current Plan'
+        } else if (!tier.isComingSoon) {
+          if (tier.name === 'Free') {
+            buttonText = 'Get Started Free'
+          } else if (tier.name === 'Pro') {
+            buttonText = currentTier === 'elite' ? 'Downgrade to Pro' : 'Upgrade to Pro'
+          }
+        }
         
         return (
           <Card
@@ -99,7 +133,16 @@ export function PricingTiers() {
           >
             <CardHeader className="text-center pb-8 pt-6">
               {/* Badge inside card header - always visible */}
-              {isPopular && (
+              {isCurrent && (
+                <div className="mb-4">
+                  <Badge className="bg-gradient-to-r from-brand-600 to-brand-500 text-white border-0 shadow-lg px-4 py-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 fill-white" />
+                    Your Current Plan
+                  </Badge>
+                </div>
+              )}
+              
+              {!isCurrent && isPopular && (
                 <div className="mb-4">
                   <Badge className="bg-gradient-to-r from-brand-600 to-sec-600 text-white border-0 shadow-lg px-4 py-1.5">
                     <Star className="h-3.5 w-3.5 mr-1.5 fill-white" />
@@ -171,26 +214,32 @@ export function PricingTiers() {
 
               {/* CTA Button */}
               <Button
-                variant={tier.ctaVariant}
-                disabled={tier.isComingSoon}
-                className={`w-full mt-6 ${
-                  tier.name === 'Pro'
-                    ? 'bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-lg'
-                    : tier.name === 'Elite' && !tier.isComingSoon
-                      ? 'bg-elite-600 hover:bg-elite-700 text-white'
-                      : tier.isComingSoon
-                        ? 'opacity-50 cursor-not-allowed'
-                        : ''
+                onClick={() => handleTierAction(tier.name, tier.isComingSoon, isCurrent)}
+                disabled={buttonDisabled}
+                className={`w-full mt-6 font-semibold transition-all duration-300 ${
+                  isCurrent
+                    ? 'bg-muted text-muted-foreground cursor-default hover:bg-muted border-2 border-brand-500'
+                    : tier.name === 'Pro' && !isCurrent
+                      ? 'bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-brand hover:shadow-brand-lg group relative overflow-hidden'
+                      : tier.name === 'Elite' && !tier.isComingSoon
+                        ? 'bg-elite-600 hover:bg-elite-700 text-white'
+                        : tier.isComingSoon
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-brand-50 dark:hover:bg-brand-950'
                 }`}
-                asChild={!tier.isComingSoon}
               >
-                {tier.isComingSoon ? (
-                  <span>{tier.cta}</span>
-                ) : (
-                  <a href={tier.name === 'Free' ? '/auth' : '/settings'}>
-                    {tier.cta}
-                  </a>
+                {/* Shimmer effect for Pro tier upgrade button */}
+                {tier.name === 'Pro' && !isCurrent && (
+                  <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 )}
+                
+                <span className="relative z-10 flex items-center justify-center">
+                  {isCurrent && <CheckCircle2 className="h-4 w-4 mr-2" />}
+                  {buttonText}
+                  {!isCurrent && !tier.isComingSoon && tier.name === 'Pro' && (
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  )}
+                </span>
               </Button>
             </CardContent>
           </Card>

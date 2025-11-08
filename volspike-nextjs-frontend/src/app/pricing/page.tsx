@@ -15,6 +15,7 @@ export const metadata = {
 
 export default async function PricingPage() {
   const session = await getNextAuthSession()
+  const userTier = (session?.user as any)?.tier || 'free'
 
   return (
     <SessionProvider session={session}>
@@ -37,7 +38,7 @@ export default async function PricingPage() {
         </div>
 
         {/* Pricing Tier Cards */}
-        <PricingTiers />
+        <PricingTiers currentTier={userTier} />
 
         {/* Detailed Feature Comparison */}
         <div className="mt-24">
