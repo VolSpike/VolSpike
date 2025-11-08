@@ -173,15 +173,6 @@ export function CheckoutSuccessContent() {
                     </div>
                 )}
 
-                {/* Debug info - always show in production for troubleshooting */}
-                {debugInfo.length > 0 && (
-                    <div className="mt-6 p-4 bg-muted rounded-lg text-left text-xs max-h-40 overflow-y-auto">
-                        <div className="font-semibold mb-2">Debug Log:</div>
-                        {debugInfo.map((log, idx) => (
-                            <div key={idx} className="text-muted-foreground">{log}</div>
-                        ))}
-                    </div>
-                )}
 
                 <div className="flex items-center justify-center gap-3 mt-6">
                     <Link href="/dashboard" className="inline-flex items-center justify-center rounded-md px-4 py-2 bg-brand-600 text-white hover:bg-brand-700 transition">
