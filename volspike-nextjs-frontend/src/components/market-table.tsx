@@ -449,16 +449,25 @@ export function MarketTable({
                     'hover:brightness-105 dark:hover:brightness-110'
                 )
             } else {
-                // Neutral funding rate rows - white by default, grey on hover
+                // Neutral funding rate rows:
+                // - White by default (inherit background)
+                // - Grey while hovered (must persist even across re-renders)
+                //
+                // Apply CSS :hover styles to ensure persistence if the row is re-rendered
+                // while the pointer is still over it, and also apply the non-hover variants
+                // when our isHovered flag is true (React-managed).
                 if (isHovered) {
-                    // Apply grey gradient when hovered
                     rowClasses.push(
                         'bg-gradient-to-r from-muted/60 via-muted/40 to-transparent',
                         'shadow-sm',
                         'brightness-105 dark:brightness-110'
                     )
                 }
-                // Default: no background class (inherits white/transparent from parent)
+                rowClasses.push(
+                    'hover:bg-gradient-to-r hover:from-muted/60 hover:via-muted/40 hover:to-transparent',
+                    'hover:shadow-sm',
+                    'hover:brightness-105 dark:hover:brightness-110'
+                )
             }
 
                             const fundingClass = exceedsThreshold
