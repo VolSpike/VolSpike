@@ -432,8 +432,9 @@ export function MarketTable({
             if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
                 // Make positive funding highlights more prominent with depth
                 rowClasses.push(
-                    'bg-gradient-to-r from-brand-500/12 via-brand-500/8 to-transparent',
-                    'hover:from-brand-500/20 hover:via-brand-500/15 hover:to-brand-500/5',
+                    // Flat brand tint across the full row for mobile consistency
+                    'bg-brand-500/12',
+                    'hover:bg-brand-500/20',
                     'border-l-4 border-l-brand-500/70',
                     'shadow-sm shadow-brand-500/10',
                     'hover:shadow-md hover:shadow-brand-500/20',
@@ -442,8 +443,9 @@ export function MarketTable({
             } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
                 // Make negative funding highlights more prominent with depth
                 rowClasses.push(
-                    'bg-gradient-to-r from-danger-500/12 via-danger-500/8 to-transparent',
-                    'hover:from-danger-500/20 hover:via-danger-500/15 hover:to-danger-500/5',
+                    // Flat danger tint across the full row for mobile consistency
+                    'bg-danger-500/12',
+                    'hover:bg-danger-500/20',
                     'border-l-4 border-l-danger-500/70',
                     'shadow-sm shadow-danger-500/10',
                     'hover:shadow-md hover:shadow-danger-500/20',
