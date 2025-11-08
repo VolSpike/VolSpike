@@ -186,8 +186,16 @@ payments.post('/webhook', async (c) => {
             return c.json({ error: 'Invalid signature' }, 400)
         }
 
+        logger.info(`Processing webhook event: ${event.type}`, {
+            eventId: event.id,
+            eventType: event.type,
+        })
+
         // Handle the event
         switch (event.type) {
+            case 'checkout.session.completed':
+                await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+                break
             case 'customer.subscription.created':
             case 'customer.subscription.updated':
                 await handleSubscriptionChange(event.data.object as Stripe.Subscription)
@@ -204,6 +212,8 @@ payments.post('/webhook', async (c) => {
             default:
                 logger.info(`Unhandled event type: ${event.type}`)
         }
+
+        logger.info(`Webhook event ${event.type} processed successfully`)
 
         return c.json({ received: true })
     } catch (error) {
@@ -222,21 +232,99 @@ payments.get('/webhook', async (c) => {
 })
 
 // Helper functions for webhook handling
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+    try {
+        logger.info('Processing checkout.session.completed', {
+            sessionId: session.id,
+            customerId: session.customer,
+            userId: session.metadata?.userId,
+        })
+
+        // For subscription checkouts, get the subscription to find the price
+        if (session.mode === 'subscription' && session.subscription) {
+            const subscription = await stripe.subscriptions.retrieve(
+                session.subscription as string
+            )
+            const priceId = subscription.items.data[0].price.id
+            const price = await stripe.prices.retrieve(priceId)
+            const tier = price.metadata?.tier || 'pro'
+
+            const customerId = session.customer as string
+
+            // Update user tier
+            const result = await prisma.user.updateMany({
+                where: { stripeCustomerId: customerId },
+                data: { tier },
+            })
+
+            logger.info(`Checkout completed: User tier updated to ${tier}`, {
+                customerId,
+                tier,
+                usersUpdated: result.count,
+                priceId,
+                priceMetadata: price.metadata,
+            })
+
+            // Also update via userId if available (more reliable)
+            if (session.metadata?.userId) {
+                const userResult = await prisma.user.update({
+                    where: { id: session.metadata.userId },
+                    data: { tier },
+                })
+                logger.info(`Also updated user via userId: ${session.metadata.userId}`, {
+                    email: userResult.email,
+                    tier: userResult.tier,
+                })
+            }
+        }
+    } catch (error) {
+        logger.error('Error handling checkout.session.completed:', error)
+        throw error
+    }
+}
+
 async function handleSubscriptionChange(subscription: Stripe.Subscription) {
-    const customerId = subscription.customer as string
-    const priceId = subscription.items.data[0].price.id
+    try {
+        const customerId = subscription.customer as string
+        const priceId = subscription.items.data[0].price.id
 
-    // Get price metadata to determine tier
-    const price = await stripe.prices.retrieve(priceId)
-    const tier = price.metadata?.tier || 'pro'
+        logger.info('Processing subscription change', {
+            subscriptionId: subscription.id,
+            customerId,
+            priceId,
+            status: subscription.status,
+        })
 
-    // Update user tier
-    await prisma.user.updateMany({
-        where: { stripeCustomerId: customerId },
-        data: { tier },
-    })
+        // Get price metadata to determine tier
+        const price = await stripe.prices.retrieve(priceId)
+        const tier = price.metadata?.tier || 'pro'
 
-    logger.info(`User tier updated to ${tier} for customer ${customerId}`)
+        logger.info('Price metadata retrieved', {
+            priceId,
+            tier,
+            metadata: price.metadata,
+        })
+
+        // Update user tier
+        const result = await prisma.user.updateMany({
+            where: { stripeCustomerId: customerId },
+            data: { tier },
+        })
+
+        logger.info(`User tier updated to ${tier} for customer ${customerId}`, {
+            customerId,
+            tier,
+            usersUpdated: result.count,
+            priceMetadata: price.metadata,
+        })
+
+        if (result.count === 0) {
+            logger.warn(`No users found with stripeCustomerId: ${customerId}`)
+        }
+    } catch (error) {
+        logger.error('Error handling subscription change:', error)
+        throw error
+    }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
