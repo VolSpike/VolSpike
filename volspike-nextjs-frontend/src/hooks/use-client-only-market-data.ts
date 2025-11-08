@@ -86,7 +86,9 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             const fundingRate = parseFundingRate(f);
             
             // Get Open Interest from ref (fetched from backend)
-            const openInterest = openInterestRef.current.get(sym) || 0;
+            // Normalize symbol to uppercase for matching
+            const normalizedSym = sym.toUpperCase();
+            const openInterest = openInterestRef.current.get(normalizedSym) || 0;
             
             out.push({
                 symbol: sym,
@@ -188,14 +190,25 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             
             // payload.data is { symbol: openInterestUsd, ... }
             if (payload.data && typeof payload.data === 'object') {
+                let matchedCount = 0;
+                let totalFetched = 0;
+                
                 for (const [symbol, oiUsd] of Object.entries(payload.data)) {
-                    if (typeof oiUsd === 'number') {
-                        openInterestRef.current.set(symbol, oiUsd);
+                    totalFetched++;
+                    if (typeof oiUsd === 'number' && oiUsd > 0) {
+                        // Store with uppercase symbol to match Binance format
+                        const normalizedSymbol = symbol.toUpperCase();
+                        openInterestRef.current.set(normalizedSymbol, oiUsd);
+                        
+                        // Check if we have this symbol in tickers
+                        if (tickersRef.current.has(normalizedSymbol)) {
+                            matchedCount++;
+                        }
                     }
                 }
                 
                 if (process.env.NODE_ENV === 'development') {
-                    console.log(`📊 Fetched Open Interest: ${Object.keys(payload.data).length} symbols`);
+                    console.log(`📊 Open Interest: Fetched ${totalFetched} symbols, ${matchedCount} matched with tickers, ${openInterestRef.current.size} total cached`);
                 }
 
                 // Re-render with updated OI data if we have tickers
@@ -204,6 +217,10 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     if (snapshot.length > 0) {
                         render(snapshot);
                     }
+                }
+            } else if (payload.cacheExpired) {
+                if (process.env.NODE_ENV === 'development') {
+                    console.warn('📊 Open Interest cache expired - waiting for Digital Ocean script to update');
                 }
             }
         } catch (error) {
@@ -450,7 +467,10 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
     // Fetch Open Interest every 5 minutes (independent of tier)
     useEffect(() => {
-        // Fetch immediately on mount (after initial connection)
+        // Fetch immediately on mount
+        void fetchOpenInterest();
+        
+        // Then fetch every 5 minutes
         const interval = setInterval(() => {
             void fetchOpenInterest();
         }, 5 * 60 * 1000); // 5 minutes

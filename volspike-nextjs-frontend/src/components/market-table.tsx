@@ -100,19 +100,21 @@ export function MarketTable({
                 isHorizontalScroll = Math.abs(deltaX) > Math.abs(deltaY)
             }
 
-            // Only handle horizontal scrolling - prevent overscroll
-            if (isHorizontalScroll) {
+            // Only handle horizontal scrolling - prevent overscroll at boundaries only
+            if (isHorizontalScroll === true) {
                 const newScrollLeft = touchStartScrollLeft + deltaX
                 const maxScrollLeft = container.scrollWidth - container.clientWidth
 
-                // Prevent horizontal overscroll at boundaries
-                if (newScrollLeft <= 0 || newScrollLeft >= maxScrollLeft) {
+                // Only prevent default when trying to scroll beyond boundaries
+                // This allows normal horizontal scrolling within bounds
+                if (newScrollLeft < 0 || newScrollLeft > maxScrollLeft) {
                     e.preventDefault()
-                    // Clamp the scroll position
+                    // Clamp the scroll position smoothly
                     container.scrollLeft = Math.max(0, Math.min(maxScrollLeft, newScrollLeft))
                 }
+                // If within bounds, let native scrolling handle it (don't prevent default)
             }
-            // For vertical scrolling, let it bubble up naturally for scroll chaining
+            // For vertical scrolling or undetermined direction, let it bubble up naturally for scroll chaining
         }
 
         const handleTouchEnd = () => {
@@ -317,7 +319,7 @@ export function MarketTable({
                     overscrollBehaviorX: 'none',
                     overscrollBehaviorY: 'auto',
                     WebkitOverflowScrolling: 'touch',
-                    touchAction: 'pan-y pinch-zoom',
+                    touchAction: 'pan-x pan-y pinch-zoom',
                     scrollBehavior: 'smooth',
                 }}
             >
