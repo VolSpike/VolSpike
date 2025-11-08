@@ -64,6 +64,11 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const reconnectAttemptsRef = useRef<number>(0);
     const renderPendingRef = useRef<boolean>(false);
 
+    // Normalize symbol: remove dashes/underscores and convert to uppercase
+    const normalizeSym = useCallback((s: string): string => {
+        return s.replace(/[-_]/g, '').toUpperCase();
+    }, []);
+
     // All tiers now get real-time WebSocket data (Open Interest still fetches every 5min separately)
 
     // Keep callback stable via ref to avoid effect/deps churn
@@ -86,8 +91,8 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             const fundingRate = parseFundingRate(f);
             
             // Get Open Interest from ref (fetched from backend)
-            // Normalize symbol to uppercase for matching
-            const normalizedSym = sym.toUpperCase();
+            // Normalize symbol consistently for matching
+            const normalizedSym = normalizeSym(sym);
             const openInterest = openInterestRef.current.get(normalizedSym) || 0;
             
             out.push({
@@ -187,28 +192,46 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
 
             const payload = await response.json();
+            const data = payload?.data ?? {};
+            const keys = Object.keys(data);
             
-            // payload.data is { symbol: openInterestUsd, ... }
-            if (payload.data && typeof payload.data === 'object') {
+            // Only update ref if we actually have keys (never overwrite with empty {})
+            if (keys.length > 0) {
+                // Normalize all keys and store in map
+                const newMap = new Map<string, number>();
                 let matchedCount = 0;
-                let totalFetched = 0;
                 
-                for (const [symbol, oiUsd] of Object.entries(payload.data)) {
-                    totalFetched++;
+                for (const [symbol, oiUsd] of Object.entries(data)) {
                     if (typeof oiUsd === 'number' && oiUsd > 0) {
-                        // Store with uppercase symbol to match Binance format
-                        const normalizedSymbol = symbol.toUpperCase();
-                        openInterestRef.current.set(normalizedSymbol, oiUsd);
+                        const normalizedKey = normalizeSym(symbol);
+                        newMap.set(normalizedKey, oiUsd);
                         
                         // Check if we have this symbol in tickers
-                        if (tickersRef.current.has(normalizedSymbol)) {
+                        if (tickersRef.current.has(normalizedKey)) {
                             matchedCount++;
                         }
                     }
                 }
                 
+                // Update ref with new data
+                openInterestRef.current = newMap;
+                
+                // Persist to localStorage for next reload
+                try {
+                    localStorage.setItem('vs:openInterest', JSON.stringify({
+                        data: Object.fromEntries(newMap),
+                        asOf: payload?.asOf ?? Date.now()
+                    }));
+                } catch (e) {
+                    // localStorage might be full or disabled, ignore
+                }
+                
                 if (process.env.NODE_ENV === 'development') {
-                    console.log(`📊 Open Interest: Fetched ${totalFetched} symbols, ${matchedCount} matched with tickers, ${openInterestRef.current.size} total cached`);
+                    console.log(`📊 Open Interest: Fetched ${keys.length} symbols, ${matchedCount} matched with tickers, ${newMap.size} total cached`, {
+                        stale: payload?.stale,
+                        dangerouslyStale: payload?.dangerouslyStale,
+                        asOf: payload?.asOf ? new Date(payload.asOf).toISOString() : null
+                    });
                 }
 
                 // Re-render with updated OI data if we have tickers
@@ -218,9 +241,14 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                         render(snapshot);
                     }
                 }
-            } else if (payload.cacheExpired) {
+            } else {
+                // No clobbering! Keep existing ref so UI doesn't flip to 0s
                 if (process.env.NODE_ENV === 'development') {
-                    console.warn('📊 Open Interest cache expired - waiting for Digital Ocean script to update');
+                    console.warn('📊 Open Interest: Received empty data, keeping existing cache', {
+                        stale: payload?.stale,
+                        dangerouslyStale: payload?.dangerouslyStale,
+                        currentCacheSize: openInterestRef.current.size
+                    });
                 }
             }
         } catch (error) {
@@ -228,7 +256,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 console.warn('Failed to fetch Open Interest from backend:', error);
             }
         }
-    }, [buildSnapshot, render]);
+    }, [buildSnapshot, render, normalizeSym]);
 
     // Fetch active perpetual USDT symbols to exclude delisted/expired contracts
     const primeActiveSymbols = useCallback(async () => {
@@ -465,18 +493,69 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         };
     }, [tier, connect]);
 
-    // Fetch Open Interest every 5 minutes (independent of tier)
+    // Hydrate Open Interest from localStorage on mount
     useEffect(() => {
-        // Fetch immediately on mount
+        try {
+            const raw = localStorage.getItem('vs:openInterest');
+            if (raw) {
+                const cached = JSON.parse(raw);
+                if (cached?.data && typeof cached.asOf === 'number') {
+                    // Restore the map from cached data
+                    const restoredMap = new Map<string, number>();
+                    for (const [key, value] of Object.entries(cached.data)) {
+                        if (typeof value === 'number') {
+                            restoredMap.set(normalizeSym(key), value);
+                        }
+                    }
+                    openInterestRef.current = restoredMap;
+                    
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`📊 Open Interest: Hydrated ${restoredMap.size} symbols from localStorage`, {
+                            asOf: new Date(cached.asOf).toISOString()
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            // localStorage might be disabled or corrupted, ignore
+        }
+    }, [normalizeSym]);
+
+    // Calculate delay until next 5-minute boundary (with 15s slack)
+    const nextBoundaryDelay = useCallback(() => {
+        const now = Date.now();
+        const period = 5 * 60 * 1000; // 5 minutes
+        const next = Math.ceil(now / period) * period + 15000; // +15s slack to catch DO post
+        return Math.max(0, next - now);
+    }, []);
+
+    // Fetch Open Interest aligned to 5-minute boundaries (independent of tier)
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout | null = null;
+        
+        // Fetch immediately on mount (after localStorage hydration)
         void fetchOpenInterest();
         
-        // Then fetch every 5 minutes
-        const interval = setInterval(() => {
+        // Calculate initial delay to align with next boundary
+        const initialDelay = nextBoundaryDelay();
+        
+        // Set up polling aligned to 5-minute boundaries
+        const timeoutId = setTimeout(() => {
             void fetchOpenInterest();
-        }, 5 * 60 * 1000); // 5 minutes
+            
+            // Then poll every 5 minutes
+            intervalId = setInterval(() => {
+                void fetchOpenInterest();
+            }, 5 * 60 * 1000);
+        }, initialDelay);
 
-        return () => clearInterval(interval);
-    }, [fetchOpenInterest]);
+        return () => {
+            clearTimeout(timeoutId);
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [fetchOpenInterest, nextBoundaryDelay]);
 
     return {
         data,

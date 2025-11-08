@@ -1,8 +1,8 @@
 /**
  * Open Interest API Routes
  * 
- * POST /api/market/open-interest - Receive OI data from Digital Ocean script
- * GET /api/market/open-interest - Serve cached OI data to frontend
+ * POST /api/market/open-interest/ingest - Receive OI data from Digital Ocean script
+ * GET /api/market/open-interest - Serve cached OI data to frontend (stale-while-revalidate)
  */
 
 import { Hono } from 'hono'
@@ -10,15 +10,22 @@ import { env } from 'hono/adapter'
 
 const app = new Hono()
 
-// In-memory cache for Open Interest data
-interface OpenInterestCache {
-  data: Record<string, number> // symbol -> openInterestUsd
-  timestamp: string
-  expiresAt: number // Unix timestamp in milliseconds
+// Constants
+const FIVE_MIN_MS = 5 * 60 * 1000
+const STALE_GRACE_MS = 90 * 1000 // Small buffer so UI doesn't flicker
+
+// Normalize symbol: remove dashes/underscores and convert to uppercase
+const normalizeSym = (s: string): string => {
+  return s.replace(/[-_]/g, '').toUpperCase()
 }
 
-let oiCache: OpenInterestCache | null = null
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+// In-memory cache for Open Interest data (stale-while-revalidate pattern)
+interface OISnapshot {
+  data: Record<string, number> // normalized symbol -> openInterestUsd
+  updatedAt: number // epoch milliseconds
+}
+
+let oiCache: OISnapshot | null = null
 
 // POST endpoint - receives OI data from Digital Ocean script
 app.post('/ingest', async (c) => {
@@ -41,27 +48,26 @@ app.post('/ingest', async (c) => {
       return c.json({ error: 'Invalid payload: data array required' }, 400)
     }
 
-    // Transform array to object map (symbol -> openInterestUsd)
+    // Transform array to object map with normalized symbols
     const oiMap: Record<string, number> = {}
     for (const item of body.data) {
       if (item.symbol && typeof item.openInterestUsd === 'number') {
-        oiMap[item.symbol] = item.openInterestUsd
+        const normalizedKey = normalizeSym(item.symbol)
+        oiMap[normalizedKey] = Number(item.openInterestUsd) || 0
       }
     }
 
-    // Update cache
+    // Update cache with normalized symbols
     oiCache = {
       data: oiMap,
-      timestamp: body.timestamp || new Date().toISOString(),
-      expiresAt: Date.now() + CACHE_TTL_MS
+      updatedAt: Date.now()
     }
 
     console.log(`✅ Open Interest cached: ${Object.keys(oiMap).length} symbols`)
 
     return c.json({
       success: true,
-      cached: Object.keys(oiMap).length,
-      expiresIn: CACHE_TTL_MS / 1000 // seconds
+      cached: Object.keys(oiMap).length
     })
 
   } catch (error) {
@@ -70,25 +76,42 @@ app.post('/ingest', async (c) => {
   }
 })
 
-// GET endpoint - serves cached OI data to frontend
+// GET endpoint - serves cached OI data with stale-while-revalidate semantics
 app.get('/', async (c) => {
   try {
-    // Check if cache exists and is not expired
-    if (!oiCache || Date.now() > oiCache.expiresAt) {
-      console.log('ℹ️  Open Interest cache expired or empty')
+    // Always return last known data if available (never return empty {} when we have data)
+    if (!oiCache) {
+      console.log('ℹ️  Open Interest cache empty')
       return c.json({
         data: {},
-        timestamp: null,
-        cacheExpired: true
+        stale: true,
+        asOf: null,
+        dangerouslyStale: true
       })
     }
 
-    // Return cached data
+    const age = Date.now() - oiCache.updatedAt
+    const stale = age > FIVE_MIN_MS
+    const dangerouslyStale = age > (FIVE_MIN_MS + STALE_GRACE_MS)
+
+    // Log cache status for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 Open Interest cache:', {
+        updatedAt: new Date(oiCache.updatedAt).toISOString(),
+        count: Object.keys(oiCache.data).length,
+        sample: Object.keys(oiCache.data).slice(0, 5),
+        ageSeconds: Math.floor(age / 1000),
+        stale,
+        dangerouslyStale
+      })
+    }
+
+    // Always return last known data; let client decide how to render stale
     return c.json({
       data: oiCache.data,
-      timestamp: oiCache.timestamp,
-      cacheExpiry: new Date(oiCache.expiresAt).toISOString(),
-      totalSymbols: Object.keys(oiCache.data).length
+      stale,
+      asOf: oiCache.updatedAt,
+      dangerouslyStale
     })
 
   } catch (error) {
