@@ -171,28 +171,11 @@ export const authConfig: NextAuthConfig = {
                 console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}`)
             }
 
-            // Fetch fresh user data from database when session is refreshed
-            // Log trigger value for debugging
-            console.log('[Auth] JWT callback called', {
-                trigger,
-                hasTrigger: !!trigger,
-                triggerType: typeof trigger,
-                userId: token.id,
-                currentTier: token.tier,
-            })
-            
-            if (trigger === 'update' && token.id) {
+            // Always fetch fresh tier data from database when update() is called or periodically
+            // This ensures tier changes are reflected immediately
+            if (token.id && (trigger === 'update' || !token.tierLastChecked || Date.now() - (token.tierLastChecked as number) > 30000)) {
                 try {
-                    console.log('[Auth] ✅ JWT callback triggered with update, fetching fresh user data', {
-                        userId: token.id,
-                        email: token.email,
-                        currentTier: token.tier,
-                        backendUrl: BACKEND_API_URL,
-                    })
-                    
                     const meUrl = `${BACKEND_API_URL}/api/auth/me`
-                    console.log('[Auth] Calling:', meUrl)
-                    
                     const response = await fetch(meUrl, {
                         method: 'GET',
                         headers: {
@@ -200,15 +183,8 @@ export const authConfig: NextAuthConfig = {
                         },
                     })
 
-                    console.log('[Auth] /api/auth/me response status:', response.status, response.statusText)
-
                     if (response.ok) {
                         const { user: dbUser } = await response.json()
-                        console.log('[Auth] Fresh user data received:', {
-                            email: dbUser?.email,
-                            tier: dbUser?.tier,
-                            role: dbUser?.role,
-                        })
                         
                         if (dbUser) {
                             const oldTier = token.tier
@@ -217,24 +193,16 @@ export const authConfig: NextAuthConfig = {
                             token.role = dbUser.role || 'USER'
                             token.status = dbUser.status
                             token.twoFactorEnabled = dbUser.twoFactorEnabled
+                            token.tierLastChecked = Date.now() // Cache timestamp
                             
-                            console.log(`[Auth] ✅ User data refreshed: ${dbUser.email}`, {
-                                oldTier,
-                                newTier: token.tier,
-                                tierChanged: oldTier !== token.tier,
-                            })
-                        } else {
-                            console.warn('[Auth] ⚠️ No user data in response')
+                            if (oldTier !== token.tier) {
+                                console.log(`[Auth] ✅ Tier updated: ${oldTier} → ${token.tier} for ${dbUser.email}`)
+                            }
                         }
-                    } else {
-                        const errorText = await response.text().catch(() => 'Unknown error')
-                        console.warn('[Auth] ⚠️ Failed to refresh user data:', {
-                            status: response.status,
-                            error: errorText,
-                        })
                     }
                 } catch (error) {
-                    console.error('[Auth] ❌ Error refreshing user data:', error)
+                    // Silently fail - use cached tier if fetch fails
+                    console.error('[Auth] Error refreshing user data:', error)
                 }
             }
 
