@@ -22,7 +22,24 @@ export async function startProCheckout(session: Session | null): Promise<void> {
     const successUrl = `${window.location.origin}/checkout/success`
     const cancelUrl = `${window.location.origin}/checkout/cancel`
 
+    // Get auth token - prefer accessToken, fallback to user.id
     const authToken = (session as any)?.accessToken || session.user.id
+    
+    if (!authToken) {
+        console.error('[startProCheckout] No auth token available', { 
+            hasAccessToken: !!(session as any)?.accessToken,
+            hasUserId: !!session.user.id,
+            sessionKeys: Object.keys(session)
+        })
+        throw new Error('Authentication token not available. Please sign in again.')
+    }
+
+    console.log('[startProCheckout] Starting checkout', {
+        hasToken: !!authToken,
+        tokenLength: authToken?.toString().length,
+        userId: session.user.id,
+        email: session.user.email
+    })
 
     const resp = await fetch(`${API_URL}/api/payments/checkout`, {
         method: 'POST',
@@ -40,6 +57,12 @@ export async function startProCheckout(session: Session | null): Promise<void> {
     if (!resp.ok) {
         const data = await resp.json().catch(() => ({}))
         const message = data?.error || `Checkout failed (HTTP ${resp.status})`
+        console.error('[startProCheckout] Checkout failed', {
+            status: resp.status,
+            statusText: resp.statusText,
+            error: data?.error,
+            message
+        })
         throw new Error(message)
     }
 

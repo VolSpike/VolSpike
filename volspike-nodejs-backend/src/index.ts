@@ -124,6 +124,17 @@ app.route('/api/market', marketRoutes)
 app.route('/api/watchlist', watchlistRoutes)
 app.route('/api/alerts', alertRoutes)
 app.route('/api/volume-alerts', volumeAlertsRouter)
+
+// Apply auth middleware to payment routes (except webhook)
+// Webhook must be publicly accessible for Stripe
+app.use('/api/payments/*', async (c, next) => {
+    // Skip auth for webhook endpoint
+    if (c.req.path === '/api/payments/webhook' || c.req.path.endsWith('/webhook')) {
+        return next()
+    }
+    // Apply auth middleware for all other payment routes
+    return authMiddleware(c, next)
+})
 app.route('/api/payments', paymentRoutes)
 
 // Admin routes (protected with admin middleware)
