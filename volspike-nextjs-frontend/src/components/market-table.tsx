@@ -426,8 +426,7 @@ export function MarketTable({
                             const isHovered = hoveredRow === item.symbol
 
             const rowClasses = [
-                'border-b border-border/40 transition-all duration-200 cursor-pointer group relative',
-                'hover:brightness-105 dark:hover:brightness-110' // Subtle glow instead of scale
+                'border-b border-border/40 transition-all duration-200 cursor-pointer group relative'
             ]
             if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
                 // Make positive funding highlights more prominent with depth
@@ -436,7 +435,8 @@ export function MarketTable({
                     'hover:from-brand-500/20 hover:via-brand-500/15 hover:to-brand-500/5',
                     'border-l-4 border-l-brand-500/70',
                     'shadow-sm shadow-brand-500/10',
-                    'hover:shadow-md hover:shadow-brand-500/20'
+                    'hover:shadow-md hover:shadow-brand-500/20',
+                    'hover:brightness-105 dark:hover:brightness-110'
                 )
             } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
                 // Make negative funding highlights more prominent with depth
@@ -445,13 +445,21 @@ export function MarketTable({
                     'hover:from-danger-500/20 hover:via-danger-500/15 hover:to-danger-500/5',
                     'border-l-4 border-l-danger-500/70',
                     'shadow-sm shadow-danger-500/10',
-                    'hover:shadow-md hover:shadow-danger-500/20'
+                    'hover:shadow-md hover:shadow-danger-500/20',
+                    'hover:brightness-105 dark:hover:brightness-110'
                 )
             } else {
-                rowClasses.push(
-                    'hover:bg-gradient-to-r hover:from-muted/60 hover:via-muted/40 hover:to-transparent',
-                    'hover:shadow-sm'
-                )
+                // Neutral funding rate rows - use isHovered state to ensure hover persists
+                rowClasses.push('bg-background')
+                if (isHovered) {
+                    // Apply hover styles directly when hovered (no hover: prefix needed)
+                    rowClasses.push(
+                        'bg-gradient-to-r from-muted/60 via-muted/40 to-transparent',
+                        'shadow-sm',
+                        'brightness-105 dark:brightness-110'
+                    )
+                }
+                // Note: We rely on onMouseEnter/onMouseLeave handlers, so no hover: classes needed
             }
 
                             const fundingClass = exceedsThreshold
