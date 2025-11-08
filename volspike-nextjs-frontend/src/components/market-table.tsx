@@ -426,7 +426,7 @@ export function MarketTable({
                             const isHovered = hoveredRow === item.symbol
 
             const rowClasses = [
-                'border-b border-border/40 transition-all duration-200 cursor-pointer group relative'
+                'group/row border-b border-border/40 cursor-pointer relative'
             ]
             if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
                 // Make positive funding highlights more prominent with depth
@@ -449,25 +449,8 @@ export function MarketTable({
                     'hover:brightness-105 dark:hover:brightness-110'
                 )
             } else {
-                // Neutral funding rate rows:
-                // - White by default (inherit background)
-                // - Grey while hovered (must persist even across re-renders)
-                //
-                // Apply CSS :hover styles to ensure persistence if the row is re-rendered
-                // while the pointer is still over it, and also apply the non-hover variants
-                // when our isHovered flag is true (React-managed).
-                if (isHovered) {
-                    rowClasses.push(
-                        'bg-gradient-to-r from-muted/60 via-muted/40 to-transparent',
-                        'shadow-sm',
-                        'brightness-105 dark:brightness-110'
-                    )
-                }
-                rowClasses.push(
-                    'hover:bg-gradient-to-r hover:from-muted/60 hover:via-muted/40 hover:to-transparent',
-                    'hover:shadow-sm',
-                    'hover:brightness-105 dark:hover:brightness-110'
-                )
+                // Neutral funding rate rows – do not color the <tr>.
+                // Hover background is applied to each <td> via group-hover to avoid paint conflicts.
             }
 
                             const fundingClass = exceedsThreshold
@@ -490,47 +473,45 @@ export function MarketTable({
                                     onMouseLeave={() => setHoveredRow(null)}
                                     onClick={() => setSelectedSymbol(item)}
                                 >
-                                    <td className="p-3 font-semibold text-sm">
+                                    <td className="p-3 font-semibold text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
                                         {formatSymbol(item.symbol)}
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm">
+                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
                                         {formatPrice(item.price)}
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm">
+                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
                                         <span className={changeClass}>
                                             {changeValue > 0 ? '+' : ''}{changeValue.toFixed(2)}%
                                         </span>
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm">
+                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
                                         <span className={fundingClass}>
                                             {fundingRate > 0 ? '+' : ''}{(fundingRate * 100).toFixed(4)}%
                                         </span>
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm font-medium">
+                                    <td className="p-3 text-right font-mono-tabular text-sm font-medium bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
                                         {formatVolume(item.volume24h)}
                                     </td>
                                     {userTier !== 'free' && (
-                                        <td className="p-3 text-right font-mono-tabular text-sm text-muted-foreground">
+                                        <td className="p-3 text-right font-mono-tabular text-sm text-muted-foreground bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
                                             {formatVolume(item.openInterest ?? 0)}
                                         </td>
                                     )}
-                                    <td className="p-3">
-                                        <div className={`flex items-center justify-end gap-1 transition-opacity duration-150 ${
-                                            isHovered ? 'opacity-100' : 'opacity-0'
-                                        }`}>
+                                    <td className="p-3 bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                        <div className="pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
                                             <Button
+                                                className="pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400"
                                                 onClick={(e) => handleAddToWatchlist(e, item)}
                                                 title="Add to watchlist"
                                             >
                                                 <Star className="h-3.5 w-3.5" />
                                             </Button>
                                             <Button
+                                                className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
                                                 onClick={(e) => handleCreateAlert(e, item)}
                                                 title="Create alert"
                                             >
