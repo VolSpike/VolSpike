@@ -23,10 +23,10 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
         {/* Dismiss button - Absolute positioned; should NOT trigger banner hover glow */}
         <button
           onClick={() => setDismissed(true)}
-          className="absolute top-3 right-3 z-20 p-2 rounded-md hover:bg-muted border border-muted-foreground/40 hover:border-muted-foreground/70 transition-all duration-200 hover:shadow-sm active:scale-95"
+          className="absolute top-3 right-3 z-20 p-2 rounded-md border border-muted-foreground/40 transition-all duration-200 active:scale-95"
           title="Dismiss ad"
         >
-          <X className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+          <X className="h-4 w-4 text-muted-foreground transition-colors" />
         </button>
         
         {/* Hover area wrapper - only this area triggers glow */}
@@ -102,10 +102,10 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
           </Badge>
           <button
             onClick={() => setDismissed(true)}
-            className="p-1.5 rounded-md hover:bg-muted border border-muted-foreground/40 hover:border-muted-foreground/70 transition-all duration-200 hover:shadow-sm active:scale-95"
+            className="p-1.5 rounded-md border border-muted-foreground/40 transition-all duration-200 active:scale-95"
             title="Dismiss ad"
           >
-            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+            <X className="h-3.5 w-3.5 text-muted-foreground transition-colors" />
           </button>
         </div>
 
