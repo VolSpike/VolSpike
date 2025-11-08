@@ -6,9 +6,6 @@ import { Header } from '@/components/header'
 import { CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export default function CheckoutSuccessPage() {
     const router = useRouter()
 
@@ -20,7 +17,7 @@ export default function CheckoutSuccessPage() {
         <div className="min-h-screen bg-background">
             <Header />
             <main className="container mx-auto px-4 py-12 max-w-2xl">
-                <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-lg animate-soft-pulse-red">
+                <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-lg">
                     <div className="flex justify-center mb-4">
                         <CheckCircle2 className="h-14 w-14 text-emerald-500" />
                     </div>

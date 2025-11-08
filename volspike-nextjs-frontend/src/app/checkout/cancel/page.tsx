@@ -4,9 +4,6 @@ import { Header } from '@/components/header'
 import Link from 'next/link'
 import { XCircle } from 'lucide-react'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 export default function CheckoutCancelPage() {
     return (
         <div className="min-h-screen bg-background">
