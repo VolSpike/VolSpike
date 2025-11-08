@@ -99,20 +99,11 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       
       const data = await response.json()
       
-      // Filter alerts based on last broadcast time for non-elite tiers
+      // Backend already filters by tier limit (10/50/100)
+      // Socket.IO handles wall-clock batching via tier-based rooms
+      // Just use the alerts as-is from backend
       if (data.alerts && Array.isArray(data.alerts)) {
-        let filteredAlerts = data.alerts
-        
-        // For Pro/Free tiers, only show alerts from before the last broadcast time
-        if (tier !== 'elite') {
-          const lastBroadcast = getLastBroadcastTime()
-          filteredAlerts = data.alerts.filter((alert: VolumeAlert) => {
-            const alertTime = new Date(alert.timestamp)
-            return alertTime < lastBroadcast
-          })
-        }
-        
-        setAlerts(filteredAlerts)
+        setAlerts(data.alerts)
       }
       
       setIsLoading(false)
