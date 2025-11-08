@@ -69,49 +69,43 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-    // Prevent table from being dragged past the left edge on mobile
+    // Prevent table from being dragged past edges (top, bottom, left, right) on mobile
     useEffect(() => {
         const container = scrollContainerRef.current
         if (!container) return
 
         // Lock scroll position at start
         container.scrollLeft = 0
+        container.scrollTop = 0
 
-        const preventOverscroll = (e: Event) => {
+        const preventOverscroll = () => {
+            // Prevent horizontal overscroll
             if (container.scrollLeft < 0) {
                 container.scrollLeft = 0
             }
-        }
-
-        const preventTouchOverscroll = (e: TouchEvent) => {
-            // If trying to scroll left when already at left edge, prevent
-            if (container.scrollLeft === 0) {
-                const touch = e.touches[0]
-                const startX = touch.clientX
-                
-                const handleTouchMove = (moveEvent: TouchEvent) => {
-                    const currentTouch = moveEvent.touches[0]
-                    const deltaX = currentTouch.clientX - startX
-                    
-                    // If dragging right (deltaX > 0) when at left edge, prevent
-                    if (deltaX > 0 && container.scrollLeft === 0) {
-                        moveEvent.preventDefault()
-                    }
-                }
-                
-                container.addEventListener('touchmove', handleTouchMove, { passive: false })
-                container.addEventListener('touchend', () => {
-                    container.removeEventListener('touchmove', handleTouchMove)
-                }, { once: true })
+            
+            // Prevent vertical overscroll
+            if (container.scrollTop < 0) {
+                container.scrollTop = 0
+            }
+            
+            // Prevent scrolling past bottom
+            const maxScrollTop = container.scrollHeight - container.clientHeight
+            if (container.scrollTop > maxScrollTop) {
+                container.scrollTop = maxScrollTop
+            }
+            
+            // Prevent scrolling past right edge
+            const maxScrollLeft = container.scrollWidth - container.clientWidth
+            if (container.scrollLeft > maxScrollLeft) {
+                container.scrollLeft = maxScrollLeft
             }
         }
 
         container.addEventListener('scroll', preventOverscroll, { passive: true })
-        container.addEventListener('touchstart', preventTouchOverscroll, { passive: true })
         
         return () => {
             container.removeEventListener('scroll', preventOverscroll)
-            container.removeEventListener('touchstart', preventTouchOverscroll)
         }
     }, [])
 
@@ -279,11 +273,9 @@ export function MarketTable({
                 ref={scrollContainerRef}
                 className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
                 style={{ 
-                    overscrollBehaviorX: 'none',
-                    overscrollBehaviorY: 'auto',
+                    overscrollBehavior: 'none',
                     WebkitOverflowScrolling: 'touch',
-                    position: 'relative',
-                    left: 0
+                    position: 'relative'
                 }}
             >
                 <table className="w-full min-w-[800px]">
