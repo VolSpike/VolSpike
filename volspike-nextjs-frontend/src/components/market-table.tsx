@@ -344,7 +344,7 @@ export function MarketTable({
                     touchAction: 'pan-x pan-y pinch-zoom',
                 }}
             >
-                <table className="w-full min-w-[800px]">
+                <table className="vs-market-table w-full min-w-[800px]">
                     <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
                         <tr className="border-b border-border/50">
                             <th className="text-left p-3">
@@ -424,13 +424,9 @@ export function MarketTable({
                             const exceedsThreshold = Math.abs(fundingRate) >= FUNDING_ALERT_THRESHOLD
                             const changeValue = item.change24h ?? item.volumeChange ?? 0
                             const isHovered = hoveredRow === item.symbol
-                            // Per-cell base and hover backgrounds to avoid row/cell paint conflicts.
-                            const cellBaseBg = exceedsThreshold
-                                ? (fundingRate > 0 ? ' bg-brand-500/18' : ' bg-danger-500/18')
-                                : ''
-                            const cellHoverBg = exceedsThreshold
-                                ? (fundingRate > 0 ? ' group-hover/row:bg-brand-500/20' : ' group-hover/row:bg-danger-500/20')
-                                : ' group-hover/row:bg-muted/70'
+                            // For neutral rows, we keep a subtle grey hover per cell.
+                            // For funding-highlight rows, tinting is handled via global CSS on tr.funding-pos/.funding-neg.
+                            const cellHoverBg = exceedsThreshold ? '' : ' group-hover/row:bg-muted/70'
 
             const rowClasses = [
                 'group/row border-b border-border/40 cursor-pointer relative'
@@ -438,7 +434,8 @@ export function MarketTable({
             if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
                 // Make positive funding highlights more prominent with depth
                 rowClasses.push(
-                    // Keep border/shadow for positive rows; color is applied on cells to avoid masking
+                    // Keep border/shadow for positive rows; color is applied via CSS on cells
+                    'funding-pos',
                     'border-l-4 border-l-brand-500/70',
                     'shadow-sm shadow-brand-500/10',
                     'hover:shadow-md hover:shadow-brand-500/20',
@@ -447,7 +444,8 @@ export function MarketTable({
             } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
                 // Make negative funding highlights more prominent with depth
                 rowClasses.push(
-                    // Keep border/shadow for negative rows; color is applied on cells to avoid masking
+                    // Keep border/shadow for negative rows; color is applied via CSS on cells
+                    'funding-neg',
                     'border-l-4 border-l-danger-500/70',
                     'shadow-sm shadow-danger-500/10',
                     'hover:shadow-md hover:shadow-danger-500/20',
@@ -478,31 +476,31 @@ export function MarketTable({
                                     onMouseLeave={() => setHoveredRow(null)}
                                     onClick={() => setSelectedSymbol(item)}
                                 >
-                                    <td className={`p-3 font-semibold text-sm transition-colors duration-150${cellBaseBg}${cellHoverBg}`}>
+                                    <td className={`p-3 font-semibold text-sm transition-colors duration-150${cellHoverBg}`}>
                                         {formatSymbol(item.symbol)}
                                     </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellBaseBg}${cellHoverBg}`}>
+                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
                                         {formatPrice(item.price)}
                                     </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellBaseBg}${cellHoverBg}`}>
+                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
                                         <span className={changeClass}>
                                             {changeValue > 0 ? '+' : ''}{changeValue.toFixed(2)}%
                                         </span>
                                     </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellBaseBg}${cellHoverBg}`}>
+                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
                                         <span className={fundingClass}>
                                             {fundingRate > 0 ? '+' : ''}{(fundingRate * 100).toFixed(4)}%
                                         </span>
                                     </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm font-medium transition-colors duration-150${cellBaseBg}${cellHoverBg}`}>
+                                    <td className={`p-3 text-right font-mono-tabular text-sm font-medium transition-colors duration-150${cellHoverBg}`}>
                                         {formatVolume(item.volume24h)}
                                     </td>
                                     {userTier !== 'free' && (
-                                        <td className={`p-3 text-right font-mono-tabular text-sm text-muted-foreground transition-colors duration-150${cellBaseBg}${cellHoverBg}`}>
+                                        <td className={`p-3 text-right font-mono-tabular text-sm text-muted-foreground transition-colors duration-150${cellHoverBg}`}>
                                             {formatVolume(item.openInterest ?? 0)}
                                         </td>
                                     )}
-                                    <td className={`p-3 transition-colors duration-150${cellBaseBg}${cellHoverBg}`}>
+                                    <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
                                         <div className="pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
                                             <Button
                                                 className="pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400"

@@ -142,6 +142,28 @@
     }
 }
 
+/* ===== Market table funding tints (load after shadcn) ===== */
+tr.funding-pos > td {
+    background-color: hsl(var(--brand-500) / 0.12);
+}
+tr.funding-pos:hover > td {
+    background-color: hsl(var(--brand-500) / 0.18);
+}
+tr.funding-neg > td {
+    background-color: hsl(var(--danger-500) / 0.12);
+}
+tr.funding-neg:hover > td {
+    background-color: hsl(var(--danger-500) / 0.18);
+}
+
+table.vs-market-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+table.vs-market-table tr {
+    -webkit-tap-highlight-color: transparent;
+}
+
 @layer base {
     * {
         @apply border-border;
