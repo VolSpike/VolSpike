@@ -108,19 +108,13 @@ export function CheckoutSuccessContent() {
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true)
-        addDebugLog('Manual refresh triggered')
         
         try {
-            addDebugLog(`Current tier before refresh: ${currentTier}`)
-            const updatedSession = await update()
-            addDebugLog(`Session updated. New tier: ${updatedSession?.user?.tier || 'unknown'}`)
-            
-            // Force re-render by refreshing router
+            await update()
             setTimeout(() => {
                 router.refresh()
             }, 500)
         } catch (error) {
-            addDebugLog(`❌ Manual refresh error: ${error instanceof Error ? error.message : String(error)}`)
             console.error('Failed to refresh session:', error)
         } finally {
             setIsRefreshing(false)
@@ -154,7 +148,7 @@ export function CheckoutSuccessContent() {
                     <div className="mb-6">
                         <p className="text-muted-foreground mb-4">
                             Thank you for upgrading! Your Pro features will be available shortly.
-                            {isRefreshing && ` Checking tier status... (Attempt ${refreshAttempts})`}
+                            {isRefreshing && ' Checking tier status...'}
                         </p>
                         <Button
                             onClick={handleManualRefresh}
