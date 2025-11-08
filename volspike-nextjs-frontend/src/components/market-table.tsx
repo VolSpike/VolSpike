@@ -236,7 +236,8 @@ export function MarketTable({
                     WebkitOverflowScrolling: 'touch',
                     // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
                     overscrollBehaviorX: 'none',
-                    overscrollBehaviorY: 'auto',
+                    // Clamp vertical overscroll as well (where supported)
+                    overscrollBehaviorY: 'none',
                     // Ensure proper gesture handling on mobile while preserving momentum scroll
                     touchAction: 'pan-x pan-y pinch-zoom',
                 }}
@@ -545,3 +546,43 @@ export function MarketTable({
         </Card>
     )
 }
+
+// Add minimal boundary guard for iOS Safari rubber-band at vertical edges
+// We attach listeners only to the scroll container and only prevent default
+// when the user tries to pull beyond top/bottom limits.
+// This keeps native momentum scrolling intact everywhere else.
+useEffect(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+
+    let startY = 0
+
+    const onTouchStart = (e: TouchEvent) => {
+        if (e.touches && e.touches.length === 1) {
+            startY = e.touches[0].clientY
+        }
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+        if (!e.touches || e.touches.length !== 1) return
+        const currentY = e.touches[0].clientY
+        const dy = currentY - startY
+
+        const atTop = el.scrollTop <= 0
+        const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 1
+
+        // Pulling down at top or up at bottom ⇒ prevent rubber-band
+        if ((atTop && dy > 0) || (atBottom && dy < 0)) {
+            e.preventDefault()
+        }
+    }
+
+    // Passive false required to be able to call preventDefault on touchmove
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+
+    return () => {
+        el.removeEventListener('touchstart', onTouchStart as any)
+        el.removeEventListener('touchmove', onTouchMove as any)
+    }
+}, [])
