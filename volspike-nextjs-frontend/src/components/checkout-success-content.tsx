@@ -8,125 +8,82 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export function CheckoutSuccessContent() {
-    const { data: session, update, status } = useSession()
+    const { data: session, update } = useSession()
     const router = useRouter()
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [hasRefreshed, setHasRefreshed] = useState(false)
-    const [refreshAttempts, setRefreshAttempts] = useState(0)
-    const [debugInfo, setDebugInfo] = useState<string[]>([])
 
     // Get current tier from session (will update when session updates)
     const currentTier = session?.user?.tier || 'free'
+    const isPro = currentTier === 'pro' || currentTier === 'elite'
 
-    const addDebugLog = (message: string) => {
-        const timestamp = new Date().toLocaleTimeString()
-        setDebugInfo(prev => [...prev.slice(-19), `[${timestamp}] ${message}`]) // Keep last 20 logs
-        console.log(`[CheckoutSuccess] ${message}`)
-    }
-
-    // Auto-refresh session with polling until tier updates
+    // Auto-refresh session with polling until tier updates (only if not already pro)
     useEffect(() => {
-        addDebugLog(`Initial tier: ${currentTier}, Session status: ${status}`)
-        
+        // If already pro, don't poll
+        if (isPro) {
+            return
+        }
+
         // Start polling after initial delay
         const startPolling = () => {
             let attempts = 0
             const maxAttempts = 10 // Try for 30 seconds (10 attempts * 3 seconds)
+            let hasReloaded = false
             
             const pollInterval = setInterval(async () => {
                 attempts++
-                setRefreshAttempts(attempts)
-                
-                addDebugLog(`Polling attempt ${attempts}/${maxAttempts}, current tier: ${currentTier}`)
                 
                 try {
                     setIsRefreshing(true)
                     
-                    // Call update() which triggers JWT callback with trigger='update'
-                    addDebugLog('Calling session.update()...')
-                    
-                    const beforeTier = currentTier
-                    let freshUserTier: string | null = null
-                    
                     // Use Next.js API route to refresh session (server-side)
-                    try {
-                        addDebugLog('Calling /api/auth/refresh-session...')
-                        const refreshResponse = await fetch('/api/auth/refresh-session', {
-                            method: 'POST',
-                        })
+                    const refreshResponse = await fetch('/api/auth/refresh-session', {
+                        method: 'POST',
+                    })
+                    
+                    if (refreshResponse.ok) {
+                        const { user: freshUser } = await refreshResponse.json()
+                        const freshUserTier = freshUser?.tier || null
                         
-                        if (refreshResponse.ok) {
-                            const { user: freshUser } = await refreshResponse.json()
-                            freshUserTier = freshUser?.tier || null
-                            addDebugLog(`Refresh API result: tier=${freshUserTier || 'unknown'}`)
+                        // If backend says pro but session doesn't, force update session
+                        if (freshUserTier === 'pro' || freshUserTier === 'elite') {
+                            // Force update session with new tier data
+                            await update({
+                                tier: freshUserTier,
+                            } as any)
                             
-                            // If backend says pro but session doesn't, force update session
-                            if (freshUserTier === 'pro' || freshUserTier === 'elite') {
-                                addDebugLog(`✅ Backend confirms tier=${freshUserTier}`)
-                                
-                                // Force update session with new tier data
-                                // In NextAuth v5, we can pass data to update()
-                                await update({
-                                    tier: freshUserTier,
-                                } as any)
-                                
-                                addDebugLog(`✅ Session update called with tier=${freshUserTier}`)
+                            // Check session after update
+                            const updatedSession = await update()
+                            const afterTier = updatedSession?.user?.tier || 'unknown'
+                            
+                            // If backend confirmed pro but session still shows free, force reload once
+                            if ((freshUserTier === 'pro' || freshUserTier === 'elite') && afterTier === 'free' && !hasReloaded) {
+                                hasReloaded = true
+                                clearInterval(pollInterval)
+                                setIsRefreshing(false)
+                                setTimeout(() => {
+                                    window.location.reload()
+                                }, 1000)
+                                return
                             }
-                        } else {
-                            addDebugLog(`⚠️ Refresh API failed: ${refreshResponse.status}`)
+                            
+                            // If session updated to pro, stop polling (no reload needed if already showing pro)
+                            if (afterTier === 'pro' || afterTier === 'elite') {
+                                clearInterval(pollInterval)
+                                setIsRefreshing(false)
+                                return
+                            }
                         }
-                    } catch (refreshError) {
-                        addDebugLog(`⚠️ Refresh API error: ${refreshError instanceof Error ? refreshError.message : String(refreshError)}`)
-                    }
-                    
-                    // Check session after refresh API call
-                    const updatedSession = await update()
-                    const afterTier = updatedSession?.user?.tier || 'unknown'
-                    
-                    addDebugLog(`Session update completed. Tier: ${beforeTier} → ${afterTier}`)
-                    
-                    // If backend confirmed pro but session still shows free, force reload
-                    if (freshUserTier === 'pro' || freshUserTier === 'elite') {
-                        if (afterTier === 'free') {
-                            addDebugLog(`⚠️ Backend says ${freshUserTier} but session shows ${afterTier}. Forcing page reload...`)
-                            clearInterval(pollInterval)
-                            setIsRefreshing(false)
-                            setTimeout(() => {
-                                window.location.reload()
-                            }, 1000)
-                            return
-                        } else if (afterTier === 'pro' || afterTier === 'elite') {
-                            addDebugLog(`✅ Tier updated successfully to: ${afterTier}`)
-                            clearInterval(pollInterval)
-                            setIsRefreshing(false)
-                            setTimeout(() => {
-                                window.location.reload()
-                            }, 500)
-                            return
-                        }
-                    }
-                    
-                    // Check if tier has been updated
-                    if (updatedSession?.user?.tier === 'pro' || updatedSession?.user?.tier === 'elite') {
-                        addDebugLog(`✅ Tier updated successfully to: ${updatedSession.user.tier}`)
-                        clearInterval(pollInterval)
-                        setIsRefreshing(false)
-                        setTimeout(() => {
-                            window.location.reload()
-                        }, 500)
-                        return
                     }
                     
                     // If not updated yet, continue polling
                     if (attempts >= maxAttempts) {
-                        addDebugLog(`⚠️ Max polling attempts reached. Tier still: ${currentTier}`)
                         clearInterval(pollInterval)
                         setIsRefreshing(false)
                     } else {
                         setIsRefreshing(false)
                     }
                 } catch (error) {
-                    addDebugLog(`❌ Error refreshing session: ${error instanceof Error ? error.message : String(error)}`)
                     setIsRefreshing(false)
                     
                     if (attempts >= maxAttempts) {
@@ -141,14 +98,13 @@ export function CheckoutSuccessContent() {
 
         // Start polling after 2 seconds (give webhook time to process)
         const initialTimer = setTimeout(() => {
-            addDebugLog('Starting automatic tier polling...')
             startPolling()
         }, 2000)
 
         return () => {
             clearTimeout(initialTimer)
         }
-    }, []) // Only run once on mount
+    }, [isPro, update]) // Re-run if tier changes
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true)
