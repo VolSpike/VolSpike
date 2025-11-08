@@ -172,22 +172,35 @@ export const authConfig: NextAuthConfig = {
             }
 
             // Fetch fresh user data from database when session is refreshed
+            // Log trigger value for debugging
+            console.log('[Auth] JWT callback called', {
+                trigger,
+                hasTrigger: !!trigger,
+                triggerType: typeof trigger,
+                userId: token.id,
+                currentTier: token.tier,
+            })
+            
             if (trigger === 'update' && token.id) {
                 try {
-                    console.log('[Auth] JWT callback triggered with update, fetching fresh user data', {
+                    console.log('[Auth] ✅ JWT callback triggered with update, fetching fresh user data', {
                         userId: token.id,
                         email: token.email,
                         currentTier: token.tier,
+                        backendUrl: BACKEND_API_URL,
                     })
                     
-                    const response = await fetch(`${BACKEND_API_URL}/api/auth/me`, {
+                    const meUrl = `${BACKEND_API_URL}/api/auth/me`
+                    console.log('[Auth] Calling:', meUrl)
+                    
+                    const response = await fetch(meUrl, {
                         method: 'GET',
                         headers: {
                             'Authorization': `Bearer ${token.accessToken || token.id}`,
                         },
                     })
 
-                    console.log('[Auth] /api/auth/me response status:', response.status)
+                    console.log('[Auth] /api/auth/me response status:', response.status, response.statusText)
 
                     if (response.ok) {
                         const { user: dbUser } = await response.json()

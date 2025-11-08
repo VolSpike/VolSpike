@@ -44,9 +44,47 @@ export function CheckoutSuccessContent() {
                     
                     // Call update() which triggers JWT callback with trigger='update'
                     addDebugLog('Calling session.update()...')
-                    const updatedSession = await update()
                     
-                    addDebugLog(`Session update completed. New tier: ${updatedSession?.user?.tier || 'unknown'}`)
+                    const beforeTier = currentTier
+                    
+                    // Also directly fetch from backend as fallback
+                    try {
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://volspike-production.up.railway.app'
+                        const authToken = (session as any)?.accessToken || session?.user?.id
+                        
+                        addDebugLog(`Directly fetching from ${apiUrl}/api/auth/me...`)
+                        const directResponse = await fetch(`${apiUrl}/api/auth/me`, {
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                            },
+                        })
+                        
+                        if (directResponse.ok) {
+                            const { user: directUser } = await directResponse.json()
+                            addDebugLog(`Direct fetch result: tier=${directUser?.tier || 'unknown'}`)
+                            
+                            // If backend says pro but session doesn't, force update
+                            if (directUser?.tier === 'pro' || directUser?.tier === 'elite') {
+                                addDebugLog(`✅ Backend confirms tier=${directUser.tier}, forcing session refresh`)
+                                // Force a hard refresh by calling update with data
+                                await update({ tier: directUser.tier } as any)
+                            }
+                        } else {
+                            addDebugLog(`⚠️ Direct fetch failed: ${directResponse.status}`)
+                        }
+                    } catch (directError) {
+                        addDebugLog(`⚠️ Direct fetch error: ${directError instanceof Error ? directError.message : String(directError)}`)
+                    }
+                    
+                    const updatedSession = await update()
+                    const afterTier = updatedSession?.user?.tier || 'unknown'
+                    
+                    addDebugLog(`Session update completed. Tier: ${beforeTier} → ${afterTier}`)
+                    
+                    // Check if we need to look at network requests
+                    if (beforeTier === afterTier && afterTier === 'free') {
+                        addDebugLog('⚠️ Tier unchanged. Check Network tab for /api/auth/me call')
+                    }
                     
                     // Check if tier has been updated
                     if (updatedSession?.user?.tier === 'pro' || updatedSession?.user?.tier === 'elite') {
