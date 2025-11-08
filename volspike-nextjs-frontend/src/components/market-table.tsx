@@ -473,31 +473,31 @@ export function MarketTable({
                                     onMouseLeave={() => setHoveredRow(null)}
                                     onClick={() => setSelectedSymbol(item)}
                                 >
-                                    <td className="p-3 font-semibold text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                    <td className="p-3 font-semibold text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/70">
                                         {formatSymbol(item.symbol)}
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/70">
                                         {formatPrice(item.price)}
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/70">
                                         <span className={changeClass}>
                                             {changeValue > 0 ? '+' : ''}{changeValue.toFixed(2)}%
                                         </span>
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                    <td className="p-3 text-right font-mono-tabular text-sm bg-transparent transition-colors duration-150 group-hover/row:bg-muted/70">
                                         <span className={fundingClass}>
                                             {fundingRate > 0 ? '+' : ''}{(fundingRate * 100).toFixed(4)}%
                                         </span>
                                     </td>
-                                    <td className="p-3 text-right font-mono-tabular text-sm font-medium bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                    <td className="p-3 text-right font-mono-tabular text-sm font-medium bg-transparent transition-colors duration-150 group-hover/row:bg-muted/70">
                                         {formatVolume(item.volume24h)}
                                     </td>
                                     {userTier !== 'free' && (
-                                        <td className="p-3 text-right font-mono-tabular text-sm text-muted-foreground bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                        <td className="p-3 text-right font-mono-tabular text-sm text-muted-foreground bg-transparent transition-colors duration-150 group-hover/row:bg-muted/70">
                                             {formatVolume(item.openInterest ?? 0)}
                                         </td>
                                     )}
-                                    <td className="p-3 bg-transparent transition-colors duration-150 group-hover/row:bg-muted/60">
+                                    <td className="p-3 bg-transparent transition-colors duration-150 group-hover/row:bg-muted/70">
                                         <div className="pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
                                             <Button
                                                 className="pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400"
