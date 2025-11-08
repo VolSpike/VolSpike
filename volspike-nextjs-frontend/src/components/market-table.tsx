@@ -75,31 +75,60 @@ export function MarketTable({
         const container = scrollContainerRef.current
         if (!container) return
 
+        let touchStartX = 0
+        let touchStartScrollLeft = 0
+
         const clampScroll = () => {
-            // Horizontal: Prevent scrolling past left or right edges
+            // Horizontal: Prevent scrolling past left or right edges (STRICT)
+            const maxScrollLeft = container.scrollWidth - container.clientWidth
+            
             if (container.scrollLeft < 0) {
                 container.scrollLeft = 0
-            }
-            const maxScrollLeft = container.scrollWidth - container.clientWidth
-            if (container.scrollLeft > maxScrollLeft) {
+            } else if (container.scrollLeft > maxScrollLeft) {
                 container.scrollLeft = maxScrollLeft
             }
 
             // Vertical: Only prevent negative (top edge bounce)
-            // Don't enforce bottom to allow page scroll propagation
             if (container.scrollTop < 0) {
                 container.scrollTop = 0
             }
         }
 
-        // Use requestAnimationFrame for smooth correction without blocking scroll
-        const handleScroll = () => {
-            requestAnimationFrame(clampScroll)
+        const handleTouchStart = (e: TouchEvent) => {
+            touchStartX = e.touches[0].clientX
+            touchStartScrollLeft = container.scrollLeft
         }
 
+        const handleTouchMove = (e: TouchEvent) => {
+            const touchX = e.touches[0].clientX
+            const deltaX = touchStartX - touchX
+            const newScrollLeft = touchStartScrollLeft + deltaX
+
+            const maxScrollLeft = container.scrollWidth - container.clientWidth
+
+            // Prevent horizontal overscroll DURING touch
+            if (newScrollLeft < 0) {
+                container.scrollLeft = 0
+                e.preventDefault()
+            } else if (newScrollLeft > maxScrollLeft) {
+                container.scrollLeft = maxScrollLeft
+                e.preventDefault()
+            }
+
+            clampScroll()
+        }
+
+        const handleScroll = () => {
+            clampScroll()
+        }
+
+        container.addEventListener('touchstart', handleTouchStart, { passive: true })
+        container.addEventListener('touchmove', handleTouchMove, { passive: false })
         container.addEventListener('scroll', handleScroll, { passive: true })
         
         return () => {
+            container.removeEventListener('touchstart', handleTouchStart)
+            container.removeEventListener('touchmove', handleTouchMove)
             container.removeEventListener('scroll', handleScroll)
         }
     }, [])
@@ -268,6 +297,8 @@ export function MarketTable({
                 ref={scrollContainerRef}
                 className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
                 style={{ 
+                    overscrollBehaviorX: 'none',
+                    overscrollBehaviorY: 'auto',
                     WebkitOverflowScrolling: 'touch'
                 }}
             >
