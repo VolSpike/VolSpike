@@ -69,6 +69,43 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
 
+    // Minimal vertical boundary guard to prevent rubber-band overscroll at top/bottom on mobile
+    useEffect(() => {
+        const el = scrollContainerRef.current
+        if (!el) return
+
+        let startY = 0
+
+        const onTouchStart = (e: TouchEvent) => {
+            if (e.touches && e.touches.length === 1) {
+                startY = e.touches[0].clientY
+            }
+        }
+
+        const onTouchMove = (e: TouchEvent) => {
+            if (!e.touches || e.touches.length !== 1) return
+            const currentY = e.touches[0].clientY
+            const dy = currentY - startY
+
+            const atTop = el.scrollTop <= 0
+            const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 1
+
+            // Pulling down at top or up at bottom ⇒ prevent rubber-band
+            if ((atTop && dy > 0) || (atBottom && dy < 0)) {
+                e.preventDefault()
+            }
+        }
+
+        // Passive false required to be able to call preventDefault on touchmove
+        el.addEventListener('touchstart', onTouchStart, { passive: true })
+        el.addEventListener('touchmove', onTouchMove, { passive: false })
+
+        return () => {
+            el.removeEventListener('touchstart', onTouchStart as any)
+            el.removeEventListener('touchmove', onTouchMove as any)
+        }
+    }, [])
+
     const formatVolume = useMemo(() => (value: number) => {
         const abs = Math.abs(value)
         if (abs >= 1_000_000_000) {
@@ -546,43 +583,3 @@ export function MarketTable({
         </Card>
     )
 }
-
-// Add minimal boundary guard for iOS Safari rubber-band at vertical edges
-// We attach listeners only to the scroll container and only prevent default
-// when the user tries to pull beyond top/bottom limits.
-// This keeps native momentum scrolling intact everywhere else.
-useEffect(() => {
-    const el = scrollContainerRef.current
-    if (!el) return
-
-    let startY = 0
-
-    const onTouchStart = (e: TouchEvent) => {
-        if (e.touches && e.touches.length === 1) {
-            startY = e.touches[0].clientY
-        }
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-        if (!e.touches || e.touches.length !== 1) return
-        const currentY = e.touches[0].clientY
-        const dy = currentY - startY
-
-        const atTop = el.scrollTop <= 0
-        const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 1
-
-        // Pulling down at top or up at bottom ⇒ prevent rubber-band
-        if ((atTop && dy > 0) || (atBottom && dy < 0)) {
-            e.preventDefault()
-        }
-    }
-
-    // Passive false required to be able to call preventDefault on touchmove
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
-
-    return () => {
-        el.removeEventListener('touchstart', onTouchStart as any)
-        el.removeEventListener('touchmove', onTouchMove as any)
-    }
-}, [])
