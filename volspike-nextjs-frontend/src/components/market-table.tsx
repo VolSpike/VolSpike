@@ -433,7 +433,7 @@ export function MarketTable({
                 // Make positive funding highlights more prominent with depth
                 rowClasses.push(
                     // Flat brand tint across the full row for mobile consistency
-                    'bg-brand-500/12',
+                    'bg-brand-500/14',
                     'hover:bg-brand-500/20',
                     'border-l-4 border-l-brand-500/70',
                     'shadow-sm shadow-brand-500/10',
@@ -444,7 +444,7 @@ export function MarketTable({
                 // Make negative funding highlights more prominent with depth
                 rowClasses.push(
                     // Flat danger tint across the full row for mobile consistency
-                    'bg-danger-500/12',
+                    'bg-danger-500/14',
                     'hover:bg-danger-500/20',
                     'border-l-4 border-l-danger-500/70',
                     'shadow-sm shadow-danger-500/10',
