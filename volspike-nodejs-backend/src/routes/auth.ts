@@ -760,17 +760,79 @@ auth.post('/solana/verify', async (c) => {
     }
 })
 
-// Get current user
+// Get current user (requires authentication via Authorization header)
 auth.get('/me', async (c) => {
     try {
-        const user = getUser(c)
+        const authHeader = c.req.header('Authorization')
 
-        if (!user) {
-            logger.warn('[Auth] /me endpoint called without authentication')
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            logger.warn('[Auth] /me endpoint called without Authorization header')
             return c.json({ error: 'Not authenticated' }, 401)
         }
 
-        logger.info('[Auth] /me endpoint called', {
+        const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+        let userId: string | null = null
+
+        // Check if it's a simple user ID (from NextAuth session)
+        if (!token.includes('.') && !token.startsWith('mock-token-')) {
+            userId = token
+            logger.info(`[Auth] /me using simple user ID token: ${userId}`)
+        }
+        // Handle mock tokens
+        else if (token.startsWith('mock-token-')) {
+            const match = token.match(/^mock-token-(.+?)-\d+$/)
+            if (match) {
+                userId = match[1]
+            } else {
+                return c.json({ error: 'Invalid token format' }, 401)
+            }
+        }
+        // Verify JWT tokens
+        else {
+            try {
+                const { jwtVerify } = await import('jose')
+                const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key'
+                const secretBytes = new TextEncoder().encode(secret)
+                const { payload } = await jwtVerify(token, secretBytes)
+
+                if (!payload.sub) {
+                    return c.json({ error: 'Invalid token payload' }, 401)
+                }
+
+                userId = payload.sub as string
+                logger.info(`[Auth] /me JWT verified for user ID: ${userId}`)
+            } catch (jwtError) {
+                logger.error('[Auth] /me JWT verification failed:', jwtError)
+                return c.json({ error: 'Invalid token' }, 401)
+            }
+        }
+
+        if (!userId) {
+            return c.json({ error: 'Invalid token' }, 401)
+        }
+
+        // Get user from database
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                tier: true,
+                emailVerified: true,
+                role: true,
+                status: true,
+                twoFactorEnabled: true,
+                refreshInterval: true,
+                theme: true,
+            },
+        })
+
+        if (!user) {
+            logger.warn(`[Auth] /me user not found for ID: ${userId}`)
+            return c.json({ error: 'User not found' }, 401)
+        }
+
+        logger.info('[Auth] /me endpoint called successfully', {
             userId: user.id,
             email: user.email,
             tier: user.tier,
