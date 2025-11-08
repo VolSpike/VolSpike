@@ -87,17 +87,6 @@ export function MarketTable({
         const lockThreshold = 10 // px movement before deciding
         const bias = 0.8 // horizontal bias to catch diagonal swipes
         let momentumId: number | null = null
-        let initialScrollY = 0
-
-        // Force scrollbar visibility on mobile by nudging scroll positions
-        const forceScrollbars = () => {
-            const sy = el.scrollTop
-            const sx = el.scrollLeft
-            el.scrollTop = sy + 1
-            el.scrollTop = sy
-            el.scrollLeft = sx + 1
-            el.scrollLeft = sx
-        }
 
         const stopMomentum = () => {
             if (momentumId != null) {
@@ -114,7 +103,6 @@ export function MarketTable({
                 startY = t.clientY
                 lastTime = performance.now()
                 locked = null
-                initialScrollY = el.scrollTop
             }
         }
 
@@ -145,23 +133,7 @@ export function MarketTable({
                 lastX = t.clientX
                 lastTime = now
             } else {
-                // Vertical lock: prevent rubber-band at edges during continuous drag
-                const atTop = el.scrollTop <= 0
-                const atBottom = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 1
-                // If at edge and dragging further, prevent bounce and slightly nudge away to enable page handoff
-                if ((atTop && dy > 0) || (atBottom && dy < 0)) {
-                    e.preventDefault()
-                    if (atTop && dy > 0) {
-                        el.scrollTop = 1
-                    } else if (atBottom && dy < 0) {
-                        el.scrollTop = el.scrollHeight - el.clientHeight - 1
-                    }
-                }
-            }
-
-            // Ensure scrollbars become visible on movement
-            if (locked === 'h') {
-                forceScrollbars()
+                // Vertical lock: allow default; no manual scrolling
             }
         }
 
@@ -361,7 +333,7 @@ export function MarketTable({
             {/* Table with sticky header */}
             <div 
                 ref={scrollContainerRef}
-                className="relative max-h-[600px] overflow-y-auto overflow-x-auto market-table-scroll" 
+                className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
                 style={{ 
                     WebkitOverflowScrolling: 'touch',
                     // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
