@@ -153,7 +153,7 @@ export function Header() {
                                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg
                                                     ${
                                                         tier === 'free'
-                                                            ? 'bg-brand-500/10 border border-brand-500/30 text-brand-600 dark:text-brand-400'
+                                                            ? 'bg-muted/60 border border-border text-muted-foreground'
                                                             : tier === 'pro'
                                                             ? 'bg-sec-500/10 border border-sec-500/30 text-sec-600 dark:text-sec-400'
                                                             : 'bg-elite-500/10 border border-elite-500/30 text-elite-600 dark:text-elite-400'
@@ -236,7 +236,7 @@ export function Header() {
                                 className={`hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-full transition-all duration-150
                                     ${
                                         tier === 'free'
-                                            ? 'bg-brand-500/10 border border-brand-500/30 text-brand-600 dark:text-brand-400 hover:bg-brand-500/15'
+                                            ? 'bg-muted/60 border border-border text-muted-foreground hover:bg-muted'
                                             : tier === 'pro'
                                             ? 'bg-sec-500/10 border border-sec-500/30 text-sec-600 dark:text-sec-400 hover:bg-sec-500/15'
                                             : 'bg-elite-500/10 border border-elite-500/30 text-elite-600 dark:text-elite-400 hover:bg-elite-500/15'

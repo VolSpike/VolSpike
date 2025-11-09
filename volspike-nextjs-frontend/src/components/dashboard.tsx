@@ -126,7 +126,18 @@ export function Dashboard() {
                     <span className="text-foreground">
                         Market Data
                     </span>
-                    <span className="text-sm font-normal text-muted-foreground px-2 py-0.5 rounded-md bg-muted/50 border border-border">
+                    <span
+                        className={`
+                            text-sm font-normal px-2 py-0.5 rounded-md border
+                            ${
+                                (userTier as string) === 'free'
+                                    ? 'bg-muted/60 text-muted-foreground border-border'
+                                    : (userTier as string) === 'pro'
+                                    ? 'bg-sec-500/10 text-sec-600 dark:text-sec-400 border-sec-500/30'
+                                    : 'bg-elite-500/10 text-elite-600 dark:text-elite-400 border-elite-500/30'
+                            }
+                        `}
+                    >
                         {userTier.toUpperCase()} Tier
                     </span>
                 </CardTitle>
