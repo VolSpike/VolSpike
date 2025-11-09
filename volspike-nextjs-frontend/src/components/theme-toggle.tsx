@@ -16,7 +16,7 @@ export function ThemeToggle() {
     const { setTheme, theme } = useTheme()
 
     return (
-        <TooltipProvider delayDuration={0}>
+        <TooltipProvider delayDuration={700}>
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
