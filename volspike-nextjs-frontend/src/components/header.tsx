@@ -153,10 +153,10 @@ export function Header() {
                                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg
                                                     ${
                                                         tier === 'free'
-                                                            ? 'bg-muted/60 border border-border text-muted-foreground'
+                                                            ? 'bg-muted/70 border border-border text-muted-foreground'
                                                             : tier === 'pro'
-                                                            ? 'bg-sec-500/10 border border-sec-500/30 text-sec-600 dark:text-sec-400'
-                                                            : 'bg-elite-500/10 border border-elite-500/30 text-elite-600 dark:text-elite-400'
+                                                            ? 'bg-sec-500/20 border border-sec-500/40 text-sec-700 dark:text-sec-400'
+                                                            : 'bg-elite-500/20 border border-elite-500/40 text-elite-700 dark:text-elite-400'
                                                     }`}
                                             >
                                                 {tier === 'free' && <Zap className="h-4 w-4" />}
@@ -233,13 +233,13 @@ export function Header() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => router.push('/settings')}
-                                className={`hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-full transition-all duration-150
+                                className={`hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-full transition-all
                                     ${
                                         tier === 'free'
-                                            ? 'bg-muted/60 border border-border text-muted-foreground hover:bg-muted'
+                                            ? 'bg-muted/70 border border-border text-muted-foreground'
                                             : tier === 'pro'
-                                            ? 'bg-sec-500/10 border border-sec-500/30 text-sec-600 dark:text-sec-400 hover:bg-sec-500/15'
-                                            : 'bg-elite-500/10 border border-elite-500/30 text-elite-600 dark:text-elite-400 hover:bg-elite-500/15'
+                                            ? 'bg-sec-500/20 border border-sec-500/40 text-sec-700 dark:text-sec-400'
+                                            : 'bg-elite-500/20 border border-elite-500/40 text-elite-700 dark:text-elite-400'
                                     }`}
                             >
                                 {tier === 'free' && <Zap className="h-3.5 w-3.5" />}
