@@ -149,10 +149,19 @@ export function Header() {
                                     <>
                                         {/* Tier Badge */}
                                         <div className="px-3 py-2 mb-2">
-                                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50">
-                                                {tier === 'free' && <Zap className="h-4 w-4 text-muted-foreground" />}
-                                                {tier === 'pro' && <Star className="h-4 w-4 text-sec-600 dark:text-sec-400" />}
-                                                {tier === 'elite' && <Sparkles className="h-4 w-4 text-elite-600 dark:text-elite-400" />}
+                                            <div
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-lg
+                                                    ${
+                                                        tier === 'free'
+                                                            ? 'bg-brand-500/10 border border-brand-500/30 text-brand-600 dark:text-brand-400'
+                                                            : tier === 'pro'
+                                                            ? 'bg-sec-500/10 border border-sec-500/30 text-sec-600 dark:text-sec-400'
+                                                            : 'bg-elite-500/10 border border-elite-500/30 text-elite-600 dark:text-elite-400'
+                                                    }`}
+                                            >
+                                                {tier === 'free' && <Zap className="h-4 w-4" />}
+                                                {tier === 'pro' && <Star className="h-4 w-4" />}
+                                                {tier === 'elite' && <Sparkles className="h-4 w-4" />}
                                                 <span className="text-sm font-medium capitalize">
                                                     {tier} Tier
                                                 </span>
@@ -224,11 +233,18 @@ export function Header() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => router.push('/settings')}
-                                className="hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-full bg-muted/50 hover:bg-muted transition-all duration-150"
+                                className={`hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-full transition-all duration-150
+                                    ${
+                                        tier === 'free'
+                                            ? 'bg-brand-500/10 border border-brand-500/30 text-brand-600 dark:text-brand-400 hover:bg-brand-500/15'
+                                            : tier === 'pro'
+                                            ? 'bg-sec-500/10 border border-sec-500/30 text-sec-600 dark:text-sec-400 hover:bg-sec-500/15'
+                                            : 'bg-elite-500/10 border border-elite-500/30 text-elite-600 dark:text-elite-400 hover:bg-elite-500/15'
+                                    }`}
                             >
-                                {tier === 'free' && <Zap className="h-3.5 w-3.5 text-muted-foreground" />}
-                                {tier === 'pro' && <Star className="h-3.5 w-3.5 text-sec-600 dark:text-sec-400" />}
-                                {tier === 'elite' && <Sparkles className="h-3.5 w-3.5 text-elite-600 dark:text-elite-400" />}
+                                {tier === 'free' && <Zap className="h-3.5 w-3.5" />}
+                                {tier === 'pro' && <Star className="h-3.5 w-3.5" />}
+                                {tier === 'elite' && <Sparkles className="h-3.5 w-3.5" />}
                                 <span className="text-xs font-medium capitalize">
                                     {tier} Tier
                                 </span>
