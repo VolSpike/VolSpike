@@ -476,7 +476,16 @@ export function MarketTable({
                                     onMouseLeave={() => setHoveredRow(null)}
                                     onClick={() => setSelectedSymbol(item)}
                                 >
-                                    <td className={`p-3 font-semibold text-sm transition-colors duration-150${cellHoverBg}`}>
+                                    <td className={`relative p-3 pl-4 font-semibold text-sm transition-colors duration-150${cellHoverBg}`}>
+                                        {exceedsThreshold && (
+                                            <span
+                                                className={`
+                                                    pointer-events-none absolute left-0 top-1 bottom-1 w-1 rounded-full
+                                                    ${fundingRate > 0 ? 'bg-brand-500/60' : 'bg-danger-500/60'}
+                                                    shadow-[0_0_0_1px_rgba(0,0,0,0.04)]
+                                                `}
+                                            />
+                                        )}
                                         {formatSymbol(item.symbol)}
                                     </td>
                                     <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
