@@ -152,7 +152,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
   }
   
   return (
-    <Card className="group h-full flex flex-col">
+    <Card className="group h-full flex flex-col border border-border/60 shadow-md">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">

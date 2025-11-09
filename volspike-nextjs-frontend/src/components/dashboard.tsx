@@ -120,7 +120,7 @@ export function Dashboard() {
     }
 
     const marketDataCard = (
-        <Card className="group h-full flex flex-col">
+        <Card className="group h-full flex flex-col border border-border/60 shadow-md">
             <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">
                     <span className="text-foreground">
