@@ -349,6 +349,11 @@ VolSpike/
 - Handle network switching properly
 - Support mobile wallet connections
 
+#### Solana (Phantom) Mobile Deep‑Link Notes
+- Frontend fetches must use `/api/...`‑prefixed backend paths (Dec 2025 fix).
+- iOS third‑party browsers (Brave/Chrome) require a user action to open Phantom; the callback page shows a CTA button only when needed.
+- Universal links are used for connect and sign; the callback merges query + hash params and tolerates short delays before params appear.
+
 ## Environment Variables
 
 ### Backend (.env) - Auth/Payments Only

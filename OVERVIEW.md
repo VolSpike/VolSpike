@@ -548,87 +548,53 @@ npm run test:websocket
 
 ---
 
-## 📚 API Documentation
+## 📚 API (what actually exists now)
 
-### REST API Endpoints
+Backend is auth/payments/alerts/open-interest only. Market data itself is client-side.
 
-#### Authentication
-```typescript
-POST /api/auth/login
-POST /api/auth/logout
-GET  /api/auth/session
-POST /api/auth/web3/signin
+### Health
+```
+GET /health
 ```
 
-#### Market Data
-```typescript
-GET  /api/market/symbols
-GET  /api/market/data/:symbol
-GET  /api/market/history/:symbol
-GET  /api/market/volume-spikes
+### Authentication
+EVM (SIWE v3):
+```
+POST /api/auth/siwe/prepare
+POST /api/auth/siwe/verify
 ```
 
-#### User Management
-```typescript
-GET    /api/admin/users
-POST   /api/admin/users
-GET    /api/admin/users/:id
-PUT    /api/admin/users/:id
-DELETE /api/admin/users/:id
-POST   /api/admin/users/:id/suspend
-POST   /api/admin/users/:id/activate
-POST   /api/admin/users/invite
+Solana (Phantom deep‑link flow):
+```
+POST /api/auth/phantom/dl/start
+POST /api/auth/phantom/dl/sign-url
+POST /api/auth/phantom/dl/decrypt
+POST /api/auth/solana/nonce
+GET  /api/auth/solana/prepare
+POST /api/auth/solana/verify
 ```
 
-#### Subscription Management
-```typescript
-GET    /api/admin/subscriptions
-GET    /api/admin/subscriptions/:id
-PUT    /api/admin/subscriptions/:id/tier
-POST   /api/admin/subscriptions/sync-stripe
-GET    /api/admin/subscriptions/revenue
+### Alerts
+```
+POST /api/volume-alerts/ingest
+GET  /api/volume-alerts
 ```
 
-#### Audit & Security
-```typescript
-GET    /api/admin/audit/logs
-GET    /api/admin/audit/export
-GET    /api/admin/audit/security-events
-POST   /api/admin/audit/log-action
+### Open Interest
+```
+GET /api/market/open-interest
 ```
 
-#### System Metrics
-```typescript
-GET    /api/admin/metrics/health
-GET    /api/admin/metrics/users
-GET    /api/admin/metrics/revenue
-GET    /api/admin/metrics/performance
+### Payments (Stripe)
+```
+POST /api/payments/checkout
+POST /api/payments/webhook
+...other subscription helpers
 ```
 
-#### Admin Settings
-```typescript
-GET    /api/admin/settings
-PUT    /api/admin/settings
-GET    /api/admin/settings/security
-PUT    /api/admin/settings/security
-POST   /api/admin/settings/2fa/setup
-POST   /api/admin/settings/2fa/verify
+### Admin
 ```
-
-#### Watchlists
-```typescript
-GET    /api/watchlists
-POST   /api/watchlists
-PUT    /api/watchlists/:id
-DELETE /api/watchlists/:id
-```
-
-#### Alerts
-```typescript
-GET    /api/alerts
-POST   /api/alerts
-PUT    /api/alerts/:id
-DELETE /api/alerts/:id
+/api/admin/*   # role-protected
 ```
 
 ### WebSocket Events
