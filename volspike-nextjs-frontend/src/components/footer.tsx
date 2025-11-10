@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 const primaryLinks = [
     { href: '/pricing', label: 'Pricing' },
+    { href: '/donate', label: 'Donate' },
     { href: '/docs', label: 'Docs' },
     { href: '/support', label: 'Support' },
 ]

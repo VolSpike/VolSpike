@@ -49,6 +49,7 @@
         "react-dom": "^18.2.0",
         "react-hook-form": "^7.65.0",
         "react-hot-toast": "^2.6.0",
+        "qrcode": "^1.5.4",
         "recharts": "^2.8.0",
         "siwe": "^3.0.0",
         "socket.io-client": "^4.7.4",
