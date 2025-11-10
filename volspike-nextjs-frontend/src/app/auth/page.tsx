@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Loader2, Mail } from 'lucide-react'
 import { SigninForm } from '@/components/signin-form'
 import { SignupForm } from '@/components/signup-form'
+import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useWalletAuth } from '@/hooks/use-wallet-auth'
 import { useAccount } from 'wagmi'
@@ -331,6 +332,19 @@ function AuthPageContent() {
                                 </p>
                             )}
                         </div>
+                        
+                        {/* Subtle donation link (unobtrusive) */}
+                        {!isAdminMode && (
+                            <div className="mt-2 text-center">
+                                <Link
+                                    href="/donate"
+                                    className="text-xs text-purple-300 hover:text-purple-200 underline underline-offset-4"
+                                    aria-label="Support VolSpike with a donation"
+                                >
+                                    Support VolSpike — Donate
+                                </Link>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
