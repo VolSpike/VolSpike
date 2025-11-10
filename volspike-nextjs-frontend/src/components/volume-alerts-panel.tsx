@@ -23,7 +23,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
     onNewAlert, // Pass callback to hook
   })
   
-  const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled } = useAlertSounds()
+  const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
   const [testAlerts, setTestAlerts] = useState<typeof alerts>([])
   const prevAlertsRef = useRef<typeof alerts>([])
@@ -172,7 +172,13 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
               </Badge>
               {/* Sound toggle - compact icon-only button */}
               <button
-                onClick={() => setSoundsEnabled(!soundsEnabled)}
+                onClick={async () => {
+                  const next = !soundsEnabled
+                  setSoundsEnabled(next)
+                  if (next) {
+                    await ensureUnlocked()
+                  }
+                }}
                 title={soundsEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
                 className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted transition-colors"
               >

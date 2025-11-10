@@ -43,13 +43,13 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
         src: ['/sounds/alert.mp3', '/sounds/alert.webm'],
         volume: volume,
         preload: true,
-        html5: true, // Use HTML5 Audio for better mobile support
+        // Prefer WebAudio first; HTML5 fallback will occur automatically if needed
         onload: () => {
           console.log('✅ Alert sound loaded successfully')
           setLoading(false)
         },
         onloaderror: (_id, err) => {
-          console.log('ℹ️ Alert MP3 not found, will use Web Audio API fallback')
+          console.log('ℹ️ Alert audio load error, will fall back:', err)
           setLoading(false)
         },
       })
@@ -89,6 +89,29 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
 
     return () => {
       events.forEach(event => document.removeEventListener(event, initAudio))
+    }
+  }, [])
+
+  const ensureUnlocked = useCallback(async () => {
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      }
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume().catch(() => {})
+      }
+      // Play a very short silent-ish beep to unlock on mobile
+      const ctx = audioContextRef.current
+      const now = ctx.currentTime
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      gain.gain.value = 0.0001 // practically silent
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(now)
+      osc.stop(now + 0.05)
+    } catch (e) {
+      console.warn('ensureUnlocked failed:', e)
     }
   }, [])
 
@@ -192,6 +215,8 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
     // 2) Try a lightweight HTML5 Audio element as a pragmatic fallback
     try {
       const el = new Audio('/sounds/alert.mp3')
+      ;(el as any).playsInline = true
+      el.muted = false
       el.volume = Math.max(0, Math.min(1, volume))
       await el.play()
       return
@@ -201,12 +226,10 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
 
     // 3) Web Audio API fallback (ensure context is resumed on iOS)
     try {
-      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume().catch(() => {})
-      }
+      await ensureUnlocked()
     } catch {}
     playFallbackSound(type)
-  }, [enabled, volume, playFallbackSound])
+  }, [enabled, volume, playFallbackSound, ensureUnlocked])
 
   return {
     playSound,
@@ -215,5 +238,6 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
     volume,
     setVolume,
     loading,
+    ensureUnlocked,
   }
 }
