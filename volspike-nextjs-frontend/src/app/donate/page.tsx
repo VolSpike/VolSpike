@@ -1,15 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Copy, Check, QrCode } from 'lucide-react'
 import QRCode from 'qrcode'
-import toast, { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 import { Header } from '@/components/header'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
-import Head from 'next/head'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Donate Bitcoin, Ethereum, Solana or Stablecoins to VolSpike',
+  description:
+    'Support VolSpike — fast, borderless crypto donations. Donate Bitcoin, Ethereum, USDC/USDT (ETH), or SOL/USDT (Solana). Thank you for helping us build real-time trading intelligence.',
+}
 
 type AssetKey = 'BTC' | 'ETH' | 'USDC_ETH' | 'USDT_ETH' | 'SOL' | 'USDT_SOL'
 
@@ -178,10 +183,6 @@ function AssetCard({ asset }: { asset: AssetInfo }) {
 }
 
 export default function DonatePage() {
-  const metaTitle = 'Donate Bitcoin, Ethereum, Solana or Stablecoins to VolSpike'
-  const metaDesc =
-    'Support VolSpike — fast, borderless crypto donations. Donate Bitcoin, Ethereum, USDC/USDT (ETH), or SOL/USDT (Solana). Thank you for helping us build real-time trading intelligence.'
-
   const items = useMemo(
     () => [
       ASSETS.BTC,
@@ -195,13 +196,7 @@ export default function DonatePage() {
   )
 
   return (
-    <>
-      <Head>
-        <title>{metaTitle}</title>
-        <meta name="description" content={metaDesc} />
-      </Head>
-      <Toaster position="top-center" />
-      <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen bg-background relative">
         <BackgroundPattern />
         <Header />
         <div className="container py-10 relative">
@@ -250,7 +245,6 @@ export default function DonatePage() {
         </div>
         </div>
       </div>
-    </>
   )
 }
 
