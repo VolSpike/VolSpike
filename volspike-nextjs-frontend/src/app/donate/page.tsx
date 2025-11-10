@@ -203,7 +203,9 @@ export default function DonatePage() {
             fast, borderless, and minimizes overhead so more of your contribution goes
             directly into development.
           </p>
-          <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 text-sm text-green-300">
+          <div className="rounded-xl border p-4 text-sm text-center 
+                          bg-green-50 text-green-800 border-green-200
+                          dark:bg-green-500/5 dark:text-green-300 dark:border-green-500/30">
             To donate, open your crypto wallet app, select the asset, and send to the
             address below. Use the QR code for easy scanning.
           </div>
