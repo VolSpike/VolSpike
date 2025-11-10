@@ -166,37 +166,41 @@ table.vs-market-table tr {
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ===== Price flash (TradingView-style) ===== */
-@keyframes vs-flash-up {
-    0% { background-color: hsl(var(--brand-500) / 0.35); }
-    100% { background-color: transparent; }
+/* ===== Price flash (TradingView-style) – text color, not background ===== */
+@keyframes vs-text-up {
+    0%   { color: hsl(var(--brand-600)); text-shadow: 0 0 0 hsl(var(--brand-500) / 0); }
+    15%  { text-shadow: 0 0 8px hsl(var(--brand-500) / 0.35); }
+    50%  { color: hsl(var(--brand-600)); }
+    100% { color: inherit; text-shadow: 0 0 0 hsl(var(--brand-500) / 0); }
 }
-@keyframes vs-flash-down {
-    0% { background-color: hsl(var(--danger-500) / 0.35); }
-    100% { background-color: transparent; }
+@keyframes vs-text-down {
+    0%   { color: hsl(var(--danger-600)); text-shadow: 0 0 0 hsl(var(--danger-500) / 0); }
+    15%  { text-shadow: 0 0 8px hsl(var(--danger-500) / 0.35); }
+    50%  { color: hsl(var(--danger-600)); }
+    100% { color: inherit; text-shadow: 0 0 0 hsl(var(--danger-500) / 0); }
 }
 @keyframes vs-suffix-up {
-    0% { color: hsl(var(--brand-600)); }
-    70% { color: hsl(var(--brand-600)); }
+    0%   { color: hsl(var(--brand-600)); }
+    85%  { color: hsl(var(--brand-600)); }
     100% { color: inherit; }
 }
 @keyframes vs-suffix-down {
-    0% { color: hsl(var(--danger-600)); }
-    70% { color: hsl(var(--danger-600)); }
+    0%   { color: hsl(var(--danger-600)); }
+    85%  { color: hsl(var(--danger-600)); }
     100% { color: inherit; }
 }
 
-.price-flash-up {
-    animation: vs-flash-up var(--motion-fast) var(--ease-smooth);
+.price-text-flash-up {
+    animation: vs-text-up 900ms var(--ease-smooth);
 }
-.price-flash-down {
-    animation: vs-flash-down var(--motion-fast) var(--ease-smooth);
+.price-text-flash-down {
+    animation: vs-text-down 900ms var(--ease-smooth);
 }
 .price-suffix-up {
-    animation: vs-suffix-up 600ms var(--ease-smooth);
+    animation: vs-suffix-up 1400ms var(--ease-smooth);
 }
 .price-suffix-down {
-    animation: vs-suffix-down 600ms var(--ease-smooth);
+    animation: vs-suffix-down 1400ms var(--ease-smooth);
 }
 
 @layer base {

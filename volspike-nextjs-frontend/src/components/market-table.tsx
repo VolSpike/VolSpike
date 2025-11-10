@@ -72,8 +72,8 @@ export function MarketTable({
     const flashRef = useRef<Map<string, { dir: 'up' | 'down', wholeUntil: number, suffixUntil: number, suffixIndex: number }>>(new Map())
     const lastFlashTsRef = useRef<Map<string, number>>(new Map())
     const FLASH_ENABLED = (process.env.NEXT_PUBLIC_PRICE_FLASH ?? '').toString().toLowerCase() === 'true' || process.env.NEXT_PUBLIC_PRICE_FLASH === '1'
-    const WHOLE_MS = 200
-    const SUFFIX_MS = 700
+    const WHOLE_MS = 900
+    const SUFFIX_MS = 1400
     const MIN_INTERVAL_MS = 150
 
     // Chrome mobile diagonal rubber-band fix
@@ -531,14 +531,14 @@ export function MarketTable({
                                             prevPriceRef.current.set(item.symbol, item.price)
                                             const flash = flashRef.current.get(item.symbol)
                                             if (flash) {
-                                                wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-flash-up' : 'price-flash-down') : ''
+                                                wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
                                                 const idx = Math.min(Math.max(flash.suffixIndex, 0), formatted.length)
                                                 prefix = formatted.slice(0, idx)
                                                 suffix = formatted.slice(idx)
                                             }
                                             const suffixClass = flash && now < flash.suffixUntil ? (flash.dir === 'up' ? 'price-suffix-up' : 'price-suffix-down') : ''
                                             return (
-                                                <span className={`inline-block px-1 rounded ${wholeClass}`}>
+                                                <span className={`inline-block ${wholeClass}`}>
                                                     <span>{prefix}</span>
                                                     {suffix && <span className={suffixClass}>{suffix}</span>}
                                                 </span>
