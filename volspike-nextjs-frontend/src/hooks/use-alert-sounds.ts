@@ -95,7 +95,9 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
   const ensureUnlocked = useCallback(async () => {
     try {
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+          latencyHint: 'interactive',
+        } as any)
       }
       if (audioContextRef.current.state === 'suspended') {
         await audioContextRef.current.resume().catch(() => {})
@@ -114,6 +116,39 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
       console.warn('ensureUnlocked failed:', e)
     }
   }, [])
+
+  // Re-unlock after output route changes (e.g., Bluetooth speaker connect/disconnect)
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !(navigator as any).mediaDevices) return
+    const onDeviceChange = async () => {
+      try {
+        // Recreate context to pick up new output route on some browsers
+        if (audioContextRef.current && typeof audioContextRef.current.close === 'function') {
+          try { await audioContextRef.current.close() } catch {}
+        }
+        audioContextRef.current = null
+        await ensureUnlocked()
+        console.log('[AlertSounds] Audio route changed; context reinitialized')
+      } catch (e) {
+        console.warn('[AlertSounds] Failed to handle devicechange', e)
+      }
+    }
+    ;(navigator as any).mediaDevices.addEventListener?.('devicechange', onDeviceChange)
+    return () => {
+      ;(navigator as any).mediaDevices.removeEventListener?.('devicechange', onDeviceChange)
+    }
+  }, [ensureUnlocked])
+
+  // Also try to resume on tab visibility changes
+  useEffect(() => {
+    const onVis = async () => {
+      if (document.visibilityState === 'visible') {
+        await ensureUnlocked()
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [ensureUnlocked])
 
   // Persist settings to localStorage
   useEffect(() => {
@@ -200,6 +235,9 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
    */
   const playSound = useCallback(async (type: AlertType) => {
     if (!enabled) return
+
+    // Make sure context is ready before any attempt
+    await ensureUnlocked()
 
     // 1) Try Howler first (single sound for all types)
     try {
