@@ -8,13 +8,6 @@ import QRCode from 'qrcode'
 import toast from 'react-hot-toast'
 import { Header } from '@/components/header'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
-import type { Metadata } from 'next'
-
-export const metadata: Metadata = {
-  title: 'Donate Bitcoin, Ethereum, Solana or Stablecoins to VolSpike',
-  description:
-    'Support VolSpike — fast, borderless crypto donations. Donate Bitcoin, Ethereum, USDC/USDT (ETH), or SOL/USDT (Solana). Thank you for helping us build real-time trading intelligence.',
-}
 
 type AssetKey = 'BTC' | 'ETH' | 'USDC_ETH' | 'USDT_ETH' | 'SOL' | 'USDT_SOL'
 
