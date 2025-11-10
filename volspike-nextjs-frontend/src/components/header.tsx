@@ -61,6 +61,19 @@ export function Header() {
                         Pricing
                     </Link>
                     <Link
+                        href="/dashboard"
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
+                            pathname === '/dashboard'
+                                ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        }`}
+                    >
+                        {pathname === '/dashboard' && (
+                            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
+                        )}
+                        Dashboard
+                    </Link>
+                    <Link
                         href="/donate"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
                             pathname === '/donate'
@@ -73,19 +86,6 @@ export function Header() {
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-purple-500 rounded-full" />
                         )}
                         Donate
-                    </Link>
-                    <Link
-                        href="/dashboard"
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
-                            pathname === '/dashboard'
-                                ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                        }`}
-                    >
-                        {pathname === '/dashboard' && (
-                            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
-                        )}
-                        Dashboard
                     </Link>
                 </nav>
 
