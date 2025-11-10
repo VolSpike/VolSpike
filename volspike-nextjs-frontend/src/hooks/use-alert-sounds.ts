@@ -175,18 +175,38 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
    * Play alert sound - tries Howler first, falls back to Web Audio API
    * Note: Uses single sound file for all alert types (simpler, cleaner)
    */
-  const playSound = useCallback((type: AlertType) => {
+  const playSound = useCallback(async (type: AlertType) => {
     if (!enabled) return
 
-    // Try Howler first (single sound for all types)
-    if (soundRef.current && soundRef.current.state() === 'loaded') {
-      soundRef.current.play()
+    // 1) Try Howler first (single sound for all types)
+    try {
+      if (soundRef.current) {
+        const state = soundRef.current.state()
+        if (state === 'loaded') {
+          soundRef.current.play()
+          return
+        }
+      }
+    } catch {}
+
+    // 2) Try a lightweight HTML5 Audio element as a pragmatic fallback
+    try {
+      const el = new Audio('/sounds/alert.mp3')
+      el.volume = Math.max(0, Math.min(1, volume))
+      await el.play()
       return
+    } catch {
+      // ignore and try Web Audio API
     }
 
-    // Fallback to Web Audio API (still type-specific for variety)
+    // 3) Web Audio API fallback (ensure context is resumed on iOS)
+    try {
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume().catch(() => {})
+      }
+    } catch {}
     playFallbackSound(type)
-  }, [enabled, playFallbackSound])
+  }, [enabled, volume, playFallbackSound])
 
   return {
     playSound,
