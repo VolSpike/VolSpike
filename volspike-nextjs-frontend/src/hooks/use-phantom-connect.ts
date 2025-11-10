@@ -17,7 +17,7 @@ export function usePhantomConnect() {
     let cancelled = false
     ;(async () => {
       try {
-        const r = await fetch(`${API_URL}/auth/phantom/dl/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        const r = await fetch(`${API_URL}/api/auth/phantom/dl/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
         const j = (await r.json()) as StartRes
         if (!r.ok || (!j.ok && j.ok !== undefined)) throw new Error(j.error || 'Failed to start Phantom connect')
         if (cancelled) return

@@ -160,7 +160,7 @@ export function useSolanaAuth(): UseSolanaAuthResult {
 
       // 1) Nonce
       console.log('[SolanaAuth] Fetching nonce...')
-      const nonceRes = await fetch(`${API_URL}/auth/solana/nonce`, {
+      const nonceRes = await fetch(`${API_URL}/api/auth/solana/nonce`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address })
@@ -176,7 +176,7 @@ export function useSolanaAuth(): UseSolanaAuthResult {
       // 2) Prepare message
       const chainId = process.env.NEXT_PUBLIC_SOLANA_CLUSTER === 'devnet' ? '103' : '101'
       console.log('[SolanaAuth] Preparing message...', { address, chainId, nonce })
-      const prepRes = await fetch(`${API_URL}/auth/solana/prepare?address=${address}&chainId=${chainId}&nonce=${nonce}`)
+      const prepRes = await fetch(`${API_URL}/api/auth/solana/prepare?address=${address}&chainId=${chainId}&nonce=${nonce}`)
       if (!prepRes.ok) {
         const errorText = await prepRes.text().catch(() => 'Unknown error')
         console.error('[SolanaAuth] Prepare message failed:', prepRes.status, errorText)
@@ -202,7 +202,7 @@ export function useSolanaAuth(): UseSolanaAuthResult {
       // 4) Verify
       console.log('[SolanaAuth] Verifying signature...')
       setIsAuthenticating(true)
-      const verifyRes = await fetch(`${API_URL}/auth/solana/verify`, {
+      const verifyRes = await fetch(`${API_URL}/api/auth/solana/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, signature: base58.encode(signature), address, chainId })

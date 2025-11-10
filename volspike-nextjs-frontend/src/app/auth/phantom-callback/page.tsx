@@ -86,7 +86,7 @@ export default function PhantomCallbackPage() {
           }
           
           // 1) nonce
-          const nonceRes = await fetch(`${API_URL}/auth/solana/nonce`, {
+          const nonceRes = await fetch(`${API_URL}/api/auth/solana/nonce`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ address })
@@ -99,7 +99,7 @@ export default function PhantomCallbackPage() {
           
           // 2) prepare
           const chainId = process.env.NEXT_PUBLIC_SOLANA_CLUSTER === 'devnet' ? '103' : '101'
-          const prepRes = await fetch(`${API_URL}/auth/solana/prepare?address=${address}&chainId=${chainId}&nonce=${nonce}`)
+          const prepRes = await fetch(`${API_URL}/api/auth/solana/prepare?address=${address}&chainId=${chainId}&nonce=${nonce}`)
           if (!prepRes.ok) {
             const errorData = await prepRes.json().catch(() => ({}))
             throw new Error(errorData.error || 'Failed to prepare message')
@@ -141,7 +141,7 @@ export default function PhantomCallbackPage() {
           if (!address) throw new Error('Missing wallet address')
           const chainId = process.env.NEXT_PUBLIC_SOLANA_CLUSTER === 'devnet' ? '103' : '101'
           // Verify
-          const verifyRes = await fetch(`${API_URL}/auth/solana/verify`, {
+          const verifyRes = await fetch(`${API_URL}/api/auth/solana/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message, signature: handled.result?.signature58, address, chainId })

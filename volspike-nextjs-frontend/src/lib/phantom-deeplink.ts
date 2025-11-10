@@ -190,7 +190,7 @@ export async function startIOSConnectDeepLink(): Promise<void> {
   const origin = getPublicOrigin()
   setIntent('connect')
   // Ask backend to generate ephemeral keys and a connect URL so return can land in any browser
-  const res = await fetch(`${API_URL}/auth/phantom/dl/start`, {
+  const res = await fetch(`${API_URL}/api/auth/phantom/dl/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ appUrl: origin, redirect: `${origin}/auth/phantom-callback` })
@@ -207,7 +207,7 @@ export async function continueIOSSignDeepLink(message: string): Promise<{ url: s
   if (!state) throw new Error('Missing Phantom state')
   setIntent('sign')
   saveMessageToSign(message)
-  const res = await fetch(`${API_URL}/auth/phantom/dl/sign-url`, {
+  const res = await fetch(`${API_URL}/api/auth/phantom/dl/sign-url`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ state, message, appUrl: origin, redirect: `${origin}/auth/phantom-callback` })
@@ -251,7 +251,7 @@ export async function tryHandleCallbackOnServer(params: URLSearchParams): Promis
   setKV('phantom_state', state)
 
   // Phantom may send 'data' or 'payload' parameter - send both to backend for flexibility
-  const res = await fetch(`${API_URL}/auth/phantom/dl/decrypt`, {
+  const res = await fetch(`${API_URL}/api/auth/phantom/dl/decrypt`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
