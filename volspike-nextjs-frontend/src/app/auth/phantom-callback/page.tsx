@@ -30,17 +30,28 @@ export default function PhantomCallbackPage() {
   const router = useRouter()
   const [error, setError] = useState<string>('')
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
+  const [showDebug, setShowDebug] = useState(false)
 
   useEffect(() => {
     (async () => {
       try {
-        // Merge query and hash params (Phantom may return via URL fragment)
-        const searchParams = new URLSearchParams(window.location.search)
-        const hash = (window.location.hash || '').replace(/^#/, '')
-        const hashParams = new URLSearchParams(hash)
-        const merged = new URLSearchParams()
-        searchParams.forEach((v, k) => merged.set(k, v))
-        hashParams.forEach((v, k) => merged.set(k, v))
+        const tryMergeParams = () => {
+          const searchParams = new URLSearchParams(window.location.search)
+          const hash = (window.location.hash || '').replace(/^#/, '')
+          const hashParams = new URLSearchParams(hash)
+          const merged = new URLSearchParams()
+          searchParams.forEach((v, k) => merged.set(k, v))
+          hashParams.forEach((v, k) => merged.set(k, v))
+          return { searchParams, hashParams, merged }
+        }
+        let { searchParams, hashParams, merged } = tryMergeParams()
+        setShowDebug(searchParams.get('debug') === 'true' || hashParams.get('debug') === 'true')
+        let attempts = 0
+        while (attempts < 10 && !merged.get('nonce') && !merged.get('payload') && !merged.get('data')) {
+          attempts += 1
+          await new Promise(r => setTimeout(r, 250))
+          ;({ searchParams, hashParams, merged } = tryMergeParams())
+        }
         
         // Debug: log what parameters we received
         const debugData = {
@@ -168,7 +179,7 @@ export default function PhantomCallbackPage() {
       {error ? (
         <div className="text-red-400 text-center">
           <p className="font-semibold text-lg mb-2">{error}</p>
-          {debugInfo && (
+          {showDebug && debugInfo && (
             <details className="mt-4 text-left bg-gray-900/50 p-4 rounded-lg max-w-md overflow-auto">
               <summary className="cursor-pointer text-yellow-400 mb-2">Debug Info (Tap to expand)</summary>
               <pre className="text-xs mt-2 whitespace-pre-wrap break-all">
@@ -181,7 +192,7 @@ export default function PhantomCallbackPage() {
         <p>Continuing with Phantom…</p>
       )}
       <div id="phantom-cta" />
-      {debugInfo && !error && (
+      {showDebug && debugInfo && !error && (
         <details className="mt-4 text-left bg-gray-900/30 p-3 rounded-lg max-w-md overflow-auto text-sm">
           <summary className="cursor-pointer text-blue-400">Debug Info</summary>
           <pre className="text-xs mt-2 whitespace-pre-wrap break-all">
