@@ -211,6 +211,22 @@ export function MarketTable({
         }).format(price)
     }
 
+    // Price formatter without currency symbol for table column display
+    const formatPriceNoSymbol = (price: number) => {
+        if (price >= 1) {
+            return new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+                useGrouping: true,
+            }).format(price)
+        }
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 6,
+            useGrouping: true,
+        }).format(price)
+    }
+
     const sortedData = useMemo(() => {
         return [...data].sort((a, b) => {
             let aValue: number, bValue: number
@@ -497,7 +513,7 @@ export function MarketTable({
                                     </td>
                                     <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
                                         {(() => {
-                                            const formatted = formatPrice(item.price)
+                                            const formatted = formatPriceNoSymbol(item.price)
                                             if (!FLASH_ENABLED) {
                                                 // Simply render price
                                                 prevPriceRef.current.set(item.symbol, item.price)
@@ -514,7 +530,7 @@ export function MarketTable({
                                                     // Determine direction
                                                     const dir: 'up' | 'down' = item.price > prev ? 'up' : 'down'
                                                     // Compute changed suffix index using formatted strings
-                                                    const prevFormatted = formatPrice(prev)
+                                                    const prevFormatted = formatPriceNoSymbol(prev)
                                                     const minLen = Math.min(prevFormatted.length, formatted.length)
                                                     let idx = 0
                                                     while (idx < minLen && prevFormatted[idx] === formatted[idx]) idx++
