@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Head from 'next/head'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Copy, Check, QrCode } from 'lucide-react'
 import QRCode from 'qrcode'
 import toast, { Toaster } from 'react-hot-toast'
+import { Header } from '@/components/header'
+import { BackgroundPattern } from '@/components/ui/background-pattern'
+import Head from 'next/head'
 
 type AssetKey = 'BTC' | 'ETH' | 'USDC_ETH' | 'USDT_ETH' | 'SOL' | 'USDT_SOL'
 
@@ -199,7 +201,10 @@ export default function DonatePage() {
         <meta name="description" content={metaDesc} />
       </Head>
       <Toaster position="top-center" />
-      <div className="container py-10">
+      <div className="min-h-screen bg-background relative">
+        <BackgroundPattern />
+        <Header />
+        <div className="container py-10 relative">
         <div className="mx-auto max-w-3xl text-center space-y-4">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
             Support VolSpike
@@ -242,6 +247,7 @@ export default function DonatePage() {
               </ul>
             </CardContent>
           </Card>
+        </div>
         </div>
       </div>
     </>
