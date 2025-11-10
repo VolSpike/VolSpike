@@ -166,6 +166,39 @@ table.vs-market-table tr {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* ===== Price flash (TradingView-style) ===== */
+@keyframes vs-flash-up {
+    0% { background-color: hsl(var(--brand-500) / 0.35); }
+    100% { background-color: transparent; }
+}
+@keyframes vs-flash-down {
+    0% { background-color: hsl(var(--danger-500) / 0.35); }
+    100% { background-color: transparent; }
+}
+@keyframes vs-suffix-up {
+    0% { color: hsl(var(--brand-600)); }
+    70% { color: hsl(var(--brand-600)); }
+    100% { color: inherit; }
+}
+@keyframes vs-suffix-down {
+    0% { color: hsl(var(--danger-600)); }
+    70% { color: hsl(var(--danger-600)); }
+    100% { color: inherit; }
+}
+
+.price-flash-up {
+    animation: vs-flash-up var(--motion-fast) var(--ease-smooth);
+}
+.price-flash-down {
+    animation: vs-flash-down var(--motion-fast) var(--ease-smooth);
+}
+.price-suffix-up {
+    animation: vs-suffix-up 600ms var(--ease-smooth);
+}
+.price-suffix-down {
+    animation: vs-suffix-down 600ms var(--ease-smooth);
+}
+
 @layer base {
     * {
         @apply border-border;

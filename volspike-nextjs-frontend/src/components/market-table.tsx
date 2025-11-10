@@ -68,6 +68,13 @@ export function MarketTable({
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const prevPriceRef = useRef<Map<string, number>>(new Map())
+    const flashRef = useRef<Map<string, { dir: 'up' | 'down', wholeUntil: number, suffixUntil: number, suffixIndex: number }>>(new Map())
+    const lastFlashTsRef = useRef<Map<string, number>>(new Map())
+    const FLASH_ENABLED = (process.env.NEXT_PUBLIC_PRICE_FLASH ?? '').toString().toLowerCase() === 'true' || process.env.NEXT_PUBLIC_PRICE_FLASH === '1'
+    const WHOLE_MS = 200
+    const SUFFIX_MS = 700
+    const MIN_INTERVAL_MS = 150
 
     // Chrome mobile diagonal rubber-band fix
     // - Detects gesture direction early (within a small threshold)
@@ -489,7 +496,54 @@ export function MarketTable({
                                         {formatSymbol(item.symbol)}
                                     </td>
                                     <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
-                                        {formatPrice(item.price)}
+                                        {(() => {
+                                            const formatted = formatPrice(item.price)
+                                            if (!FLASH_ENABLED) {
+                                                // Simply render price
+                                                prevPriceRef.current.set(item.symbol, item.price)
+                                                return formatted
+                                            }
+                                            const now = Date.now()
+                                            const prev = prevPriceRef.current.get(item.symbol)
+                                            let wholeClass = ''
+                                            let prefix = formatted
+                                            let suffix = ''
+                                            if (typeof prev === 'number' && prev !== item.price) {
+                                                const lastFlashTs = lastFlashTsRef.current.get(item.symbol) || 0
+                                                if (now - lastFlashTs > MIN_INTERVAL_MS) {
+                                                    // Determine direction
+                                                    const dir: 'up' | 'down' = item.price > prev ? 'up' : 'down'
+                                                    // Compute changed suffix index using formatted strings
+                                                    const prevFormatted = formatPrice(prev)
+                                                    const minLen = Math.min(prevFormatted.length, formatted.length)
+                                                    let idx = 0
+                                                    while (idx < minLen && prevFormatted[idx] === formatted[idx]) idx++
+                                                    const suffixIndex = idx
+                                                    flashRef.current.set(item.symbol, {
+                                                        dir,
+                                                        wholeUntil: now + WHOLE_MS,
+                                                        suffixUntil: now + SUFFIX_MS,
+                                                        suffixIndex,
+                                                    })
+                                                    lastFlashTsRef.current.set(item.symbol, now)
+                                                }
+                                            }
+                                            prevPriceRef.current.set(item.symbol, item.price)
+                                            const flash = flashRef.current.get(item.symbol)
+                                            if (flash) {
+                                                wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-flash-up' : 'price-flash-down') : ''
+                                                const idx = Math.min(Math.max(flash.suffixIndex, 0), formatted.length)
+                                                prefix = formatted.slice(0, idx)
+                                                suffix = formatted.slice(idx)
+                                            }
+                                            const suffixClass = flash && now < flash.suffixUntil ? (flash.dir === 'up' ? 'price-suffix-up' : 'price-suffix-down') : ''
+                                            return (
+                                                <span className={`inline-block px-1 rounded ${wholeClass}`}>
+                                                    <span>{prefix}</span>
+                                                    {suffix && <span className={suffixClass}>{suffix}</span>}
+                                                </span>
+                                            )
+                                        })()}
                                     </td>
                                     <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
                                         <span className={changeClass}>
