@@ -37,7 +37,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     useEffect(() => setMounted(true), [])
 
     if (!mounted) {
-        return <>{children}</> // or null if your UI can tolerate blank first paint
+        // Avoid rendering children before providers (prevents wallet context errors on hard refresh)
+        return null
     }
 
     // Anything that depends on window / localStorage / media queries must only run after mount
