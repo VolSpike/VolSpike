@@ -71,6 +71,7 @@ export function MarketTable({
     const prevPriceRef = useRef<Map<string, number>>(new Map())
     const flashRef = useRef<Map<string, { dir: 'up' | 'down', wholeUntil: number, suffixUntil: number, suffixIndex: number }>>(new Map())
     const lastFlashTsRef = useRef<Map<string, number>>(new Map())
+    const lastDirRef = useRef<Map<string, 'up' | 'down'>>(new Map())
     const FLASH_ENABLED = (process.env.NEXT_PUBLIC_PRICE_FLASH ?? '').toString().toLowerCase() === 'true' || process.env.NEXT_PUBLIC_PRICE_FLASH === '1'
     const WHOLE_MS = 900
     const SUFFIX_MS = 1400
@@ -542,17 +543,32 @@ export function MarketTable({
                                                         suffixIndex,
                                                     })
                                                     lastFlashTsRef.current.set(item.symbol, now)
+                                                    lastDirRef.current.set(item.symbol, dir)
                                                 }
                                             }
                                             prevPriceRef.current.set(item.symbol, item.price)
                                             const flash = flashRef.current.get(item.symbol)
+                                            const lastDir = lastDirRef.current.get(item.symbol)
                                             if (flash) {
                                                 wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
                                                 const idx = Math.min(Math.max(flash.suffixIndex, 0), formatted.length)
                                                 prefix = formatted.slice(0, idx)
                                                 suffix = formatted.slice(idx)
+                                            } else {
+                                                // No active flash; keep at least the last digit colored using last direction
+                                                if (lastDir) {
+                                                    const idx = Math.max(formatted.length - 1, 0)
+                                                    prefix = formatted.slice(0, idx)
+                                                    suffix = formatted.slice(idx)
+                                                }
                                             }
-                                            const suffixClass = flash && now < flash.suffixUntil ? (flash.dir === 'up' ? 'price-suffix-up' : 'price-suffix-down') : ''
+                                            let suffixClass = ''
+                                            if (flash && now < flash.suffixUntil) {
+                                                suffixClass = flash.dir === 'up' ? 'price-suffix-up' : 'price-suffix-down'
+                                            } else if (lastDir) {
+                                                // Persistent static color after animation ends
+                                                suffixClass = lastDir === 'up' ? 'price-suffix-up-static' : 'price-suffix-down-static'
+                                            }
                                             return (
                                                 <span className={`inline-block ${wholeClass}`}>
                                                     <span>{prefix}</span>

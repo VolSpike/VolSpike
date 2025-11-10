@@ -203,6 +203,14 @@ table.vs-market-table tr {
     animation: vs-suffix-down 1400ms var(--ease-smooth);
 }
 
+/* Static suffix colors (persistent cue after animation ends) */
+.price-suffix-up-static {
+    color: hsl(var(--brand-600));
+}
+.price-suffix-down-static {
+    color: hsl(var(--danger-600));
+}
+
 @layer base {
     * {
         @apply border-border;
