@@ -191,7 +191,7 @@ export default function DonatePage() {
   return (
     <div className="min-h-screen bg-background relative">
         <BackgroundPattern />
-        <Header />
+        <Header hideWalletConnect />
         <div className="container py-10 relative">
         <div className="mx-auto max-w-3xl text-center space-y-4">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">

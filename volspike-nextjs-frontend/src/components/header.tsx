@@ -15,7 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Separator } from '@/components/ui/separator'
 import { signOut } from 'next-auth/react'
 
-export function Header() {
+export function Header({ hideWalletConnect = false }: { hideWalletConnect?: boolean }) {
     const { data: session, status } = useSession()
     const router = useRouter()
     const pathname = usePathname()
@@ -294,7 +294,7 @@ export function Header() {
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">
-                            <ConnectButton />
+                            {!hideWalletConnect && <ConnectButton />}
                             <Button 
                                 onClick={() => signIn()}
                                 className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition-all duration-200"
