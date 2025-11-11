@@ -55,39 +55,89 @@ export class EmailService {
             const safeUrl = data.resetUrl.replace(/"/g, '&quot;')
             const html = `
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<title>Reset your VolSpike password</title></head>
-<body style="margin:0;padding:0;background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;">
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+  <title>Reset your VolSpike password</title>
+  <style>
+    img { -ms-interpolation-mode:bicubic; }
+    @media only screen and (max-width:600px){ .container{ width:100% !important; } }
+  </style>
+  <!--[if mso]>
+  <style type="text/css"> body, table, td {font-family: Arial, sans-serif !important;} </style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;">
+  <div style="display:none;font-size:1px;color:#fff;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    Reset your VolSpike password. This link expires in 60 minutes.
+  </div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;">
     <tr><td align="center" style="padding:24px;">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#111827;border-radius:12px;">
-        <tr><td align="center" style="padding:28px;background:#059669;border-radius:12px 12px 0 0;">
-          <img src="https://volspike.com/email/volspike-badge@2x.png" width="72" height="72" alt="VolSpike" style="display:block;border:0;">
-          <div style="margin-top:12px;font-weight:700;font-size:22px;color:#fff;">Password Reset</div>
-        </td></tr>
-        <tr><td style="padding:28px;">
-          <p style="margin:0 0 16px;">We received a request to reset the password for your VolSpike account.</p>
-          <p style="margin:0 0 16px;">Click the button below to choose a new password. This link expires in 60 minutes.</p>
-          <div style="text-align:center;margin:20px 0;">
-            <a href="${safeUrl}" style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Reset Password</a>
-          </div>
-          <p style="margin:16px 0 8px;">If the button doesn’t work, copy and paste this link:</p>
-          <p style="margin:0;word-break:break-all;font:14px/1.6 SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;color:#93c5fd">${data.resetUrl}</p>
-          <p style="margin:24px 0 0;color:#9ca3af;font-size:14px;">If you didn’t request this, you can safely ignore this email.</p>
-        </td></tr>
-        <tr><td align="center" style="padding:16px;background:#0b1220;border-top:1px solid #1f2937;border-radius:0 0 12px 12px;">
-          <div style="font-size:13px;color:#9ca3af;">© ${new Date().getFullYear()} VolSpike • Need help? <a href="mailto:support@volspike.com" style="color:#10b981;text-decoration:none;">support@volspike.com</a></div>
-        </td></tr>
+      <table role="presentation" width="600" class="container" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
+        <tr>
+          <td align="center" style="padding:32px;background:#0ea371;border-radius:12px 12px 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="padding-bottom:12px;">
+                  <img src="https://volspike.com/email/volspike-badge@2x.png" width="80" height="80" alt="VolSpike" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;height:80px;width:80px;line-height:100%;-ms-interpolation-mode:bicubic;">
+                </td>
+              </tr>
+            </table>
+            <div style="font:700 24px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;">Password Reset</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#334155;">
+            <p style="margin:0 0 20px;">We received a request to reset the password for your VolSpike account.</p>
+            <p style="margin:0 0 24px;">Click the button below to choose a new password. This link expires in 60 minutes.</p>
+            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:24px auto;">
+              <tr><td align="center">
+                <!--[if mso]>
+                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${safeUrl}"
+                  style="height:48px;v-text-anchor:middle;width:280px;" arcsize="10%" stroke="f" fillcolor="#059669">
+                  <w:anchorlock/>
+                  <center style="color:#ffffff;font-family:Arial, sans-serif;font-size:16px;font-weight:bold;">
+                    Reset Password
+                  </center>
+                </v:roundrect>
+                <![endif]-->
+                <!--[if !mso]><!-- -->
+                <a href="${safeUrl}" target="_blank" style="display:block;background-color:#059669;color:#ffffff;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;">
+                  Reset Password
+                </a>
+                <!--<![endif]-->
+              </td></tr>
+            </table>
+            <p style="margin:24px 0 8px;">If the button doesn't work, copy and paste this link:</p>
+            <p style="margin:0;word-break:break-all;font:14px/1.6 SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${data.resetUrl}</p>
+            <p style="margin:24px 0 0;color:#64748b;font-size:14px;">If you didn't request this, you can safely ignore this email.</p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:20px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 12px 12px;">
+            <div style="font:14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#64748b;">© ${new Date().getFullYear()} VolSpike • Need help? <a href="mailto:support@volspike.com" style="color:#059669;text-decoration:none;">support@volspike.com</a></div>
+          </td>
+        </tr>
       </table>
     </td></tr>
   </table>
-</body></html>`
+</body>
+</html>`
             const msg: any = {
                 to: data.email,
                 from: { email: this.fromEmail, name: 'VolSpike Team' },
+                replyTo: 'support@volspike.com',
                 subject: 'Reset your VolSpike password',
                 html,
-                text: `Reset your password: ${data.resetUrl}`
+                text: `Reset your VolSpike password\n\nWe received a request to reset the password for your VolSpike account.\n\nClick this link to choose a new password (expires in 60 minutes):\n${data.resetUrl}\n\nIf you didn't request this, you can safely ignore this email.\n\nNeed help? Contact us at support@volspike.com\n\n© ${new Date().getFullYear()} VolSpike`,
+                categories: ['password-reset'],
+                customArgs: {
+                    type: 'password-reset',
+                    timestamp: Date.now().toString()
+                }
             }
             await mail.send(msg)
             logger.info(`Password reset email sent to ${data.email}`)
