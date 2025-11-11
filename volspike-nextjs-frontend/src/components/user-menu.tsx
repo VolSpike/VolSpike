@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useUserIdentity } from '@/hooks/use-user-identity'
+import { generateInitials, getAvatarColor } from '@/lib/avatar-utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +39,7 @@ import Link from 'next/link'
 
 export function UserMenu() {
     const router = useRouter()
+    const { data: session } = useSession()
     const identity = useUserIdentity()
     const [isOpen, setIsOpen] = useState(false)
 
@@ -50,30 +52,11 @@ export function UserMenu() {
         }
     }
 
-    const getInitials = () => {
-        let initials = 'U'
-        try {
-            if (identity.email) {
-                const parts = identity.email.split('@')
-                if (parts.length === 2 && parts[0].length > 0 && parts[1].length > 0) {
-                    initials = (parts[0][0] + parts[1][0]).toUpperCase()
-                } else {
-                    initials = identity.email.slice(0, 2).toUpperCase()
-                }
-            } else if (identity.displayName) {
-                const words = identity.displayName.split(' ')
-                if (words.length >= 2 && words[0].length > 0 && words[1].length > 0) {
-                    initials = (words[0][0] + words[1][0]).toUpperCase()
-                } else {
-                    initials = identity.displayName.slice(0, 2).toUpperCase()
-                }
-            }
-        } catch (error) {
-            console.error('[UserMenu] Error getting initials:', error)
-            initials = 'U'
-        }
-        return initials
-    }
+    // Generate consistent initials and colors based on user identifier
+    // Use email as primary identifier for consistency across auth methods
+    const userIdentifier = identity.email || session?.user?.id || null
+    const initials = generateInitials(identity.email, identity.displayName)
+    const avatarColors = getAvatarColor(userIdentifier)
 
     if (identity.isLoading) {
         return (
@@ -83,7 +66,6 @@ export function UserMenu() {
         )
     }
 
-    const initials = getInitials()
     const tier = identity.tier || 'free'
 
     return (
@@ -95,8 +77,8 @@ export function UserMenu() {
                     className="h-9 w-9 rounded-full p-0 flex items-center justify-center hover:bg-accent focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 transition-all duration-150"
                     aria-label="User menu"
                 >
-                    <div className="h-9 w-9 rounded-full p-[2px] bg-gradient-to-br from-brand-400/30 via-brand-500/40 to-brand-600/30 animate-pulse-glow">
-                        <div className="h-full w-full rounded-full overflow-hidden flex items-center justify-center bg-brand-500 text-white shadow-brand">
+                    <div className={`h-9 w-9 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFrom} ${avatarColors.gradientVia} ${avatarColors.gradientTo} animate-pulse-glow`}>
+                        <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white shadow-brand`}>
                             {identity.image ? (
                                 <div className="relative h-full w-full">
                                     <Image
@@ -126,8 +108,8 @@ export function UserMenu() {
                     <div className="flex flex-col space-y-3">
                         <div className="flex items-center gap-3">
                             {/* Avatar with glow */}
-                            <div className="h-10 w-10 rounded-full p-[2px] bg-gradient-to-br from-brand-400/40 via-brand-500/50 to-brand-600/40 shadow-brand">
-                                <div className="h-full w-full rounded-full overflow-hidden flex items-center justify-center bg-brand-500 text-white">
+                            <div className={`h-10 w-10 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-brand`}>
+                                <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
                                     {identity.image ? (
                                         <div className="relative h-full w-full">
                                             <Image
