@@ -182,12 +182,12 @@ table.vs-market-table tr {
 @keyframes vs-suffix-up {
     0%   { color: hsl(var(--brand-600)); }
     85%  { color: hsl(var(--brand-600)); }
-    100% { color: inherit; }
+    100% { color: hsl(var(--brand-600)); } /* persist color even after animation completes */
 }
 @keyframes vs-suffix-down {
     0%   { color: hsl(var(--danger-600)); }
     85%  { color: hsl(var(--danger-600)); }
-    100% { color: inherit; }
+    100% { color: hsl(var(--danger-600)); } /* persist color even after animation completes */
 }
 
 .price-text-flash-up {
@@ -197,10 +197,10 @@ table.vs-market-table tr {
     animation: vs-text-down 900ms var(--ease-smooth);
 }
 .price-suffix-up {
-    animation: vs-suffix-up 1400ms var(--ease-smooth);
+    animation: vs-suffix-up 1400ms var(--ease-smooth) forwards; /* keep final color if no re-render occurs */
 }
 .price-suffix-down {
-    animation: vs-suffix-down 1400ms var(--ease-smooth);
+    animation: vs-suffix-down 1400ms var(--ease-smooth) forwards; /* keep final color if no re-render occurs */
 }
 
 /* Static suffix colors (persistent cue after animation ends) */
