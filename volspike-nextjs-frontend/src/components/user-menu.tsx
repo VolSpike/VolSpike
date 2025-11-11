@@ -36,22 +36,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
-import { 
-    Settings, 
-    LogOut, 
-    Copy, 
-    CreditCard, 
-    Wallet, 
-    Bell,
-    Star,
-    Zap,
-    TrendingUp,
-    FileText,
-    Key,
-    Sparkles,
-} from 'lucide-react'
-import { toast } from 'react-hot-toast'
-import Link from 'next/link'
 
 export function UserMenu() {
     const router = useRouter()
