@@ -7,11 +7,6 @@ import { Button } from '@/components/ui/button'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
-export const metadata = {
-  title: 'Forgot Password - VolSpike',
-  description: 'Reset your VolSpike password by email.',
-}
-
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)

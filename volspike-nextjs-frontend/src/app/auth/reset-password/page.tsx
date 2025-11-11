@@ -9,11 +9,6 @@ import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
-export const metadata = {
-  title: 'Reset Password - VolSpike',
-  description: 'Choose a new password for your VolSpike account.',
-}
-
 export default function ResetPasswordPage() {
   const params = useSearchParams()
   const router = useRouter()
