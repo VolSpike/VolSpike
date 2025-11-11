@@ -207,7 +207,13 @@ export const authConfig: NextAuthConfig = {
             }
 
             // Handle Google OAuth account linking
+            // CRITICAL: Set token.email EARLY from Google profile before async /oauth-link call
+            // This ensures email is available immediately, preventing race conditions
             if (account?.provider === 'google' && user?.email) {
+                // Set email immediately from Google profile (before async API call)
+                token.email = user.email
+                console.log(`[Auth] Google OAuth - Set email early: ${user.email}`)
+                
                 try {
                     // Check if user exists in our database
                     console.log('[NextAuth] OAuth linking to:', `${BACKEND_API_URL}/api/auth/oauth-link`)
@@ -230,16 +236,19 @@ export const authConfig: NextAuthConfig = {
                     if (response.ok) {
                         const { user: dbUser, token: dbToken } = await response.json()
                         token.id = dbUser.id
-                        token.email = token.email || dbUser.email || user.email // Preserve email from Google profile
+                        // Preserve email from Google profile (already set above, but ensure it's not lost)
+                        token.email = token.email || dbUser.email || user.email
                         token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
                         token.emailVerified = dbUser.emailVerified
                         token.role = dbUser.role || 'USER' // Default to 'USER' if undefined
                         token.status = dbUser.status
                         token.twoFactorEnabled = dbUser.twoFactorEnabled
                         token.accessToken = dbToken
+                        console.log(`[Auth] Google OAuth - Linked successfully, email preserved: ${token.email}`)
                     }
                 } catch (error) {
                     console.error('[NextAuth] OAuth linking failed:', error)
+                    // Email is already set above, so avatar will still work even if linking fails
                 }
             }
 
