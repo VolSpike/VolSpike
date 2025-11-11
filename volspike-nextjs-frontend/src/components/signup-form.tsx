@@ -20,6 +20,10 @@ const signupSchema = z.object({
         .regex(/[A-Z]/, 'Must contain an uppercase letter')
         .regex(/[0-9]/, 'Must contain a number')
         .regex(/[^A-Za-z0-9]/, 'Must contain a symbol'),
+    confirmPassword: z.string().min(1, 'Please confirm your password'),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
 })
 
 type SignupFormValues = z.infer<typeof signupSchema>
@@ -62,19 +66,23 @@ export function SignupForm({
 }: SignupFormProps) {
     const router = useRouter()
     const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [authError, setAuthError] = useState('')
 
     const { handleSubmit, control, formState, watch, reset } = useForm<SignupFormValues>({
         resolver: zodResolver(signupSchema),
-        defaultValues: { email: '', password: '' },
+        defaultValues: { email: '', password: '', confirmPassword: '' },
     })
 
     const { isSubmitting, errors } = formState
 
     // Safe to call watch after useForm - always same order
     const passwordValue = watch('password')
+    const confirmPasswordValue = watch('confirmPassword')
     const pwStrength = passwordStrength(passwordValue || '')
     const pwStrengthLabel = getPasswordStrengthLabel(pwStrength)
+    const passwordsMatch = passwordValue && confirmPasswordValue && passwordValue === confirmPasswordValue
+    const passwordsMismatch = passwordValue && confirmPasswordValue && passwordValue !== confirmPasswordValue
 
     const onSubmit = async (data: SignupFormValues) => {
         setAuthError('')
@@ -238,6 +246,76 @@ export function SignupForm({
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
                         {errors.password.message}
+                    </p>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="signup-confirm-password" className="text-gray-300">Confirm Password</Label>
+                <div className="relative">
+                    <Controller
+                        name="confirmPassword"
+                        control={control}
+                        render={({ field }) => (
+                            <Input
+                                id="signup-confirm-password"
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                placeholder="Confirm your password"
+                                className={`bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 pr-10 transition-all ${
+                                    passwordsMismatch
+                                        ? 'border-red-500 focus-visible:ring-red-500'
+                                        : passwordsMatch && passwordValue && passwordValue.length >= 12
+                                            ? 'border-green-500 focus-visible:ring-green-500'
+                                            : ''
+                                }`}
+                                autoComplete="new-password"
+                                {...field}
+                            />
+                        )}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                        {showConfirmPassword ? (
+                            <EyeOff className="w-5 h-5" />
+                        ) : (
+                            <Eye className="w-5 h-5" />
+                        )}
+                    </button>
+                </div>
+                {passwordsMismatch && (
+                    <p className="text-xs text-red-400 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                        <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                            />
+                        </svg>
+                        Passwords don't match
+                    </p>
+                )}
+                {passwordsMatch && passwordValue && passwordValue.length >= 12 && (
+                    <p className="text-xs text-green-400 flex items-center gap-1 animate-in fade-in slide-in-from-top-1">
+                        <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clipRule="evenodd"
+                            />
+                        </svg>
+                        Passwords match
+                    </p>
+                )}
+                {errors.confirmPassword && (
+                    <p className="text-xs text-red-400 flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {errors.confirmPassword.message}
                     </p>
                 )}
             </div>
