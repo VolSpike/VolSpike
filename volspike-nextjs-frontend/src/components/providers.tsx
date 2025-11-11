@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SessionProvider } from 'next-auth/react'
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from 'react-hot-toast'
@@ -21,6 +22,18 @@ const Web3Providers = dynamic(
         )
     }
 )
+
+// Inner component to conditionally render Footer based on route
+function ConditionalFooter() {
+    const pathname = usePathname()
+    const isAuthPage = pathname?.startsWith('/auth')
+    
+    if (isAuthPage) {
+        return null
+    }
+    
+    return <Footer />
+}
 
 export default function Providers({ children }: { children: React.ReactNode }) {
     const [mounted, setMounted] = useState(false)
@@ -57,7 +70,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                             <div className="flex-1 flex flex-col">
                                 {children}
                             </div>
-                            <Footer />
+                            <ConditionalFooter />
                         </div>
                         <Toaster
                             position="top-right"
