@@ -5,7 +5,11 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { PasswordInput } from '@/components/password-input'
 import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -17,6 +21,7 @@ export default function ResetPasswordPage() {
 
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
   const [done, setDone] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,12 +31,32 @@ export default function ResetPasswordPage() {
     if (!token) setError('Invalid or missing token.')
   }, [token])
 
+  function validatePassword(pw: string): string | null {
+    if (pw.length < 12) {
+      return 'Password must be at least 12 characters.'
+    }
+    if (!/[A-Z]/.test(pw)) {
+      return 'Password must contain an uppercase letter.'
+    }
+    if (!/[0-9]/.test(pw)) {
+      return 'Password must contain a number.'
+    }
+    if (!/[^A-Za-z0-9]/.test(pw)) {
+      return 'Password must contain a special character.'
+    }
+    return null
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.')
+    setError(null)
+    
+    const passwordError = validatePassword(password)
+    if (passwordError) {
+      setError(passwordError)
       return
     }
+    
     if (password !== confirm) {
       setError('Passwords do not match.')
       return
@@ -77,31 +102,54 @@ export default function ResetPasswordPage() {
               </div>
             ) : (
               <form onSubmit={onSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="password" className="block text-sm text-muted-foreground mb-1">New Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-md border bg-background px-3 py-2"
-                    placeholder="••••••••"
-                  />
+                <PasswordInput
+                  id="password"
+                  label="New Password"
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="Create a secure password"
+                  autoComplete="new-password"
+                  showStrength={true}
+                  showRules={true}
+                  required={true}
+                />
+                <div className="space-y-2">
+                  <Label htmlFor="confirm" className="text-sm text-muted-foreground">
+                    Confirm Password
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm"
+                      type={showConfirm ? 'text' : 'password'}
+                      value={confirm}
+                      onChange={(e) => setConfirm(e.target.value)}
+                      placeholder="Confirm your password"
+                      autoComplete="new-password"
+                      className="bg-background pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="confirm" className="block text-sm text-muted-foreground mb-1">Confirm Password</label>
-                  <input
-                    id="confirm"
-                    type="password"
-                    required
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    className="w-full rounded-md border bg-background px-3 py-2"
-                    placeholder="••••••••"
-                  />
-                </div>
-                {error && <p className="text-sm text-red-500">{error}</p>}
+                {error && (
+                  <div className="rounded-md bg-red-500/10 border border-red-500/50 px-4 py-3 text-sm text-red-300 flex items-start gap-2">
+                    <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>{error}</span>
+                  </div>
+                )}
                 <Button type="submit" className="w-full bg-brand-600 hover:bg-brand-700 text-white" disabled={loading || !token}>
                   {loading ? 'Resetting…' : 'Reset Password'}
                 </Button>

@@ -28,9 +28,17 @@ const signInSchema = z.object({
     password: z.string().min(6),
 })
 
+// Shared password validation schema
+const passwordSchema = z
+    .string()
+    .min(12, 'Password must be at least 12 characters')
+    .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+    .regex(/[0-9]/, 'Password must contain a number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain a special character')
+
 const signUpSchema = z.object({
     email: z.string().email(),
-    password: z.string().min(6),
+    password: passwordSchema,
     tier: z.enum(['free', 'pro', 'elite']).default('free'),
 })
 
@@ -64,11 +72,11 @@ const requestPasswordResetSchema = z.object({
 const resetPasswordSchema = z.object({
     token: z.string().min(10),
     email: z.string().email(),
-    newPassword: z.string().min(8),
+    newPassword: passwordSchema,
 })
 const changePasswordSchema = z.object({
-    currentPassword: z.string().min(8),
-    newPassword: z.string().min(8),
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: passwordSchema,
 })
 
 // Rate limiting middleware

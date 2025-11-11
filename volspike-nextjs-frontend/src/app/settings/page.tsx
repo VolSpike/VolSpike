@@ -13,6 +13,9 @@ import { Copy, ExternalLink, CreditCard, User } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { PasswordInput } from '@/components/password-input'
+import { Eye, EyeOff } from 'lucide-react'
 
 function SettingsContent() {
     const { data: session, status } = useSession()
@@ -270,14 +273,33 @@ function SettingsContent() {
 
 function ChangePasswordForm() {
     const [currentPassword, setCurrentPassword] = useState('')
+    const [showCurrent, setShowCurrent] = useState(false)
     const [newPassword, setNewPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
+    const [showConfirm, setShowConfirm] = useState(false)
     const [loading, setLoading] = useState(false)
+
+    function validatePassword(pw: string): string | null {
+        if (pw.length < 12) {
+            return 'Password must be at least 12 characters.'
+        }
+        if (!/[A-Z]/.test(pw)) {
+            return 'Password must contain an uppercase letter.'
+        }
+        if (!/[0-9]/.test(pw)) {
+            return 'Password must contain a number.'
+        }
+        if (!/[^A-Za-z0-9]/.test(pw)) {
+            return 'Password must contain a special character.'
+        }
+        return null
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (newPassword.length < 8) {
-            toast.error('New password must be at least 8 characters')
+        const passwordError = validatePassword(newPassword)
+        if (passwordError) {
+            toast.error(passwordError)
             return
         }
         if (newPassword !== confirmPassword) {
@@ -310,38 +332,66 @@ function ChangePasswordForm() {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-            <div>
-                <label htmlFor="current" className="block text-sm text-muted-foreground mb-1">Current Password</label>
-                <input
-                    id="current"
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full rounded-md border bg-background px-3 py-2"
-                    required
-                />
+            <div className="space-y-2">
+                <Label htmlFor="current" className="text-sm text-muted-foreground">
+                    Current Password
+                </Label>
+                <div className="relative">
+                    <Input
+                        id="current"
+                        type={showCurrent ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter your current password"
+                        autoComplete="current-password"
+                        className="bg-background pr-10"
+                        required
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowCurrent(!showCurrent)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={showCurrent ? 'Hide password' : 'Show password'}
+                    >
+                        {showCurrent ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                </div>
             </div>
-            <div>
-                <label htmlFor="new" className="block text-sm text-muted-foreground mb-1">New Password</label>
-                <input
-                    id="new"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full rounded-md border bg-background px-3 py-2"
-                    required
-                />
-            </div>
-            <div>
-                <label htmlFor="confirm" className="block text-sm text-muted-foreground mb-1">Confirm New Password</label>
-                <input
-                    id="confirm"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-md border bg-background px-3 py-2"
-                    required
-                />
+            <PasswordInput
+                id="new"
+                label="New Password"
+                value={newPassword}
+                onChange={setNewPassword}
+                placeholder="Create a secure password"
+                autoComplete="new-password"
+                showStrength={true}
+                showRules={true}
+                required={true}
+            />
+            <div className="space-y-2">
+                <Label htmlFor="confirm" className="text-sm text-muted-foreground">
+                    Confirm New Password
+                </Label>
+                <div className="relative">
+                    <Input
+                        id="confirm"
+                        type={showConfirm ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm your new password"
+                        autoComplete="new-password"
+                        className="bg-background pr-10"
+                        required
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setShowConfirm(!showConfirm)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                    >
+                        {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                </div>
             </div>
             <Button type="submit" className="bg-brand-600 hover:bg-brand-700 text-white" disabled={loading}>
                 {loading ? 'Updating…' : 'Update Password'}
