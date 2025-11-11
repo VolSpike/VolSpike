@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <Header hideWalletConnect />
       <main className="container mx-auto px-4 py-12 max-w-xl">
         <Card>
@@ -72,5 +72,4 @@ export default function ForgotPasswordPage() {
     </div>
   )
 }
-
 

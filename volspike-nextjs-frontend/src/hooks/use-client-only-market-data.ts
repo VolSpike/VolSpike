@@ -57,6 +57,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const fundingRef = useRef<Map<string, any>>(new Map());
     const openInterestRef = useRef<Map<string, number>>(new Map()); // Symbol -> OI in USD
     const openInterestAsOfRef = useRef<number>(0); // Last OI timestamp (asOf) from backend
+    const openInterestFetchedAtRef = useRef<number>(0); // Last successful fetch time (client)
     const allowedSymbolsRef = useRef<Set<string> | null>(null);
     const symbolPrecisionRef = useRef<Map<string, number>>(new Map()); // Symbol -> decimals
     const lastRenderRef = useRef<number>(0);
@@ -236,6 +237,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 // Update ref with new data
                 openInterestRef.current = newMap;
                 openInterestAsOfRef.current = payload?.asOf ?? Date.now();
+                openInterestFetchedAtRef.current = Date.now();
                 
                 // Persist to localStorage for next reload
                 try {
@@ -558,6 +560,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     if (typeof cached.asOf === 'number') {
                         openInterestAsOfRef.current = cached.asOf;
                     }
+                    openInterestFetchedAtRef.current = Date.now();
                     
                     if (process.env.NODE_ENV === 'development') {
                         console.log(`📊 Open Interest: Hydrated ${restoredMap.size} symbols from localStorage`, {
@@ -606,6 +609,19 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
         };
     }, [fetchOpenInterest, nextBoundaryDelay]);
+
+    // Watchdog: if OI asOf drifts beyond 6 minutes, try lightweight refetch every 30s
+    useEffect(() => {
+        const watchdog = setInterval(() => {
+            const asOf = openInterestAsOfRef.current || 0
+            if (!asOf) return
+            const ageMs = Date.now() - asOf
+            if (ageMs > 6 * 60 * 1000) {
+                void fetchOpenInterest()
+            }
+        }, 30 * 1000)
+        return () => clearInterval(watchdog)
+    }, [fetchOpenInterest])
 
     return {
         data,

@@ -36,12 +36,12 @@ export default function PhantomCallbackPage() {
     (async () => {
       try {
         const tryMergeParams = () => {
-          const searchParams = new URLSearchParams(window.location.search)
-          const hash = (window.location.hash || '').replace(/^#/, '')
-          const hashParams = new URLSearchParams(hash)
-          const merged = new URLSearchParams()
-          searchParams.forEach((v, k) => merged.set(k, v))
-          hashParams.forEach((v, k) => merged.set(k, v))
+        const searchParams = new URLSearchParams(window.location.search)
+        const hash = (window.location.hash || '').replace(/^#/, '')
+        const hashParams = new URLSearchParams(hash)
+        const merged = new URLSearchParams()
+        searchParams.forEach((v, k) => merged.set(k, v))
+        hashParams.forEach((v, k) => merged.set(k, v))
           return { searchParams, hashParams, merged }
         }
         let { searchParams, hashParams, merged } = tryMergeParams()
