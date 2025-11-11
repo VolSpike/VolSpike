@@ -211,6 +211,17 @@ export function SigninForm({ onSuccess, isAdminMode = false, nextUrl = '/dashboa
                         {errors.password.message}
                     </p>
                 )}
+                {!isAdminMode && (
+                    <div className="mt-1 flex justify-end">
+                        <a
+                            href="/auth/forgot"
+                            className="text-xs text-green-300 hover:text-green-200 underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-green-400/50 rounded-sm"
+                            aria-label="Forgot your password?"
+                        >
+                            Forgot your password?
+                        </a>
+                    </div>
+                )}
             </div>
 
             {!isAdminMode && (

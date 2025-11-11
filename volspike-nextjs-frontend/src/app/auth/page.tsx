@@ -335,20 +335,13 @@ function AuthPageContent() {
                         
                         {/* Subtle donation link (unobtrusive) */}
                         {!isAdminMode && (
-                            <div className="mt-2 text-center space-y-2">
+                            <div className="mt-2 text-center">
                                 <Link
                                     href="/donate"
-                                    className="block text-xs text-purple-300 hover:text-purple-200 underline underline-offset-4"
+                                    className="text-xs text-purple-300 hover:text-purple-200 underline underline-offset-4"
                                     aria-label="Support VolSpike with a donation"
                                 >
                                     Support VolSpike — Donate
-                                </Link>
-                                <Link
-                                    href="/auth/forgot"
-                                    className="block text-xs text-green-300 hover:text-green-200 underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-green-400/50 rounded-sm"
-                                    aria-label="Forgot your password?"
-                                >
-                                    Forgot your password?
                                 </Link>
                             </div>
                         )}
