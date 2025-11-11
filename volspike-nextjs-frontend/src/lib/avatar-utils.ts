@@ -4,14 +4,13 @@
  */
 
 /**
- * Generate deterministic initials from email ONLY
- * STRICT: Always use email for consistency - ignore displayName completely
- * Returns 'U' if no valid email is provided
+ * Generate deterministic initials from email or name
+ * Priority: Email-based initials (most consistent) > Name-based initials
  * 
- * IMPORTANT: This ensures consistent initials across all auth methods
+ * IMPORTANT: Always use email when available for consistency across auth methods
  */
 export function generateInitials(email: string | null, displayName: string | null): string {
-    // STRICT: Only use email - ignore displayName to prevent inconsistencies
+    // Always prefer email-based initials for consistency across auth methods
     if (email) {
         const normalizedEmail = email.toLowerCase().trim()
         const parts = normalizedEmail.split('@')
@@ -29,7 +28,6 @@ export function generateInitials(email: string | null, displayName: string | nul
             
             return initials
         } else {
-            // Invalid email format - use first 2 chars as fallback
             const initials = normalizedEmail.slice(0, 2).toUpperCase()
             if (process.env.NODE_ENV === 'development') {
                 console.log('[Avatar] Generated initials from email (fallback):', { email: normalizedEmail, initials })
@@ -38,11 +36,18 @@ export function generateInitials(email: string | null, displayName: string | nul
         }
     }
     
-    // STRICT: Return 'U' if no email - do NOT use displayName
-    // This prevents inconsistencies when email is temporarily unavailable
-    if (process.env.NODE_ENV === 'development') {
-        console.warn('[Avatar] No email provided for initials generation, returning "U"', { email, displayName })
+    // Fallback to name-based initials ONLY if no email (should rarely happen)
+    if (displayName) {
+        const words = displayName.split(' ').filter(w => w.length > 0)
+        if (words.length >= 2) {
+            return (words[0][0] + words[1][0]).toUpperCase()
+        } else if (words.length === 1 && words[0].length >= 2) {
+            return words[0].slice(0, 2).toUpperCase()
+        } else if (words.length === 1) {
+            return words[0][0].toUpperCase() + words[0][0].toUpperCase()
+        }
     }
+    
     return 'U'
 }
 

@@ -287,17 +287,19 @@ auth.post('/oauth-link', async (c) => {
     try {
         const body = await c.req.json()
         const { email, name, image, provider, providerId } = oauthLinkSchema.parse(body)
+        // Normalize email to ensure consistent user linking regardless of casing
+        const normalizedEmail = email.toLowerCase().trim()
 
-        // Find existing user by email
+        // Find existing user by normalized email
         let user = await prisma.user.findUnique({
-            where: { email },
+            where: { email: normalizedEmail },
         })
 
         if (!user) {
             // Create new user for OAuth
             user = await prisma.user.create({
                 data: {
-                    email,
+                    email: normalizedEmail,
                     tier: 'free',
                     emailVerified: new Date(), // OAuth users are considered verified
                 },

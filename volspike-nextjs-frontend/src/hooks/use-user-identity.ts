@@ -17,9 +17,7 @@ export interface UserIdentity {
 export function useUserIdentity(): UserIdentity {
     const { data: session, status: sessionStatus } = useSession()
 
-    // Enhanced loading state: wait for session AND email to be available
-    // This prevents rendering avatar with incomplete data
-    const isLoading = sessionStatus === 'loading' || (sessionStatus === 'authenticated' && !session?.user?.email)
+    const isLoading = sessionStatus === 'loading'
 
     const identity = useMemo(() => {
         const email = session?.user?.email || null

@@ -67,22 +67,26 @@ export function UserMenu() {
     const normalizedEmail = (emailFromIdentity || emailFromSession)?.toLowerCase().trim() || null
     const userIdentifier = normalizedEmail || session?.user?.id || null
     
-    // STRICT: Always use email for initials - ignore displayName completely
-    // If email is not available, return 'U' (handled by generateInitials)
-    const initials = generateInitials(normalizedEmail, null)
+    // Always use email for initials - ignore displayName to ensure consistency
+    // If email is not available, fallback to a safe default
+    const initials = normalizedEmail ? generateInitials(normalizedEmail, null) : 'U'
     
     // Use normalized email for color generation to ensure consistency
-    // If no email, use user ID as fallback (will show default color)
+    // If no email, use user ID as fallback
     const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
-    
-    // Debug logging in development
-    if (process.env.NODE_ENV === 'development' && !normalizedEmail && identity.isLoading === false) {
-        console.warn('[Avatar] No email available for avatar generation:', {
+
+    // Debug: trace avatar inputs/outputs (development only)
+    if (process.env.NODE_ENV === 'development') {
+        // Keep this concise but informative
+        // eslint-disable-next-line no-console
+        console.log('[DEBUG] Avatar render:', {
             identityEmail: identity.email,
             sessionEmail: session?.user?.email,
             normalizedEmail,
             initials,
-            userIdentifier
+            avatarBg: avatarColors.bg,
+            imageUrl: identity.image,
+            imageError,
         })
     }
 

@@ -159,7 +159,8 @@ export const authConfig: NextAuthConfig = {
         async jwt({ token, user, account, trigger }: any) {
             if (user) {
                 token.id = user.id
-                token.email = user.email
+                // Normalize email to ensure consistency across auth methods
+                token.email = user.email ? String(user.email).toLowerCase().trim() : user.email
                 token.tier = user.tier || 'free' // Default to 'free' if undefined
                 token.emailVerified = user.emailVerified
                 token.role = user.role || 'USER' // Default to 'USER' if undefined
@@ -207,13 +208,7 @@ export const authConfig: NextAuthConfig = {
             }
 
             // Handle Google OAuth account linking
-            // CRITICAL: Set token.email EARLY from Google profile before async /oauth-link call
-            // This ensures email is available immediately, preventing race conditions
             if (account?.provider === 'google' && user?.email) {
-                // Set email immediately from Google profile (before async API call)
-                token.email = user.email
-                console.log(`[Auth] Google OAuth - Set email early: ${user.email}`)
-                
                 try {
                     // Check if user exists in our database
                     console.log('[NextAuth] OAuth linking to:', `${BACKEND_API_URL}/api/auth/oauth-link`)
@@ -223,7 +218,8 @@ export const authConfig: NextAuthConfig = {
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            email: user.email,
+                            // Send normalized email to backend for consistent linking
+                            email: String(user.email).toLowerCase().trim(),
                             name: user.name,
                             image: user.image,
                             provider: 'google',
@@ -236,19 +232,20 @@ export const authConfig: NextAuthConfig = {
                     if (response.ok) {
                         const { user: dbUser, token: dbToken } = await response.json()
                         token.id = dbUser.id
-                        // Preserve email from Google profile (already set above, but ensure it's not lost)
-                        token.email = token.email || dbUser.email || user.email
+                        {
+                            // Preserve email, but normalize casing for consistency
+                            const candidate = token.email || dbUser.email || user.email
+                            token.email = candidate ? String(candidate).toLowerCase().trim() : candidate
+                        }
                         token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
                         token.emailVerified = dbUser.emailVerified
                         token.role = dbUser.role || 'USER' // Default to 'USER' if undefined
                         token.status = dbUser.status
                         token.twoFactorEnabled = dbUser.twoFactorEnabled
                         token.accessToken = dbToken
-                        console.log(`[Auth] Google OAuth - Linked successfully, email preserved: ${token.email}`)
                     }
                 } catch (error) {
                     console.error('[NextAuth] OAuth linking failed:', error)
-                    // Email is already set above, so avatar will still work even if linking fails
                 }
             }
 
@@ -257,7 +254,8 @@ export const authConfig: NextAuthConfig = {
         async session({ session, token }: any) {
             if (token && session.user) {
                 session.user.id = token.id
-                session.user.email = token.email
+                // Ensure email is normalized in the session
+                session.user.email = token.email ? String(token.email).toLowerCase().trim() : token.email
                 session.user.name = session.user.name || token.email?.split('@')[0] || 'VolSpike User'
                 session.user.tier = token.tier || 'free' // Default to 'free' if undefined
                 session.user.emailVerified = token.emailVerified
