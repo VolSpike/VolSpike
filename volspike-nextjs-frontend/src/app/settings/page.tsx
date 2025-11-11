@@ -407,7 +407,7 @@ function ChangePasswordForm() {
                                 clipRule="evenodd"
                             />
                         </svg>
-                        Passwords don't match
+                        Passwords don&apos;t match
                     </p>
                 )}
                 {confirmPassword && newPassword && confirmPassword === newPassword && newPassword.length >= 12 && (

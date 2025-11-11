@@ -152,7 +152,7 @@ export default function ResetPasswordPage() {
                           clipRule="evenodd"
                         />
                       </svg>
-                      Passwords don't match
+                      Passwords don&apos;t match
                     </p>
                   )}
                   {confirm && password && confirm === password && password.length >= 12 && (

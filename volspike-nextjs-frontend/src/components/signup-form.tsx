@@ -295,7 +295,7 @@ export function SignupForm({
                                 clipRule="evenodd"
                             />
                         </svg>
-                        Passwords don't match
+                        Passwords don&apos;t match
                     </p>
                 )}
                 {passwordsMatch && passwordValue && passwordValue.length >= 12 && (
