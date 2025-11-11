@@ -154,16 +154,6 @@ export function Dashboard() {
                     ) : (
                         <span className="text-blue-500">● Loading...</span>
                     )}
-                    {/* Show update text only when useful */}
-                    {userTier === 'free' ? null : (
-                        <>
-                            {typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
-                                <span className="ml-2 text-gray-500">
-                                    (OI updated {Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))}s ago)
-                                </span>
-                            )}
-                        </>
-                    )}
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 min-h-0">
