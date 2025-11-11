@@ -230,6 +230,7 @@ export const authConfig: NextAuthConfig = {
                     if (response.ok) {
                         const { user: dbUser, token: dbToken } = await response.json()
                         token.id = dbUser.id
+                        token.email = token.email || dbUser.email || user.email // Preserve email from Google profile
                         token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
                         token.emailVerified = dbUser.emailVerified
                         token.role = dbUser.role || 'USER' // Default to 'USER' if undefined

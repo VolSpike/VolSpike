@@ -6,21 +6,37 @@
 /**
  * Generate deterministic initials from email or name
  * Priority: Email-based initials (most consistent) > Name-based initials
+ * 
+ * IMPORTANT: Always use email when available for consistency across auth methods
  */
 export function generateInitials(email: string | null, displayName: string | null): string {
     // Always prefer email-based initials for consistency across auth methods
     if (email) {
-        const parts = email.split('@')
+        const normalizedEmail = email.toLowerCase().trim()
+        const parts = normalizedEmail.split('@')
         if (parts.length === 2 && parts[0].length > 0 && parts[1].length > 0) {
             // Use first char of username + first char of domain
             // e.g., "colin.paran@gmail.com" -> "CG"
-            return (parts[0][0] + parts[1][0]).toUpperCase()
+            const username = parts[0]
+            const domain = parts[1]
+            const initials = (username[0] + domain[0]).toUpperCase()
+            
+            // Debug logging in development
+            if (process.env.NODE_ENV === 'development') {
+                console.log('[Avatar] Generated initials from email:', { email: normalizedEmail, initials })
+            }
+            
+            return initials
         } else {
-            return email.slice(0, 2).toUpperCase()
+            const initials = normalizedEmail.slice(0, 2).toUpperCase()
+            if (process.env.NODE_ENV === 'development') {
+                console.log('[Avatar] Generated initials from email (fallback):', { email: normalizedEmail, initials })
+            }
+            return initials
         }
     }
     
-    // Fallback to name-based initials if no email
+    // Fallback to name-based initials ONLY if no email (should rarely happen)
     if (displayName) {
         const words = displayName.split(' ').filter(w => w.length > 0)
         if (words.length >= 2) {

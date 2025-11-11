@@ -36,12 +36,49 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
+import { useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+    DropdownMenuPortal,
+} from '@/components/ui/dropdown-menu'
+import { 
+    Settings, 
+    LogOut, 
+    Copy, 
+    CreditCard, 
+    Wallet, 
+    Bell,
+    Star,
+    Zap,
+    TrendingUp,
+    FileText,
+    Key,
+    Sparkles,
+} from 'lucide-react'
+import { toast } from 'react-hot-toast'
+import Link from 'next/link'
 
 export function UserMenu() {
     const router = useRouter()
     const { data: session } = useSession()
     const identity = useUserIdentity()
     const [isOpen, setIsOpen] = useState(false)
+    const [imageError, setImageError] = useState(false)
+
+    // Reset image error when image changes
+    useEffect(() => {
+        setImageError(false)
+    }, [identity.image])
 
     const handleCopy = async (text: string, label: string) => {
         try {
@@ -53,10 +90,21 @@ export function UserMenu() {
     }
 
     // Generate consistent initials and colors based on user identifier
-    // Use email as primary identifier for consistency across auth methods
-    const userIdentifier = identity.email || session?.user?.id || null
-    const initials = generateInitials(identity.email, identity.displayName)
-    const avatarColors = getAvatarColor(userIdentifier)
+    // CRITICAL: Always use email (normalized) as primary identifier for consistency
+    // Normalize email to lowercase to ensure same hash regardless of case
+    // Fallback to session email if identity.email is not available (race condition protection)
+    const emailFromIdentity = identity.email
+    const emailFromSession = session?.user?.email
+    const normalizedEmail = (emailFromIdentity || emailFromSession)?.toLowerCase().trim() || null
+    const userIdentifier = normalizedEmail || session?.user?.id || null
+    
+    // Always use email for initials - ignore displayName to ensure consistency
+    // If email is not available, fallback to a safe default
+    const initials = normalizedEmail ? generateInitials(normalizedEmail, null) : 'U'
+    
+    // Use normalized email for color generation to ensure consistency
+    // If no email, use user ID as fallback
+    const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
 
     if (identity.isLoading) {
         return (
@@ -79,7 +127,7 @@ export function UserMenu() {
                 >
                     <div className={`h-9 w-9 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFrom} ${avatarColors.gradientVia} ${avatarColors.gradientTo} animate-pulse-glow`}>
                         <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white shadow-brand`}>
-                            {identity.image ? (
+                            {identity.image && !imageError ? (
                                 <div className="relative h-full w-full">
                                     <Image
                                         src={identity.image}
@@ -88,6 +136,7 @@ export function UserMenu() {
                                         sizes="36px"
                                         className="object-cover"
                                         priority
+                                        onError={() => setImageError(true)}
                                     />
                                 </div>
                             ) : (
@@ -110,7 +159,7 @@ export function UserMenu() {
                             {/* Avatar with glow */}
                             <div className={`h-10 w-10 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-brand`}>
                                 <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
-                                    {identity.image ? (
+                                    {identity.image && !imageError ? (
                                         <div className="relative h-full w-full">
                                             <Image
                                                 src={identity.image}
@@ -118,6 +167,7 @@ export function UserMenu() {
                                                 fill
                                                 sizes="40px"
                                                 className="object-cover"
+                                                onError={() => setImageError(true)}
                                             />
                                         </div>
                                     ) : (
