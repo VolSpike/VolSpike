@@ -72,7 +72,7 @@ export function MarketTable({
     const flashRef = useRef<Map<string, { dir: 'up' | 'down', wholeUntil: number, suffixUntil: number, suffixIndex: number }>>(new Map())
     const lastFlashTsRef = useRef<Map<string, number>>(new Map())
     const lastDirRef = useRef<Map<string, 'up' | 'down'>>(new Map())
-    const persistentRef = useRef<Map<string, { dir: 'up' | 'down', digitsFromEnd: number }>>(new Map())
+    const persistentRef = useRef<Map<string, { dir: 'up' | 'down', suffixIndex: number }>>(new Map())
     const FLASH_ENABLED = (process.env.NEXT_PUBLIC_PRICE_FLASH ?? '').toString().toLowerCase() === 'true' || process.env.NEXT_PUBLIC_PRICE_FLASH === '1'
     const WHOLE_MS = 900
     const SUFFIX_MS = 1400
@@ -214,66 +214,44 @@ export function MarketTable({
     }
 
     // Price formatter without currency symbol for table column display
-    const formatPriceNoSymbol = (price: number) => {
-        if (price >= 1) {
-            return new Intl.NumberFormat('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-                useGrouping: true,
-            }).format(price)
-        }
+    const formatPriceNoSymbol = (price: number, precision: number = 2) => {
         return new Intl.NumberFormat('en-US', {
-            minimumFractionDigits: 4,
-            maximumFractionDigits: 6,
-            useGrouping: true,
+            minimumFractionDigits: precision,
+            maximumFractionDigits: precision,
+            useGrouping: false, // stabilize diff and visual alignment
         }).format(price)
     }
 
-    // Helpers for robust suffix coloring
-    const digitsOnly = (s: string) => s.replace(/[^0-9]/g, '')
-    const countTrailingMismatchedDigits = (prevDigits: string, currDigits: string) => {
-        let i = prevDigits.length - 1
-        let j = currDigits.length - 1
-        let mismatched = 0
-        while (i >= 0 && j >= 0 && prevDigits[i] === currDigits[j]) {
-            i--; j--;
-        }
-        // Now everything from j down to 0 are changed digits in current
-        mismatched = j + 1
-        return Math.max(1, mismatched) // ensure at least 1 digit
-    }
-    const indexFromDigitsFromEnd = (formatted: string, digitsFromEnd: number) => {
-        // Walk from end, counting only digit chars; return cut index where colored suffix starts
-        let count = 0
-        for (let idx = formatted.length - 1; idx >= 0; idx--) {
-            if (/\d/.test(formatted[idx])) {
-                count++
-                if (count >= digitsFromEnd) {
-                    return Math.max(0, idx)
+    const digitsOnly = (s: string) => s.replace(/\D+/g, '')
+
+    // Map a number of trailing digits to a string index from the end, skipping non-digits
+    const indexFromDigitsFromEnd = (formatted: string, digitsFromEnd: number): number => {
+        let need = Math.max(1, digitsFromEnd)
+        for (let i = formatted.length - 1; i >= 0; i--) {
+            if (/\d/.test(formatted[i])) {
+                need--
+                if (need === 0) {
+                    // index is char after this digit
+                    return i
                 }
             }
         }
-        // If not enough digits found (edge case), color entire string
         return 0
     }
-    const loadPersistent = (symbol: string) => {
-        if (persistentRef.current.has(symbol)) return persistentRef.current.get(symbol)
-        try {
-            const raw = localStorage.getItem(`priceCue:${symbol}`)
-            if (raw) {
-                const parsed = JSON.parse(raw) as { dir: 'up' | 'down', digitsFromEnd: number }
-                if (parsed && (parsed.dir === 'up' || parsed.dir === 'down') && parsed.digitsFromEnd >= 1) {
-                    persistentRef.current.set(symbol, parsed)
-                    return parsed
-                }
+
+    const findDigitsFromEnd = (prevDigits: string, currDigits: string) => {
+        const maxLen = Math.max(prevDigits.length, currDigits.length)
+        const padPrev = prevDigits.padStart(maxLen, '0')
+        const padCurr = currDigits.padStart(maxLen, '0')
+        let firstDiffer = -1
+        for (let k = 0; k < maxLen; k++) {
+            if (padPrev[k] !== padCurr[k]) {
+                firstDiffer = k
+                break
             }
-        } catch {}
-        return undefined
-    }
-    const savePersistent = (symbol: string, payload: { dir: 'up' | 'down', digitsFromEnd: number }) => {
-        try {
-            localStorage.setItem(`priceCue:${symbol}`, JSON.stringify(payload))
-        } catch {}
+        }
+        if (firstDiffer === -1) return 1
+        return Math.max(1, maxLen - firstDiffer)
     }
 
     const sortedData = useMemo(() => {
@@ -562,7 +540,8 @@ export function MarketTable({
                                     </td>
                                     <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
                                         {(() => {
-                                            const formatted = formatPriceNoSymbol(item.price)
+                                            const precision = item.precision ?? 2
+                                            const formatted = formatPriceNoSymbol(item.price, precision)
                                             if (!FLASH_ENABLED) {
                                                 // Simply render price
                                                 prevPriceRef.current.set(item.symbol, item.price)
@@ -578,12 +557,13 @@ export function MarketTable({
                                                 if (now - lastFlashTs > MIN_INTERVAL_MS) {
                                                     // Determine direction
                                                     const dir: 'up' | 'down' = item.price > prev ? 'up' : 'down'
-                                                    // Robust: compute number of changed digits from end (ignoring separators)
-                                                    const prevDigits = digitsOnly(formatPriceNoSymbol(prev))
+                                                    // Compute changed suffix via left-diff on digits (formatting-independent)
+                                                    const prevFormatted = formatPriceNoSymbol(prev, precision)
+                                                    const prevDigits = digitsOnly(prevFormatted)
                                                     const currDigits = digitsOnly(formatted)
-                                                    const digitsFromEnd = countTrailingMismatchedDigits(prevDigits, currDigits)
-                                                    // Translate to current formatted string index for animation
-                                                    const suffixIndex = indexFromDigitsFromEnd(formatted, digitsFromEnd)
+                                                    const dfe = findDigitsFromEnd(prevDigits, currDigits)
+                                                    const splitIdx = indexFromDigitsFromEnd(formatted, dfe)
+                                                    const suffixIndex = Math.min(Math.max(splitIdx, 0), formatted.length - 1)
                                                     flashRef.current.set(item.symbol, {
                                                         dir,
                                                         wholeUntil: now + WHOLE_MS,
@@ -592,15 +572,17 @@ export function MarketTable({
                                                     })
                                                     lastFlashTsRef.current.set(item.symbol, now)
                                                     lastDirRef.current.set(item.symbol, dir)
-                                                    // Persist "how many digits from end should be colored", resilient to formatting changes
-                                                    persistentRef.current.set(item.symbol, { dir, digitsFromEnd })
-                                                    savePersistent(item.symbol, { dir, digitsFromEnd })
+                                                    // Persist the suffix split so digits that changed remain colored even after animation ends
+                                                    persistentRef.current.set(item.symbol, {
+                                                        dir,
+                                                        suffixIndex: Math.min(Math.max(suffixIndex, 1), formatted.length)
+                                                    } as any)
                                                 }
                                             }
                                             prevPriceRef.current.set(item.symbol, item.price)
                                             const flash = flashRef.current.get(item.symbol)
                                             const lastDir = lastDirRef.current.get(item.symbol)
-                                            const persistent = loadPersistent(item.symbol)
+                                            const persistent = persistentRef.current.get(item.symbol)
                                             if (flash) {
                                                 wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
                                                 const idx = Math.min(Math.max(flash.suffixIndex, 0), formatted.length)
@@ -609,7 +591,7 @@ export function MarketTable({
                                             } else {
                                                 // No active flash; keep at least the last digit colored using last direction
                                                 if (persistent) {
-                                                    const idx = indexFromDigitsFromEnd(formatted, Math.max(1, persistent.digitsFromEnd))
+                                                    const idx = Math.min(Math.max(persistent.suffixIndex, 1), formatted.length)
                                                     prefix = formatted.slice(0, idx)
                                                     suffix = formatted.slice(idx)
                                                 } else if (lastDir) {

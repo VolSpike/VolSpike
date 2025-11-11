@@ -37,6 +37,7 @@ interface MarketData {
     fundingRate: number;
     openInterest: number;
     timestamp: number;
+    precision?: number; // number of decimals to use for stable formatting
 }
 
 interface UseClientOnlyMarketDataProps {
@@ -56,6 +57,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const fundingRef = useRef<Map<string, any>>(new Map());
     const openInterestRef = useRef<Map<string, number>>(new Map()); // Symbol -> OI in USD
     const allowedSymbolsRef = useRef<Set<string> | null>(null);
+    const symbolPrecisionRef = useRef<Map<string, number>>(new Map()); // Symbol -> decimals
     const lastRenderRef = useRef<number>(0);
     const firstPaintDoneRef = useRef<boolean>(false);
     const connectedAtRef = useRef<number>(0);
@@ -95,6 +97,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             const normalizedSym = normalizeSym(sym);
             const openInterest = openInterestRef.current.get(normalizedSym) || 0;
             
+            const prec = symbolPrecisionRef.current.get(sym) ?? 2;
             out.push({
                 symbol: sym,
                 price: Number(t.c || t.lastPrice || 0),
@@ -103,6 +106,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 fundingRate,
                 openInterest, // From backend (via Digital Ocean script)
                 timestamp: Date.now(),
+                precision: prec,
             });
         }
 
@@ -278,18 +282,30 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         try {
             // Cache to localStorage for 1 hour to reduce requests
             const cacheKey = 'volspike:exchangeInfo:perpUsdt';
+            const precCacheKey = 'volspike:exchangeInfo:precision';
             const cached = localStorage.getItem(cacheKey);
+            const cachedPrec = localStorage.getItem(precCacheKey);
             if (cached) {
                 const parsed = JSON.parse(cached);
                 if (parsed?.t && Date.now() - parsed.t < 60 * 60 * 1000 && Array.isArray(parsed.list)) {
                     allowedSymbolsRef.current = new Set(parsed.list);
                 }
             }
+            if (cachedPrec) {
+                try {
+                    const parsed = JSON.parse(cachedPrec);
+                    if (parsed?.t && Date.now() - parsed.t < 60 * 60 * 1000 && parsed.map) {
+                        const m = new Map<string, number>(parsed.map);
+                        symbolPrecisionRef.current = m;
+                    }
+                } catch {}
+            }
 
             const response = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
             if (!response.ok) return;
             const info = await response.json();
             const list: string[] = [];
+            const pmap = new Map<string, number>();
             for (const s of info?.symbols || []) {
                 if (
                     s?.contractType === 'PERPETUAL' &&
@@ -298,11 +314,25 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     typeof s?.symbol === 'string'
                 ) {
                     list.push(s.symbol);
+                    // Derive precision from PRICE_FILTER.tickSize if available
+                    try {
+                        const pf = (s.filters || []).find((f: any) => f.filterType === 'PRICE_FILTER');
+                        const tick = pf ? parseFloat(pf.tickSize) : NaN;
+                        if (!Number.isNaN(tick) && tick > 0) {
+                            const calcDec = Math.max(0, -Math.floor(Math.log10(tick)));
+                            const dec = Math.max(2, calcDec);
+                            pmap.set(s.symbol, dec);
+                        }
+                    } catch {}
                 }
             }
             if (list.length) {
                 allowedSymbolsRef.current = new Set(list);
                 try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), list })); } catch {}
+            }
+            if (pmap.size) {
+                symbolPrecisionRef.current = pmap;
+                try { localStorage.setItem(precCacheKey, JSON.stringify({ t: Date.now(), map: Array.from(pmap.entries()) })); } catch {}
             }
         } catch (error) {
             if (process.env.NODE_ENV === 'development') {
