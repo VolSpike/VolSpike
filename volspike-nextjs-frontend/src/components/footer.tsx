@@ -17,6 +17,7 @@ const primaryLinks = [
 const secondaryLinks = [
     { href: '/legal/privacy', label: 'Privacy' },
     { href: '/legal/terms', label: 'Terms' },
+    { href: '/legal/refunds', label: 'Refund & Cancellation' },
     { href: '/status', label: 'Status' },
 ]
 
