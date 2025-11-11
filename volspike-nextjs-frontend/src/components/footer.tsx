@@ -31,8 +31,11 @@ export function Footer() {
         setMounted(true)
     }, [])
 
-    const isAuthRoute = pathname?.startsWith('/auth')
-    const isDarkMode = isAuthRoute || (mounted ? resolvedTheme === 'dark' : false)
+    // Only force dark footer on specific auth routes with dark backgrounds
+    const cleanPath = (pathname || '/').replace(/\/$/, '')
+    const darkAuthRoutes = new Set<string>(['/auth', '/auth/verify'])
+    const forceDarkForRoute = darkAuthRoutes.has(cleanPath)
+    const isDarkMode = forceDarkForRoute || (mounted ? resolvedTheme === 'dark' : false)
 
     const footerClasses = cn(
         'border-t backdrop-blur transition-colors duration-200',
