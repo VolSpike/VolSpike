@@ -68,7 +68,7 @@ export default function ResetPasswordPage() {
           <CardContent>
             {done ? (
               <div className="space-y-4">
-                <div className="rounded-md border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-300">
+                <div className="rounded-lg p-4 text-sm border bg-green-50 text-green-800 border-green-200 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/30 transition-colors duration-200">
                   Your password has been reset. You can now sign in with your new password.
                 </div>
                 <Link href="/auth">
