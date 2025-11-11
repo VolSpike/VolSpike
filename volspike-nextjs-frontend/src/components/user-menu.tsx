@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useUserIdentity } from '@/hooks/use-user-identity'
@@ -36,21 +36,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
-import { useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-    DropdownMenuSub,
-    DropdownMenuSubTrigger,
-    DropdownMenuSubContent,
-    DropdownMenuPortal,
-} from '@/components/ui/dropdown-menu'
 import { 
     Settings, 
     LogOut, 
