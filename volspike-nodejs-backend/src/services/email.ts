@@ -43,6 +43,61 @@ export class EmailService {
         this.baseUrl = process.env.EMAIL_VERIFICATION_URL_BASE || 'http://localhost:3000'
     }
 
+    /**
+     * Send password reset email with secure one-time token
+     */
+    async sendPasswordResetEmail(data: { email: string; resetUrl: string }): Promise<boolean> {
+        try {
+            if (!process.env.SENDGRID_API_KEY) {
+                logger.error('SENDGRID_API_KEY is not set in environment variables')
+                return false
+            }
+            const safeUrl = data.resetUrl.replace(/"/g, '&quot;')
+            const html = `
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Reset your VolSpike password</title></head>
+<body style="margin:0;padding:0;background:#0f172a;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;">
+    <tr><td align="center" style="padding:24px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#111827;border-radius:12px;">
+        <tr><td align="center" style="padding:28px;background:#059669;border-radius:12px 12px 0 0;">
+          <img src="https://volspike.com/email/volspike-badge@2x.png" width="72" height="72" alt="VolSpike" style="display:block;border:0;">
+          <div style="margin-top:12px;font-weight:700;font-size:22px;color:#fff;">Password Reset</div>
+        </td></tr>
+        <tr><td style="padding:28px;">
+          <p style="margin:0 0 16px;">We received a request to reset the password for your VolSpike account.</p>
+          <p style="margin:0 0 16px;">Click the button below to choose a new password. This link expires in 60 minutes.</p>
+          <div style="text-align:center;margin:20px 0;">
+            <a href="${safeUrl}" style="display:inline-block;background:#10b981;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Reset Password</a>
+          </div>
+          <p style="margin:16px 0 8px;">If the button doesn’t work, copy and paste this link:</p>
+          <p style="margin:0;word-break:break-all;font:14px/1.6 SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;color:#93c5fd">${data.resetUrl}</p>
+          <p style="margin:24px 0 0;color:#9ca3af;font-size:14px;">If you didn’t request this, you can safely ignore this email.</p>
+        </td></tr>
+        <tr><td align="center" style="padding:16px;background:#0b1220;border-top:1px solid #1f2937;border-radius:0 0 12px 12px;">
+          <div style="font-size:13px;color:#9ca3af;">© ${new Date().getFullYear()} VolSpike • Need help? <a href="mailto:support@volspike.com" style="color:#10b981;text-decoration:none;">support@volspike.com</a></div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`
+            const msg: any = {
+                to: data.email,
+                from: { email: this.fromEmail, name: 'VolSpike Team' },
+                subject: 'Reset your VolSpike password',
+                html,
+                text: `Reset your password: ${data.resetUrl}`
+            }
+            await mail.send(msg)
+            logger.info(`Password reset email sent to ${data.email}`)
+            return true
+        } catch (error) {
+            logger.error('Failed to send password reset email:', error)
+            return false
+        }
+    }
+
     static getInstance(): EmailService {
         if (!EmailService.instance) {
             EmailService.instance = new EmailService()

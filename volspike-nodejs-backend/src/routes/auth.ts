@@ -5,6 +5,7 @@ import { prisma } from '../index'
 import { createLogger } from '../lib/logger'
 import { getUser, requireUser } from '../lib/hono-extensions'
 import EmailService from '../services/email'
+import { authMiddleware } from '../middleware/auth'
 import * as bcrypt from 'bcryptjs'
 import { SiweMessage, generateNonce } from 'siwe'
 import { verifyMessage } from 'viem'
@@ -54,6 +55,20 @@ const requestVerificationSchema = z.object({
 const verifyEmailSchema = z.object({
     token: z.string(),
     email: z.string().email(),
+})
+
+// Password reset schemas
+const requestPasswordResetSchema = z.object({
+    email: z.string().email(),
+})
+const resetPasswordSchema = z.object({
+    token: z.string().min(10),
+    email: z.string().email(),
+    newPassword: z.string().min(8),
+})
+const changePasswordSchema = z.object({
+    currentPassword: z.string().min(8),
+    newPassword: z.string().min(8),
 })
 
 // Rate limiting middleware
@@ -393,6 +408,121 @@ auth.post('/request-verification', async (c) => {
     } catch (error) {
         logger.error('Request verification error:', error)
         return c.json({ error: 'Invalid request' }, 400)
+    }
+})
+
+// ======= Password: Forgot =======
+auth.post('/password/forgot', async (c) => {
+    try {
+        const body = await c.req.json()
+        const { email } = requestPasswordResetSchema.parse(body)
+
+        const user = await prisma.user.findFirst({
+            where: { email: { equals: email, mode: 'insensitive' } },
+        })
+
+        // Always return success (prevent user enumeration)
+        if (!user) {
+            return c.json({ success: true })
+        }
+
+        const token = emailService.generateVerificationToken()
+        const identifier = `${user.email}|pwreset`
+
+        await prisma.verificationToken.deleteMany({ where: { identifier } })
+        await prisma.verificationToken.create({
+            data: {
+                identifier,
+                token,
+                expires: new Date(Date.now() + 60 * 60 * 1000), // 60 minutes
+                userId: user.id,
+            },
+        })
+
+        const base = process.env.FRONTEND_URL || 'http://localhost:3000'
+        const resetUrl = `${base}/auth/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`
+        await emailService.sendPasswordResetEmail({ email: user.email, resetUrl })
+
+        return c.json({ success: true })
+    } catch (error) {
+        logger.error('Forgot password error:', error)
+        return c.json({ success: true })
+    }
+})
+
+// ======= Password: Reset with token =======
+auth.post('/password/reset', async (c) => {
+    try {
+        const body = await c.req.json()
+        const { token, email, newPassword } = resetPasswordSchema.parse(body)
+        const identifier = `${email}|pwreset`
+
+        const tokenRow = await prisma.verificationToken.findFirst({ where: { identifier, token } })
+        if (!tokenRow || tokenRow.expires < new Date()) {
+            return c.json({ error: 'Invalid or expired token' }, 400)
+        }
+
+        const user = await prisma.user.findFirst({
+            where: { email: { equals: email, mode: 'insensitive' } },
+        })
+        if (!user) {
+            return c.json({ error: 'Invalid request' }, 400)
+        }
+
+        const hash = await bcrypt.hash(newPassword, 12)
+        await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } })
+        await prisma.verificationToken.deleteMany({ where: { identifier } })
+
+        return c.json({ success: true })
+    } catch (error) {
+        logger.error('Reset password error:', error)
+        return c.json({ error: 'Failed to reset password' }, 500)
+    }
+})
+
+// ======= Password: Change (authenticated) =======
+auth.post('/password/change', async (c) => {
+    try {
+        // Reuse /me authentication logic: accept Authorization Bearer header
+        const authHeader = c.req.header('Authorization')
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return c.json({ error: 'Not authenticated' }, 401)
+        }
+        const token = authHeader.substring(7)
+        let userId: string | null = null
+        if (!token.includes('.') && !token.startsWith('mock-token-')) {
+            userId = token
+        } else if (token.startsWith('mock-token-')) {
+            const match = token.match(/^mock-token-(.+?)-\d+$/)
+            if (match) userId = match[1]
+        } else {
+            try {
+                const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key'
+                const secretBytes = new TextEncoder().encode(secret)
+                const { payload } = await jwtVerify(token, secretBytes)
+                userId = (payload.sub as string) || null
+            } catch {
+                return c.json({ error: 'Invalid token' }, 401)
+            }
+        }
+        if (!userId) return c.json({ error: 'Invalid token' }, 401)
+
+        const body = await c.req.json()
+        const { currentPassword, newPassword } = changePasswordSchema.parse(body)
+        const user = await prisma.user.findUnique({ where: { id: userId } })
+        if (!user?.passwordHash) {
+            return c.json({ error: 'No password set for this account' }, 400)
+        }
+        const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+        if (!valid) {
+            return c.json({ error: 'Current password is incorrect' }, 400)
+        }
+        const hash = await bcrypt.hash(newPassword, 12)
+        await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } })
+        return c.json({ success: true })
+    } catch (error) {
+        logger.error('Change password error:', error)
+        return c.json({ error: 'Failed to change password' }, 500)
     }
 })
 

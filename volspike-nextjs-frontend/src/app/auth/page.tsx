@@ -336,6 +336,15 @@ function AuthPageContent() {
                         {/* Subtle donation link (unobtrusive) */}
                         {!isAdminMode && (
                             <div className="mt-2 text-center">
+                                <div className="mb-2">
+                                    <Link
+                                        href="/auth/forgot"
+                                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+                                        aria-label="Forgot your password?"
+                                    >
+                                        Forgot your password?
+                                    </Link>
+                                </div>
                                 <Link
                                     href="/donate"
                                     className="text-xs text-purple-300 hover:text-purple-200 underline underline-offset-4"

@@ -12,6 +12,7 @@ import { useUserIdentity } from '@/hooks/use-user-identity'
 import { Copy, ExternalLink, CreditCard, User } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
+import { Input } from '@/components/ui/input'
 
 function SettingsContent() {
     const { data: session, status } = useSession()
@@ -120,7 +121,7 @@ function SettingsContent() {
                     </CardHeader>
                     <CardContent>
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
+                            <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="account">
                                     <User className="h-4 w-4 mr-2" />
                                     Account
@@ -128,6 +129,9 @@ function SettingsContent() {
                                 <TabsTrigger value="subscription">
                                     <CreditCard className="h-4 w-4 mr-2" />
                                     Subscription
+                                </TabsTrigger>
+                                <TabsTrigger value="security">
+                                    Security
                                 </TabsTrigger>
                             </TabsList>
 
@@ -206,6 +210,12 @@ function SettingsContent() {
                                 </div>
                             </TabsContent>
 
+                            <TabsContent value="security" className="space-y-6 mt-6">
+                                <div>
+                                    <h3 className="text-sm font-medium mb-4">Change Password</h3>
+                                    <ChangePasswordForm />
+                                </div>
+                            </TabsContent>
                             <TabsContent value="subscription" className="space-y-6 mt-6">
                                 <div>
                                     <h3 className="text-sm font-medium mb-4">Subscription & Billing</h3>
@@ -255,6 +265,88 @@ function SettingsContent() {
                 </Card>
             </main>
         </div>
+    )
+}
+
+function ChangePasswordForm() {
+    const [currentPassword, setCurrentPassword] = useState('')
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (newPassword.length < 8) {
+            toast.error('New password must be at least 8 characters')
+            return
+        }
+        if (newPassword !== confirmPassword) {
+            toast.error('Passwords do not match')
+            return
+        }
+        setLoading(true)
+        try {
+            const token = localStorage.getItem('vs:authToken') || '' // NextAuth passes user id; fallback to empty
+            const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + '/api/auth/password/change', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ currentPassword, newPassword }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok || !data?.success) throw new Error(data?.error || 'Failed to change password')
+            toast.success('Password updated')
+            setCurrentPassword('')
+            setNewPassword('')
+            setConfirmPassword('')
+        } catch (err: any) {
+            toast.error(err?.message || 'Failed to change password')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+            <div>
+                <label htmlFor="current" className="block text-sm text-muted-foreground mb-1">Current Password</label>
+                <input
+                    id="current"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full rounded-md border bg-background px-3 py-2"
+                    required
+                />
+            </div>
+            <div>
+                <label htmlFor="new" className="block text-sm text-muted-foreground mb-1">New Password</label>
+                <input
+                    id="new"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full rounded-md border bg-background px-3 py-2"
+                    required
+                />
+            </div>
+            <div>
+                <label htmlFor="confirm" className="block text-sm text-muted-foreground mb-1">Confirm New Password</label>
+                <input
+                    id="confirm"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-md border bg-background px-3 py-2"
+                    required
+                />
+            </div>
+            <Button type="submit" className="bg-brand-600 hover:bg-brand-700 text-white" disabled={loading}>
+                {loading ? 'Updating…' : 'Update Password'}
+            </Button>
+        </form>
     )
 }
 
