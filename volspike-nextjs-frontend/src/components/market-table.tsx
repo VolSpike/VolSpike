@@ -72,7 +72,7 @@ export function MarketTable({
     const flashRef = useRef<Map<string, { dir: 'up' | 'down', wholeUntil: number, suffixUntil: number, suffixIndex: number }>>(new Map())
     const lastFlashTsRef = useRef<Map<string, number>>(new Map())
     const lastDirRef = useRef<Map<string, 'up' | 'down'>>(new Map())
-    const persistentRef = useRef<Map<string, { dir: 'up' | 'down', suffixIndex: number }>>(new Map())
+    const persistentRef = useRef<Map<string, { dir: 'up' | 'down', digitsFromEnd: number }>>(new Map())
     const FLASH_ENABLED = (process.env.NEXT_PUBLIC_PRICE_FLASH ?? '').toString().toLowerCase() === 'true' || process.env.NEXT_PUBLIC_PRICE_FLASH === '1'
     const WHOLE_MS = 900
     const SUFFIX_MS = 1400
@@ -227,6 +227,53 @@ export function MarketTable({
             maximumFractionDigits: 6,
             useGrouping: true,
         }).format(price)
+    }
+
+    // Helpers for robust suffix coloring
+    const digitsOnly = (s: string) => s.replace(/[^0-9]/g, '')
+    const countTrailingMismatchedDigits = (prevDigits: string, currDigits: string) => {
+        let i = prevDigits.length - 1
+        let j = currDigits.length - 1
+        let mismatched = 0
+        while (i >= 0 && j >= 0 && prevDigits[i] === currDigits[j]) {
+            i--; j--;
+        }
+        // Now everything from j down to 0 are changed digits in current
+        mismatched = j + 1
+        return Math.max(1, mismatched) // ensure at least 1 digit
+    }
+    const indexFromDigitsFromEnd = (formatted: string, digitsFromEnd: number) => {
+        // Walk from end, counting only digit chars; return cut index where colored suffix starts
+        let count = 0
+        for (let idx = formatted.length - 1; idx >= 0; idx--) {
+            if (/\d/.test(formatted[idx])) {
+                count++
+                if (count >= digitsFromEnd) {
+                    return Math.max(0, idx)
+                }
+            }
+        }
+        // If not enough digits found (edge case), color entire string
+        return 0
+    }
+    const loadPersistent = (symbol: string) => {
+        if (persistentRef.current.has(symbol)) return persistentRef.current.get(symbol)
+        try {
+            const raw = localStorage.getItem(`priceCue:${symbol}`)
+            if (raw) {
+                const parsed = JSON.parse(raw) as { dir: 'up' | 'down', digitsFromEnd: number }
+                if (parsed && (parsed.dir === 'up' || parsed.dir === 'down') && parsed.digitsFromEnd >= 1) {
+                    persistentRef.current.set(symbol, parsed)
+                    return parsed
+                }
+            }
+        } catch {}
+        return undefined
+    }
+    const savePersistent = (symbol: string, payload: { dir: 'up' | 'down', digitsFromEnd: number }) => {
+        try {
+            localStorage.setItem(`priceCue:${symbol}`, JSON.stringify(payload))
+        } catch {}
     }
 
     const sortedData = useMemo(() => {
@@ -531,12 +578,12 @@ export function MarketTable({
                                                 if (now - lastFlashTs > MIN_INTERVAL_MS) {
                                                     // Determine direction
                                                     const dir: 'up' | 'down' = item.price > prev ? 'up' : 'down'
-                                                    // Compute changed suffix index using formatted strings
-                                                    const prevFormatted = formatPriceNoSymbol(prev)
-                                                    const minLen = Math.min(prevFormatted.length, formatted.length)
-                                                    let idx = 0
-                                                    while (idx < minLen && prevFormatted[idx] === formatted[idx]) idx++
-                                                    const suffixIndex = idx
+                                                    // Robust: compute number of changed digits from end (ignoring separators)
+                                                    const prevDigits = digitsOnly(formatPriceNoSymbol(prev))
+                                                    const currDigits = digitsOnly(formatted)
+                                                    const digitsFromEnd = countTrailingMismatchedDigits(prevDigits, currDigits)
+                                                    // Translate to current formatted string index for animation
+                                                    const suffixIndex = indexFromDigitsFromEnd(formatted, digitsFromEnd)
                                                     flashRef.current.set(item.symbol, {
                                                         dir,
                                                         wholeUntil: now + WHOLE_MS,
@@ -545,17 +592,15 @@ export function MarketTable({
                                                     })
                                                     lastFlashTsRef.current.set(item.symbol, now)
                                                     lastDirRef.current.set(item.symbol, dir)
-                                                    // Persist the suffix split so digits that changed remain colored even after animation ends
-                                                    persistentRef.current.set(item.symbol, {
-                                                        dir,
-                                                        suffixIndex: Math.min(Math.max(suffixIndex, formatted.length - 1, 0), formatted.length)
-                                                    } as any)
+                                                    // Persist "how many digits from end should be colored", resilient to formatting changes
+                                                    persistentRef.current.set(item.symbol, { dir, digitsFromEnd })
+                                                    savePersistent(item.symbol, { dir, digitsFromEnd })
                                                 }
                                             }
                                             prevPriceRef.current.set(item.symbol, item.price)
                                             const flash = flashRef.current.get(item.symbol)
                                             const lastDir = lastDirRef.current.get(item.symbol)
-                                            const persistent = persistentRef.current.get(item.symbol)
+                                            const persistent = loadPersistent(item.symbol)
                                             if (flash) {
                                                 wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
                                                 const idx = Math.min(Math.max(flash.suffixIndex, 0), formatted.length)
@@ -564,7 +609,7 @@ export function MarketTable({
                                             } else {
                                                 // No active flash; keep at least the last digit colored using last direction
                                                 if (persistent) {
-                                                    const idx = Math.min(Math.max(persistent.suffixIndex, 1), formatted.length)
+                                                    const idx = indexFromDigitsFromEnd(formatted, Math.max(1, persistent.digitsFromEnd))
                                                     prefix = formatted.slice(0, idx)
                                                     suffix = formatted.slice(idx)
                                                 } else if (lastDir) {
