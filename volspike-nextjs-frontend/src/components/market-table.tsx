@@ -216,12 +216,19 @@ export function MarketTable({
         }).format(price)
     }
 
-    // Price formatter without currency symbol for table column display
-    const formatPriceNoSymbol = (price: number, precision: number = 2) => {
+    // Formatters for price: diff (no grouping) and display (with grouping)
+    const formatPriceForDiff = (price: number, precision: number = 2) => {
         return new Intl.NumberFormat('en-US', {
             minimumFractionDigits: precision,
             maximumFractionDigits: precision,
-            useGrouping: false, // stabilize diff and visual alignment
+            useGrouping: false,
+        }).format(price)
+    }
+    const formatPriceForDisplay = (price: number, precision: number = 2) => {
+        return new Intl.NumberFormat('en-US', {
+            minimumFractionDigits: precision,
+            maximumFractionDigits: precision,
+            useGrouping: true,
         }).format(price)
     }
 
@@ -552,16 +559,16 @@ export function MarketTable({
                                     <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
                                         {(() => {
                                             const precision = item.precision ?? 2
-                                            const formatted = formatPriceNoSymbol(item.price, precision)
+                                            const formattedDisplay = formatPriceForDisplay(item.price, precision)
                                             if (!FLASH_ENABLED) {
                                                 // Simply render price
                                                 prevPriceRef.current.set(item.symbol, item.price)
-                                                return formatted
+                                                return formattedDisplay
                                             }
                                             const now = Date.now()
                                             const prev = prevPriceRef.current.get(item.symbol)
                                             let wholeClass = ''
-                                            let prefix = formatted
+                                            let prefix = formattedDisplay
                                             let suffix = ''
                                             if (typeof prev === 'number' && prev !== item.price) {
                                                 const lastFlashTs = lastFlashTsRef.current.get(item.symbol) || 0
@@ -569,12 +576,13 @@ export function MarketTable({
                                                     // Determine direction
                                                     const dir: 'up' | 'down' = item.price > prev ? 'up' : 'down'
                                                     // Compute changed suffix via left-diff on digits (formatting-independent)
-                                                    const prevFormatted = formatPriceNoSymbol(prev, precision)
-                                                    const prevDigits = digitsOnly(prevFormatted)
-                                                    const currDigits = digitsOnly(formatted)
+                                                    const prevFormattedDiff = formatPriceForDiff(prev, precision)
+                                                    const currFormattedDiff = formatPriceForDiff(item.price, precision)
+                                                    const prevDigits = digitsOnly(prevFormattedDiff)
+                                                    const currDigits = digitsOnly(currFormattedDiff)
                                                     const dfe = findDigitsFromEnd(prevDigits, currDigits)
-                                                    const splitIdx = indexFromDigitsFromEnd(formatted, dfe)
-                                                    const suffixIndex = Math.min(Math.max(splitIdx, 0), formatted.length - 1)
+                                                    const splitIdx = indexFromDigitsFromEnd(formattedDisplay, dfe)
+                                                    const suffixIndex = Math.min(Math.max(splitIdx, 0), formattedDisplay.length - 1)
                                                     flashRef.current.set(item.symbol, {
                                                         dir,
                                                         wholeUntil: now + WHOLE_MS,
@@ -586,7 +594,7 @@ export function MarketTable({
                                                     // Persist the suffix split so digits that changed remain colored even after animation ends
                                                     persistentRef.current.set(item.symbol, {
                                                         dir,
-                                                        suffixIndex: Math.min(Math.max(suffixIndex, 1), formatted.length)
+                                                        suffixIndex: Math.min(Math.max(suffixIndex, 1), formattedDisplay.length)
                                                     } as any)
                                                 }
                                             }
@@ -596,19 +604,19 @@ export function MarketTable({
                                             const persistent = persistentRef.current.get(item.symbol)
                                             if (flash) {
                                                 wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
-                                                const idx = Math.min(Math.max(flash.suffixIndex, 0), formatted.length)
-                                                prefix = formatted.slice(0, idx)
-                                                suffix = formatted.slice(idx)
+                                                const idx = Math.min(Math.max(flash.suffixIndex, 0), formattedDisplay.length)
+                                                prefix = formattedDisplay.slice(0, idx)
+                                                suffix = formattedDisplay.slice(idx)
                                             } else {
                                                 // No active flash; keep at least the last digit colored using last direction
                                                 if (persistent) {
-                                                    const idx = Math.min(Math.max(persistent.suffixIndex, 1), formatted.length)
-                                                    prefix = formatted.slice(0, idx)
-                                                    suffix = formatted.slice(idx)
+                                                    const idx = Math.min(Math.max(persistent.suffixIndex, 1), formattedDisplay.length)
+                                                    prefix = formattedDisplay.slice(0, idx)
+                                                    suffix = formattedDisplay.slice(idx)
                                                 } else if (lastDir) {
-                                                    const idx = Math.max(formatted.length - 1, 0)
-                                                    prefix = formatted.slice(0, idx)
-                                                    suffix = formatted.slice(idx)
+                                                    const idx = Math.max(formattedDisplay.length - 1, 0)
+                                                    prefix = formattedDisplay.slice(0, idx)
+                                                    suffix = formattedDisplay.slice(idx)
                                                 }
                                             }
                                             let suffixClass = ''
