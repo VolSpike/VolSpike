@@ -66,7 +66,8 @@ export function Dashboard() {
         isLive,
         isConnecting,
         isReconnecting,
-        hasError
+        hasError,
+        openInterestAsOf
     } = useClientOnlyMarketData({
         tier: userTier as 'elite' | 'pro' | 'free',
         onDataUpdate: handleDataUpdate
@@ -153,10 +154,15 @@ export function Dashboard() {
                     ) : (
                         <span className="text-blue-500">● Loading...</span>
                     )}
-                    {lastUpdate > 0 && (
-                        <span className="ml-2 text-gray-500">
-                            (Updated {Math.floor((Date.now() - lastUpdate) / 1000)}s ago)
-                        </span>
+                    {/* Show update text only when useful */}
+                    {userTier === 'free' ? null : (
+                        <>
+                            {typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
+                                <span className="ml-2 text-gray-500">
+                                    (OI updated {Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))}s ago)
+                                </span>
+                            )}
+                        </>
                     )}
                 </CardDescription>
             </CardHeader>
@@ -178,6 +184,7 @@ export function Dashboard() {
                         withContainer={false}
                         lastUpdate={lastUpdate}
                         isConnected={!hasError && !isConnecting}
+                        openInterestAsOf={openInterestAsOf}
                         onCreateAlert={handleCreateAlert}
                     />
                 )}

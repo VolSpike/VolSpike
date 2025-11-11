@@ -56,6 +56,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const tickersRef = useRef<Map<string, any>>(new Map());
     const fundingRef = useRef<Map<string, any>>(new Map());
     const openInterestRef = useRef<Map<string, number>>(new Map()); // Symbol -> OI in USD
+    const openInterestAsOfRef = useRef<number>(0); // Last OI timestamp (asOf) from backend
     const allowedSymbolsRef = useRef<Set<string> | null>(null);
     const symbolPrecisionRef = useRef<Map<string, number>>(new Map()); // Symbol -> decimals
     const lastRenderRef = useRef<number>(0);
@@ -234,6 +235,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 
                 // Update ref with new data
                 openInterestRef.current = newMap;
+                openInterestAsOfRef.current = payload?.asOf ?? Date.now();
                 
                 // Persist to localStorage for next reload
                 try {
@@ -553,6 +555,9 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                         }
                     }
                     openInterestRef.current = restoredMap;
+                    if (typeof cached.asOf === 'number') {
+                        openInterestAsOfRef.current = cached.asOf;
+                    }
                     
                     if (process.env.NODE_ENV === 'development') {
                         console.log(`📊 Open Interest: Hydrated ${restoredMap.size} symbols from localStorage`, {
@@ -611,5 +616,6 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         isConnecting: status === 'connecting',
         isReconnecting: status === 'reconnecting',
         hasError: status === 'error',
+        openInterestAsOf: openInterestAsOfRef.current,
     };
 }

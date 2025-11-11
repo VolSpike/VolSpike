@@ -46,6 +46,7 @@ interface MarketTableProps {
     lastUpdate?: number
     isConnected?: boolean
     onCreateAlert?: (symbol: string) => void
+    openInterestAsOf?: number
 }
 
 // Optimized number formatters
@@ -62,7 +63,8 @@ export function MarketTable({
     withContainer = true,
     lastUpdate,
     isConnected = true,
-    onCreateAlert 
+    onCreateAlert,
+    openInterestAsOf
 }: MarketTableProps) {
     const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
@@ -364,9 +366,17 @@ export function MarketTable({
                         }`} />
                         {isConnected ? 'Connected' : 'Disconnected'}
                     </Badge>
-                    {lastUpdate && (
+                    {/* Free tier: omit "Updated ..." text (data is live). Pro/Elite: show OI as-of */}
+                    {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
                         <span className="text-xs text-muted-foreground font-mono-tabular">
-                            Updated {getLastUpdateText()}
+                            OI updated {(() => {
+                                const sec = Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))
+                                if (sec < 60) return `${sec}s ago`
+                                const min = Math.floor(sec / 60)
+                                if (min < 60) return `${min}m ago`
+                                const hr = Math.floor(min / 60)
+                                return `${hr}h ago`
+                            })()}
                         </span>
                     )}
                 </div>
