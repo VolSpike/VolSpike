@@ -36,6 +36,7 @@ interface MarketData {
     fundingRate: number
     openInterest: number
     timestamp: number
+    precision?: number
 }
 
 interface MarketTableProps {
