@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
             {done ? (
               <div className="space-y-4">
                 <div className="rounded-lg p-4 text-sm border bg-green-50 text-green-800 border-green-200 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/30 transition-colors duration-200">
-                  Your password has been reset. You can now sign in with your new password.
+                  Your password has been set successfully. You can now sign in with your email and password, or continue using Google sign-in if your account is linked.
                 </div>
                 <Link href="/auth">
                   <Button className="w-full bg-brand-600 hover:bg-brand-700 text-white">Return to Sign In</Button>

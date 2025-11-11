@@ -443,7 +443,12 @@ auth.post('/password/forgot', async (c) => {
         const resetUrl = `${base}/auth/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`
         await emailService.sendPasswordResetEmail({ email: user.email, resetUrl })
 
-        return c.json({ success: true })
+        // Return helpful info for OAuth-only users (still return success to prevent enumeration)
+        const isOAuthOnly = !user.passwordHash
+        return c.json({ 
+            success: true,
+            isOAuthOnly: isOAuthOnly || undefined // Only include if true
+        })
     } catch (error) {
         logger.error('Forgot password error:', error)
         return c.json({ success: true })
