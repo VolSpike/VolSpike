@@ -162,7 +162,7 @@ function AssetCard({ asset }: { asset: AssetInfo }) {
         </div>
         <details className="group rounded-md border border-border/50 bg-background/30 p-3">
           <summary className="cursor-pointer list-none font-medium group-open:text-foreground/90">
-            How to donate {asset.label.split(' ')[0]} (quick steps)
+            How to donate {(asset.label.match(/\(([^)]+)\)/)?.[1] ?? asset.label.split(' ')[0])} (quick steps)
           </summary>
           <ol className="mt-2 list-decimal pl-5 text-sm text-muted-foreground space-y-1">
             {asset.steps.map((s, i) => (
