@@ -169,6 +169,8 @@ export const authConfig: NextAuthConfig = {
                 token.accessToken = user.accessToken
                 token.walletAddress = user.walletAddress
                 token.walletProvider = user.walletProvider
+                token.passwordChangedAt = user.passwordChangedAt || null // Track password change time
+                token.iat = Math.floor(Date.now() / 1000) // Issued at time
                 console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}`)
             }
 
@@ -188,12 +190,23 @@ export const authConfig: NextAuthConfig = {
                         const { user: dbUser } = await response.json()
                         
                         if (dbUser) {
+                            // Check if password was changed after this token was issued
+                            const dbPasswordChangedAt = dbUser.passwordChangedAt ? new Date(dbUser.passwordChangedAt).getTime() : 0
+                            const tokenIssuedAt = (token.iat as number) * 1000 || 0
+                            
+                            if (dbPasswordChangedAt > tokenIssuedAt) {
+                                // Password was changed after token was issued - invalidate session
+                                console.log(`[Auth] ⚠️ Password changed after token issued - invalidating session`)
+                                return null // Return null to invalidate the session
+                            }
+                            
                             const oldTier = token.tier
                             token.tier = dbUser.tier || 'free'
                             token.emailVerified = dbUser.emailVerified
                             token.role = dbUser.role || 'USER'
                             token.status = dbUser.status
                             token.twoFactorEnabled = dbUser.twoFactorEnabled
+                            token.passwordChangedAt = dbUser.passwordChangedAt || null
                             token.tierLastChecked = Date.now() // Cache timestamp
                             
                             if (oldTier !== token.tier) {
@@ -252,6 +265,11 @@ export const authConfig: NextAuthConfig = {
             return token
         },
         async session({ session, token }: any) {
+            // If token is null (invalidated due to password change), return null to force logout
+            if (!token) {
+                return null as any
+            }
+            
             if (token && session.user) {
                 session.user.id = token.id
                 // Ensure email is normalized in the session

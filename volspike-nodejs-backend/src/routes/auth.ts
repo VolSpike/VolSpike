@@ -493,7 +493,13 @@ auth.post('/password/reset', async (c) => {
         }
 
         const hash = await bcrypt.hash(newPassword, 12)
-        await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } })
+        await prisma.user.update({ 
+            where: { id: user.id }, 
+            data: { 
+                passwordHash: hash,
+                passwordChangedAt: new Date() // Track password change for session invalidation
+            } 
+        })
         await prisma.verificationToken.deleteMany({ where: { identifier } })
 
         return c.json({ success: true })
@@ -548,7 +554,13 @@ auth.post('/password/change', async (c) => {
         }
         
         const hash = await bcrypt.hash(newPassword, 12)
-        await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } })
+        await prisma.user.update({ 
+            where: { id: user.id }, 
+            data: { 
+                passwordHash: hash,
+                passwordChangedAt: new Date() // Track password change for session invalidation
+            } 
+        })
         return c.json({ success: true })
     } catch (error) {
         logger.error('Change password error:', error)
@@ -984,6 +996,7 @@ auth.get('/me', async (c) => {
                 twoFactorEnabled: true,
                 refreshInterval: true,
                 theme: true,
+                passwordChangedAt: true, // Include for session invalidation check
             },
         })
 
@@ -992,13 +1005,19 @@ auth.get('/me', async (c) => {
             return c.json({ error: 'User not found' }, 401)
         }
 
+        // Return user data with passwordChangedAt for session validation
+        const userResponse = {
+            ...user,
+            passwordChangedAt: user.passwordChangedAt ? user.passwordChangedAt.toISOString() : null,
+        }
+
         logger.info('[Auth] /me endpoint called successfully', {
             userId: user.id,
             email: user.email,
             tier: user.tier,
         })
 
-        return c.json({ user })
+        return c.json({ user: userResponse })
     } catch (error) {
         logger.error('Get user error:', error)
         return c.json({ error: 'Internal server error' }, 500)

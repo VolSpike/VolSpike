@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { broadcastPasswordChange } from '@/lib/password-change-broadcast'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -73,6 +74,10 @@ export default function ResetPasswordPage() {
       if (!res.ok || !data?.success) {
         throw new Error(data?.error || 'Reset failed')
       }
+      
+      // Broadcast password change to other tabs/windows
+      broadcastPasswordChange()
+      
       setDone(true)
     } catch (err: any) {
       setError(err?.message || 'Failed to reset password')

@@ -319,10 +319,19 @@ function ChangePasswordForm() {
             })
             const data = await res.json().catch(() => ({}))
             if (!res.ok || !data?.success) throw new Error(data?.error || 'Failed to change password')
-            toast.success('Password updated')
+            
+            // Broadcast password change to other tabs/windows
+            broadcastPasswordChange()
+            
+            toast.success('Password updated. You will be signed out of other devices.')
             setCurrentPassword('')
             setNewPassword('')
             setConfirmPassword('')
+            
+            // Sign out current session after a short delay to allow broadcast
+            setTimeout(() => {
+                signOut({ callbackUrl: '/auth' })
+            }, 1000)
         } catch (err: any) {
             toast.error(err?.message || 'Failed to change password')
         } finally {

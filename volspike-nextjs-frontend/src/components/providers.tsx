@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from 'react-hot-toast'
 import { Footer } from '@/components/footer'
 import { TierChangeListener } from '@/components/tier-change-listener'
+import { PasswordChangeListener } from '@/components/password-change-listener'
 
 // Dynamic import for Web3 providers to prevent hydration mismatches
 const Web3Providers = dynamic(
@@ -59,6 +60,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <QueryClientProvider client={queryClient}>
             <SessionProvider>
                 <TierChangeListener />
+                <PasswordChangeListener />
                 <Web3Providers>
                     <ThemeProvider
                         attribute="class"

@@ -23,44 +23,45 @@ enum UserStatus {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  passwordHash      String?   // For email/password authentication
-  walletAddress     String?   @unique
-  tier              String    @default("free") // free, pro, elite
-  refreshInterval   Int       @default(900)    // seconds
-  theme             String    @default("light")
-  stripeCustomerId  String?   @unique
-  emailVerified     DateTime?
-  verificationAttempts Int   @default(0)
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String? // For email/password authentication
+  passwordChangedAt    DateTime? // Track when password was last changed (for session invalidation)
+  walletAddress        String?   @unique
+  tier                 String    @default("free") // free, pro, elite
+  refreshInterval      Int       @default(900) // seconds
+  theme                String    @default("light")
+  stripeCustomerId     String?   @unique
+  emailVerified        DateTime?
+  verificationAttempts Int       @default(0)
   lastVerificationSent DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
   // Admin fields
-  role              Role      @default(USER)
-  status            UserStatus @default(ACTIVE)
-  notes             String?   @db.Text
-  lastLoginAt       DateTime?
-  loginAttempts     Int       @default(0)
-  lockedUntil       DateTime?
-  ipAddress         String?
-  userAgent         String?
-  twoFactorEnabled  Boolean   @default(false)
-  twoFactorSecret   String?   // Encrypted
-  
+  role             Role       @default(USER)
+  status           UserStatus @default(ACTIVE)
+  notes            String?    @db.Text
+  lastLoginAt      DateTime?
+  loginAttempts    Int        @default(0)
+  lockedUntil      DateTime?
+  ipAddress        String?
+  userAgent        String?
+  twoFactorEnabled Boolean    @default(false)
+  twoFactorSecret  String? // Encrypted
+
   // Relations
-  watchlists        Watchlist[]
-  alerts            Alert[]
+  watchlists         Watchlist[]
+  alerts             Alert[]
   alertSubscriptions AlertSubscription[]
-  preferences       Preference?
-  sessions          Session[]
-  accounts          Account[]
+  preferences        Preference?
+  sessions           Session[]
+  accounts           Account[]
   verificationTokens VerificationToken[]
-  auditLogs         AuditLog[]    @relation("AuditActor")
-  adminSessions     AdminSession[]
-  walletAccounts    WalletAccount[]
-  
+  auditLogs          AuditLog[]          @relation("AuditActor")
+  adminSessions      AdminSession[]
+  walletAccounts     WalletAccount[]
+
   @@map("users")
 }
 
@@ -68,13 +69,13 @@ model WalletAccount {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider    String   // 'evm' | 'solana'
-  caip10      String   // EIP-4361 compliant identifier: 'eip155:1:0x...' or 'solana:101:...'
-  address     String   // Wallet address
-  chainId     String?  // Network ID for chain allowlist
+  provider    String // 'evm' | 'solana'
+  caip10      String // EIP-4361 compliant identifier: 'eip155:1:0x...' or 'solana:101:...'
+  address     String // Wallet address
+  chainId     String? // Network ID for chain allowlist
   lastLoginAt DateTime @default(now())
   createdAt   DateTime @default(now())
-  
+
   @@unique([provider, caip10])
   @@index([userId])
   @@map("wallet_accounts")
@@ -112,7 +113,7 @@ model Session {
 
 model VerificationToken {
   id         String   @id @default(cuid())
-  identifier String   // email address
+  identifier String // email address
   token      String   @unique
   expires    DateTime
   userId     String?
@@ -124,48 +125,48 @@ model VerificationToken {
 }
 
 model Contract {
-  id                String    @id @default(cuid())
-  symbol            String    @unique
-  isActive          Boolean   @default(true)
-  precision         Int
-  createdAt         DateTime  @default(now())
-  
-  watchlistItems    WatchlistItem[]
-  marketSnapshots   MarketSnapshot[]
-  alerts            Alert[]
-  
+  id        String   @id @default(cuid())
+  symbol    String   @unique
+  isActive  Boolean  @default(true)
+  precision Int
+  createdAt DateTime @default(now())
+
+  watchlistItems  WatchlistItem[]
+  marketSnapshots MarketSnapshot[]
+  alerts          Alert[]
+
   @@map("contracts")
 }
 
 // TimescaleDB hypertable for time-series data
 model MarketSnapshot {
-  id                String    @id @default(cuid())
-  contractId        String
-  price             Float
-  volume24h         Float
-  fundingRate       Float?
-  openInterest      Float?
-  timestamp         DateTime  @default(now())
-  
-  contract          Contract  @relation(fields: [contractId], references: [id])
-  
+  id           String   @id @default(cuid())
+  contractId   String
+  price        Float
+  volume24h    Float
+  fundingRate  Float?
+  openInterest Float?
+  timestamp    DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id])
+
   @@index([contractId, timestamp])
   @@map("market_snapshots")
 }
 
 model Alert {
-  id                String    @id @default(cuid())
-  userId            String
-  contractId        String
-  reason            String    // "spike_3x", "volume_min", etc.
-  threshold         Float
-  triggeredValue    Float
-  isDelivered       Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  
-  user              User      @relation(fields: [userId], references: [id])
-  contract          Contract  @relation(fields: [contractId], references: [id])
-  
+  id             String   @id @default(cuid())
+  userId         String
+  contractId     String
+  reason         String // "spike_3x", "volume_min", etc.
+  threshold      Float
+  triggeredValue Float
+  isDelivered    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  contract Contract @relation(fields: [contractId], references: [id])
+
   @@index([userId, createdAt])
   @@map("alerts")
 }
@@ -173,20 +174,20 @@ model Alert {
 // Volume spike alerts from Digital Ocean monitoring
 model VolumeAlert {
   id              String    @id @default(cuid())
-  symbol          String    // e.g., "BTCUSDT"
-  asset           String    // e.g., "BTC"
-  currentVolume   Float     // Current hour volume
-  previousVolume  Float     // Previous hour volume
-  volumeRatio     Float     // currentVolume / previousVolume
-  price           Float?    // Current price
-  fundingRate     Float?    // Current funding rate
-  candleDirection String?   // "bullish" or "bearish" - indicates if volume spike on up or down candle
+  symbol          String // e.g., "BTCUSDT"
+  asset           String // e.g., "BTC"
+  currentVolume   Float // Current hour volume
+  previousVolume  Float // Previous hour volume
+  volumeRatio     Float // currentVolume / previousVolume
+  price           Float? // Current price
+  fundingRate     Float? // Current funding rate
+  candleDirection String? // "bullish" or "bearish" - indicates if volume spike on up or down candle
   alertType       AlertType @default(SPIKE)
-  message         String    // Human-readable alert message
+  message         String // Human-readable alert message
   timestamp       DateTime  @default(now())
-  hourTimestamp   DateTime  // The hour this alert is for (rounded)
+  hourTimestamp   DateTime // The hour this alert is for (rounded)
   isUpdate        Boolean   @default(false) // true for HALF-UPDATE/UPDATE
-  
+
   @@index([symbol, timestamp])
   @@index([timestamp])
   @@index([hourTimestamp])
@@ -204,67 +205,67 @@ model AlertSubscription {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  symbol    String   // e.g., "BTCUSDT" or "*" for all
+  symbol    String // e.g., "BTCUSDT" or "*" for all
   createdAt DateTime @default(now())
-  
+
   @@unique([userId, symbol])
   @@index([userId])
   @@map("alert_subscriptions")
 }
 
 model Watchlist {
-  id                String    @id @default(cuid())
-  userId            String
-  name              String
-  createdAt         DateTime  @default(now())
-  
-  items             WatchlistItem[]
-  user              User      @relation(fields: [userId], references: [id])
-  
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime @default(now())
+
+  items WatchlistItem[]
+  user  User            @relation(fields: [userId], references: [id])
+
   @@map("watchlists")
 }
 
 model WatchlistItem {
-  id                String    @id @default(cuid())
-  watchlistId       String
-  contractId        String
-  
-  watchlist         Watchlist @relation(fields: [watchlistId], references: [id])
-  contract          Contract  @relation(fields: [contractId], references: [id])
-  
+  id          String @id @default(cuid())
+  watchlistId String
+  contractId  String
+
+  watchlist Watchlist @relation(fields: [watchlistId], references: [id])
+  contract  Contract  @relation(fields: [contractId], references: [id])
+
   @@unique([watchlistId, contractId])
   @@map("watchlist_items")
 }
 
 model Preference {
-  id                String    @id @default(cuid())
-  userId            String    @unique
-  emailAlerts       Boolean   @default(true)
-  smsAlerts         Boolean   @default(false)
-  telegramAlerts    Boolean   @default(false)
-  discordAlerts     Boolean   @default(false)
-  volumeThreshold   Float     @default(3.0)
-  minQuoteVolume    Float     @default(1000000)
-  refreshInterval   Int       @default(900)
-  
-  user              User      @relation(fields: [userId], references: [id])
-  
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  emailAlerts     Boolean @default(true)
+  smsAlerts       Boolean @default(false)
+  telegramAlerts  Boolean @default(false)
+  discordAlerts   Boolean @default(false)
+  volumeThreshold Float   @default(3.0)
+  minQuoteVolume  Float   @default(1000000)
+  refreshInterval Int     @default(900)
+
+  user User @relation(fields: [userId], references: [id])
+
   @@map("preferences")
 }
 
 // Enhanced audit log for admin actions
 model AuditLog {
-  id           String   @id @default(cuid())
-  actorUserId  String
-  actor        User     @relation("AuditActor", fields: [actorUserId], references: [id])
-  action       String   // USER_CREATED, USER_UPDATED, etc.
-  targetType   String   // USER, SUBSCRIPTION, etc.
-  targetId     String?
-  oldValues    Json?
-  newValues    Json?
-  metadata     Json?    // IP, user agent, etc.
-  createdAt    DateTime @default(now())
-  
+  id          String   @id @default(cuid())
+  actorUserId String
+  actor       User     @relation("AuditActor", fields: [actorUserId], references: [id])
+  action      String // USER_CREATED, USER_UPDATED, etc.
+  targetType  String // USER, SUBSCRIPTION, etc.
+  targetId    String?
+  oldValues   Json?
+  newValues   Json?
+  metadata    Json? // IP, user agent, etc.
+  createdAt   DateTime @default(now())
+
   @@index([actorUserId, createdAt])
   @@index([targetType, targetId])
   @@index([action, createdAt])
@@ -282,7 +283,7 @@ model AdminSession {
   expiresAt    DateTime
   lastActivity DateTime @default(now())
   createdAt    DateTime @default(now())
-  
+
   @@index([userId, expiresAt])
   @@index([token])
   @@map("admin_sessions")
