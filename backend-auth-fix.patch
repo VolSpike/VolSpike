@@ -1,7 +1,0 @@
-*** This patch demonstrates the backend fix already applied:
-*** Replace `fields.address` with `address` when creating the user after SIWE verify.
-***
-*** Example diff (for reference only):
-***
-*** - email: `${fields.address}@volspike.wallet`,
-*** + email: `${address}@volspike.wallet`,

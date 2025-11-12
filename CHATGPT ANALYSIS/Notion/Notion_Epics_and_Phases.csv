@@ -1,6 +1,0 @@
-Title,Goal,Start,End,KPI Targets,Status
-Phase 0 — Foundations,"Stripe, auth, settings visible",,,Ship in 1 week,Planned
-Phase 1 — Alert Worker,Server-side signals + email alerts,,,p95 < 30s; error <2%,Planned
-Phase 2 — Telegram & First-Look,Telegram bot + First-Look UI,,,Elite stream live,Planned
-Phase 3 — Backtests & Export,7–30d store + TV export,,,Landing stats live,Planned
-Phase 4 — Multi-Exchange & Billing,Bybit + dunning/referrals,,,Churn <5%/mo,Planned

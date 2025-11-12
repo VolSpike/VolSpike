@@ -1,5 +1,9 @@
 # VolSpike — Implementation Plan (Current State and MVP Launch Path)
 
+**Repository**: [https://github.com/VolSpike/VolSpike](https://github.com/VolSpike/VolSpike)  
+**Live Demo**: [https://volspike.com](https://volspike.com)  
+**Founder & Lead Engineer**: Nik Sitnikov
+
 Last updated: December 2025
 
 ## Current state (production)
@@ -44,8 +48,11 @@ Nice‑to‑have (post‑launch):
 - pro-test@volspike.com / Test123456!
 
 ## Deployment notes
-- Frontend deploy = Vercel; backend deploy optional (auth/payments/alerts only).
+- **Frontend**: Vercel (automatic deployments from `main` branch)
+- **Backend**: Railway (automatic deployments from `main` branch)
+- **Database**: Neon PostgreSQL (managed)
 - Ensure backend envs present; `/health` must return 200.
+- Both platforms connected to `VolSpike/VolSpike` organization repository
 
 ## Owner checklist (go/no‑go)
 - [ ] New user signup (email) + verification + login

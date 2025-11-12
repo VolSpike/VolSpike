@@ -1,7 +1,0 @@
-Risk,Likelihood,Impact,Mitigation,Owner,Status,Linked Tasks
-Exchange API change/outage,Medium,High,Multi-exchange; degraded mode,,Open,Bybit adapter
-Alert noise/false positives,Medium,High,Debounce; backtests; thresholds,,Open,Cooldowns & dedupe
-SMS cost blow-up,Medium,Medium,Credits; caps; digest fallback,,Open,Per-user rate limit & credits
-Payment churn,Medium,Medium,Dunning; pause; win-backs,,Open,Dunning & pause plans
-Compliance (SMS consent),Low,High,Double opt-in; STOP/HELP,,Open,
-KOL channel dependency,Medium,Medium,Referral + SEO + email course,,Open,Referral codes + credits

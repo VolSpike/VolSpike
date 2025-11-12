@@ -45,7 +45,7 @@ VolSpike is a comprehensive Binance Perpetual Futures trading dashboard featurin
 ### Quick Start with Docker
 ```bash
 # Clone the repository
-git clone https://github.com/NikolaySitnikov/VolSpike.git
+git clone https://github.com/VolSpike/VolSpike.git
 cd VolSpike
 
 # Start PostgreSQL only (for user data/auth)
@@ -553,7 +553,7 @@ npm run dev
 
 ```bash
 # Complete setup from scratch (frontend only)
-git clone https://github.com/NikolaySitnikov/VolSpike.git
+git clone https://github.com/VolSpike/VolSpike.git
 cd VolSpike
 
 # Start PostgreSQL (for auth/payments only)

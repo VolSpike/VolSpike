@@ -121,7 +121,14 @@ export function UserMenu() {
                     className="h-9 w-9 rounded-full p-0 flex items-center justify-center hover:bg-accent focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 transition-all duration-150"
                     aria-label="User menu"
                 >
-                    <div className={`h-9 w-9 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFrom} ${avatarColors.gradientVia} ${avatarColors.gradientTo} animate-pulse-glow`}>
+                    <div
+                        className={`h-9 w-9 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFrom} ${avatarColors.gradientVia} ${avatarColors.gradientTo} animate-pulse-glow`}
+                        data-vs-avatar=""
+                        data-normalized-email={normalizedEmail || ''}
+                        data-initials={initials}
+                        data-avatar-bg={avatarColors.bg}
+                        title={normalizedEmail ? `Avatar: ${initials} (${normalizedEmail})` : `Avatar: ${initials}`}
+                    >
                         <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white shadow-brand`}>
                             {identity.image && !imageError ? (
                                 <div className="relative h-full w-full">
