@@ -732,7 +732,20 @@ auth.post('/siwe/verify', async (c) => {
                     caip10: caip10,
                 },
             },
-            include: { user: true },
+            select: {
+                id: true,
+                userId: true,
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        tier: true,
+                        role: true,
+                        walletAddress: true,
+                        emailVerified: true,
+                    },
+                },
+            },
         })
 
         let user
@@ -875,7 +888,20 @@ auth.post('/solana/verify', async (c) => {
         // Find/create wallet account and user
         let walletAccount = await prisma.walletAccount.findUnique({
             where: { provider_caip10: { provider: 'solana', caip10 } },
-            include: { user: true },
+            select: {
+                id: true,
+                userId: true,
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        tier: true,
+                        role: true,
+                        walletAddress: true,
+                        emailVerified: true,
+                    },
+                },
+            },
         })
 
         let user
