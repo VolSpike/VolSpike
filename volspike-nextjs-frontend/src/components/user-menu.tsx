@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useUserIdentity } from '@/hooks/use-user-identity'
-import { generateInitials, getAvatarColor } from '@/lib/avatar-utils'
+import { generateInitials, getAvatarColor, isLikelyGoogleLetterTile } from '@/lib/avatar-utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +44,7 @@ export function UserMenu() {
     const [isOpen, setIsOpen] = useState(false)
     const [imageError, setImageError] = useState(false)
     const [debugAvatar, setDebugAvatar] = useState(false)
+    const [avatarMode, setAvatarMode] = useState<'auto' | 'image' | 'initials'>('auto')
 
     // Reset image error when image changes
     useEffect(() => {
@@ -59,6 +60,18 @@ export function UserMenu() {
         } catch (e) {
             // ignore
         }
+    }, [])
+
+    // Read avatar mode preference: 'auto' (default), 'image', or 'initials'
+    useEffect(() => {
+        try {
+            if (typeof window !== 'undefined') {
+                const lsMode = (window.localStorage?.getItem('vs_avatar_mode') || 'auto') as any
+                if (lsMode === 'image' || lsMode === 'initials' || lsMode === 'auto') {
+                    setAvatarMode(lsMode)
+                }
+            }
+        } catch (_) {}
     }, [])
 
     const handleCopy = async (text: string, label: string) => {
@@ -87,6 +100,14 @@ export function UserMenu() {
     // If no email, use user ID as fallback
     const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
 
+    // Decide whether to show the OAuth image or our initials
+    const isGoogleTile = isLikelyGoogleLetterTile(identity.image || undefined)
+    const envKeepGoogle = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_KEEP_GOOGLE_IMAGES === 'true'
+    const showAvatarImage = !!(identity.image && !imageError && (
+        avatarMode === 'image' ||
+        (avatarMode === 'auto' && (!isGoogleTile || envKeepGoogle))
+    ))
+
     // Debug: trace avatar inputs/outputs (development only)
     if (debugAvatar || process.env.NODE_ENV === 'development') {
         // Keep this concise but informative
@@ -99,6 +120,9 @@ export function UserMenu() {
             avatarBg: avatarColors.bg,
             imageUrl: identity.image,
             imageError,
+            avatarMode,
+            isGoogleTile,
+            showAvatarImage,
         })
     }
 
@@ -130,7 +154,7 @@ export function UserMenu() {
                         title={normalizedEmail ? `Avatar: ${initials} (${normalizedEmail})` : `Avatar: ${initials}`}
                     >
                         <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white shadow-brand`}>
-                            {identity.image && !imageError ? (
+                            {showAvatarImage ? (
                                 <div className="relative h-full w-full">
                                     <Image
                                         src={identity.image}
@@ -162,7 +186,7 @@ export function UserMenu() {
                             {/* Avatar with glow */}
                             <div className={`h-10 w-10 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-brand`}>
                                 <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
-                                    {identity.image && !imageError ? (
+                                    {showAvatarImage ? (
                                         <div className="relative h-full w-full">
                                             <Image
                                                 src={identity.image}

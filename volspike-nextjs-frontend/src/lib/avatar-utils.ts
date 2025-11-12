@@ -109,3 +109,28 @@ export function getAvatarColor(identifier: string | null): {
     return colors[index]
 }
 
+/**
+ * Heuristic detection of Google's "letter tile" placeholder images vs real photos.
+ * Observations:
+ * - Real Google profile photos commonly use a path that starts with "/a-/".
+ * - The colored letter tiles (no real photo) often use a path that starts with "/a/" (no hyphen).
+ * - Both variants may include size params like "s96-c" and the same host.
+ * This function intentionally keeps detection conservative to avoid hiding real photos.
+ */
+export function isLikelyGoogleLetterTile(url: string | null | undefined): boolean {
+    if (!url) return false
+    try {
+        const u = new URL(url)
+        const host = u.hostname
+        const path = u.pathname || ''
+        const isGoogleHost = host.endsWith('googleusercontent.com')
+        if (!isGoogleHost) return false
+        // Treat explicit real-photo marker "/a-/" as NOT a tile
+        if (path.startsWith('/a-/')) return false
+        // Treat "/a/" as likely letter tile
+        if (path.startsWith('/a/')) return true
+        return false
+    } catch {
+        return false
+    }
+}
