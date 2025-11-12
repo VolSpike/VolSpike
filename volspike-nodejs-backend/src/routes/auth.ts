@@ -484,6 +484,14 @@ auth.post('/password/reset', async (c) => {
             return c.json({ error: 'Invalid request' }, 400)
         }
 
+        // Prevent reusing the current password
+        if (user.passwordHash) {
+            const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash)
+            if (isSamePassword) {
+                return c.json({ error: 'New password must be different from your current password' }, 400)
+            }
+        }
+
         const hash = await bcrypt.hash(newPassword, 12)
         await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } })
         await prisma.verificationToken.deleteMany({ where: { identifier } })
@@ -532,6 +540,13 @@ auth.post('/password/change', async (c) => {
         if (!valid) {
             return c.json({ error: 'Current password is incorrect' }, 400)
         }
+        
+        // Prevent reusing the current password
+        const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash)
+        if (isSamePassword) {
+            return c.json({ error: 'New password must be different from your current password' }, 400)
+        }
+        
         const hash = await bcrypt.hash(newPassword, 12)
         await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } })
         return c.json({ success: true })
