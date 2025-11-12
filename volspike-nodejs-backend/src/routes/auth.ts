@@ -19,6 +19,45 @@ const emailService = EmailService.getInstance()
 
 const auth = new Hono()
 
+// Helper function to extract userId from Authorization header (optional - returns null if not authenticated)
+async function getUserIdFromHeader(authHeader: string | undefined): Promise<string | null> {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null
+    }
+
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+    let userId: string | null = null
+
+    // Check if it's a simple user ID (from NextAuth session)
+    if (!token.includes('.') && !token.startsWith('mock-token-')) {
+        userId = token
+    }
+    // Handle mock tokens
+    else if (token.startsWith('mock-token-')) {
+        const match = token.match(/^mock-token-(.+?)-\d+$/)
+        if (match) {
+            userId = match[1]
+        }
+    }
+    // Verify JWT tokens
+    else {
+        try {
+            const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key'
+            const secretBytes = new TextEncoder().encode(secret)
+            const { payload } = await jwtVerify(token, secretBytes)
+
+            if (payload.sub) {
+                userId = payload.sub as string
+            }
+        } catch (jwtError) {
+            // Invalid token - return null (user not authenticated)
+            return null
+        }
+    }
+
+    return userId
+}
+
 // Rate limiting store (in production, use Redis)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
@@ -725,7 +764,11 @@ auth.post('/siwe/verify', async (c) => {
         const caip10 = `eip155:${chainId}:${address}`
         console.log('[SIWE Verify] Looking up wallet account:', caip10)
 
-        // Find or create wallet account
+        // Check if user is already logged in (has Authorization header)
+        const authHeader = c.req.header('Authorization')
+        const loggedInUserId = await getUserIdFromHeader(authHeader)
+        
+        // Find existing wallet account
         let walletAccount = await prisma.walletAccount.findUnique({
             where: {
                 provider_caip10: {
@@ -756,48 +799,31 @@ auth.post('/siwe/verify', async (c) => {
         let user
 
         if (walletAccount) {
-            // Existing wallet, sign in to associated user
+            // Existing wallet account - sign in to associated user
             user = walletAccount.user
+            
+            // If user is logged in with email/OAuth and wallet belongs to different user, don't auto-link
+            if (loggedInUserId && loggedInUserId !== user.id) {
+                logger.warn(`[SIWE Verify] Wallet ${caip10} belongs to different user. User ${loggedInUserId} attempted to sign in.`)
+                return c.json({ 
+                    error: 'This wallet is already linked to another account. Please unlink it first or use a different wallet.',
+                    walletLinkedToDifferentAccount: true 
+                }, 403)
+            }
+            
             await prisma.walletAccount.update({
                 where: { id: walletAccount.id },
                 data: { lastLoginAt: new Date() },
             })
             logger.info(`Existing wallet signed in: ${caip10}`)
         } else {
-            // New wallet account. If a user already exists with the wallet email, link to it; otherwise create.
-            const walletEmail = `${address}@volspike.wallet`
-            console.log('[SIWE Verify] New wallet, checking for existing user:', walletEmail)
-            try {
-                user = await prisma.user.findUnique({
-                    where: { email: walletEmail },
-                    select: {
-                        id: true,
-                        email: true,
-                        tier: true,
-                        role: true,
-                        walletAddress: true,
-                        emailVerified: true,
-                        refreshInterval: true,
-                        theme: true,
-                        status: true,
-                        twoFactorEnabled: true,
-                    },
-                })
-                console.log('[SIWE Verify] Existing user lookup result:', user ? 'found' : 'not found')
-            } catch (findError: any) {
-                logger.error('[SIWE Verify] Error finding user:', findError)
-                throw new Error(`Database error: ${findError.message}`)
-            }
-            
-            if (!user) {
-                console.log('[SIWE Verify] Creating new user:', walletEmail)
+            // New wallet - check if user is logged in
+            if (loggedInUserId) {
+                // User is logged in - link wallet to existing account
+                console.log('[SIWE Verify] User logged in, linking wallet to existing account:', loggedInUserId)
                 try {
-                    user = await prisma.user.create({
-                        data: {
-                            email: walletEmail,
-                            tier: 'free',
-                            emailVerified: new Date(),
-                        },
+                    user = await prisma.user.findUnique({
+                        where: { id: loggedInUserId },
                         select: {
                             id: true,
                             email: true,
@@ -811,25 +837,89 @@ auth.post('/siwe/verify', async (c) => {
                             twoFactorEnabled: true,
                         },
                     })
-                    console.log('[SIWE Verify] New user created:', user.id)
+                    
+                    if (!user) {
+                        throw new Error('Logged-in user not found')
+                    }
+                    
+                    // Create wallet account linked to existing user
+                    await prisma.walletAccount.create({
+                        data: {
+                            userId: user.id,
+                            provider: 'evm',
+                            caip10: caip10,
+                            address: address,
+                            chainId: String(chainId),
+                            lastLoginAt: new Date(),
+                        },
+                    })
+                    
+                    logger.info(`Wallet ${caip10} linked to existing user account: ${user.email}`)
+                } catch (linkError: any) {
+                    logger.error('[SIWE Verify] Error linking wallet to existing account:', linkError)
+                    throw new Error(`Failed to link wallet: ${linkError.message}`)
+                }
+            } else {
+                // User is NOT logged in - create separate wallet-only account
+                const walletEmail = `${address}@volspike.wallet`
+                console.log('[SIWE Verify] User not logged in, creating wallet-only account:', walletEmail)
+                try {
+                    user = await prisma.user.findUnique({
+                        where: { email: walletEmail },
+                        select: {
+                            id: true,
+                            email: true,
+                            tier: true,
+                            role: true,
+                            walletAddress: true,
+                            emailVerified: true,
+                            refreshInterval: true,
+                            theme: true,
+                            status: true,
+                            twoFactorEnabled: true,
+                        },
+                    })
+                    
+                    if (!user) {
+                        user = await prisma.user.create({
+                            data: {
+                                email: walletEmail,
+                                tier: 'free',
+                                emailVerified: new Date(),
+                            },
+                            select: {
+                                id: true,
+                                email: true,
+                                tier: true,
+                                role: true,
+                                walletAddress: true,
+                                emailVerified: true,
+                                refreshInterval: true,
+                                theme: true,
+                                status: true,
+                                twoFactorEnabled: true,
+                            },
+                        })
+                        console.log('[SIWE Verify] New wallet-only user created:', user.id)
+                    }
+
+                    await prisma.walletAccount.create({
+                        data: {
+                            userId: user.id,
+                            provider: 'evm',
+                            caip10: caip10,
+                            address: address,
+                            chainId: String(chainId),
+                            lastLoginAt: new Date(),
+                        },
+                    })
+                    
+                    logger.info(`New wallet-only account created: ${caip10}`)
                 } catch (createError: any) {
-                    logger.error('[SIWE Verify] Error creating user:', createError)
-                    throw new Error(`Failed to create user: ${createError.message}`)
+                    logger.error('[SIWE Verify] Error creating wallet-only account:', createError)
+                    throw new Error(`Failed to create wallet account: ${createError.message}`)
                 }
             }
-
-            await prisma.walletAccount.create({
-                data: {
-                    userId: user.id,
-                    provider: 'evm',
-                    caip10: caip10,
-                    address: address,
-                    chainId: String(chainId),
-                    lastLoginAt: new Date(),
-                },
-            })
-            
-            logger.info(`New wallet created and linked: ${caip10}`)
         }
 
         // Generate token with SIWE context so NextAuth can surface wallet data
@@ -1017,6 +1107,195 @@ auth.post('/solana/verify', async (c) => {
         })
     } catch (e: any) {
         return c.json({ error: e?.message || 'Verification failed' }, 401)
+    }
+})
+
+// Link wallet to logged-in user account (requires authentication)
+auth.post('/wallet/link', authMiddleware, async (c) => {
+    try {
+        const { message, signature, address, chainId, provider } = await c.req.json()
+        
+        if (!message || !signature || !address || !chainId || !provider) {
+            return c.json({ error: 'Missing required fields' }, 400)
+        }
+
+        // Get logged-in user from middleware
+        const user = c.get('user')
+        if (!user) {
+            return c.json({ error: 'Not authenticated' }, 401)
+        }
+
+        // Verify signature based on provider
+        let verified = false
+        let caip10 = ''
+
+        if (provider === 'evm') {
+            const siweMessage = new SiweMessage(message)
+            const result = await siweMessage.verify({
+                signature,
+                domain: new URL(process.env.FRONTEND_URL || 'http://localhost:3000').hostname,
+                nonce: siweMessage.nonce,
+                time: new Date().toISOString(),
+            })
+            
+            if (!result.success) {
+                return c.json({ error: 'Signature verification failed' }, 401)
+            }
+            
+            verified = true
+            caip10 = `eip155:${chainId}:${address}`
+        } else if (provider === 'solana') {
+            // Solana signature verification
+            const expectedNonceMatch = message.match(/Nonce: (.*)/)
+            const expectedNonce = expectedNonceMatch ? expectedNonceMatch[1]?.trim() : ''
+            const nonceData = nonceManager.validate(expectedNonce || '')
+            
+            if (!nonceData) {
+                return c.json({ error: 'Invalid nonce' }, 401)
+            }
+            
+            const pubkey = bs58.decode(address)
+            const sig = bs58.decode(signature)
+            const msgBytes = new TextEncoder().encode(message)
+            verified = nacl.sign.detached.verify(msgBytes, sig, pubkey)
+            
+            if (!verified) {
+                return c.json({ error: 'Signature verification failed' }, 401)
+            }
+            
+            nonceManager.consume(expectedNonce || '')
+            caip10 = `solana:${chainId || '101'}:${address}`
+        } else {
+            return c.json({ error: 'Unsupported provider' }, 400)
+        }
+
+        if (!verified) {
+            return c.json({ error: 'Signature verification failed' }, 401)
+        }
+
+        // Check if wallet is already linked to another account
+        const existingWallet = await prisma.walletAccount.findUnique({
+            where: {
+                provider_caip10: {
+                    provider: provider as 'evm' | 'solana',
+                    caip10: caip10,
+                },
+            },
+        })
+
+        if (existingWallet) {
+            if (existingWallet.userId === user.id) {
+                return c.json({ error: 'Wallet is already linked to your account' }, 400)
+            } else {
+                return c.json({ error: 'This wallet is already linked to another account' }, 403)
+            }
+        }
+
+        // Link wallet to user account
+        await prisma.walletAccount.create({
+            data: {
+                userId: user.id,
+                provider: provider as 'evm' | 'solana',
+                caip10: caip10,
+                address: address,
+                chainId: String(chainId),
+                lastLoginAt: new Date(),
+            },
+        })
+
+        logger.info(`Wallet ${caip10} linked to user ${user.email}`)
+
+        return c.json({ 
+            success: true,
+            message: 'Wallet linked successfully'
+        })
+    } catch (error: any) {
+        logger.error('Wallet link error:', error)
+        return c.json({ error: error.message || 'Failed to link wallet' }, 500)
+    }
+})
+
+// Unlink wallet from logged-in user account (requires authentication)
+auth.post('/wallet/unlink', authMiddleware, async (c) => {
+    try {
+        const { address, chainId, provider } = await c.req.json()
+        
+        if (!address || !chainId || !provider) {
+            return c.json({ error: 'Missing required fields' }, 400)
+        }
+
+        // Get logged-in user from middleware
+        const user = c.get('user')
+        if (!user) {
+            return c.json({ error: 'Not authenticated' }, 401)
+        }
+
+        const caip10 = provider === 'evm' 
+            ? `eip155:${chainId}:${address}`
+            : `solana:${chainId || '101'}:${address}`
+
+        // Find wallet account
+        const walletAccount = await prisma.walletAccount.findUnique({
+            where: {
+                provider_caip10: {
+                    provider: provider as 'evm' | 'solana',
+                    caip10: caip10,
+                },
+            },
+        })
+
+        if (!walletAccount) {
+            return c.json({ error: 'Wallet not found' }, 404)
+        }
+
+        // Verify wallet belongs to user
+        if (walletAccount.userId !== user.id) {
+            return c.json({ error: 'Wallet does not belong to your account' }, 403)
+        }
+
+        // Unlink wallet
+        await prisma.walletAccount.delete({
+            where: { id: walletAccount.id },
+        })
+
+        logger.info(`Wallet ${caip10} unlinked from user ${user.email}`)
+
+        return c.json({ 
+            success: true,
+            message: 'Wallet unlinked successfully'
+        })
+    } catch (error: any) {
+        logger.error('Wallet unlink error:', error)
+        return c.json({ error: error.message || 'Failed to unlink wallet' }, 500)
+    }
+})
+
+// Get linked wallets for logged-in user (requires authentication)
+auth.get('/wallet/list', authMiddleware, async (c) => {
+    try {
+        const user = c.get('user')
+        if (!user) {
+            return c.json({ error: 'Not authenticated' }, 401)
+        }
+
+        const wallets = await prisma.walletAccount.findMany({
+            where: { userId: user.id },
+            select: {
+                id: true,
+                provider: true,
+                address: true,
+                chainId: true,
+                caip10: true,
+                lastLoginAt: true,
+                createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        })
+
+        return c.json({ wallets })
+    } catch (error: any) {
+        logger.error('Get wallets error:', error)
+        return c.json({ error: 'Failed to get wallets' }, 500)
     }
 })
 

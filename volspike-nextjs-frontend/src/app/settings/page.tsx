@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUserIdentity } from '@/hooks/use-user-identity'
-import { Copy, ExternalLink, CreditCard, User } from 'lucide-react'
+import { Copy, ExternalLink, CreditCard, User, Wallet } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/password-input'
 import { Eye, EyeOff } from 'lucide-react'
 import { broadcastPasswordChange } from '@/lib/password-change-broadcast'
+import { WalletManagement } from '@/components/wallet-management'
 
 function SettingsContent() {
     const { data: session, status } = useSession()
@@ -125,10 +126,14 @@ function SettingsContent() {
                     </CardHeader>
                     <CardContent>
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="grid w-full grid-cols-3">
+                            <TabsList className="grid w-full grid-cols-4">
                                 <TabsTrigger value="account">
                                     <User className="h-4 w-4 mr-2" />
                                     Account
+                                </TabsTrigger>
+                                <TabsTrigger value="wallets">
+                                    <Wallet className="h-4 w-4 mr-2" />
+                                    Wallets
                                 </TabsTrigger>
                                 <TabsTrigger value="subscription">
                                     <CreditCard className="h-4 w-4 mr-2" />
@@ -212,6 +217,10 @@ function SettingsContent() {
                                         </div>
                                     </div>
                                 </div>
+                            </TabsContent>
+
+                            <TabsContent value="wallets" className="space-y-6 mt-6">
+                                <WalletManagement />
                             </TabsContent>
 
                             <TabsContent value="security" className="space-y-6 mt-6">

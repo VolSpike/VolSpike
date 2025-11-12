@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAccount, useSignMessage } from 'wagmi'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -18,6 +18,7 @@ interface UseWalletAuthResult {
 export function useWalletAuth(): UseWalletAuthResult {
   const { address, chainId, isConnected } = useAccount()
   const { signMessageAsync } = useSignMessage()
+  const { data: session } = useSession()
   const router = useRouter()
   const [isConnecting, setIsConnecting] = useState(false)
   const [isSigning, setIsSigning] = useState(false)
@@ -76,11 +77,20 @@ export function useWalletAuth(): UseWalletAuthResult {
       setIsAuthenticating(true)
 
       // Step 5: Verify signature and get token
+      // If user is logged in, send Authorization header to link wallet to existing account
+      const headers: HeadersInit = { 
+        'Content-Type': 'application/json',
+      }
+      
+      // If user has an active session, include Authorization header to link wallet
+      if (session?.user?.id) {
+        headers['Authorization'] = `Bearer ${session.user.id}`
+        console.log('[useWalletAuth] User logged in, will link wallet to existing account')
+      }
+      
       const verifyRes = await fetch(`${API_URL}/api/auth/siwe/verify`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ message: messageToSign, signature }),
         credentials: 'include',
       })
