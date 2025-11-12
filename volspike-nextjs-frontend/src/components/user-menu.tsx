@@ -43,11 +43,23 @@ export function UserMenu() {
     const identity = useUserIdentity()
     const [isOpen, setIsOpen] = useState(false)
     const [imageError, setImageError] = useState(false)
+    const [debugAvatar, setDebugAvatar] = useState(false)
 
     // Reset image error when image changes
     useEffect(() => {
         setImageError(false)
     }, [identity.image])
+
+    // Enable debug logs when ?debug=true or localStorage.debugAvatar === '1'
+    useEffect(() => {
+        try {
+            const hasQuery = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === 'true'
+            const ls = typeof window !== 'undefined' ? window.localStorage?.getItem('debugAvatar') === '1' : false
+            setDebugAvatar(Boolean(hasQuery || ls))
+        } catch (e) {
+            // ignore
+        }
+    }, [])
 
     const handleCopy = async (text: string, label: string) => {
         try {
@@ -76,7 +88,7 @@ export function UserMenu() {
     const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
 
     // Debug: trace avatar inputs/outputs (development only)
-    if (process.env.NODE_ENV === 'development') {
+    if (debugAvatar || process.env.NODE_ENV === 'development') {
         // Keep this concise but informative
         // eslint-disable-next-line no-console
         console.log('[DEBUG] Avatar render:', {
@@ -124,7 +136,7 @@ export function UserMenu() {
                                     />
                                 </div>
                             ) : (
-                                <span className="text-[11px] font-bold leading-none select-none">
+                                <span className="text-[11px] font-bold leading-none select-none font-mono">
                                     {initials}
                                 </span>
                             )}
@@ -155,7 +167,7 @@ export function UserMenu() {
                                             />
                                         </div>
                                     ) : (
-                                        <span className="text-sm font-bold leading-none select-none">
+                                        <span className="text-sm font-bold leading-none select-none font-mono">
                                             {initials}
                                         </span>
                                     )}

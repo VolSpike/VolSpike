@@ -20,7 +20,18 @@ export function useUserIdentity(): UserIdentity {
     const isLoading = sessionStatus === 'loading'
 
     const identity = useMemo(() => {
-        const email = session?.user?.email || null
+        // Pull a last-known normalized email from localStorage to avoid any
+        // transient gaps on the very first render after OAuth.
+        let storedEmail: string | null = null
+        try {
+            if (typeof window !== 'undefined') {
+                storedEmail = window.localStorage?.getItem('vs_normalized_email') || null
+            }
+        } catch (_) {
+            storedEmail = null
+        }
+
+        const email = (session?.user?.email as string | undefined)?.toLowerCase?.().trim?.() || storedEmail || null
         const walletAddress = session?.user?.walletAddress || null
         const walletProvider = session?.user?.walletProvider || null
         const ens = null // TODO: Add ENS name when wallet address is available
@@ -36,7 +47,7 @@ export function useUserIdentity(): UserIdentity {
             displayName = session.user.name
         }
 
-        return {
+        const result = {
             displayName,
             email,
             address: walletAddress,
@@ -45,7 +56,16 @@ export function useUserIdentity(): UserIdentity {
             tier: session?.user?.tier || null,
             image: session?.user?.image || null,
             isLoading,
-        }
+        } as UserIdentity
+
+        // Persist normalized email for future mounts
+        try {
+            if (typeof window !== 'undefined' && email) {
+                window.localStorage.setItem('vs_normalized_email', email)
+            }
+        } catch (_) {}
+
+        return result
     }, [session, isLoading])
 
     return identity
