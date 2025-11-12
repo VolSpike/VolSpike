@@ -723,6 +723,7 @@ auth.post('/siwe/verify', async (c) => {
         nonceManager.consume(expectedNonce || '')
 
         const caip10 = `eip155:${chainId}:${address}`
+        console.log('[SIWE Verify] Looking up wallet account:', caip10)
 
         // Find or create wallet account
         let walletAccount = await prisma.walletAccount.findUnique({
@@ -765,15 +766,56 @@ auth.post('/siwe/verify', async (c) => {
         } else {
             // New wallet account. If a user already exists with the wallet email, link to it; otherwise create.
             const walletEmail = `${address}@volspike.wallet`
-            user = await prisma.user.findUnique({ where: { email: walletEmail } })
-            if (!user) {
-                user = await prisma.user.create({
-                    data: {
-                        email: walletEmail,
-                        tier: 'free',
-                        emailVerified: new Date(),
+            console.log('[SIWE Verify] New wallet, checking for existing user:', walletEmail)
+            try {
+                user = await prisma.user.findUnique({
+                    where: { email: walletEmail },
+                    select: {
+                        id: true,
+                        email: true,
+                        tier: true,
+                        role: true,
+                        walletAddress: true,
+                        emailVerified: true,
+                        refreshInterval: true,
+                        theme: true,
+                        status: true,
+                        twoFactorEnabled: true,
                     },
                 })
+                console.log('[SIWE Verify] Existing user lookup result:', user ? 'found' : 'not found')
+            } catch (findError: any) {
+                logger.error('[SIWE Verify] Error finding user:', findError)
+                throw new Error(`Database error: ${findError.message}`)
+            }
+            
+            if (!user) {
+                console.log('[SIWE Verify] Creating new user:', walletEmail)
+                try {
+                    user = await prisma.user.create({
+                        data: {
+                            email: walletEmail,
+                            tier: 'free',
+                            emailVerified: new Date(),
+                        },
+                        select: {
+                            id: true,
+                            email: true,
+                            tier: true,
+                            role: true,
+                            walletAddress: true,
+                            emailVerified: true,
+                            refreshInterval: true,
+                            theme: true,
+                            status: true,
+                            twoFactorEnabled: true,
+                        },
+                    })
+                    console.log('[SIWE Verify] New user created:', user.id)
+                } catch (createError: any) {
+                    logger.error('[SIWE Verify] Error creating user:', createError)
+                    throw new Error(`Failed to create user: ${createError.message}`)
+                }
             }
 
             await prisma.walletAccount.create({
@@ -922,6 +964,18 @@ auth.post('/solana/verify', async (c) => {
                     email: `${address}@volspike.wallet`,
                     tier: 'free',
                     emailVerified: new Date(),
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    tier: true,
+                    role: true,
+                    walletAddress: true,
+                    emailVerified: true,
+                    refreshInterval: true,
+                    theme: true,
+                    status: true,
+                    twoFactorEnabled: true,
                 },
             })
             await prisma.walletAccount.create({
