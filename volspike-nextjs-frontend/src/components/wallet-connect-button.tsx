@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
-import { Loader2, Wallet } from 'lucide-react'
+import { Loader2, Wallet, X } from 'lucide-react'
+import { useDisconnect } from 'wagmi'
 
 // Lazy-load RainbowKit so SSR doesn't try to render it
 const RainbowConnect = dynamic(async () => {
@@ -22,6 +23,8 @@ const RainbowConnect = dynamic(async () => {
 })
 
 export function WalletConnectButton() {
+  const { disconnect } = useDisconnect()
+
   return (
     <RainbowConnect>
       {({ openConnectModal, account, chain, mounted, authenticationStatus, openChainModal, openAccountModal }) => {
@@ -42,22 +45,31 @@ export function WalletConnectButton() {
           )
         }
 
-        // When connected, show a compact chip with address and network
+        // When connected, show a compact chip with address, network, and disconnect button
         return (
           <div className="flex w-full items-center gap-2">
             <Button
               type="button"
               onClick={openAccountModal}
-              className="flex-1 bg-gray-700/60 text-white hover:bg-gray-700"
+              className="flex-1 bg-gray-700/60 text-white hover:bg-gray-700 transition-all duration-150"
             >
+              <Wallet className="mr-2 h-3.5 w-3.5" />
               {account.displayName}
             </Button>
             <Button
               type="button"
               onClick={openChainModal}
-              className="bg-gray-700/60 text-white hover:bg-gray-700"
+              className="bg-gray-700/60 text-white hover:bg-gray-700 transition-all duration-150 text-xs px-3"
             >
               {chain?.name}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => disconnect()}
+              className="bg-red-600/60 hover:bg-red-600 text-white transition-all duration-150 px-3"
+              title="Disconnect wallet"
+            >
+              <X className="h-4 w-4" />
             </Button>
           </div>
         )

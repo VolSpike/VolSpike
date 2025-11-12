@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAccount, useSignMessage } from 'wagmi'
 import { signIn } from 'next-auth/react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/backend'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 interface UseWalletAuthResult {
   isConnecting: boolean
@@ -38,7 +38,7 @@ export function useWalletAuth(): UseWalletAuthResult {
       setIsConnecting(true)
 
       // Step 2: Get nonce from backend
-      const nonceRes = await fetch(`${API_URL}/auth/siwe/nonce`, { credentials: 'include' })
+      const nonceRes = await fetch(`${API_URL}/api/auth/siwe/nonce`, { credentials: 'include' })
       
       if (!nonceRes.ok) {
         const errorText = await nonceRes.text()
@@ -55,7 +55,7 @@ export function useWalletAuth(): UseWalletAuthResult {
       // Step 3: Get server-prepared SIWE message (best practice - avoids client-side constructor issues)
       console.log('[useWalletAuth] Requesting server-prepared SIWE message...')
       
-      const prepRes = await fetch(`${API_URL}/auth/siwe/prepare?address=${address}&chainId=${chainId}&nonce=${nonce}`, { credentials: 'include' })
+      const prepRes = await fetch(`${API_URL}/api/auth/siwe/prepare?address=${address}&chainId=${chainId}&nonce=${nonce}`, { credentials: 'include' })
       
       if (!prepRes.ok) {
         const errorData = await prepRes.json()
@@ -76,7 +76,7 @@ export function useWalletAuth(): UseWalletAuthResult {
       setIsAuthenticating(true)
 
       // Step 5: Verify signature and get token
-      const verifyRes = await fetch(`${API_URL}/auth/siwe/verify`, {
+      const verifyRes = await fetch(`${API_URL}/api/auth/siwe/verify`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
