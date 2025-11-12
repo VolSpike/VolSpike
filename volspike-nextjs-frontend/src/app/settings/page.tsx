@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/password-input'
 import { Eye, EyeOff } from 'lucide-react'
+import { broadcastPasswordChange } from '@/lib/password-change-broadcast'
 
 function SettingsContent() {
     const { data: session, status } = useSession()
