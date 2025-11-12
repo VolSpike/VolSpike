@@ -157,7 +157,7 @@ export function UserMenu() {
                             {showAvatarImage ? (
                                 <div className="relative h-full w-full">
                                     <Image
-                                        src={identity.image}
+                                        src={identity.image as string}
                                         alt={identity.displayName}
                                         fill
                                         sizes="36px"
@@ -189,7 +189,7 @@ export function UserMenu() {
                                     {showAvatarImage ? (
                                         <div className="relative h-full w-full">
                                             <Image
-                                                src={identity.image}
+                                                src={identity.image as string}
                                                 alt={identity.displayName}
                                                 fill
                                                 sizes="40px"
