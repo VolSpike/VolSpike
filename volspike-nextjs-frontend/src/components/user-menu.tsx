@@ -102,15 +102,22 @@ export function UserMenu() {
 
     // Decide whether to show the OAuth image or our initials
     const isGoogleTile = isLikelyGoogleLetterTile(identity.image || undefined)
-    const envKeepGoogle = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_KEEP_GOOGLE_IMAGES === 'true'
-    // Always show image if available and no error, unless explicitly disabled
-    // Only filter out Google letter tiles if in auto mode and env var is not set
-    const showAvatarImage = !!(identity.image && !imageError && (
-        avatarMode === 'image' ||
-        (avatarMode === 'auto' && (!isGoogleTile || envKeepGoogle)) ||
-        // If image exists and is from Google OAuth, show it by default (user has a real photo)
-        (identity.image && identity.image.includes('googleusercontent.com') && !isGoogleTile)
-    ))
+    // Allow overriding tile filtering; default to NOT filtering to avoid false negatives
+    const envFilterTiles = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_FILTER_GOOGLE_TILES === 'true'
+    let hideTiles = false
+    try {
+        if (typeof window !== 'undefined') {
+            hideTiles = window.localStorage?.getItem('vs_avatar_hide_tiles') === '1'
+        }
+    } catch (_) {}
+    const shouldFilterTiles = envFilterTiles || hideTiles
+    // Show image whenever available, unless explicitly filtered and detected as a tile
+    const showAvatarImage = Boolean(
+        identity.image &&
+        !imageError &&
+        (avatarMode === 'image' || avatarMode === 'auto') &&
+        (!shouldFilterTiles || !isGoogleTile)
+    )
 
     // Debug: trace avatar inputs/outputs (development only)
     if (debugAvatar || process.env.NODE_ENV === 'development') {
@@ -155,6 +162,10 @@ export function UserMenu() {
                         data-normalized-email={normalizedEmail || ''}
                         data-initials={initials}
                         data-avatar-bg={avatarColors.bg}
+                        data-image-url={identity.image || ''}
+                        data-avatar-mode={avatarMode}
+                        data-is-google-tile={String(isGoogleTile)}
+                        data-show-image={String(showAvatarImage)}
                         title={normalizedEmail ? `Avatar: ${initials} (${normalizedEmail})` : `Avatar: ${initials}`}
                     >
                         <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white shadow-brand`}>
