@@ -24,17 +24,36 @@ function SettingsContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const identity = useUserIdentity()
-    const [activeTab, setActiveTab] = useState('account')
     
-    // Handle OAuth linking callback
-    useEffect(() => {
-        if (searchParams?.get('link') === 'google' && session?.user?.id) {
-            // Reload accounts after OAuth linking
-            setTimeout(() => {
-                router.replace('/settings?tab=wallets', { scroll: false })
-            }, 1000)
+    // Valid tab values
+    const validTabs = ['account', 'wallets', 'subscription', 'security'] as const
+    type TabValue = typeof validTabs[number]
+    
+    // Get initial tab from URL or default to 'account'
+    const getInitialTab = (): TabValue => {
+        try {
+            const tab = searchParams?.get('tab')
+            if (tab && validTabs.includes(tab as TabValue)) {
+                return tab as TabValue
+            }
+        } catch (error) {
+            // Fallback: read from window.location if searchParams fails
+            if (typeof window !== 'undefined') {
+                try {
+                    const params = new URLSearchParams(window.location.search)
+                    const tab = params.get('tab')
+                    if (tab && validTabs.includes(tab as TabValue)) {
+                        return tab as TabValue
+                    }
+                } catch (e) {
+                    // Ignore errors
+                }
+            }
         }
-    }, [searchParams, session, router])
+        return 'account'
+    }
+    
+    const [activeTab, setActiveTab] = useState<TabValue>(getInitialTab)
     const [isLoadingCheckout, setIsLoadingCheckout] = useState(false)
     const [isClient, setIsClient] = useState(false)
 
@@ -49,30 +68,49 @@ function SettingsContent() {
         }
     }, [status, router])
 
-    // Handle tab query parameter
+    // Sync tab from URL query parameter on mount and when URL changes
     useEffect(() => {
         if (!isClient) return // Wait for client-side hydration
         
-        try {
-            const tab = searchParams?.get('tab')
-            if (tab === 'subscription') {
-                setActiveTab('subscription')
-            }
-        } catch (error) {
-            // Fallback: read from window.location if searchParams fails
-            if (typeof window !== 'undefined') {
-                try {
-                    const params = new URLSearchParams(window.location.search)
-                    const tab = params.get('tab')
-                    if (tab === 'subscription') {
-                        setActiveTab('subscription')
-                    }
-                } catch (fallbackError) {
-                    console.warn('Error reading search params:', fallbackError)
-                }
-            }
+        const tab = getInitialTab()
+        if (tab !== activeTab) {
+            setActiveTab(tab)
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, isClient])
+
+    // Update URL when tab changes (using replace to avoid cluttering history)
+    const handleTabChange = (value: string) => {
+        const newTab = validTabs.includes(value as TabValue) ? (value as TabValue) : 'account'
+        setActiveTab(newTab)
+        
+        // Update URL without adding to history (replace instead of push)
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search)
+            if (newTab === 'account') {
+                // Remove tab param for default tab to keep URL clean
+                params.delete('tab')
+            } else {
+                params.set('tab', newTab)
+            }
+            
+            const newUrl = params.toString() 
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname
+            
+            router.replace(newUrl, { scroll: false })
+        }
+    }
+    
+    // Handle OAuth linking callback
+    useEffect(() => {
+        if (searchParams?.get('link') === 'google' && session?.user?.id) {
+            // Reload accounts after OAuth linking
+            setTimeout(() => {
+                router.replace('/settings?tab=wallets', { scroll: false })
+            }, 1000)
+        }
+    }, [searchParams, session, router])
 
     if (status === 'loading' || identity.isLoading) {
         return (
@@ -135,7 +173,7 @@ function SettingsContent() {
                         <CardDescription>Manage your account settings and preferences</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                             <TabsList className="grid w-full grid-cols-4">
                                 <TabsTrigger value="account">
                                     <User className="h-4 w-4 mr-2" />
