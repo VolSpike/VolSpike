@@ -170,8 +170,12 @@ export const authConfig: NextAuthConfig = {
                 token.walletAddress = user.walletAddress
                 token.walletProvider = user.walletProvider
                 token.passwordChangedAt = user.passwordChangedAt || null // Track password change time
+                // Store profile image if available (from Google OAuth or other providers)
+                if (user.image) {
+                    token.image = user.image
+                }
                 token.iat = Math.floor(Date.now() / 1000) // Issued at time
-                console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}`)
+                console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}, image: ${user.image ? 'present' : 'missing'}`)
             }
 
             // Always fetch fresh tier data from database when update() is called or periodically
@@ -207,6 +211,14 @@ export const authConfig: NextAuthConfig = {
                             token.status = dbUser.status
                             token.twoFactorEnabled = dbUser.twoFactorEnabled
                             token.passwordChangedAt = dbUser.passwordChangedAt || null
+                            // Preserve image from token if backend doesn't provide it
+                            // (Backend may not store images, so we keep the OAuth image in the token)
+                            if (dbUser.image) {
+                                token.image = dbUser.image
+                            } else if (!token.image && user?.image) {
+                                // Fallback: preserve image from initial user object if not in token yet
+                                token.image = user.image
+                            }
                             token.tierLastChecked = Date.now() // Cache timestamp
                             
                             if (oldTier !== token.tier) {
@@ -223,6 +235,12 @@ export const authConfig: NextAuthConfig = {
             // Handle Google OAuth account linking
             if (account?.provider === 'google' && user?.email) {
                 try {
+                    // Store Google profile image in token immediately
+                    if (user.image) {
+                        token.image = user.image
+                        console.log('[NextAuth] Stored Google profile image in token:', user.image)
+                    }
+                    
                     // Check if user is already logged in (for account linking)
                     const existingSession = token.id ? { userId: token.id } : null
                     
@@ -230,7 +248,7 @@ export const authConfig: NextAuthConfig = {
                         // Send normalized email to backend for consistent linking
                         email: String(user.email).toLowerCase().trim(),
                         name: user.name,
-                        image: user.image,
+                        image: user.image, // Ensure image is sent to backend
                         provider: 'google',
                         // Use Google's stable subject identifier returned by NextAuth
                         // to avoid creating duplicate account rows per sign-in
@@ -312,8 +330,12 @@ export const authConfig: NextAuthConfig = {
                 session.user.twoFactorEnabled = token.twoFactorEnabled
                 session.user.walletAddress = token.walletAddress
                 session.user.walletProvider = token.walletProvider
+                // Always include profile image if available in token
+                if (token.image) {
+                    session.user.image = token.image
+                }
                 session.accessToken = token.accessToken
-                console.log(`[Auth] Session callback - User: ${token.email}, tier: ${session.user.tier}, AccessToken set to JWT`)
+                console.log(`[Auth] Session callback - User: ${token.email}, tier: ${session.user.tier}, image: ${token.image ? 'present' : 'missing'}`)
             }
             return session
         },
