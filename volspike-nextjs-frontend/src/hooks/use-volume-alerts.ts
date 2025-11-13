@@ -108,8 +108,9 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       // Just use the alerts as-is from backend
       if (data.alerts && Array.isArray(data.alerts)) {
         const arr = Array.isArray(data.alerts) ? data.alerts : []
-        // In guest-live mode, ensure we keep only the top N for rendering parity
-        setAlerts(guestLive ? arr.slice(0, Math.max(1, guestVisibleCount)) : arr)
+        // Always keep the full Free limit for guests so UI can blur below top 2
+        // Backend already caps by tier; keep as-is
+        setAlerts(arr)
       }
       
       setIsLoading(false)
@@ -178,7 +179,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
         socket.on('volume-alert', (newAlert: VolumeAlert) => {
           setAlerts(prev => {
             const filtered = prev.filter(a => a.id !== newAlert.id)
-            return [newAlert, ...filtered].slice(0, Math.max(1, guestVisibleCount))
+            return [newAlert, ...filtered].slice(0, getTierLimit('free'))
           })
           if (onNewAlert) onNewAlert()
         })
