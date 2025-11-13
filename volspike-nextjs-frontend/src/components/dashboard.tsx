@@ -10,7 +10,6 @@ import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
 import { VolumeAlertsPanel } from '@/components/volume-alerts-panel'
 import { TierUpgrade } from '@/components/tier-upgrade'
-import { AdBanner } from '@/components/ad-banner'
 import { AdPlaceholder } from '@/components/ad-placeholder'
 import { AlertBuilder } from '@/components/alert-builder'
 import { CommandPalette } from '@/components/command-palette'
@@ -208,13 +207,6 @@ export function Dashboard() {
 
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="space-y-6">
-                    {/* Upgrade Banner for Free Tier Users */}
-                    <div className="min-h-0 transition-all duration-300">
-                    {userTier === 'free' && (
-                        <AdBanner userTier={userTier} />
-                    )}
-                    </div>
-
                     {/* Ad Placeholder for Free Tier Users */}
                     {userTier === 'free' && (
                         <div className="animate-fade-in">

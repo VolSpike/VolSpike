@@ -1,13 +1,14 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { SessionProvider } from 'next-auth/react'
+import { SessionProvider, useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from 'react-hot-toast'
 import { Footer } from '@/components/footer'
+import { AdBanner } from '@/components/ad-banner'
 import { TierChangeListener } from '@/components/tier-change-listener'
 import { PasswordChangeListener } from '@/components/password-change-listener'
 
@@ -23,6 +24,27 @@ const Web3Providers = dynamic(
         )
     }
 )
+
+// Inner component to conditionally render AdBanner based on route and tier
+function ConditionalAdBanner() {
+    const pathname = usePathname()
+    const { data: session } = useSession()
+    const isAuthPage = pathname?.startsWith('/auth')
+    const userTier = session?.user?.tier || 'free'
+    
+    // Don't show on auth pages, only show for free tier users
+    if (isAuthPage || userTier !== 'free') {
+        return null
+    }
+    
+    return (
+        <div className="w-full px-4 py-4 md:py-6">
+            <div className="container mx-auto max-w-7xl">
+                <AdBanner userTier={userTier} />
+            </div>
+        </div>
+    )
+}
 
 // Inner component to conditionally render Footer based on route
 function ConditionalFooter() {
@@ -72,6 +94,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                             <div className="flex-1 flex flex-col">
                                 {children}
                             </div>
+                            <ConditionalAdBanner />
                             <ConditionalFooter />
                         </div>
                         <Toaster
