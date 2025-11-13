@@ -298,15 +298,16 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">
-                            {!hideWalletConnect && <ConnectButton />}
+                            {/* Wallet connection is part of auth flow; hide on public pages */}
+                            {pathname?.startsWith('/auth') && !hideWalletConnect && <ConnectButton />}
                             <Button 
-                                onClick={() => signIn(undefined, { callbackUrl: '/dashboard' })}
+                                onClick={() => router.push('/auth?tab=signup')}
                                 className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition-all duration-200"
                             >
-                                Sign In
+                                Start Free
                             </Button>
-                            <Link href="/auth?tab=signup" className="inline-flex items-center">
-                                <Button variant="outline" className="border-border hover:bg-muted">Sign Up</Button>
+                            <Link href="/auth?tab=signin" className="hidden md:inline text-sm text-muted-foreground hover:text-foreground ml-1">
+                                Sign in
                             </Link>
                         </div>
                     )}

@@ -201,11 +201,10 @@ export function Dashboard() {
                         <div className="rounded-lg border border-border/60 bg-muted/40 p-3 md:p-4 animate-fade-in">
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                 <div className="text-sm text-muted-foreground">
-                                    You’re viewing a guest preview. Top 5 symbols and top 2 alerts are visible. Sign in to unlock full Free features, or upgrade to Pro for 5‑minute updates and Open Interest.
+                                    You’re viewing a guest preview. Top 5 symbols and top 2 alerts are visible. Start Free to unlock full Free features, or upgrade to Pro for 5‑minute updates and Open Interest.
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <a href="/auth?tab=signin" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-brand-600 text-white hover:bg-brand-700">Sign In</a>
-                                    <a href="/auth?tab=signup" className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-border hover:bg-muted">Sign Up</a>
+                                    <a href="/auth?tab=signup" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-brand-600 text-white hover:bg-brand-700">Start Free</a>
                                     <a href="/pricing" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
                                 </div>
                             </div>

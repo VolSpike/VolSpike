@@ -167,10 +167,18 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
             <CardDescription className="flex items-center gap-2 flex-wrap">
               <Badge 
                 variant="outline" 
-                className={`text-xs transition-all duration-300 ${isConnected ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' : 'border-warning-500/30 text-warning-600 dark:text-warning-400'}`}
+                className={`text-xs transition-all duration-300 ${
+                  guestMode
+                    ? 'border-border/50 text-muted-foreground'
+                    : isConnected
+                      ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
+                      : 'border-warning-500/30 text-warning-600 dark:text-warning-400'
+                }`}
               >
-                <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-warning-500 animate-pulse-glow'}`} />
-                {isConnected ? 'Live' : 'Connecting'}
+                <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                  guestMode ? 'bg-muted-foreground/60' : isConnected ? 'bg-brand-500' : 'bg-warning-500'
+                } ${guestMode ? '' : 'animate-pulse-glow'}`} />
+                {guestMode ? 'Preview' : isConnected ? 'Live' : 'Connecting'}
               </Badge>
               {/* Sound toggle - compact icon-only button */}
               <button
@@ -561,8 +569,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
             <div className="pointer-events-none absolute inset-x-0 -top-24 h-24 bg-gradient-to-b from-transparent via-background/70 to-background" />
             <div className="mt-2 flex items-center justify-center">
               <div className="pointer-events-auto inline-flex gap-2 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg p-2 shadow-md">
-                <a href="/auth?tab=signin" className="px-3 py-2 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700">Sign In</a>
-                <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md border border-border hover:bg-muted">Sign Up</a>
+                <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700">Start Free</a>
                 <a href="/pricing" className="px-3 py-2 text-xs rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
               </div>
             </div>

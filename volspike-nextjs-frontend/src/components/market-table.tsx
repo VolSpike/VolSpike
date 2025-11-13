@@ -427,6 +427,7 @@ export function MarketTable({
                                     size="sm"
                                     onClick={() => handleSort('symbol')}
                                     disabled={guestMode}
+                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Ticker</span>
@@ -439,6 +440,7 @@ export function MarketTable({
                                     size="sm"
                                     onClick={() => handleSort('price')}
                                     disabled={guestMode}
+                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Price</span>
@@ -451,6 +453,7 @@ export function MarketTable({
                                     size="sm"
                                     onClick={() => handleSort('change')}
                                     disabled={guestMode}
+                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">24h Change</span>
@@ -463,6 +466,7 @@ export function MarketTable({
                                     size="sm"
                                     onClick={() => handleSort('funding')}
                                     disabled={guestMode}
+                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Funding Rate</span>
@@ -475,6 +479,7 @@ export function MarketTable({
                                     size="sm"
                                     onClick={() => handleSort('volume')}
                                     disabled={guestMode}
+                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">24h Volume</span>
@@ -488,6 +493,7 @@ export function MarketTable({
                                         size="sm"
                                         onClick={() => handleSort('openInterest')}
                                         disabled={guestMode}
+                                        title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
                                         className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                     >
                                         <span className="mr-1.5">Open Interest</span>
@@ -702,8 +708,7 @@ export function MarketTable({
                 {guestMode && (
                     <div className="absolute inset-x-0 bottom-3 flex items-center justify-center">
                         <div className="pointer-events-auto inline-flex gap-2 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg p-2 shadow-md">
-                            <a href="/auth?tab=signin" className="px-3 py-2 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700">Sign In</a>
-                            <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md border border-border hover:bg-muted">Sign Up</a>
+                            <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700">Start Free</a>
                             <a href="/pricing" className="px-3 py-2 text-xs rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
                         </div>
                     </div>
