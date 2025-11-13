@@ -14,7 +14,7 @@ const RainbowConnect = dynamic(async () => {
   loading: () => (
     <Button
       disabled
-      className="w-full border border-green-400/60 bg-transparent text-green-300"
+      className="w-full border border-green-400/60 bg-transparent text-green-300 hover:bg-green-500/15"
     >
       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       Loading wallet...
@@ -36,7 +36,7 @@ export function WalletConnectButton() {
             <Button
               type="button"
               onClick={openConnectModal}
-              className="w-full border-2 border-green-500/60 bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 dark:hover:bg-green-500/15 font-medium shadow-sm"
+              className="w-full border border-green-400/60 bg-transparent text-green-300 hover:bg-green-500/15"
               variant="outline"
             >
               <Wallet className="mr-2 h-4 w-4" />

@@ -2,6 +2,8 @@
 
 ## Overview
 
+**⚠️ PRODUCTION TESTING**: This guide is for testing on the **production environment** at `https://volspike.com`. All URLs, API endpoints, and configurations reference the live production system.
+
 This guide provides **exhaustive** step-by-step instructions for testing the complete account linking system. Users can link any authentication method to any other:
 
 - **Email/Password** ↔ **Google OAuth** ↔ **ETH Wallet** ↔ **SOL Wallet**
@@ -12,22 +14,23 @@ All combinations are supported, and users can link/unlink methods as needed (wit
 
 ## Prerequisites
 
-### 1. Development Environment Setup
-- ✅ Frontend running on `http://localhost:3000`
-- ✅ Backend running on `http://localhost:3001`
-- ✅ Database connected and migrations applied
-- ✅ Google OAuth credentials configured in `.env.local`
+### 1. Production Environment Setup
+- ✅ Production site: `https://volspike.com`
+- ✅ Backend API: Production Railway backend
+- ✅ Database: Production Neon database
+- ✅ Google OAuth credentials configured in production
 - ✅ MetaMask extension installed and configured
-- ✅ Phantom wallet installed (or Solana testnet wallet)
+- ✅ Phantom wallet installed (or Solana mainnet wallet)
 
 ### 2. Test Accounts Preparation
 - **Email Accounts**: 
-  - `test-email-1@example.com`
-  - `test-email-2@example.com`
-  - `test-google@example.com` (for Google OAuth)
+  - Use real email addresses for production testing
+  - Create unique test accounts (e.g., `test-email-1@yourdomain.com`)
+  - Use a Google account for OAuth testing
 - **Wallets**:
-  - MetaMask with test ETH on Sepolia/Goerli
-  - Phantom wallet with test SOL (or use testnet)
+  - MetaMask with mainnet ETH (or testnet if preferred)
+  - Phantom wallet with mainnet SOL (or testnet if preferred)
+  - **Note**: Production testing uses real wallets - be careful with test accounts
 
 ### 3. Browser Setup
 - Clear browser cache and cookies
@@ -54,7 +57,7 @@ Prepare to test on:
 **Objective**: User signs up with email/password, then links Google OAuth
 
 **Steps**:
-1. Navigate to `http://localhost:3000/auth`
+1. Navigate to `https://volspike.com/auth`
 2. Click "Sign Up" tab
 3. Enter email: `test-email-1@example.com`
 4. Enter password: `Test123456!`
@@ -147,7 +150,7 @@ Prepare to test on:
 **Objective**: User signs up with Google, then adds email/password
 
 **Steps**:
-1. Navigate to `http://localhost:3000/auth`
+1. Navigate to `https://volspike.com/auth`
 2. Click "Continue with Google"
 3. Complete Google OAuth flow
 4. Navigate to Settings → Wallets tab
@@ -212,7 +215,7 @@ Prepare to test on:
 **Objective**: User signs up with wallet, then adds email/password
 
 **Steps**:
-1. Navigate to `http://localhost:3000/auth`
+1. Navigate to `https://volspike.com/auth`
 2. Click "Sign in with Wallet"
 3. Connect MetaMask
 4. Sign SIWE message
@@ -260,7 +263,7 @@ Prepare to test on:
 **Objective**: User signs up with Phantom wallet, then adds email/password
 
 **Steps**:
-1. Navigate to `http://localhost:3000/auth`
+1. Navigate to `https://volspike.com/auth`
 2. Click "Sign in with Phantom" (or Solana wallet option)
 3. Connect Phantom wallet
 4. Sign authentication message
@@ -875,7 +878,7 @@ Prepare to test on:
 #### GET /api/auth/accounts/list
 **Test**:
 ```bash
-curl -X GET http://localhost:3001/api/auth/accounts/list \
+curl -X GET https://volspike-production.up.railway.app/api/auth/accounts/list \
   -H "Authorization: Bearer <user-id>" \
   -H "Content-Type: application/json"
 ```
@@ -884,7 +887,7 @@ curl -X GET http://localhost:3001/api/auth/accounts/list \
 #### POST /api/auth/email/link
 **Test**:
 ```bash
-curl -X POST http://localhost:3001/api/auth/email/link \
+curl -X POST https://volspike-production.up.railway.app/api/auth/email/link \
   -H "Authorization: Bearer <user-id>" \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"Test123456!"}'
@@ -894,7 +897,7 @@ curl -X POST http://localhost:3001/api/auth/email/link \
 #### POST /api/auth/oauth/link
 **Test**:
 ```bash
-curl -X POST http://localhost:3001/api/auth/oauth/link \
+curl -X POST https://volspike-production.up.railway.app/api/auth/oauth/link \
   -H "Authorization: Bearer <user-id>" \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","name":"Test","provider":"google","providerId":"123456"}'
@@ -1008,5 +1011,5 @@ When reporting issues, include:
 ---
 
 **Last Updated**: December 2025  
-**Version**: 2.0  
-**Status**: Comprehensive Testing Guide
+**Version**: 2.1  
+**Status**: Production Testing Guide (volspike.com)
