@@ -406,66 +406,66 @@ export function AccountManagement() {
                                             Link Email
                                         </Button>
                                     </DialogTrigger>
-                                <DialogContent className="sm:max-w-md">
-                                    <DialogHeader>
-                                        <DialogTitle>Link Email & Password</DialogTitle>
-                                        <DialogDescription>
-                                            Add email and password authentication to your account
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="link-email">Email Address</Label>
-                                            <Input
-                                                id="link-email"
-                                                type="email"
-                                                placeholder="you@example.com"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                            />
+                                    <DialogContent className="sm:max-w-md">
+                                        <DialogHeader>
+                                            <DialogTitle>Link Email & Password</DialogTitle>
+                                            <DialogDescription>
+                                                Add email and password authentication to your account
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4 py-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="link-email">Email Address</Label>
+                                                <Input
+                                                    id="link-email"
+                                                    type="email"
+                                                    placeholder="you@example.com"
+                                                    value={email}
+                                                    onChange={(e) => setEmail(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="link-password">Password</Label>
+                                                <PasswordInput
+                                                    id="link-password"
+                                                    label="Password"
+                                                    value={password}
+                                                    onChange={(value) => setPassword(value)}
+                                                    placeholder="Create a password"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="link-confirm">Confirm Password</Label>
+                                                <PasswordInput
+                                                    id="link-confirm"
+                                                    label="Confirm Password"
+                                                    value={confirmPassword}
+                                                    onChange={(value) => setConfirmPassword(value)}
+                                                    placeholder="Confirm password"
+                                                />
+                                            </div>
+                                            <Button
+                                                onClick={handleLinkEmail}
+                                                disabled={isLinking}
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                            >
+                                                {isLinking ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        Linking...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Link2 className="h-4 w-4 mr-2" />
+                                                        Link Email & Password
+                                                    </>
+                                                )}
+                                            </Button>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="link-password">Password</Label>
-                                            <PasswordInput
-                                                id="link-password"
-                                                label="Password"
-                                                value={password}
-                                                onChange={(value) => setPassword(value)}
-                                                placeholder="Create a password"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="link-confirm">Confirm Password</Label>
-                                            <PasswordInput
-                                                id="link-confirm"
-                                                label="Confirm Password"
-                                                value={confirmPassword}
-                                                onChange={(value) => setConfirmPassword(value)}
-                                                placeholder="Confirm password"
-                                            />
-                                        </div>
-                                        <Button
-                                            onClick={handleLinkEmail}
-                                            disabled={isLinking}
-                                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                                        >
-                                            {isLinking ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                    Linking...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Link2 className="h-4 w-4 mr-2" />
-                                                    Link Email & Password
-                                                </>
-                                            )}
-                                        </Button>
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
-                        )}
-                    </div>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                        </div>
                 </CardHeader>
             </Card>
 
