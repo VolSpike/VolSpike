@@ -28,17 +28,15 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
     const [scrollState, setScrollState] = useState({ atStart: true, atEnd: false })
     const [showScrollHint, setShowScrollHint] = useState(true)
 
-    // Only show for free tier users
-    if (userTier !== 'free') {
-        return null
-    }
-
     const handleUpgrade = () => {
         router.push('/pricing')
     }
 
     // Track scroll position for fade gradients
     useEffect(() => {
+        // Only set up scroll tracking for free tier users
+        if (userTier !== 'free') return
+
         const container = scrollContainerRef.current
         if (!container) return
 
@@ -71,7 +69,12 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
             resizeObserver.disconnect()
             clearTimeout(hintTimer)
         }
-    }, [])
+    }, [userTier])
+
+    // Only show for free tier users
+    if (userTier !== 'free') {
+        return null
+    }
 
     return (
         <Card
