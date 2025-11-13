@@ -429,7 +429,7 @@ export function AccountManagement() {
                                                 id="link-password"
                                                 label="Password"
                                                 value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
+                                                onChange={(value) => setPassword(value)}
                                                 placeholder="Create a password"
                                             />
                                         </div>
@@ -439,7 +439,7 @@ export function AccountManagement() {
                                                 id="link-confirm"
                                                 label="Confirm Password"
                                                 value={confirmPassword}
-                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                onChange={(value) => setConfirmPassword(value)}
                                                 placeholder="Confirm password"
                                             />
                                         </div>
