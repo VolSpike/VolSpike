@@ -168,7 +168,7 @@ function SettingsContent() {
 
     return (
         <div className="flex-1 bg-background">
-            <Header />
+            <HeaderWithBanner />
             <main className="container mx-auto px-4 py-8 max-w-4xl">
                 <Card>
                     <CardHeader>
