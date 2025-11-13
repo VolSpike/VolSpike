@@ -424,6 +424,27 @@ module.exports = {
                         boxShadow: '0 0 20px rgba(239, 68, 68, 0.8)',
                     },
                 },
+                // 📜 Scroll Hint Animations - Subtle indicators for horizontal scrolling
+                "bounce-subtle": {
+                    '0%, 100%': {
+                        transform: 'translateX(0)',
+                        opacity: 0.8,
+                    },
+                    '50%': {
+                        transform: 'translateX(-4px)',
+                        opacity: 1,
+                    },
+                },
+                "pulse-subtle": {
+                    '0%, 100%': {
+                        transform: 'scale(1)',
+                        opacity: 1,
+                    },
+                    '50%': {
+                        transform: 'scale(1.05)',
+                        opacity: 0.9,
+                    },
+                },
             },
             animation: {
                 "accordion-down": "accordion-down 0.2s ease-out",
@@ -448,6 +469,9 @@ module.exports = {
                 "soft-pulse-red": "soft-pulse-red 2.5s ease-in-out 2",
                 // 🔴 Badge Pulse - Breathing scale effect for unread notifications
                 "badge-scale-pulse": "badge-scale-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                // 📜 Scroll Hint Animations - Subtle indicators for horizontal scrolling
+                "bounce-subtle": "bounce-subtle 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+                "pulse-subtle": "pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
             },
         },
     },
