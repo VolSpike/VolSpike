@@ -462,6 +462,12 @@ export function AccountManagement() {
 
     const hasAnyAuth = accounts.email.hasPassword || accounts.oauth.length > 0 || accounts.wallets.length > 0
 
+    const looksLikePlaceholderEmail = (val?: string | null) => {
+        if (!val) return false
+        const v = val.toLowerCase()
+        return v.endsWith('@volspike.wallet') || /\bwallet\b/.test(v)
+    }
+
     return (
         <div className="space-y-6">
             <div>
@@ -482,7 +488,9 @@ export function AccountManagement() {
                             <div className="flex-1 min-w-0">
                                 <CardTitle className="text-base">Email & Password</CardTitle>
                                 <CardDescription className="mt-1 break-words">
-                                    {accounts.email.email || 'No email set'}
+                                    {accounts.email.email && !looksLikePlaceholderEmail(accounts.email.email)
+                                        ? accounts.email.email
+                                        : 'No email set'}
                                 </CardDescription>
                             </div>
                         </div>
@@ -686,7 +694,7 @@ export function AccountManagement() {
                                 </div>
                                 {isConnected ? (
                                     <div className="space-y-2">
-                                        <p className="text-xs text-muted-foreground font-mono">{formatAddress(address!)} on {getChainName(chainId?.toString() || '1', 'evm')}</p>
+                                        <p className="text-xs text-muted-foreground font-mono">{formatAddress(address!)}</p>
                                         <Button onClick={handleLinkWallet} disabled={isLinking} className="bg-green-600 hover:bg-green-700 text-white">
                                             {isLinking ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Linking…</>) : (<><Link2 className="h-4 w-4 mr-2" />Link ETH Wallet</>)}
                                         </Button>
@@ -723,19 +731,15 @@ export function AccountManagement() {
                     {accounts.wallets.length > 0 ? (
                         <div className="space-y-2 mt-4">
                             {(() => {
-                                // Group by provider+address and roll all EVM chains into chips on a single row
-                                const groups = new Map<string, { base: typeof accounts.wallets[number]; chains: Set<string> }>()
-                                for (const w of accounts.wallets) {
+                                // Deduplicate by provider+address and display a single clean row (no chain chips)
+                                const seen = new Set<string>()
+                                return accounts.wallets.filter((w) => {
                                     const key = `${w.provider}:${w.address.toLowerCase()}`
-                                    const existing = groups.get(key)
-                                    if (existing) {
-                                        existing.chains.add(w.chainId)
-                                    } else {
-                                        groups.set(key, { base: w, chains: new Set([w.chainId]) })
-                                    }
-                                }
-                                return Array.from(groups.values())
-                            })().map(({ base: wallet, chains }) => {
+                                    if (seen.has(key)) return false
+                                    seen.add(key)
+                                    return true
+                                })
+                            })().map((wallet) => {
                                 const isCurrentWallet = isConnected && wallet.address.toLowerCase() === address?.toLowerCase()
                                 return (
                                     <div
@@ -761,18 +765,8 @@ export function AccountManagement() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="text-sm font-medium">
-                                                        {wallet.provider === 'evm' ? 'EVM' : 'Solana'}
+                                                        {wallet.provider === 'evm' ? 'EVM Wallet' : 'SOL Wallet'}
                                                     </span>
-                                                    {/* Network chips for EVM: roll multiple chains into one row */}
-                                                    {wallet.provider === 'evm' && (
-                                                        <span className="flex items-center gap-1 flex-wrap">
-                                                            {Array.from(chains).map((cid) => (
-                                                                <span key={cid} className="text-xs px-1.5 py-0.5 rounded-full bg-background/70 border border-border/50">
-                                                                    {getChainName(cid, 'evm')}
-                                                                </span>
-                                                            ))}
-                                                        </span>
-                                                    )}
                                                     {isCurrentWallet && (
                                                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-400/30">
                                                             Connected
