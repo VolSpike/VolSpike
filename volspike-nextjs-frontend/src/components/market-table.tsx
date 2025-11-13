@@ -402,7 +402,7 @@ export function MarketTable({
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground">
-                        {sortedData.length} symbols
+                        {guestMode ? 'Top 5 preview' : `${sortedData.length} symbols`}
                     </span>
                     <WatchlistExportButton 
                         data={sortedData}

@@ -114,7 +114,9 @@ export function Dashboard() {
                         className={`
                             text-sm font-normal px-2 py-0.5 rounded-md border
                             ${
-                                (userTier as string) === 'free'
+                                isGuest
+                                    ? 'bg-muted/70 text-muted-foreground border-border'
+                                    : (userTier as string) === 'free'
                                     ? 'bg-muted/70 text-muted-foreground border-border'
                                     : (userTier as string) === 'pro'
                                     ? 'bg-sec-500/20 text-sec-700 dark:text-sec-400 border-sec-500/40'
@@ -122,7 +124,7 @@ export function Dashboard() {
                             }
                         `}
                     >
-                        {userTier.toUpperCase()} Tier
+                        {isGuest ? 'PREVIEW' : `${userTier.toUpperCase()} Tier`}
                     </span>
                 </CardTitle>
                 <CardDescription>
@@ -198,7 +200,7 @@ export function Dashboard() {
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="space-y-6">
                     {isGuest && (
-                        <div className="rounded-lg border border-brand-200/70 bg-brand-50/80 dark:border-border/60 dark:bg-muted/40 p-3 md:p-4 animate-fade-in">
+                        <div className="hidden md:block rounded-lg border border-brand-200/70 bg-brand-50/80 dark:border-border/60 dark:bg-muted/40 p-3 md:p-4 animate-fade-in">
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                                 <div className="text-sm text-brand-900/80 dark:text-muted-foreground">
                                     You’re viewing a guest preview. Top 5 symbols and top 2 alerts are visible. Start Free to unlock full Free features, or upgrade to Pro for 5‑minute updates and Open Interest.

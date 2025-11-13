@@ -107,11 +107,11 @@ export function WatchlistExportButton({ data, userTier, guestMode = false }: Wat
           variant="outline" 
           size="sm" 
           disabled={isExporting || data.length === 0}
-          className={`gap-2 ${guestMode ? 'opacity-90' : ''}`}
+          className={`gap-1 sm:gap-2 ${guestMode ? 'opacity-90' : ''} px-2 sm:px-3`}
           title={guestMode ? 'Sign in to export (Free: TradingView top 50)' : undefined}
         >
           <Download className="h-4 w-4" />
-          Export
+          <span className="hidden sm:inline">Export</span>
           {guestMode && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
         </Button>
       </DropdownMenuTrigger>

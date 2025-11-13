@@ -18,8 +18,9 @@ export function setupSocketHandlers(
     // Authentication middleware
     io.use(async (socket: AuthenticatedSocket, next) => {
         try {
-            const token = socket.handshake.auth.token
+            const token = socket.handshake.auth.token as string
             const queryTier = (socket.handshake.query?.tier as string) || ''
+            const method = (socket.handshake.query?.method as string) || ''
 
             if (!token) {
                 return next(new Error('Authentication required'))
@@ -45,17 +46,28 @@ export function setupSocketHandlers(
                 return next()
             }
 
-            // Production: Look up user by email (consistent across environments)
-            // The frontend sends the session user email as the token
-            const user = await prisma.user.findUnique({
-                where: { email: token },
-                select: {
-                    id: true,
-                    email: true,
-                    tier: true,
-                    refreshInterval: true,
-                },
-            })
+            // Production: Look up user by email (default) or id when method=id
+            let user: any = null
+            if (method === 'id') {
+                user = await prisma.user.findUnique({
+                    where: { id: token },
+                    select: { id: true, email: true, tier: true, refreshInterval: true },
+                })
+            } else {
+                // If token looks like an email, use email lookup; otherwise attempt id fallback
+                const looksLikeEmail = token.includes('@')
+                if (looksLikeEmail) {
+                    user = await prisma.user.findUnique({
+                        where: { email: token },
+                        select: { id: true, email: true, tier: true, refreshInterval: true },
+                    })
+                } else {
+                    user = await prisma.user.findUnique({
+                        where: { id: token },
+                        select: { id: true, email: true, tier: true, refreshInterval: true },
+                    })
+                }
+            }
 
             if (!user) {
                 logger.error('User not found for token:', token)

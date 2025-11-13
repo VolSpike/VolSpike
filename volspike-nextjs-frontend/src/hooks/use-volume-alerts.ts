@@ -155,9 +155,10 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     if (typeof window === 'undefined' || (!session && !guestLive)) return
 
     const apiUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    const userEmail = session?.user?.email
+    const userEmail = session?.user?.email as string | undefined
+    const userId = (session?.user as any)?.id as string | undefined
 
-    if (!userEmail && guestLive) {
+    if (!userEmail && guestLive && !session) {
       try {
         const socket = io(apiUrl, {
           auth: { token: 'guest' },
@@ -202,6 +203,34 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
         setIsConnected(false)
       }
       return
+    }
+
+    // Signed-in users: prefer email if present; otherwise fall back to userId with method=id
+    if (!userEmail && session && userId) {
+      const socket = io(apiUrl, {
+        auth: { token: userId },
+        query: { method: 'id' },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+      })
+      socketRef.current = socket
+      socket.on('connect', () => {
+        console.log('✅ Wallet-only user connected to alerts WebSocket (by id)')
+        setIsConnected(true)
+        setError(null)
+      })
+      socket.on('disconnect', () => setIsConnected(false))
+      socket.on('connect_error', (err) => { console.warn('Socket error:', err); setIsConnected(false) })
+      socket.on('volume-alert', (a: VolumeAlert) => {
+        setAlerts(prev => {
+          const filtered = prev.filter(x => x.id !== a.id)
+          return [a, ...filtered].slice(0, getTierLimit(tier))
+        })
+        if (onNewAlert) onNewAlert()
+      })
+      return () => socket.disconnect()
     }
     
     // Connect to Socket.IO with user email as token
