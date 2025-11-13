@@ -9,8 +9,8 @@ export default async function DashboardPage() {
     const session = await getNextAuthSession()
     console.log('[Dashboard] NextAuth session:', session ? 'Found' : 'Not found')
 
-    const role = (session.user as any).role || 'user'
-    console.log('[Dashboard] Authentication successful, user role:', role)
+    const role = (session?.user as any)?.role || 'guest'
+    console.log('[Dashboard] Session state - role:', role)
 
     return (
         <SessionProvider session={session}>
