@@ -150,10 +150,12 @@ function SettingsContent() {
     const getRoleBadgeColor = () => {
         // Role badges use neutral/muted styling to differentiate from tier badges
         // ADMIN gets special treatment, USER gets neutral
+        // Explicitly maintain colors on hover to prevent contrast issues
         if (identity.role === 'ADMIN') {
-            return 'bg-danger-500/20 dark:bg-danger-500/30 text-danger-700 dark:text-danger-400 border border-danger-500/30 dark:border-danger-500/50'
+            return 'bg-danger-500/20 dark:bg-danger-500/30 text-danger-700 dark:text-danger-400 border border-danger-500/30 dark:border-danger-500/50 hover:!bg-danger-500/20 dark:hover:!bg-danger-500/30 hover:!text-danger-700 dark:hover:!text-danger-400'
         }
-        return 'bg-muted text-muted-foreground border border-border'
+        // USER badge: Neutral muted colors that maintain readability in both themes
+        return 'bg-muted/80 dark:bg-muted/60 text-muted-foreground dark:text-muted-foreground border border-border dark:border-border/50 hover:!bg-muted/80 dark:hover:!bg-muted/60 hover:!text-muted-foreground dark:hover:!text-muted-foreground'
     }
 
     const handleUpgrade = async () => {
@@ -418,7 +420,7 @@ function SettingsContent() {
                                             <div className="flex-1">
                                                 <p className="text-sm text-muted-foreground">Role</p>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <Badge className={`text-xs font-semibold ${getRoleBadgeColor()}`}>
+                                                    <Badge className={`text-xs font-semibold pointer-events-none ${getRoleBadgeColor()}`}>
                                                         {identity.role || 'USER'}
                                                     </Badge>
                                                     {identity.role === 'ADMIN' && (
