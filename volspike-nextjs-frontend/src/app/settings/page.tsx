@@ -174,26 +174,118 @@ function SettingsContent() {
                     </CardHeader>
                     <CardContent>
                         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                            <TabsList className="flex w-full overflow-x-auto scrollbar-hide md:grid md:grid-cols-4 gap-1 p-1">
-                                <TabsTrigger value="account" className="flex-shrink-0 md:flex-shrink min-w-[80px] md:min-w-0">
-                                    <User className="h-4 w-4 mr-1.5 md:mr-2" />
-                                    <span className="whitespace-nowrap">Account</span>
+                            {/* Mobile: Vertical stacked navigation cards */}
+                            <div className="md:hidden space-y-2 mb-6">
+                                <button
+                                    onClick={() => handleTabChange('account')}
+                                    className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-200 ${
+                                        activeTab === 'account'
+                                            ? 'border-green-500/60 bg-green-500/10 text-green-400'
+                                            : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/50'
+                                    }`}
+                                >
+                                    <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                                        activeTab === 'account' ? 'bg-green-500/20' : 'bg-muted'
+                                    }`}>
+                                        <User className={`h-5 w-5 ${activeTab === 'account' ? 'text-green-400' : 'text-muted-foreground'}`} />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <div className="font-semibold">Account</div>
+                                        <div className="text-xs opacity-70">Manage your account details</div>
+                                    </div>
+                                    {activeTab === 'account' && (
+                                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                                    )}
+                                </button>
+                                
+                                <button
+                                    onClick={() => handleTabChange('wallets')}
+                                    className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-200 ${
+                                        activeTab === 'wallets'
+                                            ? 'border-green-500/60 bg-green-500/10 text-green-400'
+                                            : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/50'
+                                    }`}
+                                >
+                                    <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                                        activeTab === 'wallets' ? 'bg-green-500/20' : 'bg-muted'
+                                    }`}>
+                                        <Wallet className={`h-5 w-5 ${activeTab === 'wallets' ? 'text-green-400' : 'text-muted-foreground'}`} />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <div className="font-semibold">Wallets</div>
+                                        <div className="text-xs opacity-70">Link authentication methods</div>
+                                    </div>
+                                    {activeTab === 'wallets' && (
+                                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                                    )}
+                                </button>
+                                
+                                <button
+                                    onClick={() => handleTabChange('subscription')}
+                                    className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-200 ${
+                                        activeTab === 'subscription'
+                                            ? 'border-green-500/60 bg-green-500/10 text-green-400'
+                                            : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/50'
+                                    }`}
+                                >
+                                    <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                                        activeTab === 'subscription' ? 'bg-green-500/20' : 'bg-muted'
+                                    }`}>
+                                        <CreditCard className={`h-5 w-5 ${activeTab === 'subscription' ? 'text-green-400' : 'text-muted-foreground'}`} />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <div className="font-semibold">Subscription</div>
+                                        <div className="text-xs opacity-70">Manage your plan</div>
+                                    </div>
+                                    {activeTab === 'subscription' && (
+                                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                                    )}
+                                </button>
+                                
+                                <button
+                                    onClick={() => handleTabChange('security')}
+                                    className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all duration-200 ${
+                                        activeTab === 'security'
+                                            ? 'border-green-500/60 bg-green-500/10 text-green-400'
+                                            : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/50'
+                                    }`}
+                                >
+                                    <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                                        activeTab === 'security' ? 'bg-green-500/20' : 'bg-muted'
+                                    }`}>
+                                        <Shield className={`h-5 w-5 ${activeTab === 'security' ? 'text-green-400' : 'text-muted-foreground'}`} />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                        <div className="font-semibold">Security</div>
+                                        <div className="text-xs opacity-70">Password and security</div>
+                                    </div>
+                                    {activeTab === 'security' && (
+                                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* Desktop: Horizontal tabs */}
+                            <TabsList className="hidden md:grid md:grid-cols-4 gap-2 p-1.5 bg-muted/30 border border-border/50 rounded-lg">
+                                <TabsTrigger value="account" className="flex items-center justify-center gap-2 py-3 px-4">
+                                    <User className="h-4 w-4" />
+                                    <span>Account</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="wallets" className="flex-shrink-0 md:flex-shrink min-w-[80px] md:min-w-0">
-                                    <Wallet className="h-4 w-4 mr-1.5 md:mr-2" />
-                                    <span className="whitespace-nowrap">Wallets</span>
+                                <TabsTrigger value="wallets" className="flex items-center justify-center gap-2 py-3 px-4">
+                                    <Wallet className="h-4 w-4" />
+                                    <span>Wallets</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="subscription" className="flex-shrink-0 md:flex-shrink min-w-[100px] md:min-w-0">
-                                    <CreditCard className="h-4 w-4 mr-1.5 md:mr-2" />
-                                    <span className="whitespace-nowrap">Subscription</span>
+                                <TabsTrigger value="subscription" className="flex items-center justify-center gap-2 py-3 px-4">
+                                    <CreditCard className="h-4 w-4" />
+                                    <span>Subscription</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="security" className="flex-shrink-0 md:flex-shrink min-w-[80px] md:min-w-0">
-                                    <Shield className="h-4 w-4 mr-1.5 md:mr-2" />
-                                    <span className="whitespace-nowrap">Security</span>
+                                <TabsTrigger value="security" className="flex items-center justify-center gap-2 py-3 px-4">
+                                    <Shield className="h-4 w-4" />
+                                    <span>Security</span>
                                 </TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="account" className="space-y-6 mt-6">
+                            <TabsContent value="account" className="space-y-6 mt-4 md:mt-6">
                                 <Card className="border-border/50">
                                     <CardHeader className="pb-4">
                                         <div className="flex items-center gap-2">
@@ -276,11 +368,11 @@ function SettingsContent() {
                                 </Card>
                             </TabsContent>
 
-                            <TabsContent value="wallets" className="space-y-6 mt-6">
+                            <TabsContent value="wallets" className="space-y-6 mt-4 md:mt-6">
                                 <AccountManagement />
                             </TabsContent>
 
-                            <TabsContent value="security" className="space-y-6 mt-6">
+                            <TabsContent value="security" className="space-y-6 mt-4 md:mt-6">
                                 <Card className="border-border/50">
                                     <CardHeader className="pb-4">
                                         <div className="flex items-center gap-2">
@@ -296,7 +388,7 @@ function SettingsContent() {
                                     </CardContent>
                                 </Card>
                             </TabsContent>
-                            <TabsContent value="subscription" className="space-y-6 mt-6">
+                            <TabsContent value="subscription" className="space-y-6 mt-4 md:mt-6">
                                 <Card className="border-border/50">
                                     <CardHeader className="pb-4">
                                         <div className="flex items-center gap-2">
