@@ -81,7 +81,8 @@ export function AccountManagement() {
         if (session?.user?.id) {
             loadAccounts()
         }
-    }, [session])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session?.user?.id])
 
     const loadAccounts = async () => {
         try {
@@ -426,6 +427,7 @@ export function AccountManagement() {
                                             <Label htmlFor="link-password">Password</Label>
                                             <PasswordInput
                                                 id="link-password"
+                                                label="Password"
                                                 value={password}
                                                 onChange={(e) => setPassword(e.target.value)}
                                                 placeholder="Create a password"
@@ -435,6 +437,7 @@ export function AccountManagement() {
                                             <Label htmlFor="link-confirm">Confirm Password</Label>
                                             <PasswordInput
                                                 id="link-confirm"
+                                                label="Confirm Password"
                                                 value={confirmPassword}
                                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                                 placeholder="Confirm password"
