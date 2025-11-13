@@ -1119,12 +1119,9 @@ auth.post('/wallet/link', authMiddleware, async (c) => {
             return c.json({ error: 'Missing required fields' }, 400)
         }
 
-        // Get logged-in user from middleware
-        const user = c.get('user')
-        if (!user) {
-            return c.json({ error: 'Not authenticated' }, 401)
-        }
-
+        // Get logged-in user from middleware (guaranteed to exist by authMiddleware)
+        const user = c.get('user')!
+        
         // Verify signature based on provider
         let verified = false
         let caip10 = ''
@@ -1224,11 +1221,8 @@ auth.post('/wallet/unlink', authMiddleware, async (c) => {
             return c.json({ error: 'Missing required fields' }, 400)
         }
 
-        // Get logged-in user from middleware
-        const user = c.get('user')
-        if (!user) {
-            return c.json({ error: 'Not authenticated' }, 401)
-        }
+        // Get logged-in user from middleware (guaranteed to exist by authMiddleware)
+        const user = c.get('user')!
 
         const caip10 = provider === 'evm' 
             ? `eip155:${chainId}:${address}`
@@ -1273,10 +1267,8 @@ auth.post('/wallet/unlink', authMiddleware, async (c) => {
 // Get linked wallets for logged-in user (requires authentication)
 auth.get('/wallet/list', authMiddleware, async (c) => {
     try {
-        const user = c.get('user')
-        if (!user) {
-            return c.json({ error: 'Not authenticated' }, 401)
-        }
+        // Get logged-in user from middleware (guaranteed to exist by authMiddleware)
+        const user = c.get('user')!
 
         const wallets = await prisma.walletAccount.findMany({
             where: { userId: user.id },

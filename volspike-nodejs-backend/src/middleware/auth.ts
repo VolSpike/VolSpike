@@ -1,9 +1,9 @@
-import { Context, Next } from 'hono'
+import { Context, Next, MiddlewareHandler } from 'hono'
 import { jwtVerify } from 'jose'
 import { prisma } from '../index'
-import { User } from '../types'
+import type { AppBindings, AppVariables } from '../types/hono'
 
-export async function authMiddleware(c: Context, next: Next) {
+export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variables: AppVariables }> = async (c, next) => {
     try {
         const authHeader = c.req.header('Authorization')
 
@@ -78,7 +78,7 @@ export async function authMiddleware(c: Context, next: Next) {
         console.log(`[Auth] ✅ Authenticated user: ${user.email} (${user.tier} tier)`)
 
         // Add user to context with proper typing
-        c.set('user', user as User)
+        c.set('user', user)
 
         await next()
     } catch (error) {

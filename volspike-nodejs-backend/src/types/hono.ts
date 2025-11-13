@@ -13,4 +13,11 @@ export interface AppBindings {
 
 export interface AppVariables {
     adminUser?: AdminUser
+    user?: {
+        id: string
+        email: string
+        tier: string
+        refreshInterval: number
+        theme: string
+    }
 }
