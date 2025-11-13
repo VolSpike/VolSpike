@@ -166,6 +166,7 @@ export function UserMenu() {
                                         fill
                                         sizes="36px"
                                         className="object-cover"
+                                        referrerPolicy="no-referrer"
                                         priority
                                         onError={() => setImageError(true)}
                                     />
@@ -198,6 +199,7 @@ export function UserMenu() {
                                                 fill
                                                 sizes="40px"
                                                 className="object-cover"
+                                                referrerPolicy="no-referrer"
                                                 onError={() => setImageError(true)}
                                             />
                                         </div>

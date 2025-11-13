@@ -2,7 +2,22 @@
 const nextConfig = {
     outputFileTracingRoot: __dirname,
     images: {
-        domains: ['localhost', 'lh3.googleusercontent.com', 'avatars.githubusercontent.com'],
+        // Allow common avatar hosts. Keep domains for backward compat
+        domains: [
+            'localhost',
+            'lh1.googleusercontent.com',
+            'lh2.googleusercontent.com',
+            'lh3.googleusercontent.com',
+            'lh4.googleusercontent.com',
+            'lh5.googleusercontent.com',
+            'lh6.googleusercontent.com',
+            'avatars.githubusercontent.com',
+        ],
+        // Be robust to any googleusercontent subdomain in production
+        remotePatterns: [
+            { protocol: 'https', hostname: '**.googleusercontent.com' },
+            { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+        ],
     },
     env: {
         NEXTAUTH_URL: process.env.NEXTAUTH_URL,
