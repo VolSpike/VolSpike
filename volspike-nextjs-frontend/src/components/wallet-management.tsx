@@ -185,6 +185,9 @@ export function WalletManagement() {
         )
     }
 
+    const hasEvm = wallets.some(w => w.provider === 'evm')
+    const hasSol = wallets.some(w => w.provider === 'solana')
+
     return (
         <div className="space-y-6">
             <div>
@@ -205,10 +208,13 @@ export function WalletManagement() {
                             <div className="space-y-2">
                                 <p className="text-sm font-medium">No Wallet Connected</p>
                                 <p className="text-sm text-muted-foreground max-w-md">
-                                    Connect your wallet to link it to your account and enable Web3 authentication.
+                                    Connect your wallet to link it to your account and enable Web3 authentication. You can link one ETH wallet and one SOL wallet per account.
                                 </p>
                             </div>
                             <WalletConnectButton />
+                            {hasEvm && (
+                                <p className="text-xs text-muted-foreground">ETH wallet already linked</p>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -251,8 +257,8 @@ export function WalletManagement() {
                             </div>
                             <Button
                                 onClick={handleLinkWallet}
-                                disabled={isLinking}
-                                className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
+                                disabled={isLinking || hasEvm}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20 disabled:opacity-60"
                             >
                                 {isLinking ? (
                                     <>
@@ -262,12 +268,12 @@ export function WalletManagement() {
                                 ) : (
                                     <>
                                         <Wallet className="h-4 w-4 mr-2" />
-                                        Link Wallet to Account
+                                        {hasEvm ? 'ETH Wallet Already Linked' : 'Link Wallet to Account'}
                                     </>
                                 )}
                             </Button>
                             <p className="text-xs text-muted-foreground text-center">
-                                Sign a message to securely link this wallet to your account
+                                Sign a message to securely link this wallet to your account. One ETH wallet per user.
                             </p>
                         </div>
                     </CardContent>

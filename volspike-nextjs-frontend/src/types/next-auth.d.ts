@@ -29,6 +29,7 @@ declare module 'next-auth' {
       walletProvider?: 'evm' | 'solana' | null
     }
     accessToken?: string
+    authMethod?: 'password' | 'google' | 'evm' | 'solana' | null
   }
 }
 
@@ -43,5 +44,6 @@ declare module 'next-auth/jwt' {
     accessToken?: string
     walletAddress?: string
     walletProvider?: 'evm' | 'solana' | null
+    authMethod?: 'password' | 'google' | 'evm' | 'solana' | null
   }
 }

@@ -104,6 +104,7 @@ export const authConfig: NextAuthConfig = {
                         status: user.status,
                         twoFactorEnabled: user.twoFactorEnabled,
                         accessToken: token,
+                        authMethod: 'password',
                     }
                 } catch (error) {
                     console.error('[NextAuth] Authorization error:', error)
@@ -148,6 +149,7 @@ export const authConfig: NextAuthConfig = {
                             role: payload.role || 'USER',
                             tier: payload.tier || 'free',
                             accessToken: credentials.token,
+                            authMethod: 'evm',
                         } as any
                     } catch (_) {
                         // try next secret
@@ -183,6 +185,9 @@ export const authConfig: NextAuthConfig = {
                 token.walletAddress = user.walletAddress
                 token.walletProvider = user.walletProvider
                 token.passwordChangedAt = user.passwordChangedAt || null // Track password change time
+                if ((user as any).authMethod) {
+                    token.authMethod = (user as any).authMethod
+                }
                 // Store profile image if available (from Google OAuth or other providers)
                 if (user.image) {
                     token.image = user.image
@@ -282,6 +287,7 @@ export const authConfig: NextAuthConfig = {
             // Handle Google OAuth account linking
             if (account?.provider === 'google' && user?.email) {
                 try {
+                    token.authMethod = 'google'
                     // Persist provider identity for future self-healing if linking fails
                     token.oauthProvider = 'google'
                     token.oauthProviderAccountId = account.providerAccountId
@@ -392,6 +398,7 @@ export const authConfig: NextAuthConfig = {
                 session.user.twoFactorEnabled = token.twoFactorEnabled
                 session.user.walletAddress = token.walletAddress
                 session.user.walletProvider = token.walletProvider
+                ;(session as any).authMethod = token.authMethod || null
                 // Always include profile image if available in token
                 if (token.image) {
                     session.user.image = token.image

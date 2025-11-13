@@ -138,9 +138,12 @@ function SettingsContent() {
 
     const getTierBadgeColor = () => {
         switch (identity.tier) {
-            case 'pro': return 'bg-blue-500 text-white'
-            case 'elite': return 'bg-amber-500 text-white'
-            default: return 'bg-gray-500 text-white'
+            case 'pro':
+                return 'bg-sec-600 dark:bg-sec-500 text-white border-0'
+            case 'elite':
+                return 'bg-elite-600 dark:bg-elite-500 text-white border-0'
+            default:
+                return 'bg-gray-600 dark:bg-gray-500 text-white border-0'
         }
     }
 

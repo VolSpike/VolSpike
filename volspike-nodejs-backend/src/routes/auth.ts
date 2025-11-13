@@ -322,6 +322,8 @@ auth.post('/signup', async (c) => {
 })
 
 // OAuth account linking (for Google OAuth)
+// This endpoint is used during the first OAuth sign-in (no session yet).
+// It must NEVER transfer a provider identity between users.
 auth.post('/oauth-link', async (c) => {
     try {
         const body = await c.req.json()
@@ -345,26 +347,29 @@ auth.post('/oauth-link', async (c) => {
             })
         }
 
-        // Create or update account record
-        await prisma.account.upsert({
+        // Enforce uniqueness: if this provider identity already belongs to another user, do NOT transfer
+        const existingAccount = await prisma.account.findUnique({
             where: {
                 provider_providerAccountId: {
                     provider,
                     providerAccountId: providerId,
                 },
             },
-            update: {
-                userId: user.id,
-                access_token: '', // OAuth tokens would be stored here
-            },
-            create: {
-                userId: user.id,
-                type: 'oauth',
-                provider,
-                providerAccountId: providerId,
-                access_token: '', // OAuth tokens would be stored here
-            },
         })
+        if (existingAccount && existingAccount.userId !== user.id) {
+            return c.json({ error: 'This OAuth account is already linked to another user' }, 403)
+        }
+        if (!existingAccount) {
+            await prisma.account.create({
+                data: {
+                    userId: user.id,
+                    type: 'oauth',
+                    provider,
+                    providerAccountId: providerId,
+                    access_token: '',
+                },
+            })
+        }
 
         const token = await generateToken(user.id)
 
@@ -1170,6 +1175,40 @@ auth.post('/wallet/link', authMiddleware, async (c) => {
             return c.json({ error: 'Signature verification failed' }, 401)
         }
 
+        // Enforce one wallet per provider per user
+        const existingByProvider = await prisma.walletAccount.count({
+            where: { userId: user.id, provider: provider as 'evm' | 'solana' },
+        })
+        if (existingByProvider > 0) {
+            const label = provider === 'solana' ? 'Solana' : 'ETH'
+            return c.json({ error: `You can link only one ${label} wallet` }, 400)
+        }
+
+        // Enforce wallet address uniqueness across all users (independent of chain)
+        if (provider === 'evm') {
+            const dup = await prisma.walletAccount.findFirst({
+                where: {
+                    provider: 'evm',
+                    address: { equals: address, mode: 'insensitive' },
+                },
+                select: { userId: true },
+            })
+            if (dup && dup.userId !== user.id) {
+                return c.json({ error: 'This ETH wallet is already linked to another account' }, 403)
+            }
+        } else if (provider === 'solana') {
+            const dup = await prisma.walletAccount.findFirst({
+                where: {
+                    provider: 'solana',
+                    address: address,
+                },
+                select: { userId: true },
+            })
+            if (dup && dup.userId !== user.id) {
+                return c.json({ error: 'This SOL wallet is already linked to another account' }, 403)
+            }
+        }
+
         // Check if wallet is already linked to another account
         const existingWallet = await prisma.walletAccount.findUnique({
             where: {
@@ -1378,9 +1417,22 @@ auth.post('/email/link', authMiddleware, async (c) => {
 
         const user = c.get('user')!
 
+        const normalizedEmail = email.toLowerCase().trim()
+
+        // If Google OAuth is linked, password can only be set for the same email
+        const googleOAuth = await prisma.account.findFirst({
+            where: { userId: user.id, provider: 'google', type: 'oauth' },
+        })
+        if (googleOAuth) {
+            const u = await prisma.user.findUnique({ where: { id: user.id }, select: { email: true } })
+            if (u && u.email.toLowerCase().trim() !== normalizedEmail) {
+                return c.json({ error: 'Email/password must use your Google OAuth email' }, 400)
+            }
+        }
+
         // Check if email is already taken
         const existingUser = await prisma.user.findUnique({
-            where: { email: email.toLowerCase().trim() },
+            where: { email: normalizedEmail },
         })
 
         if (existingUser && existingUser.id !== user.id) {
@@ -1404,7 +1456,7 @@ auth.post('/email/link', authMiddleware, async (c) => {
         await prisma.user.update({
             where: { id: user.id },
             data: {
-                email: email.toLowerCase().trim(),
+                email: normalizedEmail,
                 passwordHash: hash,
                 passwordChangedAt: new Date(),
             },
@@ -1437,6 +1489,18 @@ auth.post('/oauth/link', authMiddleware, async (c) => {
 
         const user = c.get('user')!
 
+        const normalizedEmail = email.toLowerCase().trim()
+        const isGoogleEmail = (addr: string) => /@(gmail\.com|googlemail\.com)$/i.test(addr)
+
+        // Load current user for policy checks
+        const currentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { email: true, passwordHash: true },
+        })
+        if (!currentUser) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
         // Check if OAuth account is already linked to another user
         const existingAccount = await prisma.account.findUnique({
             where: {
@@ -1455,6 +1519,11 @@ auth.post('/oauth/link', authMiddleware, async (c) => {
             }
         }
 
+        // Policy: if user has email+password and email is Google, require same Google email
+        if (currentUser.passwordHash && isGoogleEmail(currentUser.email) && currentUser.email.toLowerCase().trim() !== normalizedEmail) {
+            return c.json({ error: 'Google OAuth email must match your existing Google email' }, 400)
+        }
+
         // Link OAuth account
         await prisma.account.create({
             data: {
@@ -1466,20 +1535,32 @@ auth.post('/oauth/link', authMiddleware, async (c) => {
             },
         })
 
-        // Update user email if not set or if it's a wallet-only account
-        const currentUser = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { email: true },
-        })
+        // Update primary email according to policy
+        // Ensure target email not in use by another user
+        const emailOwner = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } })
+        if (emailOwner && emailOwner.id !== user.id) {
+            return c.json({ error: 'Email is already associated with another account' }, 400)
+        }
 
-        const normalizedEmail = email.toLowerCase().trim()
-        if (!currentUser?.email || currentUser.email.includes('@volspike.wallet')) {
+        const shouldReplaceEmail = (
+            (!currentUser.email || currentUser.email.includes('@volspike.wallet')) ||
+            (!isGoogleEmail(currentUser.email) && currentUser.email.toLowerCase().trim() !== normalizedEmail)
+        )
+        if (shouldReplaceEmail) {
             await prisma.user.update({
                 where: { id: user.id },
                 data: {
                     email: normalizedEmail,
-                    emailVerified: new Date(), // OAuth accounts are verified
+                    emailVerified: new Date(),
+                    // Clear password if we replaced a non-Google email so the user must re-link it to the new email
+                    passwordHash: isGoogleEmail(currentUser.email) ? undefined : null,
                 },
+            })
+        } else if (currentUser.email.toLowerCase().trim() === normalizedEmail) {
+            // Ensure verified when emails match
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { emailVerified: new Date() },
             })
         }
 

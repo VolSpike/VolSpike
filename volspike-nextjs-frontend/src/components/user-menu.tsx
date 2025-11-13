@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { signOut, useSession } from 'next-auth/react'
+import { useDisconnect } from 'wagmi'
 import { useRouter } from 'next/navigation'
 import { useUserIdentity } from '@/hooks/use-user-identity'
 import { generateInitials, getAvatarColor, isLikelyGoogleLetterTile } from '@/lib/avatar-utils'
@@ -45,6 +46,7 @@ export function UserMenu() {
     const [imageError, setImageError] = useState(false)
     const [debugAvatar, setDebugAvatar] = useState(false)
     const [avatarMode, setAvatarMode] = useState<'auto' | 'image' | 'initials'>('auto')
+    const { disconnect } = useDisconnect()
 
     // Reset image error when image changes
     useEffect(() => {
@@ -374,7 +376,21 @@ export function UserMenu() {
                 {/* Sign Out */}
                 <div className="p-2">
                     <DropdownMenuItem
-                        onClick={() => signOut({ callbackUrl: '/' })}
+                        onClick={() => {
+                            try { disconnect() } catch (_) {}
+                            try {
+                                const anyWindow: any = typeof window !== 'undefined' ? window : null
+                                anyWindow?.solana?.isConnected && anyWindow?.solana?.disconnect?.()
+                            } catch (_) {}
+                            try {
+                                if (typeof window !== 'undefined') {
+                                    window.localStorage.removeItem('vs_normalized_email')
+                                    window.localStorage.removeItem('vs_avatar_mode')
+                                    window.localStorage.removeItem('debugAvatar')
+                                }
+                            } catch (_) {}
+                            signOut({ callbackUrl: '/' })
+                        }}
                         className="rounded-lg text-danger-600 dark:text-danger-400 focus:text-danger-600 dark:focus:text-danger-400 focus:bg-danger-500/10 transition-all duration-150"
                     >
                         <LogOut className="h-4 w-4 mr-2.5" />

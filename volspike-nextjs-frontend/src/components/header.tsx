@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
@@ -14,6 +14,7 @@ import { UserMenu } from '@/components/user-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
 import { signOut } from 'next-auth/react'
+import { useEnforceSingleIdentity } from '@/hooks/use-enforce-single-identity'
 
 export function Header({ hideWalletConnect = false }: { hideWalletConnect?: boolean }) {
     const { data: session, status } = useSession()
@@ -21,6 +22,9 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
     const pathname = usePathname()
     const tier = session?.user?.tier || 'free'
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+    // Ensure only one active identity at a time
+    useEnforceSingleIdentity()
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm transition-all duration-200">
