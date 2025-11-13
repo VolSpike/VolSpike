@@ -5,8 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useSocket } from '@/hooks/use-socket'
 import { useTierChangeListener } from '@/hooks/use-tier-change-listener'
 import { useClientOnlyMarketData } from '@/hooks/use-client-only-market-data'
-import { Header } from '@/components/header'
-import { AdBanner } from '@/components/ad-banner'
+import { HeaderWithBanner } from '@/components/header-with-banner'
 import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
 import { VolumeAlertsPanel } from '@/components/volume-alerts-panel'
@@ -203,14 +202,7 @@ export function Dashboard() {
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-secondary-500/30 to-transparent" />
             
-            <Header />
-            
-            {/* Upgrade to Pro Banner - Below Header, Full Width */}
-            {userTier === 'free' && (
-                <div className="w-full border-b border-border/50 bg-background">
-                    <AdBanner userTier={userTier} />
-                </div>
-            )}
+            <HeaderWithBanner />
 
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="space-y-6">

@@ -1,4 +1,4 @@
-import { Header } from '@/components/header'
+import { HeaderWithBanner } from '@/components/header-with-banner'
 import { SessionProvider } from 'next-auth/react'
 import { getNextAuthSession } from '@/lib/auth-server'
 
@@ -16,7 +16,7 @@ export default async function SupportPage() {
   return (
     <SessionProvider session={session}>
       <div className="min-h-screen bg-background">
-        <Header />
+        <HeaderWithBanner />
       
       <main className="container mx-auto px-4 py-16">
         <div className="max-w-3xl mx-auto text-center">

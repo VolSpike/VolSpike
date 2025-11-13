@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Header } from '@/components/header'
+import { HeaderWithBanner } from '@/components/header-with-banner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -115,7 +115,7 @@ function SettingsContent() {
     if (status === 'loading' || identity.isLoading) {
         return (
             <div className="flex-1 bg-background">
-                <Header />
+                <HeaderWithBanner />
                 <main className="container mx-auto px-4 py-8">
                     <div className="text-center">Loading...</div>
                 </main>
@@ -691,7 +691,7 @@ export default function SettingsPage() {
     return (
         <Suspense fallback={
             <div className="flex-1 bg-background">
-                <Header />
+                <HeaderWithBanner />
                 <main className="container mx-auto px-4 py-8">
                     <div className="text-center">Loading...</div>
                 </main>
