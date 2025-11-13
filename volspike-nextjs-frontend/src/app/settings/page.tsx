@@ -322,31 +322,31 @@ function SettingsContent() {
                             </div>
 
                             {/* Desktop: Horizontal tabs */}
-                            <TabsList className="hidden md:grid md:grid-cols-4 gap-2 p-1.5 bg-gray-100/50 dark:bg-muted/30 border border-gray-200 dark:border-border/50 rounded-xl">
+                            <TabsList className="hidden md:flex items-center gap-2 p-1.5 rounded-xl bg-background/40 dark:bg-muted/30 border border-border/50 shadow-sm sticky top-0 z-10 backdrop-blur">
                                 <TabsTrigger 
                                     value="account" 
-                                    className="flex items-center justify-center gap-2 py-3 px-4 data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm text-gray-700 dark:text-muted-foreground font-medium"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
                                 >
                                     <User className="h-4 w-4" />
                                     <span>Account</span>
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="wallets" 
-                                    className="flex items-center justify-center gap-2 py-3 px-4 data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm text-gray-700 dark:text-muted-foreground font-medium"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
                                 >
                                     <Wallet className="h-4 w-4" />
                                     <span>Wallets</span>
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="subscription" 
-                                    className="flex items-center justify-center gap-2 py-3 px-4 data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm text-gray-700 dark:text-muted-foreground font-medium"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
                                 >
                                     <CreditCard className="h-4 w-4" />
                                     <span>Subscription</span>
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="security" 
-                                    className="flex items-center justify-center gap-2 py-3 px-4 data-[state=active]:bg-white dark:data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm text-gray-700 dark:text-muted-foreground font-medium"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
                                 >
                                     <Shield className="h-4 w-4" />
                                     <span>Security</span>
@@ -698,4 +698,3 @@ export default function SettingsPage() {
         </Suspense>
     )
 }
-

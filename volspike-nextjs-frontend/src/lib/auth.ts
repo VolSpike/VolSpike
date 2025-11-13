@@ -238,6 +238,40 @@ export const authConfig: NextAuthConfig = {
                                 console.log(`[Auth] ✅ Tier updated: ${oldTier} → ${token.tier} for ${dbUser.email}`)
                             }
                         }
+                    } else if ((response.status === 401 || response.status === 404) && token.oauthProvider === 'google' && token.oauthProviderAccountId && token.email) {
+                        // Self-heal: if /me says user not found but we have Google identity,
+                        // create/link the account now using the saved providerAccountId.
+                        try {
+                            console.warn('[Auth] /me returned not found. Attempting self-heal via /oauth-link')
+                            const linkRes = await fetch(`${BACKEND_API_URL}/api/auth/oauth-link`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    email: String(token.email).toLowerCase().trim(),
+                                    name: token.email?.split('@')[0],
+                                    image: token.image,
+                                    provider: 'google',
+                                    providerId: token.oauthProviderAccountId,
+                                }),
+                            })
+                            if (linkRes.ok) {
+                                const { user: dbUser, token: dbToken } = await linkRes.json()
+                                token.id = dbUser.id
+                                token.tier = dbUser.tier || token.tier || 'free'
+                                token.emailVerified = dbUser.emailVerified
+                                token.role = dbUser.role || token.role || 'USER'
+                                token.status = dbUser.status || token.status
+                                token.twoFactorEnabled = dbUser.twoFactorEnabled ?? token.twoFactorEnabled
+                                if (dbToken) token.accessToken = dbToken
+                                token.tierLastChecked = Date.now()
+                                console.log('[Auth] ✅ Self-heal succeeded. Token now bound to DB user', dbUser.id)
+                            } else {
+                                const detail = await linkRes.json().catch(() => ({}))
+                                console.warn('[Auth] Self-heal /oauth-link failed', linkRes.status, detail)
+                            }
+                        } catch (e) {
+                            console.warn('[Auth] Self-heal attempt errored', e)
+                        }
                     }
                 } catch (error) {
                     // Silently fail - use cached tier if fetch fails
@@ -248,6 +282,9 @@ export const authConfig: NextAuthConfig = {
             // Handle Google OAuth account linking
             if (account?.provider === 'google' && user?.email) {
                 try {
+                    // Persist provider identity for future self-healing if linking fails
+                    token.oauthProvider = 'google'
+                    token.oauthProviderAccountId = account.providerAccountId
                     // Store Google profile image in token immediately - this is critical!
                     if (user.image) {
                         token.image = user.image
