@@ -339,28 +339,28 @@ function SettingsContent() {
                             <TabsList className="hidden md:flex items-center gap-2 p-1.5 rounded-xl bg-background/40 dark:bg-muted/30 border border-border/50 shadow-sm sticky top-0 z-10 backdrop-blur">
                                 <TabsTrigger 
                                     value="account" 
-                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 transition-all data-[state=active]:bg-brand-500/10 dark:data-[state=active]:bg-brand-500/20 data-[state=active]:text-brand-700 dark:data-[state=active]:text-brand-400 data-[state=active]:font-semibold data-[state=active]:border-2 data-[state=active]:border-brand-500/30 dark:data-[state=active]:border-brand-400/50 data-[state=active]:shadow-md data-[state=active]:shadow-brand-500/20"
                                 >
                                     <User className="h-4 w-4" />
                                     <span>Account</span>
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="wallets" 
-                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 transition-all data-[state=active]:bg-brand-500/10 dark:data-[state=active]:bg-brand-500/20 data-[state=active]:text-brand-700 dark:data-[state=active]:text-brand-400 data-[state=active]:font-semibold data-[state=active]:border-2 data-[state=active]:border-brand-500/30 dark:data-[state=active]:border-brand-400/50 data-[state=active]:shadow-md data-[state=active]:shadow-brand-500/20"
                                 >
                                     <Wallet className="h-4 w-4" />
                                     <span>Wallets</span>
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="subscription" 
-                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 transition-all data-[state=active]:bg-brand-500/10 dark:data-[state=active]:bg-brand-500/20 data-[state=active]:text-brand-700 dark:data-[state=active]:text-brand-400 data-[state=active]:font-semibold data-[state=active]:border-2 data-[state=active]:border-brand-500/30 dark:data-[state=active]:border-brand-400/50 data-[state=active]:shadow-md data-[state=active]:shadow-brand-500/20"
                                 >
                                     <CreditCard className="h-4 w-4" />
                                     <span>Subscription</span>
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="security" 
-                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 data-[state=active]:bg-card data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-sm"
+                                    className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 transition-all data-[state=active]:bg-brand-500/10 dark:data-[state=active]:bg-brand-500/20 data-[state=active]:text-brand-700 dark:data-[state=active]:text-brand-400 data-[state=active]:font-semibold data-[state=active]:border-2 data-[state=active]:border-brand-500/30 dark:data-[state=active]:border-brand-400/50 data-[state=active]:shadow-md data-[state=active]:shadow-brand-500/20"
                                 >
                                     <Shield className="h-4 w-4" />
                                     <span>Security</span>
