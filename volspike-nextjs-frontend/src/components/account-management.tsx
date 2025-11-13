@@ -24,6 +24,7 @@ import {
     Eye,
     EyeOff
 } from 'lucide-react'
+import { base58 } from '@scure/base'
 import { toast } from 'react-hot-toast'
 import { SiweMessage } from 'siwe'
 import { WalletConnectButton } from '@/components/wallet-connect-button'
@@ -353,6 +354,85 @@ export function AccountManagement() {
         return chains[id] || `Chain ${chainId}`
     }
 
+    // Inline component for SOL linking via Phantom
+    function SolanaLinkTile({ onLinked, sessionToken }: { onLinked: () => Promise<void> | void, sessionToken?: string | null }) {
+        const sol = typeof window !== 'undefined' ? (window as any).solana : null
+        const solLinked = accounts?.wallets?.find(w => w.provider === 'solana') || null
+
+        const linkSol = async () => {
+            try {
+                if (!session?.user?.id) {
+                    toast.error('Please sign in')
+                    return
+                }
+                if (!sol || !sol.isPhantom) {
+                    toast.error('Phantom not detected. Install Phantom to link a SOL wallet.')
+                    return
+                }
+                // Connect if needed
+                try { await sol.connect(); } catch (_) {}
+                const pk = sol?.publicKey?.toString?.()
+                if (!pk) { toast.error('Unable to read Phantom public key'); return }
+
+                // Nonce + message
+                const nRes = await fetch(`${API_URL}/api/auth/solana/nonce`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: pk }) })
+                if (!nRes.ok) throw new Error('Failed to get nonce')
+                const { nonce } = await nRes.json()
+                const pRes = await fetch(`${API_URL}/api/auth/solana/prepare?address=${pk}&chainId=101&nonce=${nonce}`)
+                if (!pRes.ok) throw new Error('Failed to prepare message')
+                const { message } = await pRes.json()
+
+                const encoder = new TextEncoder()
+                const signed = await sol.signMessage(encoder.encode(message), 'utf8')
+                const signatureB58 = base58.encode(new Uint8Array(signed.signature))
+
+                const authToken = (session as any)?.accessToken || session?.user?.id || sessionToken || ''
+                const link = await fetch(`${API_URL}/api/auth/wallet/link`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                    body: JSON.stringify({ message, signature: signatureB58, address: pk, chainId: '101', provider: 'solana' }),
+                })
+                const data = await link.json().catch(() => ({}))
+                if (!link.ok) throw new Error(data?.error || 'Failed to link SOL wallet')
+                toast.success('SOL wallet linked')
+                await onLinked?.()
+            } catch (e: any) {
+                toast.error(e?.message || 'Failed to link SOL wallet')
+            }
+        }
+
+        if (solLinked) {
+            return (
+                <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground font-mono">{formatAddress(solLinked.address)}</p>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleUnlinkWallet(solLinked)}
+                        className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
+                    >
+                        <Unlink className="h-4 w-4" />
+                    </Button>
+                </div>
+            )
+        }
+
+        return (
+            <div className="space-y-2 text-center">
+                <p className="text-sm text-muted-foreground">Use Phantom to link your SOL wallet</p>
+                <Button onClick={linkSol} className="border border-purple-400/60 bg-transparent text-purple-300 hover:bg-purple-500/15" variant="outline">
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Link SOL Wallet
+                </Button>
+            </div>
+        )
+    }
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-8">
@@ -496,7 +576,7 @@ export function AccountManagement() {
                 </CardHeader>
             </Card>
 
-            {/* OAuth Section */}
+            {/* Google OAuth Section */}
             <Card className="border-border/50">
                 <CardHeader className="pb-4">
                     <div className="flex items-center justify-between mb-4">
@@ -505,10 +585,8 @@ export function AccountManagement() {
                                 <Shield className="h-5 w-5 text-red-400" />
                             </div>
                             <div>
-                                <CardTitle className="text-base">Social Accounts</CardTitle>
-                                <CardDescription className="mt-1">
-                                    Link your Google account for quick sign-in
-                                </CardDescription>
+                                <CardTitle className="text-base">Google OAuth</CardTitle>
+                                <CardDescription className="mt-1">Link your Google account for quick sign‑in</CardDescription>
                             </div>
                         </div>
                         {accounts.oauth.length === 0 && (
@@ -545,10 +623,8 @@ export function AccountManagement() {
                                             <Shield className="h-4 w-4 text-red-400" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-medium capitalize">{account.provider}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {account.providerAccountId.slice(0, 20)}...
-                                            </p>
+                                            <p className="text-sm font-medium">Google OAuth</p>
+                                            <p className="text-xs text-muted-foreground">Linked</p>
                                         </div>
                                     </div>
                                     {hasAnyAuth && (
@@ -566,7 +642,7 @@ export function AccountManagement() {
                         </div>
                     ) : (
                         <div className="text-center py-4 text-sm text-muted-foreground">
-                            No social accounts linked
+                            Google OAuth not linked
                         </div>
                     )}
                 </CardHeader>
@@ -582,68 +658,60 @@ export function AccountManagement() {
                             </div>
                             <div>
                                 <CardTitle className="text-base">Crypto Wallets</CardTitle>
-                                <CardDescription className="mt-1">
-                                    Link wallets for Web3 authentication
-                                </CardDescription>
+                                <CardDescription className="mt-1">Link one ETH wallet and one SOL wallet</CardDescription>
                             </div>
                         </div>
                     </div>
-
-                    {/* Connect Wallet Section */}
-                    {!isConnected ? (
-                        <Card className="border-2 border-dashed border-border/50 bg-muted/20 hover:border-green-400/50 transition-all duration-200 mb-4">
+                    {/* Two dedicated tiles: ETH and SOL */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                        {/* ETH tile */}
+                        <Card className="border-border/50">
                             <CardContent className="pt-4 pb-4">
-                                <div className="flex flex-col items-center text-center space-y-3">
-                                    <div className="rounded-full bg-muted p-2">
-                                        <Wallet className="h-5 w-5 text-muted-foreground" />
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="rounded-full bg-blue-500/10 p-2">
+                                            <Wallet className="h-4 w-4 text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium">ETH Wallet</p>
+                                            <p className="text-xs text-muted-foreground">EVM networks (Ethereum, Base, etc.)</p>
+                                        </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium">No Wallet Connected</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Connect your wallet to link it to your account
-                                        </p>
-                                    </div>
-                                    <WalletConnectButton />
                                 </div>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <Card className="border-green-400/40 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent mb-4">
-                            <CardContent className="pt-4 pb-4">
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="rounded-full bg-green-500/20 p-2">
-                                            <CheckCircle2 className="h-4 w-4 text-green-400" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium">Wallet Connected</p>
-                                            <p className="text-xs text-muted-foreground font-mono">
-                                                {formatAddress(address!)} on {getChainName(chainId?.toString() || '1', 'evm')}
-                                            </p>
-                                        </div>
-                                        <Button
-                                            onClick={handleLinkWallet}
-                                            disabled={isLinking}
-                                            size="sm"
-                                            className="bg-green-600 hover:bg-green-700 text-white"
-                                        >
-                                            {isLinking ? (
-                                                <>
-                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                    Linking...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Link2 className="h-3 w-3 mr-1" />
-                                                    Link
-                                                </>
-                                            )}
+                                {isConnected ? (
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-muted-foreground font-mono">{formatAddress(address!)} on {getChainName(chainId?.toString() || '1', 'evm')}</p>
+                                        <Button onClick={handleLinkWallet} disabled={isLinking} className="bg-green-600 hover:bg-green-700 text-white">
+                                            {isLinking ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Linking…</>) : (<><Link2 className="h-4 w-4 mr-2" />Link ETH Wallet</>)}
                                         </Button>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="space-y-2 text-center">
+                                        <p className="text-sm text-muted-foreground">Connect an EVM wallet to link it</p>
+                                        <WalletConnectButton />
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
-                    )}
+
+                        {/* SOL tile */}
+                        <Card className="border-border/50">
+                            <CardContent className="pt-4 pb-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="rounded-full bg-purple-500/10 p-2">
+                                            <Wallet className="h-4 w-4 text-purple-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium">SOL Wallet</p>
+                                            <p className="text-xs text-muted-foreground">Solana (Phantom)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <SolanaLinkTile onLinked={loadAccounts} sessionToken={(session as any)?.accessToken || session?.user?.id} />
+                            </CardContent>
+                        </Card>
+                    </div>
 
                     {/* Linked Wallets List */}
                     {accounts.wallets.length > 0 ? (
