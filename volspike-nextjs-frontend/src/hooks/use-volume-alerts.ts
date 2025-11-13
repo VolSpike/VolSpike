@@ -150,17 +150,55 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   
   // Set up WebSocket connection for real-time alerts
   useEffect(() => {
-    // For guests we use near-live polling instead of sockets (no auth)
+    // Guests: try true live via Socket.IO with a lightweight guest token; gracefully fall back to polling
     if (typeof window === 'undefined' || (!session && !guestLive)) return
-    
+
     const apiUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
     const userEmail = session?.user?.email
-    
-    if (!userEmail) {
-      // Guest live mode: mark as connected and rely on fast polling below
-      if (guestLive) {
-        setIsConnected(true)
-        setError(null)
+
+    if (!userEmail && guestLive) {
+      try {
+        const socket = io(apiUrl, {
+          auth: { token: 'guest' },
+          query: { tier: 'free' },
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 5,
+        })
+
+        socketRef.current = socket
+
+        socket.on('connect', () => {
+          console.log('✅ Guest connected to volume alerts WebSocket (free tier)')
+          setIsConnected(true)
+          setError(null)
+        })
+
+        socket.on('volume-alert', (newAlert: VolumeAlert) => {
+          setAlerts(prev => {
+            const filtered = prev.filter(a => a.id !== newAlert.id)
+            return [newAlert, ...filtered].slice(0, Math.max(1, guestVisibleCount))
+          })
+          if (onNewAlert) onNewAlert()
+        })
+
+        socket.on('disconnect', () => {
+          console.log('❌ Guest socket disconnected; continuing polling fallback')
+          setIsConnected(false)
+        })
+
+        socket.on('connect_error', (err) => {
+          console.warn('Guest WebSocket connection error:', err?.message || err)
+          setIsConnected(false)
+        })
+
+        return () => {
+          socket.disconnect()
+        }
+      } catch (e) {
+        console.warn('Guest socket setup failed, using polling:', e)
+        setIsConnected(false)
       }
       return
     }

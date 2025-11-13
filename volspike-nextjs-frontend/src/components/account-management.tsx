@@ -657,7 +657,7 @@ export function AccountManagement() {
                                 <Wallet className="h-5 w-5 text-purple-400" />
                             </div>
                             <div>
-                                <CardTitle className="text-base">Crypto Wallets</CardTitle>
+                                <CardTitle className="text-base">Linked Accounts</CardTitle>
                                 <CardDescription className="mt-1">Link one ETH wallet and one SOL wallet</CardDescription>
                             </div>
                         </div>
@@ -717,16 +717,19 @@ export function AccountManagement() {
                     {accounts.wallets.length > 0 ? (
                         <div className="space-y-2 mt-4">
                             {(() => {
-                                // Deduplicate EVM wallets by address; show one row per provider+address
-                                const seen = new Set<string>()
-                                const unique = accounts.wallets.filter((w) => {
+                                // Group by provider+address and roll all EVM chains into chips on a single row
+                                const groups = new Map<string, { base: typeof accounts.wallets[number]; chains: Set<string> }>()
+                                for (const w of accounts.wallets) {
                                     const key = `${w.provider}:${w.address.toLowerCase()}`
-                                    if (seen.has(key)) return false
-                                    seen.add(key)
-                                    return true
-                                })
-                                return unique
-                            })().map((wallet) => {
+                                    const existing = groups.get(key)
+                                    if (existing) {
+                                        existing.chains.add(w.chainId)
+                                    } else {
+                                        groups.set(key, { base: w, chains: new Set([w.chainId]) })
+                                    }
+                                }
+                                return Array.from(groups.values())
+                            })().map(({ base: wallet, chains }) => {
                                 const isCurrentWallet = isConnected && wallet.address.toLowerCase() === address?.toLowerCase()
                                 return (
                                     <div
@@ -752,11 +755,18 @@ export function AccountManagement() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="text-sm font-medium">
-                                                        {getChainName(wallet.chainId, wallet.provider)}
-                                                    </span>
-                                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                                                         {wallet.provider === 'evm' ? 'EVM' : 'Solana'}
                                                     </span>
+                                                    {/* Network chips for EVM: roll multiple chains into one row */}
+                                                    {wallet.provider === 'evm' && (
+                                                        <span className="flex items-center gap-1 flex-wrap">
+                                                            {Array.from(chains).map((cid) => (
+                                                                <span key={cid} className="text-xs px-1.5 py-0.5 rounded-full bg-background/70 border border-border/50">
+                                                                    {getChainName(cid, 'evm')}
+                                                                </span>
+                                                            ))}
+                                                        </span>
+                                                    )}
                                                     {isCurrentWallet && (
                                                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-400/30">
                                                             Connected

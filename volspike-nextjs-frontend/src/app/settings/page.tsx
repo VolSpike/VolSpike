@@ -250,7 +250,7 @@ function SettingsContent() {
                                             activeTab === 'wallets'
                                                 ? 'text-green-900 dark:text-green-300'
                                                 : 'text-gray-900 dark:text-foreground'
-                                        }`}>Wallets</div>
+                                        }`}>Linked Accounts</div>
                                         <div className={`text-xs mt-0.5 ${
                                             activeTab === 'wallets'
                                                 ? 'text-green-700/80 dark:text-green-400/70'
@@ -349,7 +349,7 @@ function SettingsContent() {
                                     className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-background/60 transition-all data-[state=active]:bg-brand-500/10 dark:data-[state=active]:bg-brand-500/20 data-[state=active]:text-brand-700 dark:data-[state=active]:text-brand-400 data-[state=active]:font-semibold data-[state=active]:border-2 data-[state=active]:border-brand-500/30 dark:data-[state=active]:border-brand-400/50 data-[state=active]:shadow-md data-[state=active]:shadow-brand-500/20"
                                 >
                                     <Wallet className="h-4 w-4" />
-                                    <span>Wallets</span>
+                                    <span>Linked Accounts</span>
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="subscription" 
