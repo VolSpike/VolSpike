@@ -79,7 +79,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
     return (
         <Card
             className={cn(
-                'relative overflow-hidden border-l-4 border-l-brand-500 dark:border-l-brand-400 shadow-md',
+                'relative overflow-hidden border-l-4 border-l-brand-500 dark:border-l-brand-400 shadow-md w-full',
                 'bg-card hover:shadow-brand-lg transition-all duration-300',
                 'before:absolute before:inset-0 before:bg-gradient-to-r before:from-brand-500/8 before:via-brand-500/4 before:to-transparent before:pointer-events-none dark:before:from-brand-400/12 dark:before:via-brand-400/6',
                 'after:absolute after:inset-0 after:bg-gradient-to-br after:from-transparent after:via-transparent after:to-sec-500/5 after:pointer-events-none',
@@ -93,7 +93,8 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
 
             {/* Desktop Wide (lg+): Full Banner */}
             <CardContent className="hidden lg:block p-5 md:p-6 relative z-10">
-                <div className="flex flex-row items-center justify-between gap-5">
+                <div className="container mx-auto max-w-7xl">
+                    <div className="flex flex-row items-center justify-between gap-5">
                     <div className="flex items-start gap-4 flex-1">
                         {/* Icon - Lightning Bolt */}
                         <div className="flex-shrink-0">
@@ -148,12 +149,14 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                             </span>
                         </Button>
                     </div>
+                    </div>
                 </div>
             </CardContent>
 
             {/* Mobile & Desktop Narrow: Compact Icon-Only Banner */}
             <CardContent className="lg:hidden p-2.5 md:p-3 relative z-10">
-                <div className="flex items-center justify-between gap-2 md:gap-3">
+                <div className="container mx-auto max-w-7xl">
+                    <div className="flex items-center justify-between gap-2 md:gap-3">
                     {/* Left: Title + Price */}
                     <div className="flex items-center gap-1.5 md:gap-2 min-w-0 flex-shrink-0">
                         <div className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-lg bg-brand-500/10 dark:bg-brand-400/20 flex items-center justify-center border border-brand-500/20 dark:border-brand-400/30">
@@ -245,6 +248,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                             Upgrade
                             <ArrowRight className="ml-1.5 h-3 w-3 md:h-3.5 md:w-3.5" />
                         </Button>
+                    </div>
                     </div>
                 </div>
             </CardContent>
