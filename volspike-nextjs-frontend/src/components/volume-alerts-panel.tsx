@@ -169,16 +169,16 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                 variant="outline" 
                 className={`text-xs transition-all duration-300 ${
                   guestMode
-                    ? 'border-border/50 text-muted-foreground'
+                    ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
                     : isConnected
                       ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
                       : 'border-warning-500/30 text-warning-600 dark:text-warning-400'
                 }`}
               >
                 <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                  guestMode ? 'bg-muted-foreground/60' : isConnected ? 'bg-brand-500' : 'bg-warning-500'
-                } ${guestMode ? '' : 'animate-pulse-glow'}`} />
-                {guestMode ? 'Preview' : isConnected ? 'Live' : 'Connecting'}
+                  guestMode ? 'bg-brand-500' : isConnected ? 'bg-brand-500' : 'bg-warning-500'
+                } ${guestMode ? 'animate-pulse-glow' : isConnected ? 'animate-pulse-glow' : ''}`} />
+                {guestMode ? 'Live' : isConnected ? 'Live' : 'Connecting'}
               </Badge>
               {/* Sound toggle - compact icon-only button */}
               <button

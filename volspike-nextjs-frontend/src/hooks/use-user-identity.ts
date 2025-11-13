@@ -7,6 +7,7 @@ export interface UserIdentity {
     displayName: string
     email: string | null
     address: string | null
+    walletProvider?: 'evm' | 'solana' | null
     ens: string | null
     role: 'USER' | 'ADMIN' | null
     tier: 'free' | 'pro' | 'elite' | null
@@ -33,7 +34,7 @@ export function useUserIdentity(): UserIdentity {
 
         const email = (session?.user?.email as string | undefined)?.toLowerCase?.().trim?.() || storedEmail || null
         const walletAddress = session?.user?.walletAddress || null
-        const walletProvider = session?.user?.walletProvider || null
+        const walletProvider = (session?.user as any)?.walletProvider || null
         const ens = null // TODO: Add ENS name when wallet address is available
 
         // Display name policy: if a wallet is connected, prefer short address
@@ -52,6 +53,7 @@ export function useUserIdentity(): UserIdentity {
             email,
             address: walletAddress,
             ens,
+            walletProvider,
             role: session?.user?.role || null,
             tier: session?.user?.tier || null,
             image: session?.user?.image || null,

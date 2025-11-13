@@ -92,11 +92,13 @@ export function UserMenu() {
     const emailFromIdentity = identity.email
     const emailFromSession = session?.user?.email
     const normalizedEmail = (emailFromIdentity || emailFromSession)?.toLowerCase().trim() || null
-    const userIdentifier = normalizedEmail || session?.user?.id || null
+    const userIdentifier = normalizedEmail || (session?.user as any)?.walletAddress || session?.user?.id || null
     
     // Always use email for initials - ignore displayName to ensure consistency
     // If email is not available, fallback to a safe default
-    const initials = normalizedEmail ? generateInitials(normalizedEmail, null) : 'U'
+    const initials = normalizedEmail 
+        ? generateInitials(normalizedEmail, null)
+        : generateInitials(null, null, identity.address)
     
     // Use normalized email for color generation to ensure consistency
     // If no email, use user ID as fallback
@@ -271,7 +273,7 @@ export function UserMenu() {
                             <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border/50">
                                 <Wallet className="h-3 w-3 text-muted-foreground" />
                                 <span className="text-xs font-mono text-muted-foreground font-mono-tabular">
-                                    {identity.address.slice(0, 6)}...{identity.address.slice(-4)}
+                                    {(identity.walletProvider === 'solana' ? 'SOL' : 'ETH')} · {identity.address.slice(0, 6)}...{identity.address.slice(-4)}
                                 </span>
                             </div>
                         )}

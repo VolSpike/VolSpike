@@ -198,14 +198,14 @@ export function Dashboard() {
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="space-y-6">
                     {isGuest && (
-                        <div className="rounded-lg border border-border/60 bg-muted/40 p-3 md:p-4 animate-fade-in">
+                        <div className="rounded-lg border border-brand-200/70 bg-brand-50/80 dark:border-border/60 dark:bg-muted/40 p-3 md:p-4 animate-fade-in">
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                                <div className="text-sm text-muted-foreground">
+                                <div className="text-sm text-brand-900/80 dark:text-muted-foreground">
                                     You’re viewing a guest preview. Top 5 symbols and top 2 alerts are visible. Start Free to unlock full Free features, or upgrade to Pro for 5‑minute updates and Open Interest.
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <a href="/auth?tab=signup" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-brand-600 text-white hover:bg-brand-700">Start Free</a>
-                                    <a href="/pricing" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
+                                    <a href="/auth?tab=signup" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-md shadow-brand-500/20 ring-1 ring-brand-500/20">Start Free</a>
+                                    <a href="/pricing" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-sec-600 text-white hover:bg-sec-700 shadow-md shadow-sec-500/20">Get Pro</a>
                                 </div>
                             </div>
                         </div>

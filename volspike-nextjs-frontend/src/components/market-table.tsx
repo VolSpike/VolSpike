@@ -4,17 +4,18 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-    ArrowUpDown, 
-    ArrowUp, 
-    ArrowDown, 
-    Star, 
-    Bell, 
+import {
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    Star,
+    Bell,
     TrendingUp,
     X,
     ExternalLink,
     BarChart3,
-    Info
+    Info,
+    Lock
 } from 'lucide-react'
 import {
     Sheet,
@@ -366,11 +367,11 @@ export function MarketTable({
             {/* Status Bar */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30">
                 <div className="flex items-center gap-2">
-                    <Badge 
-                        variant="outline" 
+                    <Badge
+                        variant="outline"
                         className={`text-xs font-mono-tabular ${
-                            isConnected 
-                                ? 'border-brand-500/30 text-brand-600 dark:text-brand-400' 
+                            isConnected
+                                ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
                                 : 'border-danger-500/30 text-danger-600 dark:text-danger-400'
                         }`}
                     >
@@ -379,6 +380,11 @@ export function MarketTable({
                         }`} />
                         {isConnected ? 'Connected' : 'Disconnected'}
                     </Badge>
+                    {guestMode && (
+                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                            <Lock className="h-3 w-3" /> Sorting locked
+                        </Badge>
+                    )}
                     {/* Free tier: omit "Updated ..." text (data is live). Pro/Elite: show OI as-of */}
                     {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
                         <span className="text-xs text-muted-foreground font-mono-tabular">
@@ -431,6 +437,7 @@ export function MarketTable({
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Ticker</span>
+                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
                                     <SortIcon column="symbol" />
                                 </Button>
                             </th>
@@ -444,6 +451,7 @@ export function MarketTable({
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Price</span>
+                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
                                     <SortIcon column="price" />
                                 </Button>
                             </th>
@@ -457,6 +465,7 @@ export function MarketTable({
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">24h Change</span>
+                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
                                     <SortIcon column="change" />
                                 </Button>
                             </th>
@@ -470,6 +479,7 @@ export function MarketTable({
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Funding Rate</span>
+                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
                                     <SortIcon column="funding" />
                                 </Button>
                             </th>
@@ -483,6 +493,7 @@ export function MarketTable({
                                     className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">24h Volume</span>
+                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
                                     <SortIcon column="volume" />
                                 </Button>
                             </th>
@@ -497,6 +508,7 @@ export function MarketTable({
                                         className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                     >
                                         <span className="mr-1.5">Open Interest</span>
+                                        {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
                                         <SortIcon column="openInterest" />
                                     </Button>
                                 </th>

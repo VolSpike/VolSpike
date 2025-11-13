@@ -302,7 +302,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                             {pathname?.startsWith('/auth') && !hideWalletConnect && <ConnectButton />}
                             <Button 
                                 onClick={() => router.push('/auth?tab=signup')}
-                                className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition-all duration-200"
+                                className="bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-md shadow-brand-500/20 ring-1 ring-brand-500/20 transition-all duration-200"
                             >
                                 Start Free
                             </Button>

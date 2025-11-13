@@ -425,7 +425,7 @@ export function AccountManagement() {
         return (
             <div className="space-y-2 text-center">
                 <p className="text-sm text-muted-foreground">Use Phantom to link your SOL wallet</p>
-                <Button onClick={linkSol} className="border border-purple-400/60 bg-transparent text-purple-300 hover:bg-purple-500/15" variant="outline">
+                <Button onClick={linkSol} className="border border-purple-500 text-purple-600 hover:bg-purple-50" variant="outline">
                     <Link2 className="h-4 w-4 mr-2" />
                     Link SOL Wallet
                 </Button>
@@ -716,7 +716,17 @@ export function AccountManagement() {
                     {/* Linked Wallets List */}
                     {accounts.wallets.length > 0 ? (
                         <div className="space-y-2 mt-4">
-                            {accounts.wallets.map((wallet) => {
+                            {(() => {
+                                // Deduplicate EVM wallets by address; show one row per provider+address
+                                const seen = new Set<string>()
+                                const unique = accounts.wallets.filter((w) => {
+                                    const key = `${w.provider}:${w.address.toLowerCase()}`
+                                    if (seen.has(key)) return false
+                                    seen.add(key)
+                                    return true
+                                })
+                                return unique
+                            })().map((wallet) => {
                                 const isCurrentWallet = isConnected && wallet.address.toLowerCase() === address?.toLowerCase()
                                 return (
                                     <div

@@ -9,7 +9,7 @@
  * 
  * IMPORTANT: Always use email when available for consistency across auth methods
  */
-export function generateInitials(email: string | null, displayName: string | null): string {
+export function generateInitials(email: string | null, displayName: string | null, walletAddress?: string | null): string {
     // Always prefer email-based initials for consistency across auth methods
     if (email) {
         const normalizedEmail = email.toLowerCase().trim()
@@ -35,7 +35,16 @@ export function generateInitials(email: string | null, displayName: string | nul
             return initials
         }
     }
-    
+
+    // Fallback to wallet-based initials if available (e.g., wallet-only sign-in)
+    if (walletAddress) {
+        const addr = walletAddress.trim()
+        // Use first two non-prefix hex chars for recognizability
+        const hex = addr.startsWith('0x') ? addr.slice(2) : addr
+        const initials = hex.slice(0, 2).toUpperCase()
+        return initials || 'U'
+    }
+
     // Fallback to name-based initials ONLY if no email (should rarely happen)
     if (displayName) {
         const words = displayName.split(' ').filter(w => w.length > 0)
