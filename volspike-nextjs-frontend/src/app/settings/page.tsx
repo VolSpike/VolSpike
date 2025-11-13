@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { PasswordInput } from '@/components/password-input'
 import { Eye, EyeOff } from 'lucide-react'
 import { broadcastPasswordChange } from '@/lib/password-change-broadcast'
-import { WalletManagement } from '@/components/wallet-management'
+import { AccountManagement } from '@/components/account-management'
 
 function SettingsContent() {
     const { data: session, status } = useSession()
@@ -25,6 +25,16 @@ function SettingsContent() {
     const searchParams = useSearchParams()
     const identity = useUserIdentity()
     const [activeTab, setActiveTab] = useState('account')
+    
+    // Handle OAuth linking callback
+    useEffect(() => {
+        if (searchParams?.get('link') === 'google' && session?.user?.id) {
+            // Reload accounts after OAuth linking
+            setTimeout(() => {
+                router.replace('/settings?tab=wallets', { scroll: false })
+            }, 1000)
+        }
+    }, [searchParams, session, router])
     const [isLoadingCheckout, setIsLoadingCheckout] = useState(false)
     const [isClient, setIsClient] = useState(false)
 
@@ -220,7 +230,7 @@ function SettingsContent() {
                             </TabsContent>
 
                             <TabsContent value="wallets" className="space-y-6 mt-6">
-                                <WalletManagement />
+                                <AccountManagement />
                             </TabsContent>
 
                             <TabsContent value="security" className="space-y-6 mt-6">

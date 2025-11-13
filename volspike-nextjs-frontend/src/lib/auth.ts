@@ -223,42 +223,72 @@ export const authConfig: NextAuthConfig = {
             // Handle Google OAuth account linking
             if (account?.provider === 'google' && user?.email) {
                 try {
-                    // Check if user exists in our database
-                    console.log('[NextAuth] OAuth linking to:', `${BACKEND_API_URL}/api/auth/oauth-link`)
-                    const response = await fetch(`${BACKEND_API_URL}/api/auth/oauth-link`, {
+                    // Check if user is already logged in (for account linking)
+                    const existingSession = token.id ? { userId: token.id } : null
+                    
+                    const requestBody: any = {
+                        // Send normalized email to backend for consistent linking
+                        email: String(user.email).toLowerCase().trim(),
+                        name: user.name,
+                        image: user.image,
+                        provider: 'google',
+                        // Use Google's stable subject identifier returned by NextAuth
+                        // to avoid creating duplicate account rows per sign-in
+                        providerId: account.providerAccountId,
+                    }
+
+                    // If user is already logged in, include Authorization header for linking
+                    const headers: HeadersInit = {
+                        'Content-Type': 'application/json',
+                    }
+                    
+                    let endpoint = `${BACKEND_API_URL}/api/auth/oauth-link`
+                    if (existingSession?.userId) {
+                        headers['Authorization'] = `Bearer ${existingSession.userId}`
+                        endpoint = `${BACKEND_API_URL}/api/auth/oauth/link`
+                        console.log('[NextAuth] Linking Google OAuth to existing account:', existingSession.userId)
+                    } else {
+                        console.log('[NextAuth] Creating new account with Google OAuth')
+                    }
+
+                    const response = await fetch(endpoint, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            // Send normalized email to backend for consistent linking
-                            email: String(user.email).toLowerCase().trim(),
-                            name: user.name,
-                            image: user.image,
-                            provider: 'google',
-                            // Use Google's stable subject identifier returned by NextAuth
-                            // to avoid creating duplicate account rows per sign-in
-                            providerId: account.providerAccountId,
-                        }),
+                        headers,
+                        body: JSON.stringify(requestBody),
                     })
 
                     if (response.ok) {
-                        const { user: dbUser, token: dbToken } = await response.json()
-                        token.id = dbUser.id
-                        {
-                            // Preserve email, but normalize casing for consistency
-                            const candidate = token.email || dbUser.email || user.email
-                            token.email = candidate ? String(candidate).toLowerCase().trim() : candidate
+                        const responseData = await response.json()
+                        
+                        // If linking to existing account, use existing token data
+                        if (existingSession?.userId && responseData.success) {
+                            console.log('[NextAuth] Google OAuth linked successfully to existing account')
+                            // Keep existing token data, just mark OAuth as linked
+                            token.googleLinked = true
+                        } else {
+                            // New account creation
+                            const { user: dbUser, token: dbToken } = responseData
+                            token.id = dbUser.id
+                            {
+                                // Preserve email, but normalize casing for consistency
+                                const candidate = token.email || dbUser.email || user.email
+                                token.email = candidate ? String(candidate).toLowerCase().trim() : candidate
+                            }
+                            token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
+                            token.emailVerified = dbUser.emailVerified
+                            token.role = dbUser.role || 'USER' // Default to 'USER' if undefined
+                            token.status = dbUser.status
+                            token.twoFactorEnabled = dbUser.twoFactorEnabled
+                            token.accessToken = dbToken
                         }
-                        token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
-                        token.emailVerified = dbUser.emailVerified
-                        token.role = dbUser.role || 'USER' // Default to 'USER' if undefined
-                        token.status = dbUser.status
-                        token.twoFactorEnabled = dbUser.twoFactorEnabled
-                        token.accessToken = dbToken
+                    } else {
+                        const errorData = await response.json().catch(() => ({}))
+                        console.error('[NextAuth] OAuth linking failed:', errorData)
+                        // Don't throw error - let NextAuth handle it
                     }
                 } catch (error) {
                     console.error('[NextAuth] OAuth linking failed:', error)
+                    // Don't throw error - let NextAuth handle it
                 }
             }
 

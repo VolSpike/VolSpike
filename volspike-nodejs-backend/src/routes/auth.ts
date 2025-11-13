@@ -1247,6 +1247,28 @@ auth.post('/wallet/unlink', authMiddleware, async (c) => {
             return c.json({ error: 'Wallet does not belong to your account' }, 403)
         }
 
+        // Don't allow unlinking if it's the only auth method
+        const userAccounts = await prisma.account.findMany({
+            where: { userId: user.id },
+        })
+        const userWallets = await prisma.walletAccount.findMany({
+            where: { userId: user.id },
+        })
+        const currentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { passwordHash: true },
+        })
+
+        const hasPassword = !!currentUser?.passwordHash
+        const hasOAuth = userAccounts.length > 0
+        const hasOtherWallets = userWallets.filter(w => w.id !== walletAccount.id).length > 0
+
+        if (!hasPassword && !hasOAuth && !hasOtherWallets) {
+            return c.json({ 
+                error: 'Cannot unlink. This is your only authentication method. Please link another method first.' 
+            }, 400)
+        }
+
         // Unlink wallet
         await prisma.walletAccount.delete({
             where: { id: walletAccount.id },
@@ -1288,6 +1310,251 @@ auth.get('/wallet/list', authMiddleware, async (c) => {
     } catch (error: any) {
         logger.error('Get wallets error:', error)
         return c.json({ error: 'Failed to get wallets' }, 500)
+    }
+})
+
+// Get all linked accounts (email/password, OAuth, wallets) for logged-in user
+auth.get('/accounts/list', authMiddleware, async (c) => {
+    try {
+        const user = c.get('user')!
+
+        // Get full user with all relations
+        const fullUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: {
+                id: true,
+                email: true,
+                passwordHash: true,
+                emailVerified: true,
+                accounts: {
+                    select: {
+                        id: true,
+                        provider: true,
+                        providerAccountId: true,
+                        type: true,
+                    },
+                },
+                walletAccounts: {
+                    select: {
+                        id: true,
+                        provider: true,
+                        address: true,
+                        chainId: true,
+                        caip10: true,
+                        lastLoginAt: true,
+                        createdAt: true,
+                    },
+                },
+            },
+        })
+
+        if (!fullUser) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        return c.json({
+            email: {
+                email: fullUser.email,
+                hasPassword: !!fullUser.passwordHash,
+                verified: !!fullUser.emailVerified,
+            },
+            oauth: fullUser.accounts.filter(acc => acc.type === 'oauth'),
+            wallets: fullUser.walletAccounts,
+        })
+    } catch (error: any) {
+        logger.error('Get accounts error:', error)
+        return c.json({ error: 'Failed to get accounts' }, 500)
+    }
+})
+
+// Link email/password to account (for wallet-only accounts)
+auth.post('/email/link', authMiddleware, async (c) => {
+    try {
+        const { email, password } = await c.req.json()
+        
+        if (!email || !password) {
+            return c.json({ error: 'Email and password are required' }, 400)
+        }
+
+        const user = c.get('user')!
+
+        // Check if email is already taken
+        const existingUser = await prisma.user.findUnique({
+            where: { email: email.toLowerCase().trim() },
+        })
+
+        if (existingUser && existingUser.id !== user.id) {
+            return c.json({ error: 'Email is already associated with another account' }, 400)
+        }
+
+        // Check if user already has email/password
+        const currentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { email: true, passwordHash: true },
+        })
+
+        if (currentUser?.passwordHash) {
+            return c.json({ error: 'Account already has a password set' }, 400)
+        }
+
+        // Hash password
+        const hash = await bcrypt.hash(password, 12)
+
+        // Update user with email and password
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                email: email.toLowerCase().trim(),
+                passwordHash: hash,
+                passwordChangedAt: new Date(),
+            },
+        })
+
+        logger.info(`Email/password linked to user ${user.id}`)
+
+        return c.json({ 
+            success: true,
+            message: 'Email and password linked successfully'
+        })
+    } catch (error: any) {
+        logger.error('Email link error:', error)
+        return c.json({ error: error.message || 'Failed to link email/password' }, 500)
+    }
+})
+
+// Link Google OAuth to account
+auth.post('/oauth/link', authMiddleware, async (c) => {
+    try {
+        const { email, name, image, provider, providerId } = await c.req.json()
+        
+        if (!email || !provider || !providerId) {
+            return c.json({ error: 'Missing required fields' }, 400)
+        }
+
+        if (provider !== 'google') {
+            return c.json({ error: 'Only Google OAuth is supported' }, 400)
+        }
+
+        const user = c.get('user')!
+
+        // Check if OAuth account is already linked to another user
+        const existingAccount = await prisma.account.findUnique({
+            where: {
+                provider_providerAccountId: {
+                    provider: 'google',
+                    providerAccountId: providerId,
+                },
+            },
+        })
+
+        if (existingAccount) {
+            if (existingAccount.userId === user.id) {
+                return c.json({ error: 'Google account is already linked to your account' }, 400)
+            } else {
+                return c.json({ error: 'This Google account is already linked to another account' }, 403)
+            }
+        }
+
+        // Link OAuth account
+        await prisma.account.create({
+            data: {
+                userId: user.id,
+                type: 'oauth',
+                provider: 'google',
+                providerAccountId: providerId,
+                access_token: '',
+            },
+        })
+
+        // Update user email if not set or if it's a wallet-only account
+        const currentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { email: true },
+        })
+
+        const normalizedEmail = email.toLowerCase().trim()
+        if (!currentUser?.email || currentUser.email.includes('@volspike.wallet')) {
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    email: normalizedEmail,
+                    emailVerified: new Date(), // OAuth accounts are verified
+                },
+            })
+        }
+
+        logger.info(`Google OAuth linked to user ${user.id}`)
+
+        return c.json({ 
+            success: true,
+            message: 'Google account linked successfully'
+        })
+    } catch (error: any) {
+        logger.error('OAuth link error:', error)
+        return c.json({ error: error.message || 'Failed to link Google account' }, 500)
+    }
+})
+
+// Unlink Google OAuth from account
+auth.post('/oauth/unlink', authMiddleware, async (c) => {
+    try {
+        const { provider } = await c.req.json()
+        
+        if (!provider) {
+            return c.json({ error: 'Provider is required' }, 400)
+        }
+
+        const user = c.get('user')!
+
+        // Find OAuth account
+        const account = await prisma.account.findFirst({
+            where: {
+                userId: user.id,
+                provider: provider,
+                type: 'oauth',
+            },
+        })
+
+        if (!account) {
+            return c.json({ error: 'OAuth account not found' }, 404)
+        }
+
+        // Don't allow unlinking if it's the only auth method
+        const userAccounts = await prisma.account.findMany({
+            where: { userId: user.id },
+        })
+        const userWallets = await prisma.walletAccount.findMany({
+            where: { userId: user.id },
+        })
+        const currentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { passwordHash: true },
+        })
+
+        const hasPassword = !!currentUser?.passwordHash
+        const hasOtherOAuth = userAccounts.filter(a => a.id !== account.id).length > 0
+        const hasWallets = userWallets.length > 0
+
+        if (!hasPassword && !hasOtherOAuth && !hasWallets) {
+            return c.json({ 
+                error: 'Cannot unlink. This is your only authentication method. Please link another method first.' 
+            }, 400)
+        }
+
+        // Unlink OAuth account
+        await prisma.account.delete({
+            where: { id: account.id },
+        })
+
+        logger.info(`OAuth ${provider} unlinked from user ${user.id}`)
+
+        return c.json({ 
+            success: true,
+            message: 'OAuth account unlinked successfully'
+        })
+    } catch (error: any) {
+        logger.error('OAuth unlink error:', error)
+        return c.json({ error: error.message || 'Failed to unlink OAuth account' }, 500)
     }
 })
 
