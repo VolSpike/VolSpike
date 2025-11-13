@@ -281,7 +281,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 </span>
                             </Button>
 
-                            {/* Notification Bell - Shell for future implementation */
+                            {/* Notification Bell - Shell for future implementation */}
                             <Button
                                 variant="ghost"
                                 size="icon"
