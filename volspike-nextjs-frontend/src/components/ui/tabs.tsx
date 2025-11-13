@@ -37,7 +37,8 @@ const TabsTrigger = React.forwardRef<
             "text-sm font-semibold transition-all duration-200",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400",
             "disabled:pointer-events-none disabled:opacity-50",
-            "flex-1", // Equal width distribution
+            // Responsive: flex-1 on desktop grid, auto on mobile flex
+            "md:flex-1",
             // Inactive state - subtle and blended
             "text-muted-foreground",
             "hover:text-foreground",

@@ -174,21 +174,22 @@ function SettingsContent() {
                     </CardHeader>
                     <CardContent>
                         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                            <TabsList className="grid w-full grid-cols-4">
-                                <TabsTrigger value="account">
-                                    <User className="h-4 w-4 mr-2" />
-                                    Account
+                            <TabsList className="flex w-full overflow-x-auto scrollbar-hide md:grid md:grid-cols-4 gap-1 p-1">
+                                <TabsTrigger value="account" className="flex-shrink-0 md:flex-shrink min-w-[80px] md:min-w-0">
+                                    <User className="h-4 w-4 mr-1.5 md:mr-2" />
+                                    <span className="whitespace-nowrap">Account</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="wallets">
-                                    <Wallet className="h-4 w-4 mr-2" />
-                                    Wallets
+                                <TabsTrigger value="wallets" className="flex-shrink-0 md:flex-shrink min-w-[80px] md:min-w-0">
+                                    <Wallet className="h-4 w-4 mr-1.5 md:mr-2" />
+                                    <span className="whitespace-nowrap">Wallets</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="subscription">
-                                    <CreditCard className="h-4 w-4 mr-2" />
-                                    Subscription
+                                <TabsTrigger value="subscription" className="flex-shrink-0 md:flex-shrink min-w-[100px] md:min-w-0">
+                                    <CreditCard className="h-4 w-4 mr-1.5 md:mr-2" />
+                                    <span className="whitespace-nowrap">Subscription</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="security">
-                                    Security
+                                <TabsTrigger value="security" className="flex-shrink-0 md:flex-shrink min-w-[80px] md:min-w-0">
+                                    <Shield className="h-4 w-4 mr-1.5 md:mr-2" />
+                                    <span className="whitespace-nowrap">Security</span>
                                 </TabsTrigger>
                             </TabsList>
 

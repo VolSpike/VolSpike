@@ -368,43 +368,44 @@ export function AccountManagement() {
             {/* Email/Password Section */}
             <Card className="border-border/50">
                 <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-full bg-blue-500/10 p-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="rounded-full bg-blue-500/10 p-2 flex-shrink-0">
                                 <Mail className="h-5 w-5 text-blue-400" />
                             </div>
-                            <div>
+                            <div className="flex-1 min-w-0">
                                 <CardTitle className="text-base">Email & Password</CardTitle>
-                                <CardDescription className="mt-1">
+                                <CardDescription className="mt-1 break-words">
                                     {accounts.email.email || 'No email set'}
                                 </CardDescription>
                             </div>
                         </div>
-                        {accounts.email.hasPassword ? (
-                            <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-green-400 border-green-400/30">
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                    Active
-                                </Badge>
-                                {hasAnyAuth && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={handleUnlinkEmail}
-                                        className="text-muted-foreground hover:text-red-400"
-                                    >
-                                        <Unlink className="h-4 w-4" />
-                                    </Button>
-                                )}
-                            </div>
-                        ) : (
-                            <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm" className="border-green-400/50 text-green-400 hover:bg-green-500/10">
-                                        <Link2 className="h-4 w-4 mr-2" />
-                                        Link Email
-                                    </Button>
-                                </DialogTrigger>
+                        <div className="flex items-center gap-2 flex-shrink-0 sm:ml-4">
+                            {accounts.email.hasPassword ? (
+                                <>
+                                    <Badge variant="outline" className="text-green-400 border-green-400/30">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Active
+                                    </Badge>
+                                    {hasAnyAuth && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleUnlinkEmail}
+                                            className="text-muted-foreground hover:text-red-400"
+                                        >
+                                            <Unlink className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </>
+                            ) : (
+                                <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" size="sm" className="border-green-400/50 text-green-400 hover:bg-green-500/10 whitespace-nowrap">
+                                            <Link2 className="h-4 w-4 mr-2" />
+                                            Link Email
+                                        </Button>
+                                    </DialogTrigger>
                                 <DialogContent className="sm:max-w-md">
                                     <DialogHeader>
                                         <DialogTitle>Link Email & Password</DialogTitle>
