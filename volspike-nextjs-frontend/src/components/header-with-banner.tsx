@@ -21,7 +21,9 @@ export function HeaderWithBanner({ hideWalletConnect = false }: HeaderWithBanner
             <Header hideWalletConnect={hideWalletConnect} />
             {showAdBanner && (
                 <div className="w-full border-b border-border/50 bg-background">
-                    <AdBanner userTier={userTier} />
+                    <div className="container mx-auto px-4 py-4 md:py-6">
+                        <AdBanner userTier={userTier} />
+                    </div>
                 </div>
             )}
         </>

@@ -35,7 +35,6 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
           <div className="absolute inset-0 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30 pointer-events-none" />
           
           <div className="relative p-4 sm:p-6 z-10">
-          <div className="container mx-auto max-w-7xl">
           {/* Mobile: Stack vertically, Desktop: Horizontal */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
             
@@ -78,7 +77,6 @@ export function AdPlaceholder({ variant = 'horizontal', className = '' }: AdPlac
                 </Button>
               </Link>
             </div>
-          </div>
           </div>
           </div>
           

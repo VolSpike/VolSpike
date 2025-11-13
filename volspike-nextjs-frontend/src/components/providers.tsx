@@ -40,8 +40,10 @@ function ConditionalAdPlaceholder() {
     }
     
     return (
-        <div className="w-full bg-background">
-            <AdPlaceholder variant="horizontal" />
+        <div className="w-full bg-background border-t border-border/50">
+            <div className="container mx-auto px-4 py-4 md:py-6">
+                <AdPlaceholder variant="horizontal" />
+            </div>
         </div>
     )
 }
