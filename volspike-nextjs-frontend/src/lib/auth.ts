@@ -15,12 +15,25 @@ export const authConfig: NextAuthConfig = {
         GoogleProvider({
             clientId: process.env.GOOGLE_CLIENT_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            authorization: {
+                params: {
+                    prompt: 'select_account', // Force account selection on every sign-in
+                    access_type: 'offline',
+                    response_type: 'code',
+                },
+            },
             profile(profile) {
+                console.log('[NextAuth] Google profile received:', {
+                    sub: profile.sub,
+                    email: profile.email,
+                    name: profile.name,
+                    picture: profile.picture,
+                })
                 return {
                     id: profile.sub,
                     email: profile.email,
                     name: profile.name,
-                    image: profile.picture,
+                    image: profile.picture, // Google's profile picture URL
                 }
             }
         }),
@@ -235,10 +248,12 @@ export const authConfig: NextAuthConfig = {
             // Handle Google OAuth account linking
             if (account?.provider === 'google' && user?.email) {
                 try {
-                    // Store Google profile image in token immediately
+                    // Store Google profile image in token immediately - this is critical!
                     if (user.image) {
                         token.image = user.image
-                        console.log('[NextAuth] Stored Google profile image in token:', user.image)
+                        console.log('[NextAuth] ✅ Stored Google profile image in token:', user.image)
+                    } else {
+                        console.warn('[NextAuth] ⚠️ Google OAuth user object missing image field:', user)
                     }
                     
                     // Check if user is already logged in (for account linking)
@@ -298,6 +313,16 @@ export const authConfig: NextAuthConfig = {
                             token.status = dbUser.status
                             token.twoFactorEnabled = dbUser.twoFactorEnabled
                             token.accessToken = dbToken
+                            // CRITICAL: Preserve Google profile image - backend doesn't return it
+                            // Always use user.image if available (it's the fresh Google profile photo)
+                            if (user.image) {
+                                token.image = user.image
+                                console.log('[NextAuth] ✅ Preserved Google profile image after account creation:', user.image)
+                            } else if (token.image) {
+                                console.log('[NextAuth] Keeping existing image from token:', token.image)
+                            } else {
+                                console.warn('[NextAuth] ⚠️ No profile image available after account creation')
+                            }
                         }
                     } else {
                         const errorData = await response.json().catch(() => ({}))

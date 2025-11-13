@@ -97,7 +97,11 @@ function AuthPageContent() {
 
         try {
             const callbackUrl = isAdminMode ? '/admin' : '/'
-            await signIn('google', { callbackUrl })
+            // Force account selection by adding prompt parameter
+            await signIn('google', { 
+                callbackUrl,
+                // NextAuth will use the authorization params from provider config
+            })
         } catch (error) {
             setIsGoogleLoading(false)
         }

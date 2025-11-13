@@ -155,10 +155,11 @@ export function AccountManagement() {
     const handleLinkGoogle = async () => {
         try {
             setIsLinking(true)
-            // Trigger NextAuth Google sign-in
+            // Trigger NextAuth Google sign-in with account selection
             await signIn('google', { 
                 callbackUrl: '/settings?tab=wallets&link=google',
-                redirect: true 
+                redirect: true,
+                // Account selection is handled by provider config
             })
         } catch (error: any) {
             console.error('Link Google error:', error)
