@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
+import { GuestCTA } from '@/components/guest-cta'
 import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
@@ -570,11 +571,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
           <div className="relative">
             <div className="pointer-events-none absolute inset-x-0 -top-24 h-24 bg-gradient-to-b from-transparent via-background/70 to-background" />
             <div className="mt-2 flex items-center justify-center">
-              <div className="pointer-events-auto inline-flex gap-2 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg p-2 shadow-md">
-                <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md border border-brand-500/40 text-brand-700 dark:text-brand-400 hover:bg-brand-500/10">Unlock live feed</a>
-                <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700">Start Free</a>
-                <a href="/pricing" className="px-3 py-2 text-xs rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
-              </div>
+              <GuestCTA size="sm" />
             </div>
           </div>
         )}
