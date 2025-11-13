@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUserIdentity } from '@/hooks/use-user-identity'
-import { Copy, ExternalLink, CreditCard, User, Wallet } from 'lucide-react'
+import { Copy, ExternalLink, CreditCard, User, Wallet, Shield } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { Input } from '@/components/ui/input'
@@ -193,9 +193,17 @@ function SettingsContent() {
                             </TabsList>
 
                             <TabsContent value="account" className="space-y-6 mt-6">
-                                <div>
-                                    <h3 className="text-sm font-medium mb-4">Account Information</h3>
-                                    <div className="space-y-4">
+                                <Card className="border-border/50">
+                                    <CardHeader className="pb-4">
+                                        <div className="flex items-center gap-2">
+                                            <User className="h-5 w-5 text-muted-foreground" />
+                                            <CardTitle className="text-base">Account Information</CardTitle>
+                                        </div>
+                                        <CardDescription className="mt-1">
+                                            View and manage your account details
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
                                         {/* Email */}
                                         {identity.email && (
                                             <div className="flex items-center justify-between py-2 border-b">
@@ -263,8 +271,8 @@ function SettingsContent() {
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
 
                             <TabsContent value="wallets" className="space-y-6 mt-6">
@@ -272,15 +280,33 @@ function SettingsContent() {
                             </TabsContent>
 
                             <TabsContent value="security" className="space-y-6 mt-6">
-                                <div>
-                                    <h3 className="text-sm font-medium mb-4">Change Password</h3>
-                                    <ChangePasswordForm />
-                                </div>
+                                <Card className="border-border/50">
+                                    <CardHeader className="pb-4">
+                                        <div className="flex items-center gap-2">
+                                            <Shield className="h-5 w-5 text-muted-foreground" />
+                                            <CardTitle className="text-base">Change Password</CardTitle>
+                                        </div>
+                                        <CardDescription className="mt-1">
+                                            Update your password to keep your account secure
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChangePasswordForm />
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
                             <TabsContent value="subscription" className="space-y-6 mt-6">
-                                <div>
-                                    <h3 className="text-sm font-medium mb-4">Subscription & Billing</h3>
-                                    <div className="space-y-4">
+                                <Card className="border-border/50">
+                                    <CardHeader className="pb-4">
+                                        <div className="flex items-center gap-2">
+                                            <CreditCard className="h-5 w-5 text-muted-foreground" />
+                                            <CardTitle className="text-base">Subscription & Billing</CardTitle>
+                                        </div>
+                                        <CardDescription className="mt-1">
+                                            Manage your subscription plan and billing information
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
                                         {/* Current Tier */}
                                         <div className="flex items-center justify-between py-4 border-b">
                                             <div className="flex-1">
@@ -318,8 +344,8 @@ function SettingsContent() {
                                                 </Button>
                                             </Link>
                                         </div>
-                                    </div>
-                                </div>
+                                    </CardContent>
+                                </Card>
                             </TabsContent>
                         </Tabs>
                     </CardContent>
@@ -398,7 +424,7 @@ function ChangePasswordForm() {
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+        <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
                 <Label htmlFor="current" className="text-sm text-muted-foreground">
                     Current Password
