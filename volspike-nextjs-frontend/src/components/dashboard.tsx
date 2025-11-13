@@ -10,7 +10,6 @@ import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
 import { VolumeAlertsPanel } from '@/components/volume-alerts-panel'
 import { TierUpgrade } from '@/components/tier-upgrade'
-import { AdPlaceholder } from '@/components/ad-placeholder'
 import { AlertBuilder } from '@/components/alert-builder'
 import { CommandPalette } from '@/components/command-palette'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
@@ -207,12 +206,6 @@ export function Dashboard() {
 
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="space-y-6">
-                    {/* Ad Placeholder for Free Tier Users */}
-                    {userTier === 'free' && (
-                        <div className="animate-fade-in">
-                            <AdPlaceholder variant="horizontal" />
-                        </div>
-                    )}
 
                     <div className="lg:hidden animate-fade-in">
                         <Tabs 
