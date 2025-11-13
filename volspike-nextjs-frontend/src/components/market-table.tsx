@@ -366,7 +366,7 @@ export function MarketTable({
     const tableContent = (
         <div className="relative">
             {/* Status Bar */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30 flex-wrap gap-y-2">
                 <div className="flex items-center gap-2">
                     <Badge
                         variant="outline"
@@ -401,7 +401,7 @@ export function MarketTable({
                     )}
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="hidden sm:inline text-xs text-muted-foreground">
                         {guestMode ? 'Top 5 preview' : `${sortedData.length} symbols`}
                     </span>
                     <WatchlistExportButton 
@@ -421,7 +421,7 @@ export function MarketTable({
                     // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
                     overscrollBehaviorX: 'none',
                     // Allow scroll chaining to the page at top/bottom so the page can scroll
-                    overscrollBehaviorY: guestMode ? 'contain' as any : 'auto',
+                    overscrollBehaviorY: 'auto',
                     // Ensure proper gesture handling on mobile while preserving momentum scroll
                     touchAction: 'pan-x pan-y pinch-zoom',
                 }}
@@ -715,16 +715,17 @@ export function MarketTable({
                     </tbody>
                 </table>
 
-                {guestMode && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent" />
-                )}
+            </div>
 
-                {guestMode && (
-                    <div className="absolute inset-x-0 bottom-3 flex items-center justify-center">
+            {/* Guest overlays anchored to wrapper (not affected by horizontal scroll) */}
+            {guestMode && (
+                <>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent z-10" />
+                    <div className="absolute inset-x-0 bottom-3 flex items-center justify-center z-20">
                         <GuestCTA size="sm" />
                     </div>
-                )}
-            </div>
+                </>
+            )}
 
             {/* Detail Drawer */}
             <Sheet open={!!selectedSymbol} onOpenChange={(open) => !open && setSelectedSymbol(null)}>
