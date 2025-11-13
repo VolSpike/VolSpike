@@ -5,9 +5,10 @@ import { useSession } from 'next-auth/react'
 import { useAccount, useSignMessage } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Wallet, X, Copy, Loader2, AlertCircle } from 'lucide-react'
+import { Wallet, X, Copy, Loader2, CheckCircle2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { SiweMessage } from 'siwe'
+import { WalletConnectButton } from '@/components/wallet-connect-button'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -180,116 +181,199 @@ export function WalletManagement() {
     return (
         <div className="space-y-6">
             <div>
-                <h3 className="text-sm font-medium mb-2">Linked Wallets</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                    Manage your connected cryptocurrency wallets. Link wallets to access your account with Web3 authentication.
+                <h3 className="text-lg font-semibold mb-2">Linked Wallets</h3>
+                <p className="text-sm text-muted-foreground">
+                    Connect and manage your cryptocurrency wallets. Link wallets to enable Web3 authentication and access your account from any device.
                 </p>
             </div>
 
-            {/* Link New Wallet */}
-            {isConnected && address && (
-                <Card className="border-green-400/30 bg-green-500/5">
-                    <CardHeader>
-                        <CardTitle className="text-sm flex items-center gap-2">
-                            <Wallet className="h-4 w-4 text-green-400" />
-                            Connect Wallet
-                        </CardTitle>
-                        <CardDescription>
-                            Link your connected wallet ({formatAddress(address)}) to your account
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button
-                            onClick={handleLinkWallet}
-                            disabled={isLinking}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                        >
-                            {isLinking ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Linking...
-                                </>
-                            ) : (
-                                <>
-                                    <Wallet className="h-4 w-4 mr-2" />
-                                    Link Wallet
-                                </>
-                            )}
-                        </Button>
-                    </CardContent>
-                </Card>
-            )}
-
-            {!isConnected && (
-                <Card className="border-yellow-400/30 bg-yellow-500/5">
-                    <CardContent className="pt-6">
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="h-5 w-5 text-yellow-400 mt-0.5" />
-                            <div className="flex-1">
-                                <p className="text-sm font-medium mb-1">No Wallet Connected</p>
-                                <p className="text-sm text-muted-foreground">
-                                    Connect your wallet using the button in the header to link it to your account.
+            {/* Connect Wallet Section */}
+            {!isConnected ? (
+                <Card className="border-2 border-dashed border-border/50 bg-muted/30 hover:border-green-400/50 transition-all duration-200">
+                    <CardContent className="pt-6 pb-6">
+                        <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="rounded-full bg-muted p-3">
+                                <Wallet className="h-6 w-6 text-muted-foreground" />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">No Wallet Connected</p>
+                                <p className="text-sm text-muted-foreground max-w-md">
+                                    Connect your wallet to link it to your account and enable Web3 authentication.
                                 </p>
                             </div>
+                            <WalletConnectButton />
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card className="border-green-400/40 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent">
+                    <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-full bg-green-500/20 p-2">
+                                    <CheckCircle2 className="h-5 w-5 text-green-400" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        Wallet Connected
+                                    </CardTitle>
+                                    <CardDescription className="mt-1">
+                                        {formatAddress(address!)} on {getChainName(chainId?.toString() || '1', 'evm')}
+                                    </CardDescription>
+                                </div>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-muted-foreground mb-1">Wallet Address</p>
+                                    <code className="text-sm font-mono text-foreground break-all">
+                                        {address}
+                                    </code>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCopy(address!)}
+                                    className="shrink-0"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <Button
+                                onClick={handleLinkWallet}
+                                disabled={isLinking}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
+                            >
+                                {isLinking ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Linking Wallet...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Wallet className="h-4 w-4 mr-2" />
+                                        Link Wallet to Account
+                                    </>
+                                )}
+                            </Button>
+                            <p className="text-xs text-muted-foreground text-center">
+                                Sign a message to securely link this wallet to your account
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
             )}
 
             {/* Linked Wallets List */}
-            {wallets.length > 0 ? (
-                <div className="space-y-3">
-                    {wallets.map((wallet) => (
-                        <Card key={wallet.id} className="border-border/50">
-                            <CardContent className="pt-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Wallet className="h-4 w-4 text-green-400" />
-                                            <span className="text-sm font-medium">
-                                                {getChainName(wallet.chainId, wallet.provider)}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                ({wallet.provider === 'evm' ? 'EVM' : 'Solana'})
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
-                                                {formatAddress(wallet.address)}
-                                            </code>
+            {wallets.length > 0 && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold">Linked Wallets ({wallets.length})</h4>
+                    </div>
+                    <div className="space-y-3">
+                        {wallets.map((wallet) => {
+                            const isCurrentWallet = isConnected && wallet.address.toLowerCase() === address?.toLowerCase()
+                            return (
+                                <Card 
+                                    key={wallet.id} 
+                                    className={`border-border/50 transition-all duration-200 hover:border-green-400/30 ${
+                                        isCurrentWallet ? 'border-green-400/50 bg-green-500/5' : ''
+                                    }`}
+                                >
+                                    <CardContent className="pt-4 pb-4">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex-1 min-w-0 space-y-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`rounded-full p-2 ${
+                                                        wallet.provider === 'evm' 
+                                                            ? 'bg-blue-500/10' 
+                                                            : 'bg-purple-500/10'
+                                                    }`}>
+                                                        <Wallet className={`h-4 w-4 ${
+                                                            wallet.provider === 'evm' 
+                                                                ? 'text-blue-400' 
+                                                                : 'text-purple-400'
+                                                        }`} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="text-sm font-semibold">
+                                                                {getChainName(wallet.chainId, wallet.provider)}
+                                                            </span>
+                                                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                                {wallet.provider === 'evm' ? 'EVM' : 'Solana'}
+                                                            </span>
+                                                            {isCurrentWallet && (
+                                                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-400/30">
+                                                                    Connected
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 pl-11">
+                                                    <code className="text-xs font-mono bg-muted/80 px-3 py-1.5 rounded-md border border-border/50 text-foreground">
+                                                        {formatAddress(wallet.address)}
+                                                    </code>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleCopy(wallet.address)}
+                                                        className="h-7 w-7 p-0 hover:bg-muted"
+                                                    >
+                                                        <Copy className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                                <div className="flex items-center gap-4 pl-11">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Linked {new Date(wallet.createdAt).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            year: 'numeric'
+                                                        })}
+                                                    </p>
+                                                    {wallet.lastLoginAt && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Last used {new Date(wallet.lastLoginAt).toLocaleDateString('en-US', {
+                                                                month: 'short',
+                                                                day: 'numeric'
+                                                            })}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleCopy(wallet.address)}
-                                                className="h-6 w-6 p-0"
+                                                onClick={() => handleUnlinkWallet(wallet)}
+                                                className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                                                title="Unlink wallet"
                                             >
-                                                <Copy className="h-3 w-3" />
+                                                <X className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                        <p className="text-xs text-muted-foreground mt-2">
-                                            Linked {new Date(wallet.createdAt).toLocaleDateString()}
-                                        </p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleUnlinkWallet(wallet)}
-                                        className="text-red-400 hover:text-red-500 hover:bg-red-500/10"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                    </CardContent>
+                                </Card>
+                            )
+                        })}
+                    </div>
                 </div>
-            ) : (
+            )}
+
+            {/* Empty State - Only show if no wallets and wallet is connected */}
+            {wallets.length === 0 && isConnected && (
                 <Card className="border-border/50">
-                    <CardContent className="pt-6">
-                        <div className="text-center py-8">
-                            <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-                            <p className="text-sm text-muted-foreground">
-                                No wallets linked yet. Connect your wallet above to get started.
+                    <CardContent className="pt-6 pb-6">
+                        <div className="text-center py-6">
+                            <div className="rounded-full bg-muted/50 p-4 w-fit mx-auto mb-4">
+                                <Wallet className="h-8 w-8 text-muted-foreground/50" />
+                            </div>
+                            <p className="text-sm font-medium mb-1">No wallets linked yet</p>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Link your connected wallet above to enable Web3 authentication
                             </p>
                         </div>
                     </CardContent>
