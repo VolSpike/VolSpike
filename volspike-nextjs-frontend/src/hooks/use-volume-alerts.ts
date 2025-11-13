@@ -25,10 +25,13 @@ interface UseVolumeAlertsOptions {
   pollInterval?: number // milliseconds (fallback when WebSocket disconnected)
   autoFetch?: boolean
   onNewAlert?: () => void // Callback when new alert arrives
+  // Enable near-live guest preview without auth (polling every few seconds)
+  guestLive?: boolean
+  guestVisibleCount?: number
 }
 
 export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
-  const { pollInterval = 15000, autoFetch = true, onNewAlert } = options
+  const { pollInterval = 15000, autoFetch = true, onNewAlert, guestLive = false, guestVisibleCount = 2 } = options
   const { data: session } = useSession()
   const [alerts, setAlerts] = useState<VolumeAlert[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -40,6 +43,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   
   // Get tier from session, default to free
   const tier = (session?.user as any)?.tier || 'free'
+  const isGuest = !session?.user
   
   // Calculate the last broadcast time for the current tier
   const getLastBroadcastTime = useCallback(() => {
@@ -103,7 +107,9 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       // Socket.IO handles wall-clock batching via tier-based rooms
       // Just use the alerts as-is from backend
       if (data.alerts && Array.isArray(data.alerts)) {
-        setAlerts(data.alerts)
+        const arr = Array.isArray(data.alerts) ? data.alerts : []
+        // In guest-live mode, ensure we keep only the top N for rendering parity
+        setAlerts(guestLive ? arr.slice(0, Math.max(1, guestVisibleCount)) : arr)
       }
       
       setIsLoading(false)
@@ -112,7 +118,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [tier, getLastBroadcastTime])
+  }, [tier, getLastBroadcastTime, guestLive, guestVisibleCount])
   
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {
@@ -144,12 +150,20 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   
   // Set up WebSocket connection for real-time alerts
   useEffect(() => {
-    if (typeof window === 'undefined' || !session) return // Skip on server-side or when not logged in
+    // For guests we use near-live polling instead of sockets (no auth)
+    if (typeof window === 'undefined' || (!session && !guestLive)) return
     
     const apiUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-    const userEmail = session.user?.email
+    const userEmail = session?.user?.email
     
-    if (!userEmail) return
+    if (!userEmail) {
+      // Guest live mode: mark as connected and rely on fast polling below
+      if (guestLive) {
+        setIsConnected(true)
+        setError(null)
+      }
+      return
+    }
     
     // Connect to Socket.IO with user email as token
     const socket = io(apiUrl, {
@@ -200,31 +214,29 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     return () => {
       socket.disconnect()
     }
-  }, [tier, session])
+  }, [tier, session, guestLive])
   
-  // Set up polling as fallback (only when disconnected)
+  // Set up polling: fast for guest-live, fallback when socket disconnected otherwise
   useEffect(() => {
-    if (!autoFetch || pollInterval <= 0) return
-    
-    // Clear any existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current)
-    }
-    
-    // Only poll if WebSocket is disconnected
-    if (!isConnected) {
+    if (!autoFetch) return
+
+    const guestInterval = 3000 // 3s near-live for guests
+    const intervalMs = guestLive ? guestInterval : pollInterval
+    if (intervalMs <= 0) return
+
+    if (intervalRef.current) clearInterval(intervalRef.current)
+
+    // Always poll in guest-live; otherwise only when disconnected
+    if (guestLive || !isConnected) {
       intervalRef.current = setInterval(() => {
         fetchAlerts()
-      }, pollInterval)
+      }, intervalMs)
     }
-    
-    // Cleanup on unmount
+
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [autoFetch, pollInterval, fetchAlerts, isConnected])
+  }, [autoFetch, pollInterval, fetchAlerts, isConnected, guestLive])
   
   return {
     alerts,
@@ -245,4 +257,3 @@ function getTierLimit(tier: string): number {
   }
   return limits[tier] || 10
 }
-

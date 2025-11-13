@@ -20,9 +20,11 @@ interface VolumeAlertsPanelProps {
 
 export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2 }: VolumeAlertsPanelProps = {}) {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
-    pollInterval: 15000, // Poll every 15 seconds as fallback
+    pollInterval: 15000, // standard fallback
     autoFetch: true,
-    onNewAlert, // Pass callback to hook
+    onNewAlert,
+    guestLive: guestMode, // enable near-live guest preview with fast polling
+    guestVisibleCount,
   })
   
   const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
