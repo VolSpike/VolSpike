@@ -67,6 +67,7 @@ export function AccountManagement() {
     const { signMessageAsync } = useSignMessage()
     const [accounts, setAccounts] = useState<LinkedAccounts | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [isLinking, setIsLinking] = useState(false)
     const [linkType, setLinkType] = useState<'email' | 'oauth' | 'wallet' | null>(null)
     
@@ -87,9 +88,16 @@ export function AccountManagement() {
     const loadAccounts = async () => {
         try {
             setIsLoading(true)
+            setError(null)
+
+            const authToken = (session as any)?.accessToken || session?.user?.id
+            if (!authToken) {
+                console.warn('[AccountManagement] No auth token available')
+            }
+
             const res = await fetch(`${API_URL}/api/auth/accounts/list`, {
                 headers: {
-                    'Authorization': `Bearer ${session?.user?.id}`,
+                    'Authorization': `Bearer ${authToken || ''}`,
                 },
                 credentials: 'include',
             })
@@ -97,9 +105,20 @@ export function AccountManagement() {
             if (res.ok) {
                 const data = await res.json()
                 setAccounts(data)
+            } else {
+                let detail: any = null
+                try {
+                    detail = await res.json()
+                } catch (_) {
+                    // ignore
+                }
+                const msg = detail?.error || `HTTP ${res.status} ${res.statusText}`
+                setError(msg)
+                console.error('[AccountManagement] Failed to load accounts:', { status: res.status, msg, detail })
             }
         } catch (error) {
             console.error('Failed to load accounts:', error)
+            setError((error as any)?.message || 'Network error')
         } finally {
             setIsLoading(false)
         }
@@ -349,6 +368,12 @@ export function AccountManagement() {
                     <div className="text-center py-8">
                         <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-50" />
                         <p className="text-sm text-muted-foreground">Failed to load account information</p>
+                        {error && (
+                            <p className="mt-2 text-xs text-muted-foreground/80" data-vs-accounts-error>{error}</p>
+                        )}
+                        <div className="mt-4">
+                            <Button size="sm" variant="outline" onClick={loadAccounts}>Retry</Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -717,4 +742,3 @@ export function AccountManagement() {
         </div>
     )
 }
-

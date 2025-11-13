@@ -39,9 +39,10 @@ export function WalletManagement() {
     const loadWallets = async () => {
         try {
             setIsLoading(true)
+            const authToken = (session as any)?.accessToken || session?.user?.id
             const res = await fetch(`${API_URL}/api/auth/wallet/list`, {
                 headers: {
-                    'Authorization': `Bearer ${session?.user?.id}`,
+                    'Authorization': `Bearer ${authToken || ''}`,
                 },
                 credentials: 'include',
             })
@@ -49,6 +50,10 @@ export function WalletManagement() {
             if (res.ok) {
                 const data = await res.json()
                 setWallets(data.wallets || [])
+            } else {
+                let detail: any = null
+                try { detail = await res.json() } catch (_) {}
+                console.error('[WalletManagement] Failed to load wallets:', { status: res.status, detail })
             }
         } catch (error) {
             console.error('Failed to load wallets:', error)
@@ -80,11 +85,12 @@ export function WalletManagement() {
             const signature = await signMessageAsync({ message: messageToSign })
 
             // Link wallet
+            const authToken = (session as any)?.accessToken || session?.user?.id
             const linkRes = await fetch(`${API_URL}/api/auth/wallet/link`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.user?.id}`,
+                    'Authorization': `Bearer ${authToken || ''}`,
                 },
                 body: JSON.stringify({
                     message: messageToSign,
@@ -117,11 +123,12 @@ export function WalletManagement() {
         }
 
         try {
+            const authToken = (session as any)?.accessToken || session?.user?.id
             const res = await fetch(`${API_URL}/api/auth/wallet/unlink`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.user?.id}`,
+                    'Authorization': `Bearer ${authToken || ''}`,
                 },
                 body: JSON.stringify({
                     address: wallet.address,
@@ -382,4 +389,3 @@ export function WalletManagement() {
         </div>
     )
 }
-
