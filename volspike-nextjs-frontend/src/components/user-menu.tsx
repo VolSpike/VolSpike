@@ -103,9 +103,13 @@ export function UserMenu() {
     // Decide whether to show the OAuth image or our initials
     const isGoogleTile = isLikelyGoogleLetterTile(identity.image || undefined)
     const envKeepGoogle = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_KEEP_GOOGLE_IMAGES === 'true'
+    // Always show image if available and no error, unless explicitly disabled
+    // Only filter out Google letter tiles if in auto mode and env var is not set
     const showAvatarImage = !!(identity.image && !imageError && (
         avatarMode === 'image' ||
-        (avatarMode === 'auto' && (!isGoogleTile || envKeepGoogle))
+        (avatarMode === 'auto' && (!isGoogleTile || envKeepGoogle)) ||
+        // If image exists and is from Google OAuth, show it by default (user has a real photo)
+        (identity.image && identity.image.includes('googleusercontent.com') && !isGoogleTile)
     ))
 
     // Debug: trace avatar inputs/outputs (development only)
