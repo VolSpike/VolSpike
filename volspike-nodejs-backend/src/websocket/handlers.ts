@@ -19,9 +19,22 @@ export function setupSocketHandlers(
     io.use(async (socket: AuthenticatedSocket, next) => {
         try {
             const token = socket.handshake.auth.token
+            const queryTier = (socket.handshake.query?.tier as string) || ''
 
             if (!token) {
                 return next(new Error('Authentication required'))
+            }
+
+            // Public guest access – treat as Free tier with limited visibility
+            // This allows unauthenticated users to join tier-based broadcasts
+            // without exposing user-specific data or write operations.
+            if (token === 'guest') {
+                const tier = 'free'
+                const pseudoId = `guest-${socket.id}`
+                logger.info(`Guest connected via WebSocket as ${pseudoId} (${tier} tier${queryTier ? `, query:${queryTier}` : ''})`)
+                socket.userId = pseudoId
+                socket.userTier = tier
+                return next()
             }
 
             // For development: allow mock tokens without database lookup
