@@ -139,12 +139,21 @@ function SettingsContent() {
     const getTierBadgeColor = () => {
         switch (identity.tier) {
             case 'pro':
-                return 'bg-sec-600 dark:bg-sec-500 text-white border-0'
+                return 'bg-sec-600 dark:bg-sec-500 text-white border-0 shadow-sm'
             case 'elite':
-                return 'bg-elite-600 dark:bg-elite-500 text-white border-0'
+                return 'bg-elite-600 dark:bg-elite-500 text-white border-0 shadow-sm'
             default:
-                return 'bg-gray-600 dark:bg-gray-500 text-white border-0'
+                return 'bg-gray-600 dark:bg-gray-500 text-white border-0 shadow-sm'
         }
+    }
+
+    const getRoleBadgeColor = () => {
+        // Role badges use neutral/muted styling to differentiate from tier badges
+        // ADMIN gets special treatment, USER gets neutral
+        if (identity.role === 'ADMIN') {
+            return 'bg-danger-500/20 dark:bg-danger-500/30 text-danger-700 dark:text-danger-400 border border-danger-500/30 dark:border-danger-500/50'
+        }
+        return 'bg-muted text-muted-foreground border border-border'
     }
 
     const handleUpgrade = async () => {
@@ -409,7 +418,7 @@ function SettingsContent() {
                                             <div className="flex-1">
                                                 <p className="text-sm text-muted-foreground">Role</p>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <Badge variant={identity.role === 'ADMIN' ? 'destructive' : 'secondary'}>
+                                                    <Badge className={`text-xs font-semibold ${getRoleBadgeColor()}`}>
                                                         {identity.role || 'USER'}
                                                     </Badge>
                                                     {identity.role === 'ADMIN' && (
