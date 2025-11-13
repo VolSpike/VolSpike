@@ -466,6 +466,7 @@ export function AccountManagement() {
                                 </Dialog>
                             )}
                         </div>
+                    </div>
                 </CardHeader>
             </Card>
 
