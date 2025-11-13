@@ -33,12 +33,17 @@ interface MarketData {
 interface WatchlistExportButtonProps {
   data: MarketData[]
   userTier: 'free' | 'pro' | 'elite'
+  guestMode?: boolean
 }
 
-export function WatchlistExportButton({ data, userTier }: WatchlistExportButtonProps) {
+export function WatchlistExportButton({ data, userTier, guestMode = false }: WatchlistExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false)
 
   const handleExportTradingView = () => {
+    if (guestMode) {
+      toast.error('Sign in to export your watchlist (Free: TradingView top 50).')
+      return
+    }
     setIsExporting(true)
     try {
       const limit = userTier === 'free' ? 50 : undefined
@@ -56,8 +61,8 @@ export function WatchlistExportButton({ data, userTier }: WatchlistExportButtonP
   }
 
   const handleExportCSV = () => {
-    if (userTier === 'free') {
-      toast.error('CSV export is available for Pro and Elite tiers')
+    if (guestMode || userTier === 'free') {
+      toast.error('CSV export is available for signed-in Pro/Elite tiers')
       return
     }
 
@@ -76,8 +81,8 @@ export function WatchlistExportButton({ data, userTier }: WatchlistExportButtonP
   }
 
   const handleExportJSON = () => {
-    if (userTier === 'free') {
-      toast.error('JSON export is available for Pro and Elite tiers')
+    if (guestMode || userTier === 'free') {
+      toast.error('JSON export is available for signed-in Pro/Elite tiers')
       return
     }
 
@@ -102,25 +107,33 @@ export function WatchlistExportButton({ data, userTier }: WatchlistExportButtonP
           variant="outline" 
           size="sm" 
           disabled={isExporting || data.length === 0}
-          className="gap-2"
+          className={`gap-2 ${guestMode ? 'opacity-90' : ''}`}
+          title={guestMode ? 'Sign in to export (Free: TradingView top 50)' : undefined}
         >
           <Download className="h-4 w-4" />
           Export
+          {guestMode && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Export Watchlist</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {guestMode ? 'Export (sign in to unlock)' : 'Export Watchlist'}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {/* TradingView Export - Available to all tiers */}
-        <DropdownMenuItem onClick={handleExportTradingView} className="cursor-pointer">
+        {/* TradingView Export */}
+        <DropdownMenuItem 
+          onClick={handleExportTradingView} 
+          className={`${guestMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        >
           <FileText className="h-4 w-4 mr-2" />
           <div className="flex-1">
             <div className="font-medium">TradingView (.txt)</div>
             <div className="text-xs text-muted-foreground">
-              {userTier === 'free' ? 'Top 50 symbols' : 'All symbols'}
+              {guestMode ? 'Sign in: Free gets top 50' : (userTier === 'free' ? 'Top 50 symbols' : 'All symbols')}
             </div>
           </div>
+          {guestMode && <Lock className="h-3 w-3 ml-2 text-muted-foreground" />}
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
@@ -159,11 +172,18 @@ export function WatchlistExportButton({ data, userTier }: WatchlistExportButtonP
           )}
         </DropdownMenuItem>
 
-        {userTier === 'free' && (
+        {(guestMode || userTier === 'free') && (
           <>
             <DropdownMenuSeparator />
             <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              Upgrade to Pro for CSV/JSON exports
+              {guestMode ? (
+                <div>
+                  Sign in to export (Free: TradingView top 50).<br />
+                  Upgrade to Pro for CSV/JSON exports.
+                </div>
+              ) : (
+                'Upgrade to Pro for CSV/JSON exports'
+              )}
             </div>
           </>
         )}
@@ -171,4 +191,3 @@ export function WatchlistExportButton({ data, userTier }: WatchlistExportButtonP
     </DropdownMenu>
   )
 }
-

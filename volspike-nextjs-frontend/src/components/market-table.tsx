@@ -406,6 +406,7 @@ export function MarketTable({
                     <WatchlistExportButton 
                         data={sortedData}
                         userTier={userTier}
+                        guestMode={guestMode}
                     />
                 </div>
             </div>
