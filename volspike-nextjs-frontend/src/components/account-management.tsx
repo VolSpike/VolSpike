@@ -658,7 +658,13 @@ export function AccountManagement() {
                             </div>
                             <div>
                                 <CardTitle className="text-base">Linked Accounts</CardTitle>
-                                <CardDescription className="mt-1">Link one ETH wallet and one SOL wallet</CardDescription>
+                                <CardDescription className="mt-1">Manage your login methods and wallets</CardDescription>
+                                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-background/60 border border-border/50">Email & Password</span>
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-background/60 border border-border/50">Google</span>
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-background/60 border border-border/50">EVM (ETH)</span>
+                                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-background/60 border border-border/50">Solana</span>
+                                </div>
                             </div>
                         </div>
                     </div>

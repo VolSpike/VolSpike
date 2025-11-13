@@ -281,7 +281,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 </span>
                             </Button>
 
-                            {/* Notification Bell - Shell for future implementation */}
+                            {/* Notification Bell - Shell for future implementation */
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -292,6 +292,9 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 {/* Badge for unread count - hidden by default */}
                                 <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-danger-500 opacity-0" />
                             </Button>
+
+                            {/* Show wallet connect only on settings page for signed-in users */}
+                            {pathname?.startsWith('/settings') && !hideWalletConnect && <ConnectButton />}
 
                             {/* User Menu */}
                             <UserMenu />
