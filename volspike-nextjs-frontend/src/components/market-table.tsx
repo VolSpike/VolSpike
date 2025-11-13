@@ -47,6 +47,9 @@ interface MarketTableProps {
     isConnected?: boolean
     onCreateAlert?: (symbol: string) => void
     openInterestAsOf?: number
+    // Guest preview controls
+    guestMode?: boolean
+    guestVisibleRows?: number
 }
 
 // Optimized number formatters
@@ -64,7 +67,9 @@ export function MarketTable({
     lastUpdate,
     isConnected = true,
     onCreateAlert,
-    openInterestAsOf
+    openInterestAsOf,
+    guestMode = false,
+    guestVisibleRows = 5,
 }: MarketTableProps) {
     const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
@@ -302,6 +307,7 @@ export function MarketTable({
     }, [data, sortBy, sortOrder])
 
     const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest') => {
+        if (guestMode) return // Sorting locked in guest preview
         if (sortBy === column) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
             return
@@ -401,13 +407,13 @@ export function MarketTable({
             {/* Table with sticky header */}
             <div 
                 ref={scrollContainerRef}
-                className="relative max-h-[600px] overflow-y-auto overflow-x-auto" 
+                className={`relative max-h-[600px] ${guestMode ? 'overflow-y-hidden' : 'overflow-y-auto'} overflow-x-auto`} 
                 style={{ 
                     WebkitOverflowScrolling: 'touch',
                     // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
                     overscrollBehaviorX: 'none',
                     // Allow scroll chaining to the page at top/bottom so the page can scroll
-                    overscrollBehaviorY: 'auto',
+                    overscrollBehaviorY: guestMode ? 'contain' as any : 'auto',
                     // Ensure proper gesture handling on mobile while preserving momentum scroll
                     touchAction: 'pan-x pan-y pinch-zoom',
                 }}
@@ -420,7 +426,8 @@ export function MarketTable({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleSort('symbol')}
-                                    className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
+                                    disabled={guestMode}
+                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Ticker</span>
                                     <SortIcon column="symbol" />
@@ -431,7 +438,8 @@ export function MarketTable({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleSort('price')}
-                                    className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
+                                    disabled={guestMode}
+                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Price</span>
                                     <SortIcon column="price" />
@@ -442,7 +450,8 @@ export function MarketTable({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleSort('change')}
-                                    className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
+                                    disabled={guestMode}
+                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">24h Change</span>
                                     <SortIcon column="change" />
@@ -453,7 +462,8 @@ export function MarketTable({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleSort('funding')}
-                                    className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
+                                    disabled={guestMode}
+                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">Funding Rate</span>
                                     <SortIcon column="funding" />
@@ -464,7 +474,8 @@ export function MarketTable({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleSort('volume')}
-                                    className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
+                                    disabled={guestMode}
+                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                 >
                                     <span className="mr-1.5">24h Volume</span>
                                     <SortIcon column="volume" />
@@ -476,7 +487,8 @@ export function MarketTable({
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => handleSort('openInterest')}
-                                        className="h-auto p-0 font-semibold hover:text-brand-500 transition-colors"
+                                        disabled={guestMode}
+                                        className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                     >
                                         <span className="mr-1.5">Open Interest</span>
                                         <SortIcon column="openInterest" />
@@ -487,7 +499,7 @@ export function MarketTable({
                         </tr>
                     </thead>
                     <tbody>
-                        {sortedData.map((item) => {
+                        {sortedData.map((item, index) => {
                             const fundingRate = item.fundingRate ?? 0
                             const exceedsThreshold = Math.abs(fundingRate) >= FUNDING_ALERT_THRESHOLD
                             const changeValue = item.change24h ?? item.volumeChange ?? 0
@@ -499,6 +511,7 @@ export function MarketTable({
             const rowClasses = [
                 'group/row border-b border-border/40 cursor-pointer relative'
             ]
+            const isBlurred = guestMode && index >= guestVisibleRows
             if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
                 // Make positive funding highlights more prominent with depth
                 rowClasses.push(
@@ -539,7 +552,7 @@ export function MarketTable({
                             return (
                                 <tr
                                     key={item.symbol}
-                                    className={rowClasses.join(' ')}
+                                    className={`${rowClasses.join(' ')} ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
                                     onMouseEnter={() => setHoveredRow(item.symbol)}
                                     onMouseLeave={() => setHoveredRow(null)}
                                     onClick={() => setSelectedSymbol(item)}
@@ -681,6 +694,20 @@ export function MarketTable({
                         })}
                     </tbody>
                 </table>
+
+                {guestMode && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent" />
+                )}
+
+                {guestMode && (
+                    <div className="absolute inset-x-0 bottom-3 flex items-center justify-center">
+                        <div className="pointer-events-auto inline-flex gap-2 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg p-2 shadow-md">
+                            <a href="/auth?tab=signin" className="px-3 py-2 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700">Sign In</a>
+                            <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md border border-border hover:bg-muted">Sign Up</a>
+                            <a href="/pricing" className="px-3 py-2 text-xs rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Detail Drawer */}

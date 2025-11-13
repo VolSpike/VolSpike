@@ -67,12 +67,12 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     <Link
                         href="/dashboard"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
-                            pathname === '/dashboard'
+                            (pathname === '/dashboard' || pathname === '/')
                                 ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                         }`}
                     >
-                        {pathname === '/dashboard' && (
+                        {(pathname === '/dashboard' || pathname === '/') && (
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
                         )}
                         Dashboard
@@ -300,11 +300,14 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                         <div className="flex items-center gap-2">
                             {!hideWalletConnect && <ConnectButton />}
                             <Button 
-                                onClick={() => signIn()}
+                                onClick={() => signIn(undefined, { callbackUrl: '/dashboard' })}
                                 className="bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition-all duration-200"
                             >
                                 Sign In
                             </Button>
+                            <Link href="/auth?tab=signup" className="inline-flex items-center">
+                                <Button variant="outline" className="border-border hover:bg-muted">Sign Up</Button>
+                            </Link>
                         </div>
                     )}
                 </div>

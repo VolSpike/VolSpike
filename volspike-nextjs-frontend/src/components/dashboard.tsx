@@ -100,23 +100,8 @@ export function Dashboard() {
         return <LoadingSpinner />
     }
 
-    if (!session) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle>Welcome to VolSpike</CardTitle>
-                        <CardDescription>
-                            Sign in to access real-time volume spike alerts for Binance perpetual futures
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <TierUpgrade />
-                    </CardContent>
-                </Card>
-            </div>
-        )
-    }
+    // Guest preview if user is not authenticated
+    const isGuest = !session?.user
 
     const marketDataCard = (
         <Card className="group h-full flex flex-col border border-border/60 shadow-md">
@@ -141,7 +126,9 @@ export function Dashboard() {
                     </span>
                 </CardTitle>
                 <CardDescription>
-                    {isLive ? (
+                    {isGuest ? (
+                        <span className="text-muted-foreground">Guest Preview • Top 5 symbols visible • Sorting disabled</span>
+                    ) : isLive ? (
                         <span className="text-green-500">● Live Data (Binance WebSocket) • Real-time Updates</span>
                     ) : isConnecting ? (
                         <span className="text-yellow-500">● Connecting to Binance...</span>
@@ -174,6 +161,8 @@ export function Dashboard() {
                         isConnected={!hasError && !isConnecting}
                         openInterestAsOf={openInterestAsOf}
                         onCreateAlert={handleCreateAlert}
+                        guestMode={isGuest}
+                        guestVisibleRows={5}
                     />
                 )}
             </CardContent>
@@ -189,6 +178,8 @@ export function Dashboard() {
                     setUnreadAlertsCount(prev => prev + 1)
                 }
             }}
+            guestMode={isGuest}
+            guestVisibleCount={2}
         />
     )
 
@@ -202,10 +193,24 @@ export function Dashboard() {
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-secondary-500/30 to-transparent" />
             
-            <HeaderWithBanner />
+            <HeaderWithBanner hideWalletConnect={isGuest} />
 
             <main className="container mx-auto px-4 py-8 relative z-10">
                 <div className="space-y-6">
+                    {isGuest && (
+                        <div className="rounded-lg border border-border/60 bg-muted/40 p-3 md:p-4 animate-fade-in">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <div className="text-sm text-muted-foreground">
+                                    You’re viewing a guest preview. Top 5 symbols and top 2 alerts are visible. Sign in to unlock full Free features, or upgrade to Pro for 5‑minute updates and Open Interest.
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <a href="/auth?tab=signin" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-brand-600 text-white hover:bg-brand-700">Sign In</a>
+                                    <a href="/auth?tab=signup" className="inline-flex items-center px-3 py-2 text-sm rounded-md border border-border hover:bg-muted">Sign Up</a>
+                                    <a href="/pricing" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="lg:hidden animate-fade-in">
                         <Tabs 

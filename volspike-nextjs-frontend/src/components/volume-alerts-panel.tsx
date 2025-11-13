@@ -14,9 +14,11 @@ import { formatDistanceToNow, format } from 'date-fns'
 
 interface VolumeAlertsPanelProps {
   onNewAlert?: () => void
+  guestMode?: boolean
+  guestVisibleCount?: number
 }
 
-export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
+export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2 }: VolumeAlertsPanelProps = {}) {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
     pollInterval: 15000, // Poll every 15 seconds as fallback
     autoFetch: true,
@@ -366,7 +368,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
           </div>
         )}
         
-        <ScrollArea className="h-[600px] pr-4">
+        <ScrollArea className={`h-[600px] pr-4 ${guestMode ? 'overflow-hidden' : ''}`}>
           {isLoading && displayAlerts.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
               Loading alerts...
@@ -379,11 +381,12 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
             </div>
           ) : (
             <div className="space-y-3" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
-              {displayAlerts.map((alert) => {
+              {displayAlerts.map((alert, index) => {
                 // Determine color based on candle direction
                 const isBullish = alert.candleDirection === 'bullish'
                 const isBearish = alert.candleDirection === 'bearish'
                 const isNew = newAlertIds.has(alert.id)
+                const isBlurred = guestMode && index >= guestVisibleCount
                 
                 // 🎨 Sophisticated animation selection based on type AND direction
                 const getAnimationClass = () => {
@@ -473,7 +476,7 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
                         : 'border-border hover:bg-muted/50'
                   } ${getAnimationClass()} ${getGlowClass()} ${
                     isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
-                  }`}
+                  } ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
                   title="Click to replay animation and sound"
                 >
                   <div className="space-y-2">
@@ -552,6 +555,19 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
             </div>
           )}
         </ScrollArea>
+
+        {guestMode && (
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-x-0 -top-24 h-24 bg-gradient-to-b from-transparent via-background/70 to-background" />
+            <div className="mt-2 flex items-center justify-center">
+              <div className="pointer-events-auto inline-flex gap-2 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg p-2 shadow-md">
+                <a href="/auth?tab=signin" className="px-3 py-2 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700">Sign In</a>
+                <a href="/auth?tab=signup" className="px-3 py-2 text-xs rounded-md border border-border hover:bg-muted">Sign Up</a>
+                <a href="/pricing" className="px-3 py-2 text-xs rounded-md bg-sec-600 text-white hover:bg-sec-700">Get Pro</a>
+              </div>
+            </div>
+          </div>
+        )}
         
         {displayAlerts.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground text-center">
@@ -570,4 +586,3 @@ export function VolumeAlertsPanel({ onNewAlert }: VolumeAlertsPanelProps = {}) {
     </Card>
   )
 }
-
