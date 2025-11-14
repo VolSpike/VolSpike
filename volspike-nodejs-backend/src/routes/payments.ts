@@ -732,63 +732,84 @@ payments.post('/nowpayments/checkout', async (c) => {
         let mappedPayCurrency: string | null = null
         
         if (payCurrency) {
-            // Fetch available currencies from NowPayments to validate
+            // Import currency mapper
+            const { mapCurrencyToNowPayments, isSupportedCurrency, getCurrencyDisplayName, getCurrencyNetwork } = await import('../services/currency-mapper')
+            
+            // Validate currency is supported in our system
+            if (!isSupportedCurrency(payCurrency)) {
+                logger.error('Unsupported currency code requested', {
+                    payCurrency,
+                    supportedCurrencies: ['usdtsol', 'usdterc20', 'usdce', 'sol', 'btc', 'eth'],
+                })
+                throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
+            }
+            
+            // Fetch available currencies from NowPayments to validate and map
             logger.info('Fetching available currencies from NowPayments for validation', {
                 requestedCurrency: payCurrency,
+                displayName: getCurrencyDisplayName(payCurrency),
+                network: getCurrencyNetwork(payCurrency),
             })
             
             try {
                 const availableCurrencies = await nowpayments.getAvailableCurrencies()
                 
-                // Import currency mapper
-                const { mapCurrencyToNowPayments, isSupportedCurrency, getCurrencyDisplayName, getCurrencyNetwork } = await import('../services/currency-mapper')
-                
-                // Validate currency is supported
-                if (!isSupportedCurrency(payCurrency)) {
-                    logger.error('Unsupported currency code requested', {
+                if (!availableCurrencies || availableCurrencies.length === 0) {
+                    logger.warn('NowPayments returned empty currency list, using mapped code without validation', {
                         payCurrency,
-                        supportedCurrencies: ['usdtsol', 'usdterc20', 'usdce', 'sol', 'btc', 'eth'],
                     })
-                    throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
-                }
-                
-                // Map to NowPayments code
-                mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
-                
-                if (!mappedPayCurrency) {
-                    logger.error('Failed to map currency code to NowPayments format', {
-                        payCurrency,
-                        availableCurrencies: availableCurrencies.slice(0, 50),
-                        availableCount: availableCurrencies.length,
+                    // Fall back to mapped code without validation
+                    mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
+                } else {
+                    // Map to NowPayments code with validation
+                    mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
+                    
+                    if (!mappedPayCurrency) {
+                        logger.error('Failed to map currency code to NowPayments format', {
+                            payCurrency,
+                            displayName: getCurrencyDisplayName(payCurrency),
+                            network: getCurrencyNetwork(payCurrency),
+                            availableCurrencies: availableCurrencies.slice(0, 50),
+                            availableCount: availableCurrencies.length,
+                        })
+                        throw new Error(`Currency ${getCurrencyDisplayName(payCurrency)} on ${getCurrencyNetwork(payCurrency)} is not available. Please select a different currency.`)
+                    }
+                    
+                    logger.info('Currency code mapped successfully', {
+                        ourCode: payCurrency,
+                        nowpaymentsCode: mappedPayCurrency,
+                        displayName: getCurrencyDisplayName(payCurrency),
+                        network: getCurrencyNetwork(payCurrency),
                     })
-                    throw new Error(`Currency ${payCurrency} is not available. Please select a different currency.`)
                 }
-                
-                logger.info('Currency code mapped successfully', {
-                    ourCode: payCurrency,
-                    nowpaymentsCode: mappedPayCurrency,
-                    displayName: getCurrencyDisplayName(payCurrency),
-                    network: getCurrencyNetwork(payCurrency),
-                })
             } catch (error) {
                 logger.error('Error validating currency code', {
                     error: error instanceof Error ? error.message : String(error),
                     payCurrency,
+                    displayName: getCurrencyDisplayName(payCurrency),
+                    network: getCurrencyNetwork(payCurrency),
                 })
                 // Re-throw validation errors
-                if (error instanceof Error && error.message.includes('Unsupported') || error.message.includes('not available')) {
+                if (error instanceof Error && (error.message.includes('Unsupported') || error.message.includes('not available'))) {
                     throw error
                 }
-                // For other errors, fall back to default but log warning
-                logger.warn('Currency validation failed, using default', {
+                // For API errors, try to use mapped code without validation
+                logger.warn('Currency validation API call failed, using mapped code without validation', {
                     payCurrency,
                     error: error instanceof Error ? error.message : String(error),
                 })
+                mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
             }
         }
         
-        // Use mapped currency or default to USDT on Solana
-        const finalPayCurrency = mappedPayCurrency || 'usdtsol'
+        // Use mapped currency or default to USDT on Solana (usdt_sol format)
+        const finalPayCurrency = mappedPayCurrency || 'usdt_sol'
+        
+        logger.info('Final currency code determined', {
+            originalPayCurrency: payCurrency,
+            finalPayCurrency,
+            wasMapped: !!mappedPayCurrency,
+        })
         
         // Create invoice parameters
         const invoiceParams: any = {
