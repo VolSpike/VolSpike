@@ -160,6 +160,13 @@ export async function startCryptoCheckout(
     throw new Error('Authentication token not available. Please sign in again.')
   }
 
+  console.log('[startCryptoCheckout] Starting crypto checkout', {
+    tier,
+    API_URL,
+    userId: session.user.id,
+    email: session.user.email,
+  })
+
   const resp = await fetch(`${API_URL}/api/payments/nowpayments/checkout`, {
     method: 'POST',
     headers: {
@@ -175,10 +182,23 @@ export async function startCryptoCheckout(
 
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}))
-    throw new Error(data?.error || `Checkout failed (HTTP ${resp.status})`)
+    const errorMessage = data?.error || data?.message || `Checkout failed (HTTP ${resp.status})`
+    console.error('[startCryptoCheckout] Checkout failed', {
+      status: resp.status,
+      statusText: resp.statusText,
+      error: data?.error,
+      message: errorMessage,
+    })
+    throw new Error(errorMessage)
   }
 
   const data = await resp.json()
+  
+  if (!data.paymentUrl) {
+    console.error('[startCryptoCheckout] No payment URL returned', data)
+    throw new Error('Payment URL not returned from server')
+  }
+
   return {
     paymentUrl: data.paymentUrl,
     paymentId: data.paymentId,

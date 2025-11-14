@@ -48,7 +48,19 @@ export class NowPaymentsService {
   }
 
   async createPayment(params: CreatePaymentParams): Promise<PaymentResponse> {
+    if (!API_KEY) {
+      logger.error('NowPayments API key is not configured')
+      throw new Error('NowPayments API key is not configured. Please set NOWPAYMENTS_API_KEY environment variable.')
+    }
+
     try {
+      logger.info('Creating NowPayments payment', {
+        price_amount: params.price_amount,
+        price_currency: params.price_currency,
+        order_id: params.order_id,
+        API_URL,
+      })
+
       const response = await axios.post(
         `${API_URL}/payment`,
         params,
@@ -60,15 +72,36 @@ export class NowPaymentsService {
         }
       )
 
-      logger.info('NowPayments payment created', {
+      logger.info('NowPayments payment created successfully', {
         paymentId: response.data.payment_id,
         orderId: params.order_id,
+        paymentStatus: response.data.payment_status,
       })
 
       return response.data
     } catch (error: any) {
-      logger.error('NowPayments create payment error:', error.response?.data || error.message)
-      throw new Error(`Failed to create payment: ${error.response?.data?.message || error.message}`)
+      const errorDetails = error.response?.data || {}
+      const errorMessage = errorDetails.message || error.message || 'Unknown error'
+      const errorCode = errorDetails.error_code || error.response?.status
+
+      logger.error('NowPayments create payment error:', {
+        message: errorMessage,
+        code: errorCode,
+        status: error.response?.status,
+        data: errorDetails,
+        fullError: error.message,
+      })
+
+      // Provide more helpful error messages
+      if (error.response?.status === 401) {
+        throw new Error('NowPayments API authentication failed. Please check your API key.')
+      } else if (error.response?.status === 400) {
+        throw new Error(`Invalid payment request: ${errorMessage}`)
+      } else if (!error.response) {
+        throw new Error(`Cannot connect to NowPayments API. Please check your network connection and API URL.`)
+      }
+
+      throw new Error(`Failed to create payment: ${errorMessage}`)
     }
   }
 

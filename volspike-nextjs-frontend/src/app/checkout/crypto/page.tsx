@@ -29,10 +29,16 @@ export default function CryptoCheckoutPage() {
     const createPayment = async () => {
       try {
         setIsLoading(true)
+        setError(null)
         const result = await startCryptoCheckout(session, tier)
-        setPaymentUrl(result.paymentUrl)
+        if (result.paymentUrl) {
+          setPaymentUrl(result.paymentUrl)
+        } else {
+          throw new Error('Payment URL not received from server')
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to create payment'
+        console.error('[CryptoCheckoutPage] Payment creation error:', err)
         setError(message)
         toast.error(message)
       } finally {

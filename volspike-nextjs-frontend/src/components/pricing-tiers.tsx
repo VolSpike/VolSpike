@@ -130,7 +130,7 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
     <div className="max-w-7xl mx-auto">
       {/* Payment Method Selector - only show for authenticated users and when crypto is enabled */}
       {session && isCryptoEnabled && (
-        <div className="mb-10">
+        <div className="mb-16 relative z-10">
           <PaymentMethodSelector
             selectedMethod={paymentMethod}
             onMethodChange={setPaymentMethod}
@@ -138,7 +138,7 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-0">
       {tiers.map((tier) => {
         const Icon = tier.icon
         const isPopular = tier.popular
