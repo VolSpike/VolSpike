@@ -722,10 +722,6 @@ export function MarketTable({
                 </table>
                 </div>
 
-                {/* Vertical scroll affordance – subtle bottom fade when the table scrolls (non-guest only) */}
-                {!guestMode && (
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background to-transparent" />
-                )}
             </div>
 
             {/* Guest overlays anchored to wrapper (not affected by horizontal scroll) */}

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { BarChart3, ExternalLink, Globe, Twitter } from 'lucide-react'
 import { useAssetProfile } from '@/hooks/use-asset-profile'
-import { Badge } from '@/components/ui/badge'
 
 interface AssetProjectOverviewProps {
     baseSymbol: string
@@ -24,8 +23,6 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
 
     const displayName = profile?.name || baseSymbol.toUpperCase()
     const description = profile?.description
-
-    const primaryCategory = profile?.categories?.[0]
 
     return (
         <section className="rounded-xl border border-border/50 bg-gradient-to-br from-background/80 via-background/60 to-background/30 shadow-sm">
@@ -51,14 +48,6 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
                         <h3 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                             Project Overview
                         </h3>
-                        {primaryCategory && (
-                            <Badge
-                                variant="outline"
-                                className="text-[10px] uppercase tracking-wide bg-elite-500/5 border-elite-500/30 text-elite-400"
-                            >
-                                {primaryCategory}
-                            </Badge>
-                        )}
                     </div>
                     <p className="mt-1 text-base font-semibold text-foreground truncate">
                         {displayName}
@@ -75,7 +64,7 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
                     </div>
                 )}
                 {!loading && description && (
-                    <p className="text-xs leading-relaxed text-muted-foreground max-h-24 overflow-hidden">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
                         {description}
                     </p>
                 )}
