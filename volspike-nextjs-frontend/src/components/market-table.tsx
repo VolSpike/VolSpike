@@ -843,7 +843,7 @@ export function MarketTable({
     )
 
     if (!withContainer) {
-        return tableContent
+        return <>{tableContent}</>
     }
 
     return (
