@@ -1025,12 +1025,16 @@ payments.post('/nowpayments/checkout', async (c) => {
                 // Try to create payment without optional fields by using raw SQL as fallback
                 // This is a temporary workaround until migration completes
                 try {
+                    // Generate a unique ID (using cuid-like format or UUID)
+                    const paymentId = `crypto_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+                    
                     // Use Prisma's raw SQL to insert only required fields
+                    // Table name is 'crypto_payments' (from @@map directive)
                     await prisma.$executeRaw`
                         INSERT INTO crypto_payments (
                             id, "userId", "paymentStatus", tier, "invoiceId", "orderId", "paymentUrl", "createdAt", "updatedAt"
                         ) VALUES (
-                            gen_random_uuid()::text, ${user.id}, 'waiting', ${tier}, ${String(invoiceId)}, ${orderId}, ${invoiceUrl}, NOW(), NOW()
+                            ${paymentId}, ${user.id}, 'waiting', ${tier}, ${String(invoiceId)}, ${orderId}, ${invoiceUrl}, NOW(), NOW()
                         )
                         ON CONFLICT ("invoiceId") DO NOTHING
                     `
