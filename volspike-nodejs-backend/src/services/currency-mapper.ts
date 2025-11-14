@@ -36,6 +36,7 @@ const CURRENCY_MAPPINGS: CurrencyMapping[] = [
     nowpaymentsCode: 'usdc-erc20', // USDC on Ethereum ERC-20
     displayName: 'USDC',
     network: 'Ethereum',
+    // NowPayments might also use: usdc_erc20, usdc-eth, usdc_eth, usdce, usdcerc20
   },
   {
     ourCode: 'sol',
@@ -104,17 +105,24 @@ export function mapCurrencyToNowPayments(
         mapping.nowpaymentsCode.toLowerCase(), // Our mapped code
       )
     } else if (isEthereum) {
-      // Ethereum-specific formats
+      // Ethereum-specific formats - try multiple variations
       networkSpecificFormats.push(
-        `${baseCode}-erc20`,          // usdt-erc20
-        `${baseCode}_erc20`,          // usdt_erc20
-        `${baseCode}erc20`,           // usdterc20
-        `${baseCode}_eth`,            // usdt_eth
-        `${baseCode}-eth`,            // usdt-eth
-        `${baseCode}eth`,             // usdteth
-        `${baseCode}_ethereum`,       // usdt_ethereum
-        `${baseCode}-ethereum`,       // usdt-ethereum
-        mapping.nowpaymentsCode.toLowerCase(), // Our mapped code
+        // ERC20 formats (most common)
+        `${baseCode}-erc20`,          // usdc-erc20
+        `${baseCode}_erc20`,          // usdc_erc20
+        `${baseCode}erc20`,           // usdcerc20
+        // ETH formats
+        `${baseCode}_eth`,            // usdc_eth
+        `${baseCode}-eth`,            // usdc-eth
+        `${baseCode}eth`,             // usdceth
+        // Ethereum full name formats
+        `${baseCode}_ethereum`,       // usdc_ethereum
+        `${baseCode}-ethereum`,       // usdc-ethereum
+        // Our mapped code
+        mapping.nowpaymentsCode.toLowerCase(), // usdc-erc20
+        // Original code (in case NowPayments uses it directly)
+        ourCode.toLowerCase(),        // usdce
+        ourCode.toUpperCase(),        // USDCE
       )
     } else {
       // Other networks (Bitcoin, etc.)
@@ -151,30 +159,84 @@ export function mapCurrencyToNowPayments(
     
     // Try network-specific formats with fuzzy matching (must include network identifier)
     for (const format of networkSpecificFormats) {
-      const networkIdentifier = isSolana ? 'sol' : isEthereum ? 'erc20' : network.substring(0, 3)
-      const match = normalizedAvailable.find(c => {
-        const includesFormat = c.includes(format) || format.includes(c)
-        const includesNetwork = c.includes(networkIdentifier)
-        // For Solana, exclude ERC20 matches
-        if (isSolana && (c.includes('erc20') || c.includes('eth'))) {
-          return false
-        }
-        // For Ethereum, exclude Solana matches
-        if (isEthereum && (c.includes('sol') || c.includes('spl'))) {
-          return false
-        }
-        return includesFormat && includesNetwork
-      })
-      if (match) {
-        logger.info('Currency code matched with network-specific format (fuzzy)', {
-          ourCode,
-          matchedCode: match,
-          triedFormat: format,
-          displayName: mapping.displayName,
-          network: mapping.network,
-          matchType: 'network-specific-fuzzy',
+      // For Ethereum, try multiple network identifiers
+      const networkIdentifiers = isSolana 
+        ? ['sol', 'spl', 'solana']
+        : isEthereum 
+        ? ['erc20', 'eth', 'ethereum', 'erc-20'] // Multiple identifiers for Ethereum
+        : [network.substring(0, 3)]
+      
+      for (const networkIdentifier of networkIdentifiers) {
+        const match = normalizedAvailable.find(c => {
+          const includesFormat = c.includes(format) || format.includes(c)
+          const includesNetwork = c.includes(networkIdentifier)
+          
+          // For Solana, exclude ERC20 matches
+          if (isSolana && (c.includes('erc20') || c.includes('eth'))) {
+            return false
+          }
+          // For Ethereum, exclude Solana matches
+          if (isEthereum && (c.includes('sol') || c.includes('spl'))) {
+            return false
+          }
+          
+          // For Ethereum, be more flexible - accept if it includes format OR network identifier
+          if (isEthereum) {
+            return includesFormat || (includesNetwork && c.includes(baseCode))
+          }
+          
+          return includesFormat && includesNetwork
         })
-        return match
+        
+        if (match) {
+          logger.info('Currency code matched with network-specific format (fuzzy)', {
+            ourCode,
+            matchedCode: match,
+            triedFormat: format,
+            networkIdentifier,
+            displayName: mapping.displayName,
+            network: mapping.network,
+            matchType: 'network-specific-fuzzy',
+          })
+          return match
+        }
+      }
+    }
+    
+    // Additional fallback: Try to find any currency that contains baseCode and network identifier
+    if (isEthereum || isSolana) {
+      const networkIdentifiers = isSolana 
+        ? ['sol', 'spl']
+        : ['erc20', 'eth']
+      
+      for (const networkIdentifier of networkIdentifiers) {
+        const fallbackMatch = normalizedAvailable.find(c => {
+          // Must contain both base code and network identifier
+          const hasBaseCode = c.includes(baseCode)
+          const hasNetwork = c.includes(networkIdentifier)
+          
+          // Exclude wrong networks
+          if (isSolana && (c.includes('erc20') || c.includes('eth'))) {
+            return false
+          }
+          if (isEthereum && (c.includes('sol') || c.includes('spl'))) {
+            return false
+          }
+          
+          return hasBaseCode && hasNetwork
+        })
+        
+        if (fallbackMatch) {
+          logger.info('Currency code matched with fallback search', {
+            ourCode,
+            matchedCode: fallbackMatch,
+            networkIdentifier,
+            displayName: mapping.displayName,
+            network: mapping.network,
+            matchType: 'fallback',
+          })
+          return fallbackMatch
+        }
       }
     }
     

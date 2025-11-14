@@ -300,12 +300,18 @@ export class NowPaymentsService {
       
       const currencies = response.data.currencies || []
       
+      // Find USDC-related currencies for better debugging
+      const usdcRelated = currencies.filter((c: string) => 
+        c.toUpperCase().includes('USDC')
+      )
+      
       logger.info('NowPayments currencies fetched', {
         count: currencies.length,
         currencies: currencies.slice(0, 50), // Log first 50 for debugging
         hasUSDTSOL: currencies.some((c: string) => c.toUpperCase().includes('USDTSOL') || c.toUpperCase().includes('USDT_SOL')),
         hasUSDTERC20: currencies.some((c: string) => c.toUpperCase().includes('USDTERC20') || c.toUpperCase().includes('USDT_ETH')),
         hasUSDCERC20: currencies.some((c: string) => c.toUpperCase().includes('USDCERC20') || c.toUpperCase().includes('USDC_ETH')),
+        usdcRelatedCurrencies: usdcRelated, // Log all USDC variants for debugging
         hasSOL: currencies.some((c: string) => c.toUpperCase() === 'SOL'),
         hasBTC: currencies.some((c: string) => c.toUpperCase() === 'BTC'),
         hasETH: currencies.some((c: string) => c.toUpperCase() === 'ETH'),
