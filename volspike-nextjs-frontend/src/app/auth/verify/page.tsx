@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react'
+import { trackEmailVerification } from '@/lib/analytics'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -43,6 +44,9 @@ function EmailVerificationContent() {
             if (response.ok) {
                 setStatus('success')
                 setMessage(data.message || 'Email verified successfully!')
+                
+                // Track successful email verification
+                trackEmailVerification()
             } else {
                 if (response.status === 400) {
                     setStatus('expired')

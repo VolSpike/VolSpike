@@ -11,6 +11,7 @@ import { Footer } from '@/components/footer'
 import { AdPlaceholder } from '@/components/ad-placeholder'
 import { TierChangeListener } from '@/components/tier-change-listener'
 import { PasswordChangeListener } from '@/components/password-change-listener'
+import { SessionTracker } from '@/components/session-tracker'
 
 // Dynamic import for Web3 providers to prevent hydration mismatches
 const Web3Providers = dynamic(
@@ -83,6 +84,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             <SessionProvider>
+                <SessionTracker />
                 <TierChangeListener />
                 <PasswordChangeListener />
                 <Web3Providers>

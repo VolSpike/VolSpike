@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { trackLogin } from '@/lib/analytics'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/backend'
 
@@ -109,6 +110,10 @@ export function SigninForm({ onSuccess, isAdminMode = false, nextUrl = '/dashboa
             // Treat any presence of result.error as a failure even if ok === true
             if (result && !result.error) {
                 console.log('[SigninForm] Sign in successful')
+                
+                // Track successful login
+                trackLogin('email')
+                
                 console.log('[SigninForm] Calling onSuccess with email:', data.email)
                 onSuccess(data.email)
                 console.log('[SigninForm] onSuccess completed - letting parent handle redirect')

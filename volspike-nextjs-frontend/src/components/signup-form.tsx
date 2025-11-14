@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
+import { trackRegistration, trackFormSubmission } from '@/lib/analytics'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/backend'
 
@@ -106,6 +107,10 @@ export function SignupForm({
             if (!response.ok) {
                 const message = payload?.error || 'Could not create account. Please try again.'
                 setAuthError(message)
+                
+                // Track failed registration
+                trackFormSubmission('signup', false)
+                
                 return
             }
 
@@ -114,6 +119,11 @@ export function SignupForm({
                 setVerificationMessage(message)
                 setShowVerificationAlert(true)
                 reset()
+                
+                // Track successful registration
+                trackRegistration('email', 'free')
+                trackFormSubmission('signup', true)
+                
                 onSuccess(data.email)
                 return
             }
@@ -126,12 +136,20 @@ export function SignupForm({
             })
 
             if (signinResult?.ok) {
+                // Track successful registration and auto-login
+                trackRegistration('email', 'free')
+                trackFormSubmission('signup', true)
                 router.push('/dashboard')
             } else {
                 const message = 'Account created. Please verify your email, then sign in.'
                 setVerificationMessage(message)
                 setShowVerificationAlert(true)
                 reset()
+                
+                // Track successful registration (even if auto-login failed)
+                trackRegistration('email', 'free')
+                trackFormSubmission('signup', true)
+                
                 onSuccess(data.email)
             }
         } catch (error) {
