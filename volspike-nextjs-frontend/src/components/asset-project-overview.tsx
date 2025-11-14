@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { BarChart3, ExternalLink, Globe, Twitter } from 'lucide-react'
 import { useAssetProfile } from '@/hooks/use-asset-profile'
@@ -10,6 +10,12 @@ interface AssetProjectOverviewProps {
 
 export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) {
     const { profile, loading } = useAssetProfile(baseSymbol)
+    const [logoFailed, setLogoFailed] = useState(false)
+
+    useEffect(() => {
+        // Reset logo error state when switching to a different asset
+        setLogoFailed(false)
+    }, [baseSymbol])
 
     const tradingViewUrl = useMemo(() => {
         const upper = baseSymbol.toUpperCase()
@@ -25,13 +31,14 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
         <section className="rounded-xl border border-border/50 bg-gradient-to-br from-background/80 via-background/60 to-background/30 shadow-sm">
             <div className="flex items-start gap-3 p-4 pb-3">
                 <div className="relative h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center overflow-hidden ring-1 ring-brand-500/30 shadow-md shadow-brand-500/10">
-                    {profile?.logoUrl ? (
+                    {profile?.logoUrl && !logoFailed ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                             src={profile.logoUrl}
                             alt={`${displayName} logo`}
                             className="h-full w-full object-contain p-1"
                             loading="lazy"
+                            onError={() => setLogoFailed(true)}
                         />
                     ) : (
                         <span className="text-sm font-semibold text-muted-foreground">

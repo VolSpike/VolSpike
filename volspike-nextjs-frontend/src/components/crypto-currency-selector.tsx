@@ -4,7 +4,7 @@ import { Coins, Check, Info } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export interface SupportedCurrency {
   code: string
@@ -55,12 +55,16 @@ const SUPPORTED_CURRENCIES: SupportedCurrency[] = [
 ]
 
 /**
- * Get CoinGecko logo URL for a cryptocurrency
- * CoinGecko provides free, high-quality crypto logos via their CDN
+ * Get cryptocurrency logo URL with multiple fallback sources
+ * Uses reliable CDNs with proper fallback chain
  */
 function getCryptoLogoUrl(logoId: string): string {
-  // CoinGecko CDN - free, reliable, high-quality logos
-  return `https://assets.coingecko.com/coins/images/${getCoinGeckoImageId(logoId)}/large/${logoId}.png`
+  // Primary: CoinGecko CDN (most reliable)
+  // Fallback chain: CryptoCompare -> CoinCap -> Local fallback
+  const coinGeckoId = getCoinGeckoImageId(logoId)
+  
+  // Try CoinGecko first (most reliable)
+  return `https://assets.coingecko.com/coins/images/${coinGeckoId}/large/${logoId}.png`
 }
 
 /**
@@ -79,7 +83,44 @@ function getCoinGeckoImageId(logoId: string): number {
 }
 
 /**
- * Crypto logo component with fallback
+ * Get fallback logo URLs for each cryptocurrency
+ * Used when primary CDN fails
+ */
+function getFallbackLogoUrls(logoId: string, name: string): string[] {
+  const fallbacks: Record<string, string[]> = {
+    'tether': [
+      'https://cryptologos.cc/logos/tether-usdt-logo.png',
+      'https://cryptoicons.org/api/icon/usdt/200',
+      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${name.toLowerCase()}.png`,
+    ],
+    'usd-coin': [
+      'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
+      'https://cryptoicons.org/api/icon/usdc/200',
+      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdc.png`,
+    ],
+    'solana': [
+      'https://cryptologos.cc/logos/solana-sol-logo.png',
+      'https://cryptoicons.org/api/icon/sol/200',
+      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/sol.png`,
+    ],
+    'bitcoin': [
+      'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+      'https://cryptoicons.org/api/icon/btc/200',
+      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/btc.png`,
+    ],
+    'ethereum': [
+      'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+      'https://cryptoicons.org/api/icon/eth/200',
+      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/eth.png`,
+    ],
+  }
+  
+  return fallbacks[logoId] || []
+}
+
+/**
+ * Crypto logo component with multiple fallback sources
+ * Tries primary CDN, then fallback CDNs, then shows beautiful gradient initials
  */
 function CryptoLogo({ 
   logoId, 
@@ -90,16 +131,44 @@ function CryptoLogo({
   name: string
   isSelected: boolean
 }) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [imageError, setImageError] = useState(false)
-  const logoUrl = getCryptoLogoUrl(logoId)
+  
+  // Build array of all logo URLs to try (primary + fallbacks)
+  const primaryUrl = getCryptoLogoUrl(logoId)
+  const fallbackUrls = getFallbackLogoUrls(logoId, name)
+  const allLogoUrls = [primaryUrl, ...fallbackUrls]
+  const currentUrl = allLogoUrls[currentImageIndex] || primaryUrl
 
+  const handleImageError = () => {
+    if (currentImageIndex < allLogoUrls.length - 1) {
+      // Try next fallback URL
+      setCurrentImageIndex(currentImageIndex + 1)
+    } else {
+      // All URLs failed, show beautiful gradient initials
+      setImageError(true)
+    }
+  }
+
+  // Beautiful fallback with gradient background matching crypto brand colors
   if (imageError) {
+    const cryptoColors: Record<string, string> = {
+      'USDT': 'from-green-500 to-emerald-600',
+      'USDC': 'from-blue-500 to-blue-600',
+      'SOL': 'from-purple-500 via-purple-600 to-indigo-600',
+      'BTC': 'from-orange-500 to-amber-600',
+      'ETH': 'from-indigo-500 via-purple-500 to-indigo-600',
+    }
+    
+    const gradientClass = cryptoColors[name] || 'from-sec-500 to-sec-600'
+    
     return (
       <div className={cn(
-        'h-10 w-10 flex-shrink-0 transition-transform duration-300 rounded-full overflow-hidden ring-1 ring-border/30 shadow-sm bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center',
+        'h-10 w-10 flex-shrink-0 transition-transform duration-300 rounded-full overflow-hidden ring-1 ring-border/30 shadow-sm flex items-center justify-center',
+        `bg-gradient-to-br ${gradientClass}`,
         isSelected ? 'scale-110 ring-sec-500/50 shadow-md' : 'group-hover:scale-105 group-hover:ring-sec-500/30'
       )}>
-        <span className="text-xs font-bold text-muted-foreground">
+        <span className="text-xs font-bold text-white drop-shadow-sm">
           {name.slice(0, 2).toUpperCase()}
         </span>
       </div>
@@ -113,11 +182,18 @@ function CryptoLogo({
     )}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={logoUrl}
+        src={currentUrl}
         alt={`${name} logo`}
         className="h-full w-full object-cover"
-        onError={() => setImageError(true)}
-        loading="lazy"
+        onError={handleImageError}
+        loading="eager"
+        crossOrigin="anonymous"
+        onLoad={() => {
+          // Image loaded successfully - reset error state if it was set
+          if (imageError) {
+            setImageError(false)
+          }
+        }}
       />
     </div>
   )

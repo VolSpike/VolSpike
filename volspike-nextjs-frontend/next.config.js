@@ -12,11 +12,19 @@ const nextConfig = {
             'lh5.googleusercontent.com',
             'lh6.googleusercontent.com',
             'avatars.githubusercontent.com',
+            'assets.coingecko.com',
+            'cryptologos.cc',
+            'cryptoicons.org',
+            'raw.githubusercontent.com',
         ],
         // Be robust to any googleusercontent subdomain in production
         remotePatterns: [
             { protocol: 'https', hostname: '**.googleusercontent.com' },
             { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+            { protocol: 'https', hostname: 'assets.coingecko.com' },
+            { protocol: 'https', hostname: 'cryptologos.cc' },
+            { protocol: 'https', hostname: 'cryptoicons.org' },
+            { protocol: 'https', hostname: 'raw.githubusercontent.com' },
         ],
     },
     env: {
