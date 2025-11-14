@@ -142,11 +142,11 @@ export async function startOneTimeTestPayment(session: Session | null, priceId?:
     throw new Error('Checkout session URL not returned.')
 }
 
-// NowPayments crypto checkout
+// NowPayments crypto checkout (invoice-based hosted checkout)
 export async function startCryptoCheckout(
   session: Session | null,
   tier: 'pro' | 'elite'
-): Promise<{ paymentUrl: string; paymentId: string }> {
+): Promise<{ paymentUrl: string; invoiceId: string | number | null; paymentId: string | null }> {
   if (!session?.user) {
     throw new Error('You must be signed in to upgrade.')
   }
@@ -249,32 +249,38 @@ export async function startCryptoCheckout(
   }
 
   // Validate response has required fields
-  if (!responseData.paymentId) {
-    console.error('[startCryptoCheckout] No payment ID returned', {
+  // With invoice flow: invoiceId and paymentUrl are required, paymentId is optional (comes later via IPN)
+  if (!responseData.invoiceId && !responseData.paymentId) {
+    console.error('[startCryptoCheckout] No invoice ID or payment ID returned', {
       responseData,
+      hasInvoiceId: !!responseData.invoiceId,
+      hasPaymentId: !!responseData.paymentId,
+      keys: Object.keys(responseData),
     })
-    throw new Error('Payment ID not returned from server. Please check server logs.')
+    throw new Error('Invoice ID not returned from server. Please check server logs.')
   }
   
   if (!responseData.paymentUrl) {
     console.error('[startCryptoCheckout] No payment URL returned - FULL RESPONSE:', {
       responseData,
+      hasInvoiceId: !!responseData.invoiceId,
       hasPaymentId: !!responseData.paymentId,
       hasPaymentUrl: !!responseData.paymentUrl,
       keys: Object.keys(responseData),
       fullResponse: JSON.stringify(responseData, null, 2),
     })
     
-    // Try to construct payment URL from payment ID as fallback
-    if (responseData.paymentId) {
-      const fallbackUrl = `https://nowpayments.io/payment/?iid=${responseData.paymentId}`
-      console.warn('[startCryptoCheckout] Using fallback payment URL', {
-        paymentId: responseData.paymentId,
+    // Try to construct payment URL from invoice ID as fallback
+    if (responseData.invoiceId) {
+      const fallbackUrl = `https://nowpayments.io/payment/?iid=${responseData.invoiceId}`
+      console.warn('[startCryptoCheckout] Using fallback payment URL from invoice ID', {
+        invoiceId: responseData.invoiceId,
         fallbackUrl,
       })
       return {
         paymentUrl: fallbackUrl,
-        paymentId: responseData.paymentId,
+        invoiceId: responseData.invoiceId,
+        paymentId: responseData.paymentId || null,
       }
     }
     
@@ -282,13 +288,15 @@ export async function startCryptoCheckout(
   }
 
   console.log('[startCryptoCheckout] Success!', {
+    invoiceId: responseData.invoiceId,
     paymentId: responseData.paymentId,
     paymentUrl: responseData.paymentUrl,
-    payAddress: responseData.payAddress,
+    priceAmount: responseData.priceAmount,
   })
 
   return {
     paymentUrl: responseData.paymentUrl,
-    paymentId: responseData.paymentId,
+    invoiceId: responseData.invoiceId || null,
+    paymentId: responseData.paymentId || null,
   }
 }
