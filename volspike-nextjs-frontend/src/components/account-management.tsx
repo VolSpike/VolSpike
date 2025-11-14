@@ -354,10 +354,26 @@ export function AccountManagement() {
         return chains[id] || `Chain ${chainId}`
     }
 
-    // Inline component for SOL linking via Phantom
+    // Inline component for SOL linking (prefer Phantom when multiple wallets installed)
     function SolanaLinkTile({ onLinked, sessionToken }: { onLinked: () => Promise<void> | void, sessionToken?: string | null }) {
         const sol = typeof window !== 'undefined' ? (window as any).solana : null
         const solLinked = accounts?.wallets?.find(w => w.provider === 'solana') || null
+
+        const getPreferredSolProvider = () => {
+            const w: any = typeof window !== 'undefined' ? window : {}
+            // Prefer explicit Phantom provider when installed
+            if (w.phantom?.solana) return { provider: w.phantom.solana, name: 'Phantom' }
+            // Some wallets expose window.solana.providers array (Wallet Standard)
+            const list = Array.isArray(sol?.providers) ? sol.providers : []
+            const phantomFromList = list.find((p: any) => p?.isPhantom)
+            if (phantomFromList) return { provider: phantomFromList, name: 'Phantom' }
+            // Fallback to default injected provider
+            if (sol) return { provider: sol, name: (sol.isPhantom ? 'Phantom' : 'Wallet') }
+            // Other known wallets
+            if (w.exodus?.solana) return { provider: w.exodus.solana, name: 'Exodus' }
+            if (w.solflare?.solflare) return { provider: w.solflare.solflare, name: 'Solflare' }
+            return { provider: null, name: 'Unknown' }
+        }
 
         const linkSol = async () => {
             try {
@@ -365,14 +381,15 @@ export function AccountManagement() {
                     toast.error('Please sign in')
                     return
                 }
-                if (!sol || !sol.isPhantom) {
-                    toast.error('Phantom not detected. Install Phantom to link a SOL wallet.')
+                const { provider, name } = getPreferredSolProvider()
+                if (!provider) {
+                    toast.error('No Solana wallet detected. Install Phantom or another Solana wallet.')
                     return
                 }
                 // Connect if needed
-                try { await sol.connect(); } catch (_) {}
-                const pk = sol?.publicKey?.toString?.()
-                if (!pk) { toast.error('Unable to read Phantom public key'); return }
+                try { await provider.connect(); } catch (_) {}
+                const pk = provider?.publicKey?.toString?.()
+                if (!pk) { toast.error('Unable to read Solana public key'); return }
 
                 // Nonce + message
                 const nRes = await fetch(`${API_URL}/api/auth/solana/nonce`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address: pk }) })
@@ -383,7 +400,7 @@ export function AccountManagement() {
                 const { message } = await pRes.json()
 
                 const encoder = new TextEncoder()
-                const signed = await sol.signMessage(encoder.encode(message), 'utf8')
+                const signed = await provider.signMessage(encoder.encode(message), 'utf8')
                 const signatureB58 = base58.encode(new Uint8Array(signed.signature))
 
                 const authToken = (session as any)?.accessToken || session?.user?.id || sessionToken || ''
@@ -424,7 +441,7 @@ export function AccountManagement() {
 
         return (
             <div className="space-y-2 text-center">
-                <p className="text-sm text-muted-foreground">Use Phantom to link your SOL wallet</p>
+                <p className="text-sm text-muted-foreground">Choose your preferred Solana wallet</p>
                 <Button onClick={linkSol} className="border border-purple-500 text-purple-600 hover:bg-purple-50" variant="outline">
                     <Link2 className="h-4 w-4 mr-2" />
                     Link SOL Wallet
