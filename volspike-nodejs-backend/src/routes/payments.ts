@@ -716,9 +716,36 @@ payments.post('/nowpayments/checkout', async (c) => {
         // Create payment with NowPayments
         const nowpayments = NowPaymentsService.getInstance()
         
+        // Get available currencies and use a default (BTC) if pay_currency is required
+        // User can still change currency on NowPayments payment page
+        let defaultPayCurrency = 'BTC' // Default to Bitcoin
+        try {
+            const availableCurrencies = await nowpayments.getAvailableCurrencies()
+            logger.info('Available currencies from NowPayments', {
+                currencies: availableCurrencies,
+                count: availableCurrencies.length,
+            })
+            // Prefer stablecoins if available
+            if (availableCurrencies.includes('USDT')) {
+                defaultPayCurrency = 'USDT'
+            } else if (availableCurrencies.includes('USDC')) {
+                defaultPayCurrency = 'USDC'
+            } else if (availableCurrencies.includes('BTC')) {
+                defaultPayCurrency = 'BTC'
+            } else if (availableCurrencies.length > 0) {
+                defaultPayCurrency = availableCurrencies[0]
+            }
+        } catch (currencyError) {
+            logger.warn('Failed to get available currencies, using default BTC', {
+                error: currencyError instanceof Error ? currencyError.message : String(currencyError),
+            })
+            // Continue with default BTC
+        }
+        
         logger.info('Calling NowPayments API to create payment', {
             price_amount: priceAmount,
             price_currency: 'usd',
+            pay_currency: defaultPayCurrency,
             order_id: orderId,
             ipn_callback_url: ipnCallbackUrl,
         })
@@ -726,6 +753,7 @@ payments.post('/nowpayments/checkout', async (c) => {
         const payment = await nowpayments.createPayment({
             price_amount: priceAmount,
             price_currency: 'usd',
+            pay_currency: defaultPayCurrency, // Required by NowPayments API
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription`,
             ipn_callback_url: ipnCallbackUrl,
