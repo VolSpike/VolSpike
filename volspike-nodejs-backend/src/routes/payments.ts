@@ -880,30 +880,80 @@ payments.post('/nowpayments/checkout', async (c) => {
 
         const payment = await nowpayments.createPayment(paymentParams)
 
-        logger.info('NowPayments payment created successfully', {
+        // Log complete payment response for debugging
+        logger.info('NowPayments payment response received - COMPLETE ANALYSIS', {
+            // All fields from response
             paymentId: payment.payment_id,
             invoiceId: payment.invoice_id,
             paymentStatus: payment.payment_status,
             payUrl: payment.pay_url,
             payAddress: payment.pay_address,
-            fullResponse: JSON.stringify(payment), // Log full response for debugging
-            responseKeys: Object.keys(payment),
+            payAmount: payment.pay_amount,
+            payCurrency: payment.pay_currency,
+            priceAmount: payment.price_amount,
+            priceCurrency: payment.price_currency,
+            orderId: payment.order_id,
+            purchaseId: payment.purchase_id,
+            
+            // Check all possible URL fields
+            hasPayUrl: !!payment.pay_url,
+            hasPaymentUrl: !!(payment as any).payment_url,
+            hasInvoiceUrl: !!(payment as any).invoice_url,
+            hasUrl: !!(payment as any).url,
+            hasInvoiceId: !!payment.invoice_id,
+            hasPaymentId: !!payment.payment_id,
+            
+            // All keys in response
+            allKeys: Object.keys(payment),
+            keysCount: Object.keys(payment).length,
+            
+            // Full response
+            fullResponse: JSON.stringify(payment, null, 2),
+            
+            // Check for nested objects
+            hasInvoice: !!(payment as any).invoice,
+            hasPayment: !!(payment as any).payment,
         })
         
         // Validate required fields
         if (!payment.payment_id) {
+            logger.error('CRITICAL: NowPayments API did not return payment_id', {
+                paymentResponse: payment,
+                allKeys: Object.keys(payment),
+            })
             throw new Error('NowPayments API did not return payment_id')
         }
         
+        // Check for payment URL in various possible fields
+        const possiblePayUrl = payment.pay_url || (payment as any).payment_url || (payment as any).invoice_url || (payment as any).url
+        const hasInvoiceId = !!payment.invoice_id
+        
+        logger.info('Payment URL resolution check', {
+            hasPayUrl: !!payment.pay_url,
+            hasPaymentUrl: !!(payment as any).payment_url,
+            hasInvoiceUrl: !!(payment as any).invoice_url,
+            hasUrl: !!(payment as any).url,
+            hasInvoiceId,
+            possiblePayUrl,
+            paymentId: payment.payment_id,
+        })
+        
         // NowPayments uses invoice_id for the payment URL, not payment_id
-        if (!payment.invoice_id && !payment.pay_url) {
-            logger.error('NowPayments response missing both invoice_id and pay_url', {
+        // But if neither invoice_id nor pay_url exists, we need to handle it
+        if (!hasInvoiceId && !possiblePayUrl) {
+            logger.error('CRITICAL: NowPayments response missing both invoice_id and pay_url', {
                 paymentResponse: payment,
-                hasInvoiceId: !!payment.invoice_id,
+                hasInvoiceId,
                 hasPayUrl: !!payment.pay_url,
                 hasPaymentId: !!payment.payment_id,
+                allKeys: Object.keys(payment),
+                fullResponse: JSON.stringify(payment, null, 2),
             })
-            throw new Error('NowPayments API did not return invoice_id or payment URL')
+            
+            // Don't throw error immediately - try to construct URL from payment_id as last resort
+            logger.warn('Attempting to use payment_id as fallback for URL construction', {
+                paymentId: payment.payment_id,
+            })
         }
 
         // Store payment in database
@@ -945,34 +995,64 @@ payments.post('/nowpayments/checkout', async (c) => {
         // Construct payment URL if not provided
         // NowPayments uses invoice_id (iid) in the payment URL, NOT payment_id
         // Format: https://nowpayments.io/payment?iid={invoice_id}
-        let paymentUrl = payment.pay_url
+        // OR: https://nowpayments.io/payment/?iid={invoice_id} (with trailing slash)
+        
+        // Check all possible URL fields
+        let paymentUrl = payment.pay_url || (payment as any).payment_url || (payment as any).invoice_url || (payment as any).url
+        
+        logger.info('Payment URL resolution attempt', {
+            step: 'initial_check',
+            hasPayUrl: !!payment.pay_url,
+            hasPaymentUrl: !!(payment as any).payment_url,
+            hasInvoiceUrl: !!(payment as any).invoice_url,
+            hasUrl: !!(payment as any).url,
+            foundUrl: !!paymentUrl,
+            urlValue: paymentUrl,
+        })
         
         if (!paymentUrl) {
             // Try to construct from invoice_id (preferred)
             if (payment.invoice_id) {
                 paymentUrl = `https://nowpayments.io/payment?iid=${payment.invoice_id}`
-                logger.info('Constructed payment URL from invoice_id', {
+                logger.info('✅ Constructed payment URL from invoice_id', {
                     invoiceId: payment.invoice_id,
                     paymentId: payment.payment_id,
                     constructedUrl: paymentUrl,
                 })
             } else if (payment.payment_id) {
                 // Fallback: try payment_id (might work in some cases, but invoice_id is correct)
+                // Some NowPayments implementations might accept payment_id
                 paymentUrl = `https://nowpayments.io/payment?iid=${payment.payment_id}`
-                logger.warn('Constructed payment URL from payment_id (fallback - invoice_id preferred)', {
+                logger.warn('⚠️ Constructed payment URL from payment_id (fallback - invoice_id preferred)', {
                     paymentId: payment.payment_id,
                     invoiceId: payment.invoice_id,
                     constructedUrl: paymentUrl,
+                    note: 'This might not work if NowPayments requires invoice_id',
                 })
             }
         }
         
+        logger.info('Final payment URL resolution', {
+            hasPaymentUrl: !!paymentUrl,
+            paymentUrl: paymentUrl,
+            source: paymentUrl === payment.pay_url ? 'pay_url' : 
+                   paymentUrl === (payment as any).payment_url ? 'payment_url' :
+                   paymentUrl === (payment as any).invoice_url ? 'invoice_url' :
+                   paymentUrl === (payment as any).url ? 'url' :
+                   payment.invoice_id ? 'constructed_from_invoice_id' :
+                   payment.payment_id ? 'constructed_from_payment_id' : 'unknown',
+        })
+        
         if (!paymentUrl) {
-            logger.error('Cannot determine payment URL', {
+            logger.error('❌ CRITICAL: Cannot determine payment URL after all attempts', {
                 hasPayUrl: !!payment.pay_url,
+                hasPaymentUrl: !!(payment as any).payment_url,
+                hasInvoiceUrl: !!(payment as any).invoice_url,
+                hasUrl: !!(payment as any).url,
                 hasInvoiceId: !!payment.invoice_id,
                 hasPaymentId: !!payment.payment_id,
-                paymentResponse: payment,
+                allKeys: Object.keys(payment),
+                paymentResponse: JSON.stringify(payment, null, 2),
             })
             throw new Error('Payment URL could not be determined from NowPayments response. Missing invoice_id and pay_url.')
         }

@@ -72,17 +72,44 @@ export class NowPaymentsService {
         }
       )
 
-      logger.info('NowPayments payment created successfully', {
-        paymentId: response.data.payment_id,
+      // Log EVERYTHING about the response for debugging
+      const responseData = response.data
+      logger.info('NowPayments payment created successfully - FULL RESPONSE ANALYSIS', {
+        // Basic fields
+        paymentId: responseData.payment_id,
+        invoiceId: responseData.invoice_id,
         orderId: params.order_id,
-        paymentStatus: response.data.payment_status,
-        payUrl: response.data.pay_url,
-        payAddress: response.data.pay_address,
-        fullResponse: JSON.stringify(response.data, null, 2), // Log full response
-        responseKeys: Object.keys(response.data),
+        paymentStatus: responseData.payment_status,
+        payUrl: responseData.pay_url,
+        payAddress: responseData.pay_address,
+        
+        // All response keys
+        responseKeys: Object.keys(responseData),
+        responseKeysCount: Object.keys(responseData).length,
+        
+        // Check for common field variations
+        hasPaymentId: !!responseData.payment_id,
+        hasInvoiceId: !!responseData.invoice_id,
+        hasPayUrl: !!responseData.pay_url,
+        hasPayAddress: !!responseData.pay_address,
+        hasPaymentUrl: !!responseData.payment_url,
+        hasInvoiceUrl: !!responseData.invoice_url,
+        hasUrl: !!responseData.url,
+        
+        // Check for nested objects
+        hasInvoice: !!responseData.invoice,
+        hasPayment: !!responseData.payment,
+        
+        // Full response (stringified for complete visibility)
+        fullResponse: JSON.stringify(responseData, null, 2),
+        
+        // Response status
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
       })
 
-      return response.data
+      return responseData
     } catch (error: any) {
       const errorDetails = error.response?.data || {}
       const errorMessage = errorDetails.message || error.message || 'Unknown error'
