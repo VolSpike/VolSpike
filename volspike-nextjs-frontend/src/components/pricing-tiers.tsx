@@ -168,10 +168,10 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
               isCurrent 
                 ? 'ring-2 ring-brand-500 shadow-lg cursor-default bg-card/100'
                 : isDowngrade
-                  ? 'ring-1 ring-muted-foreground/30 shadow-md cursor-pointer hover:scale-105 hover:shadow-xl hover:ring-warning-500/50 hover:-translate-y-2 hover:z-20 bg-card/100 hover:bg-card'
+                  ? 'ring-1 ring-muted-foreground/30 shadow-md cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:ring-warning-500/50 hover:-translate-y-1 hover:z-20 bg-card/100 hover:bg-card'
                   : isPopular && !isCurrent
-                    ? 'ring-2 ring-brand-500 shadow-xl scale-105 md:scale-110 hover:scale-110 md:hover:scale-[1.15] hover:ring-brand-400 hover:shadow-2xl hover:shadow-brand-500/30 z-10 cursor-pointer hover:-translate-y-2 bg-card/100 hover:bg-card'
-                    : 'cursor-pointer hover:scale-105 hover:shadow-2xl hover:ring-2 hover:ring-brand-500/50 hover:z-20 hover:-translate-y-2 bg-card/100 hover:bg-card'
+                    ? 'ring-2 ring-brand-500 shadow-xl scale-[1.02] md:scale-[1.05] hover:scale-[1.05] md:hover:scale-[1.08] hover:ring-brand-400 hover:shadow-2xl hover:shadow-brand-500/30 z-10 cursor-pointer hover:-translate-y-1 bg-card/100 hover:bg-card'
+                    : 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl hover:ring-2 hover:ring-brand-500/50 hover:z-20 hover:-translate-y-1 bg-card/100 hover:bg-card'
             }`}
           >
             <CardHeader className="text-center pb-8 pt-6">
