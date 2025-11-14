@@ -104,7 +104,7 @@ export default function CryptoCheckoutPage() {
           <CardHeader>
             <CardTitle>Complete Your Crypto Payment</CardTitle>
             <CardDescription>
-              You'll be redirected to complete your {tier.charAt(0).toUpperCase() + tier.slice(1)} tier payment
+              You&apos;ll be redirected to complete your {tier.charAt(0).toUpperCase() + tier.slice(1)} tier payment
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -120,7 +120,7 @@ export default function CryptoCheckoutPage() {
                   <ul className="text-sm text-muted-foreground space-y-2">
                     <li className="flex items-start gap-2">
                       <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>
-                      <span>You'll be redirected to NowPayments secure payment page</span>
+                      <span>You&apos;ll be redirected to NowPayments secure payment page</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>
