@@ -809,18 +809,34 @@ payments.post('/nowpayments/checkout', async (c) => {
             // Continue with default USDTSOL (preferred)
         }
         
+        // Normalize currency code for NowPayments API
+        // NowPayments expects simple lowercase codes like "usdt", "btc", "sol", "eth"
+        // For multi-chain tokens, they might use "usdt" and let user choose network
+        let payCurrencyForAPI = defaultPayCurrency.toLowerCase()
+        
+        // If we got a complex code like "usdtsol", simplify it
+        // NowPayments might prefer just "usdt" and let user choose network on payment page
+        if (payCurrencyForAPI.includes('usdt')) {
+            payCurrencyForAPI = 'usdt' // Use generic USDT, user can choose Solana/Ethereum
+        } else if (payCurrencyForAPI.includes('usdc')) {
+            payCurrencyForAPI = 'usdc' // Use generic USDC
+        }
+        // Keep SOL, BTC, ETH as-is (they're already simple)
+        
         logger.info('Calling NowPayments API to create payment', {
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: defaultPayCurrency,
+            pay_currency: payCurrencyForAPI,
             order_id: orderId,
             ipn_callback_url: ipnCallbackUrl,
+            originalCurrency: defaultPayCurrency,
+            normalizedCurrency: payCurrencyForAPI,
         })
 
         const payment = await nowpayments.createPayment({
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: defaultPayCurrency, // Required by NowPayments API
+            pay_currency: payCurrencyForAPI, // Use normalized currency code
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription`,
             ipn_callback_url: ipnCallbackUrl,
