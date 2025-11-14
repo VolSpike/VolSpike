@@ -63,6 +63,7 @@
         "zustand": "^4.4.7"
     },
     "devDependencies": {
+        "@resvg/resvg-js": "^2.6.2",
         "@types/howler": "^2.2.12",
         "@types/jsonwebtoken": "^9.0.6",
         "@types/node": "^20.10.0",
@@ -77,6 +78,7 @@
         "postcss": "^8.4.32",
         "prettier": "^3.1.0",
         "prettier-plugin-tailwindcss": "^0.5.7",
+        "sharp": "^0.34.5",
         "tailwindcss": "^3.3.6",
         "typescript": "^5.3.2"
     }
