@@ -67,7 +67,7 @@ export default async function PricingPage() {
             <div className="p-6 rounded-lg border border-border bg-muted/30">
               <h3 className="font-semibold mb-2">What payment methods do you accept?</h3>
               <p className="text-sm text-muted-foreground">
-                We accept all major credit cards (Visa, MasterCard, American Express) via Stripe. All payments are secure and encrypted.
+                We accept all major credit cards (Visa, MasterCard, American Express) via Stripe, as well as cryptocurrency payments (BTC, ETH, USDT, and 100+ more) via NowPayments. All payments are secure and encrypted.
               </p>
             </div>
             

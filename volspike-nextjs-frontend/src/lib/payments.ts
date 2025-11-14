@@ -141,3 +141,46 @@ export async function startOneTimeTestPayment(session: Session | null, priceId?:
 
     throw new Error('Checkout session URL not returned.')
 }
+
+// NowPayments crypto checkout
+export async function startCryptoCheckout(
+  session: Session | null,
+  tier: 'pro' | 'elite'
+): Promise<{ paymentUrl: string; paymentId: string }> {
+  if (!session?.user) {
+    throw new Error('You must be signed in to upgrade.')
+  }
+
+  const successUrl = `${window.location.origin}/checkout/success?payment=crypto&tier=${tier}`
+  const cancelUrl = `${window.location.origin}/checkout/cancel`
+
+  const authToken = (session as any)?.accessToken || session.user.id
+
+  if (!authToken) {
+    throw new Error('Authentication token not available. Please sign in again.')
+  }
+
+  const resp = await fetch(`${API_URL}/api/payments/nowpayments/checkout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`,
+    },
+    body: JSON.stringify({
+      tier,
+      successUrl,
+      cancelUrl,
+    }),
+  })
+
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}))
+    throw new Error(data?.error || `Checkout failed (HTTP ${resp.status})`)
+  }
+
+  const data = await resp.json()
+  return {
+    paymentUrl: data.paymentUrl,
+    paymentId: data.paymentId,
+  }
+}

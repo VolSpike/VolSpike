@@ -6,6 +6,7 @@ import { createLogger } from '../lib/logger'
 import { User } from '../types'
 import { getUser, requireUser } from '../lib/hono-extensions'
 import { EmailService } from '../services/email'
+import { NowPaymentsService } from '../services/nowpayments'
 
 const logger = createLogger()
 
@@ -653,5 +654,240 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     // Log failed payment
     logger.error(`Payment failed for customer ${customerId}, amount: ${invoice.amount_due}`)
 }
+
+// ============================================
+// NowPayments Crypto Payment Routes
+// ============================================
+
+// Create NowPayments checkout
+payments.post('/nowpayments/checkout', async (c) => {
+    try {
+        const user = requireUser(c)
+        const body = await c.req.json()
+        const { tier, successUrl, cancelUrl } = z.object({
+            tier: z.enum(['pro', 'elite']),
+            successUrl: z.string().url(),
+            cancelUrl: z.string().url(),
+        }).parse(body)
+
+        // Determine price based on tier
+        const tierPrices: Record<string, number> = {
+            pro: 9.0,
+            elite: 49.0,
+        }
+        const priceAmount = tierPrices[tier] || 9.0
+
+        // Generate unique order ID
+        const orderId = `volspike-${user.id}-${Date.now()}`
+
+        // Create payment with NowPayments
+        const nowpayments = NowPaymentsService.getInstance()
+        const payment = await nowpayments.createPayment({
+            price_amount: priceAmount,
+            price_currency: 'usd',
+            order_id: orderId,
+            order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription`,
+            ipn_callback_url: `${process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(':3000', ':3001') || 'http://localhost:3001'}/api/payments/nowpayments/webhook`,
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+        })
+
+        // Store payment in database
+        await prisma.cryptoPayment.create({
+            data: {
+                userId: user.id,
+                paymentId: payment.payment_id,
+                paymentStatus: payment.payment_status,
+                payAmount: payment.price_amount,
+                payCurrency: payment.price_currency,
+                actuallyPaid: payment.actually_paid,
+                actuallyPaidCurrency: payment.pay_currency,
+                purchaseId: payment.purchase_id,
+                tier: tier,
+                invoiceId: payment.invoice_id,
+                orderId: payment.order_id,
+                paymentUrl: payment.pay_url,
+                payAddress: payment.pay_address,
+            },
+        })
+
+        logger.info(`NowPayments checkout created for ${user.email}`, {
+            paymentId: payment.payment_id,
+            tier,
+        })
+
+        return c.json({
+            paymentId: payment.payment_id,
+            paymentUrl: payment.pay_url,
+            payAddress: payment.pay_address,
+            payAmount: payment.pay_amount,
+            payCurrency: payment.pay_currency,
+            priceAmount: payment.price_amount,
+            priceCurrency: payment.price_currency,
+        })
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('NowPayments checkout error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+        return c.json({ error: 'Failed to create checkout session' }, 500)
+    }
+})
+
+// NowPayments webhook handler
+// IMPORTANT: This endpoint must be publicly accessible (no auth middleware)
+// NowPayments sends webhooks from their servers, not from user browsers
+payments.post('/nowpayments/webhook', async (c) => {
+    try {
+        logger.info('NowPayments webhook received', {
+            method: c.req.method,
+            path: c.req.path,
+            url: c.req.url,
+            hasSignature: !!c.req.header('x-nowpayments-sig'),
+        })
+
+        const body = await c.req.text()
+        const signature = c.req.header('x-nowpayments-sig')
+
+        if (!signature) {
+            logger.warn('NowPayments webhook missing signature')
+            return c.json({ error: 'Missing signature' }, 400)
+        }
+
+        // Verify signature
+        const nowpayments = NowPaymentsService.getInstance()
+        if (!nowpayments.verifyIPNSignature(body, signature)) {
+            logger.error('NowPayments webhook signature verification failed')
+            return c.json({ error: 'Invalid signature' }, 400)
+        }
+
+        const data = JSON.parse(body)
+        const { payment_id, payment_status } = data
+
+        logger.info('NowPayments webhook processing', {
+            paymentId: payment_id,
+            paymentStatus: payment_status,
+        })
+
+        // Find payment in database
+        const cryptoPayment = await prisma.cryptoPayment.findUnique({
+            where: { paymentId: payment_id },
+            include: { user: true },
+        })
+
+        if (!cryptoPayment) {
+            logger.warn(`Crypto payment not found: ${payment_id}`)
+            return c.json({ error: 'Payment not found' }, 404)
+        }
+
+        // Update payment status
+        await prisma.cryptoPayment.update({
+            where: { paymentId: payment_id },
+            data: {
+                paymentStatus: payment_status,
+                actuallyPaid: data.actually_paid,
+                actuallyPaidCurrency: data.actually_paid_currency,
+                updatedAt: new Date(),
+                ...(payment_status === 'finished' && { paidAt: new Date() }),
+            },
+        })
+
+        // Handle successful payment
+        if (payment_status === 'finished') {
+            // Get user's previous tier before updating (for email notification)
+            const previousTier = cryptoPayment.user.tier
+
+            // Update user tier
+            await prisma.user.update({
+                where: { id: cryptoPayment.userId },
+                data: { tier: cryptoPayment.tier },
+            })
+
+            logger.info(`User ${cryptoPayment.userId} upgraded to ${cryptoPayment.tier} via crypto payment`, {
+                paymentId: payment_id,
+                previousTier,
+                newTier: cryptoPayment.tier,
+            })
+
+            // Send email notification
+            const emailService = EmailService.getInstance()
+            if (cryptoPayment.user.email && previousTier !== cryptoPayment.tier) {
+                await emailService.sendTierUpgradeEmail({
+                    email: cryptoPayment.user.email,
+                    name: undefined,
+                    newTier: cryptoPayment.tier,
+                    previousTier: previousTier,
+                }).catch((error) => {
+                    logger.error('Failed to send tier upgrade email:', error)
+                })
+            }
+
+            // Broadcast tier change via WebSocket
+            if (io) {
+                io.to(`user-${cryptoPayment.userId}`).emit('tier-changed', { tier: cryptoPayment.tier })
+                logger.info(`Broadcasted tier change to user ${cryptoPayment.userId}`)
+            }
+        }
+
+        logger.info(`NowPayments webhook event processed successfully: ${payment_status}`)
+
+        return c.json({ received: true })
+    } catch (error) {
+        logger.error('NowPayments webhook error:', error)
+        return c.json({ error: 'Webhook processing failed' }, 500)
+    }
+})
+
+// Get payment status
+payments.get('/nowpayments/status/:paymentId', async (c) => {
+    try {
+        const user = requireUser(c)
+        const paymentId = c.req.param('paymentId')
+
+        const cryptoPayment = await prisma.cryptoPayment.findFirst({
+            where: {
+                paymentId,
+                userId: user.id,
+            },
+        })
+
+        if (!cryptoPayment) {
+            return c.json({ error: 'Payment not found' }, 404)
+        }
+
+        // Optionally refresh from NowPayments API
+        const nowpayments = NowPaymentsService.getInstance()
+        const paymentStatus = await nowpayments.getPaymentStatus(paymentId)
+
+        // Update database
+        await prisma.cryptoPayment.update({
+            where: { id: cryptoPayment.id },
+            data: {
+                paymentStatus: paymentStatus.payment_status,
+                actuallyPaid: paymentStatus.actually_paid,
+                actuallyPaidCurrency: paymentStatus.pay_currency,
+                updatedAt: new Date(),
+                ...(paymentStatus.payment_status === 'finished' && { paidAt: new Date() }),
+            },
+        })
+
+        return c.json({
+            paymentId: cryptoPayment.paymentId,
+            status: paymentStatus.payment_status,
+            payAmount: cryptoPayment.payAmount,
+            payCurrency: cryptoPayment.payCurrency,
+            actuallyPaid: paymentStatus.actually_paid,
+            actuallyPaidCurrency: paymentStatus.pay_currency,
+        })
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('Get payment status error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+        return c.json({ error: 'Failed to get payment status' }, 500)
+    }
+})
 
 export { payments as paymentRoutes }

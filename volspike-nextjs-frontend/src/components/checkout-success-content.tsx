@@ -2,16 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { CheckCircle2, RefreshCw } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CheckCircle2, RefreshCw, Coins } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 export function CheckoutSuccessContent() {
     const { data: session, update } = useSession()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [hasRefreshed, setHasRefreshed] = useState(false)
+
+    // Check if this is a crypto payment
+    const paymentType = searchParams.get('payment') // 'crypto' or null
+    const tierParam = searchParams.get('tier') // 'pro' or 'elite'
 
     // Get current tier from session (will update when session updates)
     const currentTier = session?.user?.tier || 'free'
@@ -133,6 +138,28 @@ export function CheckoutSuccessContent() {
                 </div>
                 <h1 className="text-2xl font-bold mb-2">Payment Successful</h1>
                 
+                {paymentType === 'crypto' && (
+                    <div className="mb-6 p-5 rounded-xl bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 shadow-sm">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2.5 rounded-lg bg-blue-500/20 flex-shrink-0">
+                                <Coins className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 mb-2">
+                                    Cryptocurrency Payment Processing
+                                </p>
+                                <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                                    Your cryptocurrency payment is being processed. Your tier will be upgraded to <strong className="text-blue-700 dark:text-blue-400">{tierParam?.toUpperCase() || 'PRO'}</strong> once the payment is confirmed on the blockchain.
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-blue-600/80 dark:text-blue-400/80">
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    <span>Waiting for blockchain confirmation...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {isPro ? (
                     <div className="mb-6">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">

@@ -61,6 +61,7 @@ model User {
   auditLogs          AuditLog[]          @relation("AuditActor")
   adminSessions      AdminSession[]
   walletAccounts     WalletAccount[]
+  cryptoPayments     CryptoPayment[]
 
   @@map("users")
 }
@@ -287,4 +288,31 @@ model AdminSession {
   @@index([userId, expiresAt])
   @@index([token])
   @@map("admin_sessions")
+}
+
+// Crypto payments via NowPayments
+model CryptoPayment {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentId         String   @unique // NowPayments payment_id
+  paymentStatus     String   // waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
+  payAmount         Float    // Amount in USD
+  payCurrency        String   @default("usd") // USD
+  actuallyPaid      Float?   // Amount actually paid in crypto
+  actuallyPaidCurrency String? // Crypto currency (BTC, ETH, etc.)
+  purchaseId        String?  // Order ID for tracking
+  tier              String   // pro, elite
+  invoiceId         String?  // NowPayments invoice_id
+  orderId           String?  // NowPayments order_id
+  paymentUrl        String?  @db.Text // Payment page URL
+  payAddress        String?  // Crypto address to send payment to
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  paidAt            DateTime?
+  
+  @@index([userId])
+  @@index([paymentId])
+  @@index([paymentStatus])
+  @@map("crypto_payments")
 }

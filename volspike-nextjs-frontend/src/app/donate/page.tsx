@@ -46,9 +46,9 @@ const ASSETS: Record<AssetKey, AssetInfo> = {
     ],
   },
   USDC_ETH: {
-    label: 'USD Coin (USDC) on Ethereum',
+    label: 'USD Coin (USDC) on ETH',
     address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
-    network: 'Ethereum Mainnet (USDC)',
+    network: 'ETH mainnet (USDC)',
     seo: 'Donate USDC to VolSpike',
     badge: 'Stablecoin • Preferred',
     steps: [
@@ -59,9 +59,9 @@ const ASSETS: Record<AssetKey, AssetInfo> = {
     ],
   },
   USDT_ETH: {
-    label: 'Tether (USDT) on Ethereum',
+    label: 'Tether (USDT) on ETH',
     address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
-    network: 'Ethereum Mainnet (USDT)',
+    network: 'ETH mainnet (USDT)',
     seo: 'Donate USDT on Ethereum to VolSpike',
     badge: 'Stablecoin • Preferred',
     steps: [
@@ -84,7 +84,7 @@ const ASSETS: Record<AssetKey, AssetInfo> = {
     ],
   },
   USDT_SOL: {
-    label: 'Tether (USDT) on Solana',
+    label: 'Tether (USDT) on SOL',
     address: 'DWDTRqQ2zJn6becjTypRwSAVBqoGEh7v7PoAjvwiJ2PS',
     network: 'Solana (USDT)',
     seo: 'Donate USDT on Solana to VolSpike',
@@ -141,7 +141,7 @@ function AssetCard({ asset }: { asset: AssetInfo }) {
             <CardDescription className="text-xs">{asset.network}</CardDescription>
           </div>
           {asset.badge && (
-            <span className="inline-flex items-center rounded-full border border-brand-500/40 bg-brand-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-300">
+            <span className="inline-flex items-center rounded-full border border-brand-500/40 bg-brand-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-300 whitespace-nowrap">
               {asset.badge}
             </span>
           )}

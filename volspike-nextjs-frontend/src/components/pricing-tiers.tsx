@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Check, Zap, Star, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { startProCheckout } from '@/lib/payments'
 import { toast } from 'react-hot-toast'
+import { PaymentMethodSelector } from '@/components/payment-method-selector'
 
 interface PricingTiersProps {
   currentTier?: string
@@ -92,14 +94,20 @@ const tiers = [
 export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
   const router = useRouter()
   const { data: session } = useSession()
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'crypto'>('stripe')
   
-  const handleTierAction = (tierName: string, isComingSoon: boolean, isCurrent: boolean) => {
+  const handleTierAction = async (tierName: string, isComingSoon: boolean, isCurrent: boolean) => {
     if (isComingSoon || isCurrent) return
     
     if (tierName === 'Free') {
       router.push('/auth')
-    } else if (tierName === 'Pro') {
-      ;(async () => {
+    } else if (tierName === 'Pro' || tierName === 'Elite') {
+      const tier = tierName.toLowerCase() as 'pro' | 'elite'
+      
+      if (paymentMethod === 'crypto') {
+        router.push(`/checkout/crypto?tier=${tier}`)
+      } else {
+        // Existing Stripe flow
         try {
           await startProCheckout(session || null)
         } catch (err) {
@@ -108,14 +116,29 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
           // Fallback: route to settings subscription section
           router.push('/settings?tab=subscription')
         }
-      })()
+      }
     } else {
       router.push('/dashboard')
     }
   }
 
+  const isCryptoEnabled = typeof window !== 'undefined' 
+    ? process.env.NEXT_PUBLIC_NOWPAYMENTS_ENABLED === 'true'
+    : false
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
+      {/* Payment Method Selector - only show for authenticated users and when crypto is enabled */}
+      {session && isCryptoEnabled && (
+        <div className="mb-10">
+          <PaymentMethodSelector
+            selectedMethod={paymentMethod}
+            onMethodChange={setPaymentMethod}
+          />
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
       {tiers.map((tier) => {
         const Icon = tier.icon
         const isPopular = tier.popular
@@ -279,6 +302,7 @@ export function PricingTiers({ currentTier = 'free' }: PricingTiersProps) {
           </Card>
         )
       })}
+      </div>
     </div>
   )
 }
