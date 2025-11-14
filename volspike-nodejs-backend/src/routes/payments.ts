@@ -679,12 +679,14 @@ payments.post('/nowpayments/checkout', async (c) => {
             tier: body.tier,
             hasSuccessUrl: !!body.successUrl,
             hasCancelUrl: !!body.cancelUrl,
+            payCurrency: body.payCurrency,
         })
 
-        const { tier, successUrl, cancelUrl } = z.object({
+        const { tier, successUrl, cancelUrl, payCurrency } = z.object({
             tier: z.enum(['pro', 'elite']),
             successUrl: z.string().url(),
             cancelUrl: z.string().url(),
+            payCurrency: z.string().optional(), // Optional - user-selected currency
         }).parse(body)
 
         // Determine price based on tier
@@ -726,7 +728,7 @@ payments.post('/nowpayments/checkout', async (c) => {
         })
 
         // Create invoice parameters
-        // pay_currency is optional - if omitted, user can choose on checkout page
+        // Use user-selected currency if provided, otherwise default to USDT on Solana
         const invoiceParams: any = {
             price_amount: priceAmount,
             price_currency: 'usd',
@@ -737,10 +739,16 @@ payments.post('/nowpayments/checkout', async (c) => {
             cancel_url: cancelUrl,
         }
         
-        // Optionally set pay_currency if you want to default to a specific currency
-        // Leaving it out allows user to choose on the hosted checkout page
-        // If you want to default to USDT on Solana, uncomment:
-        // invoiceParams.pay_currency = 'usdtsol'
+        // Set pay_currency to user's selection (from our currency selector)
+        // This pre-selects the currency on NowPayments page, but user can still change it
+        // Default to USDT on Solana if not specified
+        invoiceParams.pay_currency = payCurrency || 'usdtsol'
+        
+        logger.info('Invoice parameters', {
+            payCurrency: invoiceParams.pay_currency,
+            priceAmount: invoiceParams.price_amount,
+            orderId: invoiceParams.order_id,
+        })
 
         const invoice = await nowpayments.createInvoice(invoiceParams)
 

@@ -6,9 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Loader2, ExternalLink, AlertCircle, Coins } from 'lucide-react'
+import { Loader2, ExternalLink, AlertCircle, Coins, ArrowRight } from 'lucide-react'
 import { startCryptoCheckout } from '@/lib/payments'
 import { toast } from 'react-hot-toast'
+import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
 
 export default function CryptoCheckoutPage() {
   const { data: session } = useSession()
@@ -16,54 +17,61 @@ export default function CryptoCheckoutPage() {
   const searchParams = useSearchParams()
   const tier = (searchParams.get('tier') || 'pro') as 'pro' | 'elite'
   
-  const [isLoading, setIsLoading] = useState(true)
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('usdtsol') // Default to USDT on Solana
+  const [isLoading, setIsLoading] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [step, setStep] = useState<'select' | 'redirecting'>('select')
 
   useEffect(() => {
     if (!session?.user) {
       router.push('/auth')
       return
     }
+  }, [session, router])
 
-    const createPayment = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        const result = await startCryptoCheckout(session, tier)
-        if (result.paymentUrl) {
-          setPaymentUrl(result.paymentUrl)
-        } else {
-          throw new Error('Payment URL not received from server')
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to create payment'
-        console.error('[CryptoCheckoutPage] Payment creation error:', err)
-        setError(message)
-        toast.error(message)
-      } finally {
-        setIsLoading(false)
-      }
+  const handleContinue = async () => {
+    if (!selectedCurrency) {
+      toast.error('Please select a payment currency')
+      return
     }
 
-    createPayment()
-  }, [session, tier, router])
-
-  const handleOpenPayment = () => {
-    if (paymentUrl) {
-      window.location.href = paymentUrl
+    try {
+      setIsLoading(true)
+      setError(null)
+      setStep('redirecting')
+      
+      const result = await startCryptoCheckout(session, tier, selectedCurrency)
+      if (result.paymentUrl) {
+        setPaymentUrl(result.paymentUrl)
+        // Auto-redirect after a brief moment
+        setTimeout(() => {
+          window.location.href = result.paymentUrl
+        }, 500)
+      } else {
+        throw new Error('Payment URL not received from server')
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create payment'
+      console.error('[CryptoCheckoutPage] Payment creation error:', err)
+      setError(message)
+      toast.error(message)
+      setStep('select')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  if (isLoading) {
+  if (step === 'redirecting' || isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container mx-auto px-4 py-12 max-w-2xl">
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-brand-600 mb-4" />
-              <p className="text-muted-foreground">Preparing your payment...</p>
+              <Loader2 className="h-8 w-8 animate-spin text-sec-600 dark:text-sec-400 mb-4" />
+              <p className="text-muted-foreground mb-2">Preparing your payment...</p>
+              <p className="text-xs text-muted-foreground">Redirecting to secure payment page</p>
             </CardContent>
           </Card>
         </main>
@@ -116,71 +124,72 @@ export default function CryptoCheckoutPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="container mx-auto px-4 py-12 max-w-2xl">
+      <main className="container mx-auto px-4 py-12 max-w-3xl">
         <Card>
           <CardHeader>
-            <CardTitle>Complete Your Crypto Payment</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-sec-600 dark:text-sec-400" />
+              Complete Your Crypto Payment
+            </CardTitle>
             <CardDescription>
-              You&apos;ll be redirected to complete your {tier.charAt(0).toUpperCase() + tier.slice(1)} tier payment
+              Select your preferred cryptocurrency to complete your {tier.charAt(0).toUpperCase() + tier.slice(1)} tier payment
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="p-5 rounded-xl bg-gradient-to-br from-sec-500/10 via-sec-500/5 to-transparent border border-sec-500/20">
-              <div className="flex items-start gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-sec-500/20">
-                  <Coins className="h-5 w-5 text-sec-600 dark:text-sec-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground mb-2">
-                    Crypto Payment Process
-                  </p>
-                  <ul className="text-sm text-muted-foreground space-y-2">
-                    <li className="flex items-start gap-2">
-                      <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>
-                      <span>You&apos;ll be redirected to NowPayments secure payment page</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>
-                      <span>Choose from: USDT (Solana/Ethereum), USDC, SOL, BTC, or ETH</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>
-                      <span>Complete payment using your crypto wallet</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>
-                      <span>Your tier upgrades automatically once confirmed on blockchain</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
+            {/* Currency Selector */}
+            <CryptoCurrencySelector
+              selectedCurrency={selectedCurrency}
+              onCurrencyChange={setSelectedCurrency}
+            />
+
+            {/* Payment Info */}
+            <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+              <p className="text-sm text-muted-foreground mb-3">
+                <strong className="text-foreground">Payment Process:</strong>
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-sec-600 dark:text-sec-400 mt-0.5">✓</span>
+                  <span>You&apos;ll be redirected to NowPayments secure payment page</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-sec-600 dark:text-sec-400 mt-0.5">✓</span>
+                  <span>Complete payment using your crypto wallet</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-sec-600 dark:text-sec-400 mt-0.5">✓</span>
+                  <span>Your tier upgrades automatically once confirmed on blockchain</span>
+                </li>
+              </ul>
             </div>
 
-            <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
-              <p className="text-xs text-blue-700 dark:text-blue-400 flex items-start gap-2">
-                <span className="mt-0.5">ℹ️</span>
-                <span>
-                  <strong>Note:</strong> Crypto payments typically confirm within a few minutes. Your account will be upgraded automatically once the transaction is verified on the blockchain.
-                </span>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={handleContinue}
+                className="flex-1"
+                size="lg"
+                disabled={!selectedCurrency || isLoading}
+              >
+                Continue to Payment
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+              <Button
+                onClick={() => router.push('/pricing')}
+                variant="outline"
+                size="lg"
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+            </div>
+
+            {/* Info Note */}
+            <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+              <p className="text-xs text-blue-700 dark:text-blue-400">
+                <strong>Note:</strong> Crypto payments typically confirm within a few minutes. Your account will be upgraded automatically once the transaction is verified on the blockchain.
               </p>
             </div>
-
-            <Button
-              onClick={handleOpenPayment}
-              className="w-full"
-              size="lg"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Continue to Payment
-            </Button>
-
-            <Button
-              onClick={() => router.push('/pricing')}
-              variant="outline"
-              className="w-full"
-            >
-              Cancel
-            </Button>
           </CardContent>
         </Card>
       </main>

@@ -145,7 +145,8 @@ export async function startOneTimeTestPayment(session: Session | null, priceId?:
 // NowPayments crypto checkout (invoice-based hosted checkout)
 export async function startCryptoCheckout(
   session: Session | null,
-  tier: 'pro' | 'elite'
+  tier: 'pro' | 'elite',
+  payCurrency?: string
 ): Promise<{ paymentUrl: string; invoiceId: string | number | null; paymentId: string | null }> {
   if (!session?.user) {
     throw new Error('You must be signed in to upgrade.')
@@ -183,6 +184,7 @@ export async function startCryptoCheckout(
         tier,
         successUrl,
         cancelUrl,
+        payCurrency, // Pass selected currency to backend
       }),
     })
 

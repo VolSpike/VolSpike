@@ -24,6 +24,7 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet'
+import { AssetProjectOverview } from '@/components/asset-project-overview'
 import { WatchlistExportButton } from '@/components/watchlist-export-button'
 import { GuestCTA } from '@/components/guest-cta'
 
@@ -796,6 +797,12 @@ export function MarketTable({
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Project Overview */}
+                                <AssetProjectOverview
+                                    baseSymbol={formatSymbol(selectedSymbol.symbol)}
+                                    pairSymbol={selectedSymbol.symbol}
+                                />
 
                                 {/* Actions */}
                                 <div className="space-y-2">
