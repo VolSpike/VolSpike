@@ -10,6 +10,7 @@ import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
 import { VolumeAlertsPanel } from '@/components/volume-alerts-panel'
 import { TierUpgrade } from '@/components/tier-upgrade'
+import { SubscriptionStatus } from '@/components/subscription-status'
 import { AlertBuilder } from '@/components/alert-builder'
 import { CommandPalette } from '@/components/command-palette'
 import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
@@ -210,6 +211,13 @@ export function Dashboard() {
                                     <a href="/pricing" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-sec-600 text-white hover:bg-sec-700 shadow-md shadow-sec-500/20">Get Pro</a>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Subscription Status - Show for authenticated Pro/Elite users */}
+                    {!isGuest && (userTier === 'pro' || userTier === 'elite') && (
+                        <div className="mb-6 animate-fade-in">
+                            <SubscriptionStatus />
                         </div>
                     )}
 

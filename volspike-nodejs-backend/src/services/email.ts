@@ -36,6 +36,19 @@ interface TierUpgradeEmailData {
     previousTier?: string
 }
 
+interface CryptoRenewalReminderData {
+    email: string
+    tier: string
+    daysUntilExpiration: number
+    expiresAt: Date
+}
+
+interface CryptoSubscriptionExpiredData {
+    email: string
+    tier: string
+    expiresAt: Date
+}
+
 export class EmailService {
     private static instance: EmailService
     private fromEmail: string
@@ -726,6 +739,283 @@ Questions about your subscription? Contact us at support@volspike.com
 
 © ${new Date().getFullYear()} VolSpike. All rights reserved.
         `
+    }
+
+    /**
+     * Send crypto subscription renewal reminder email
+     */
+    async sendCryptoRenewalReminder(data: CryptoRenewalReminderData): Promise<boolean> {
+        try {
+            if (!process.env.SENDGRID_API_KEY) {
+                logger.error('SENDGRID_API_KEY is not set in environment variables')
+                return false
+            }
+
+            const tierName = data.tier.toUpperCase()
+            const daysText = data.daysUntilExpiration === 1 ? 'day' : 'days'
+            const urgency = data.daysUntilExpiration <= 1 ? 'urgent' : data.daysUntilExpiration <= 3 ? 'soon' : 'upcoming'
+            
+            const subject = urgency === 'urgent' 
+                ? `⚠️ Your ${tierName} subscription expires tomorrow - Renew now`
+                : urgency === 'soon'
+                ? `⏰ Your ${tierName} subscription expires in ${data.daysUntilExpiration} ${daysText}`
+                : `📅 Reminder: Your ${tierName} subscription expires in ${data.daysUntilExpiration} ${daysText}`
+
+            const renewalUrl = `${this.baseUrl}/pricing?renew=${data.tier}`
+            const safeUrl = renewalUrl.replace(/"/g, '&quot;')
+            const expiresDate = data.expiresAt.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            })
+
+            const html = `
+<!doctype html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+  <title>${subject}</title>
+  <style>
+    img { -ms-interpolation-mode:bicubic; }
+    @media only screen and (max-width:600px){ .container{ width:100% !important; } }
+  </style>
+  <!--[if mso]>
+  <style type="text/css"> body, table, td {font-family: Arial, sans-serif !important;} </style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;">
+  <div style="display:none;font-size:1px;color:#fff;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    Your ${tierName} subscription expires ${data.daysUntilExpiration === 1 ? 'tomorrow' : `in ${data.daysUntilExpiration} days`}. Renew now to continue enjoying premium features.
+  </div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;">
+    <tr><td align="center" style="padding:24px;">
+      <table role="presentation" width="600" class="container" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
+        <tr>
+          <td align="center" style="padding:32px;background:${urgency === 'urgent' ? '#dc2626' : urgency === 'soon' ? '#f59e0b' : '#0ea371'};border-radius:12px 12px 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="padding-bottom:12px;">
+                  <img src="https://volspike.com/email/volspike-badge@2x.png" width="80" height="80" alt="VolSpike" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;height:80px;width:80px;line-height:100%;-ms-interpolation-mode:bicubic;">
+                </td>
+              </tr>
+            </table>
+            <div style="font:700 24px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;">Subscription Renewal Reminder</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#334155;">
+            <div style="font:600 20px/1.3 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Your ${tierName} subscription expires ${data.daysUntilExpiration === 1 ? 'tomorrow' : `in ${data.daysUntilExpiration} ${daysText}`}</div>
+            <p style="margin:0 0 20px;">Your crypto subscription will expire on <strong>${expiresDate}</strong>. To continue enjoying ${tierName} tier features, please renew your subscription.</p>
+            <p style="margin:0 0 24px;color:#64748b;">💡 <strong>Note:</strong> Crypto subscriptions require manual renewal. Click the button below to renew now.</p>
+            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:24px auto;">
+              <tr><td align="center">
+                <!--[if mso]>
+                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${safeUrl}"
+                  style="height:48px;v-text-anchor:middle;width:280px;" arcsize="10%" stroke="f" fillcolor="#059669">
+                  <w:anchorlock/>
+                  <center style="color:#ffffff;font-family:Arial, sans-serif;font-size:16px;font-weight:bold;">
+                    Renew Subscription
+                  </center>
+                </v:roundrect>
+                <![endif]-->
+                <!--[if !mso]><!-- -->
+                <a href="${safeUrl}" target="_blank" style="display:block;background-color:#059669;color:#ffffff;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;">
+                  Renew Subscription
+                </a>
+                <!--<![endif]-->
+              </td></tr>
+            </table>
+            <p style="margin:24px 0 8px;">Or copy and paste this link:</p>
+            <p style="margin:0;word-break:break-all;font:14px/1.6 SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;">${renewalUrl}</p>
+            <p style="margin:24px 0 0;color:#64748b;font-size:14px;">After expiration, your account will be downgraded to Free tier. Renew anytime to restore access.</p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:20px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 12px 12px;">
+            <div style="font:14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#64748b;">© ${new Date().getFullYear()} VolSpike • Need help? <a href="mailto:support@volspike.com" style="color:#059669;text-decoration:none;">support@volspike.com</a></div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+            const text = `
+Subscription Renewal Reminder - VolSpike
+
+Your ${tierName} subscription expires ${data.daysUntilExpiration === 1 ? 'tomorrow' : `in ${data.daysUntilExpiration} ${daysText}`}.
+
+Expiration Date: ${expiresDate}
+
+Your crypto subscription will expire soon. To continue enjoying ${tierName} tier features, please renew your subscription.
+
+Note: Crypto subscriptions require manual renewal.
+
+Renew now: ${renewalUrl}
+
+After expiration, your account will be downgraded to Free tier. Renew anytime to restore access.
+
+Need help? Contact us at support@volspike.com
+
+© ${new Date().getFullYear()} VolSpike
+            `
+
+            const msg: any = {
+                to: data.email,
+                from: {
+                    email: this.fromEmail,
+                    name: 'VolSpike Team'
+                },
+                replyTo: 'support@volspike.com',
+                subject: subject,
+                html,
+                text,
+                categories: ['crypto-renewal-reminder'],
+                customArgs: {
+                    type: 'crypto-renewal-reminder',
+                    tier: data.tier,
+                    daysUntilExpiration: data.daysUntilExpiration.toString(),
+                    timestamp: Date.now().toString()
+                }
+            }
+
+            await mail.send(msg)
+            logger.info(`Crypto renewal reminder sent to ${data.email} (${data.daysUntilExpiration} days until expiration)`)
+            return true
+        } catch (error) {
+            logger.error('Failed to send crypto renewal reminder:', error)
+            return false
+        }
+    }
+
+    /**
+     * Send crypto subscription expired email
+     */
+    async sendCryptoSubscriptionExpired(data: CryptoSubscriptionExpiredData): Promise<boolean> {
+        try {
+            if (!process.env.SENDGRID_API_KEY) {
+                logger.error('SENDGRID_API_KEY is not set in environment variables')
+                return false
+            }
+
+            const tierName = data.tier.toUpperCase()
+            const expiresDate = data.expiresAt.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            })
+
+            const renewalUrl = `${this.baseUrl}/pricing?renew=${data.tier}`
+            const safeUrl = renewalUrl.replace(/"/g, '&quot;')
+
+            const html = `
+<!doctype html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+  <title>Your ${tierName} subscription has expired</title>
+  <style>
+    img { -ms-interpolation-mode:bicubic; }
+    @media only screen and (max-width:600px){ .container{ width:100% !important; } }
+  </style>
+  <!--[if mso]>
+  <style type="text/css"> body, table, td {font-family: Arial, sans-serif !important;} </style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;">
+    <tr><td align="center" style="padding:24px;">
+      <table role="presentation" width="600" class="container" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
+        <tr>
+          <td align="center" style="padding:32px;background:#dc2626;border-radius:12px 12px 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="padding-bottom:12px;">
+                  <img src="https://volspike.com/email/volspike-badge@2x.png" width="80" height="80" alt="VolSpike" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;height:80px;width:80px;line-height:100%;-ms-interpolation-mode:bicubic;">
+                </td>
+              </tr>
+            </table>
+            <div style="font:700 24px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;">Subscription Expired</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#334155;">
+            <div style="font:600 20px/1.3 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;margin:0 0 12px;">Your ${tierName} subscription has expired</div>
+            <p style="margin:0 0 20px;">Your crypto subscription expired on <strong>${expiresDate}</strong>. Your account has been downgraded to Free tier.</p>
+            <p style="margin:0 0 24px;">Don't worry - you can renew anytime to restore your ${tierName} tier access and continue enjoying premium features.</p>
+            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:24px auto;">
+              <tr><td align="center">
+                <a href="${safeUrl}" target="_blank" style="display:block;background-color:#059669;color:#ffffff;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;">
+                  Renew Subscription
+                </a>
+              </td></tr>
+            </table>
+            <p style="margin:24px 0 0;color:#64748b;font-size:14px;">Renew now to restore your ${tierName} tier access immediately.</p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:20px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 12px 12px;">
+            <div style="font:14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#64748b;">© ${new Date().getFullYear()} VolSpike • Need help? <a href="mailto:support@volspike.com" style="color:#059669;text-decoration:none;">support@volspike.com</a></div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+            const text = `
+Subscription Expired - VolSpike
+
+Your ${tierName} subscription has expired.
+
+Expiration Date: ${expiresDate}
+
+Your crypto subscription has expired and your account has been downgraded to Free tier.
+
+Don't worry - you can renew anytime to restore your ${tierName} tier access.
+
+Renew now: ${renewalUrl}
+
+Need help? Contact us at support@volspike.com
+
+© ${new Date().getFullYear()} VolSpike
+            `
+
+            const msg: any = {
+                to: data.email,
+                from: {
+                    email: this.fromEmail,
+                    name: 'VolSpike Team'
+                },
+                replyTo: 'support@volspike.com',
+                subject: `Your ${tierName} subscription has expired - Renew now`,
+                html,
+                text,
+                categories: ['crypto-subscription-expired'],
+                customArgs: {
+                    type: 'crypto-subscription-expired',
+                    tier: data.tier,
+                    timestamp: Date.now().toString()
+                }
+            }
+
+            await mail.send(msg)
+            logger.info(`Crypto subscription expired email sent to ${data.email}`)
+            return true
+        } catch (error) {
+            logger.error('Failed to send crypto subscription expired email:', error)
+            return false
+        }
     }
 }
 

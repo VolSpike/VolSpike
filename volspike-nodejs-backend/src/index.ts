@@ -15,8 +15,10 @@ import volumeAlertsRouter from './routes/volume-alerts'
 import openInterestRouter from './routes/open-interest'
 import { paymentRoutes } from './routes/payments'
 import { adminRoutes } from './routes/admin'
+import renewalRoutes from './routes/renewal'
 import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
+import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
 import type { AppBindings, AppVariables } from './types/hono'
 
 // Initialize Prisma
@@ -140,6 +142,9 @@ app.route('/api/payments', paymentRoutes)
 // Admin routes (protected with admin middleware)
 app.route('/api/admin', adminRoutes)
 
+// Renewal routes (for cron jobs - API key protected)
+app.route('/api/renewal', renewalRoutes)
+
 // Protected routes (require authentication)
 app.use('/api/protected/*', authMiddleware)
 app.use('/api/protected/*', rateLimitMiddleware)
@@ -218,6 +223,55 @@ io.on('connection', (socket) => {
 // ============================================
 
 logger.info('ℹ️  Using in-memory Socket.IO adapter')
+
+// ============================================
+// SCHEDULED TASKS - Renewal Reminders & Expiration Checks
+// ============================================
+
+// Only run scheduled tasks in production (not in development to avoid conflicts)
+if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
+    // Renewal reminder check: Every 6 hours
+    const RENEWAL_CHECK_INTERVAL = 6 * 60 * 60 * 1000 // 6 hours in milliseconds
+    
+    setInterval(async () => {
+        try {
+            logger.info('🔄 Running scheduled renewal reminder check')
+            const result = await checkAndSendRenewalReminders()
+            logger.info(`✅ Renewal reminder check completed: ${result.sent} reminders sent, ${result.checked} subscriptions checked`)
+        } catch (error) {
+            logger.error('❌ Scheduled renewal reminder check failed:', error)
+        }
+    }, RENEWAL_CHECK_INTERVAL)
+
+    // Expired subscription check: Daily (every 24 hours)
+    const EXPIRATION_CHECK_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+    
+    setInterval(async () => {
+        try {
+            logger.info('🔄 Running scheduled expired subscription check')
+            const result = await checkAndDowngradeExpiredSubscriptions()
+            logger.info(`✅ Expired subscription check completed: ${result.downgraded} users downgraded, ${result.checked} subscriptions checked`)
+        } catch (error) {
+            logger.error('❌ Scheduled expired subscription check failed:', error)
+        }
+    }, EXPIRATION_CHECK_INTERVAL)
+
+    // Run initial checks after 1 minute (to allow server to fully start)
+    setTimeout(async () => {
+        try {
+            logger.info('🔄 Running initial renewal reminder check')
+            await checkAndSendRenewalReminders()
+            logger.info('🔄 Running initial expired subscription check')
+            await checkAndDowngradeExpiredSubscriptions()
+        } catch (error) {
+            logger.error('❌ Initial scheduled task check failed:', error)
+        }
+    }, 60000) // 1 minute delay
+
+    logger.info('✅ Scheduled tasks initialized (renewal reminders every 6h, expiration checks daily)')
+} else {
+    logger.info('ℹ️ Scheduled tasks disabled (set ENABLE_SCHEDULED_TASKS=true in production to enable)')
+}
 
 // ============================================
 // ERROR HANDLERS

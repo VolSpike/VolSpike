@@ -307,6 +307,8 @@ model CryptoPayment {
   orderId           String   // NowPayments order_id (required for tracking)
   paymentUrl        String   @db.Text // Payment page URL (required - invoice_url from API)
   payAddress        String?  // Crypto address to send payment to (null until payment created)
+  expiresAt         DateTime? // Subscription expiration date (30 days from payment, null for one-time)
+  renewalReminderSent DateTime? // Last time renewal reminder was sent
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   paidAt            DateTime?
@@ -316,5 +318,6 @@ model CryptoPayment {
   @@index([invoiceId])
   @@index([orderId])
   @@index([paymentStatus])
+  @@index([expiresAt]) // Index for expiration queries
   @@map("crypto_payments")
 }

@@ -89,39 +89,82 @@ payments.get('/subscription', async (c) => {
     try {
         const user = requireUser(c)
 
-        if (!user.stripeCustomerId) {
-            return c.json({ subscription: null })
+        // Check Stripe subscription first
+        let stripeSubscription = null
+        if (user.stripeCustomerId) {
+            try {
+                const subscriptions = await stripe.subscriptions.list({
+                    customer: user.stripeCustomerId,
+                    status: 'active',
+                    limit: 1,
+                })
+
+                if (subscriptions.data.length > 0) {
+                    const subscription = subscriptions.data[0]
+                    const price = await stripe.prices.retrieve(subscription.items.data[0].price.id)
+
+                    stripeSubscription = {
+                        id: subscription.id,
+                        status: subscription.status,
+                        currentPeriodStart: subscription.current_period_start,
+                        currentPeriodEnd: subscription.current_period_end,
+                        price: {
+                            id: price.id,
+                            amount: price.unit_amount,
+                            currency: price.currency,
+                            interval: price.recurring?.interval,
+                        },
+                        paymentMethod: 'stripe' as const,
+                    }
+                }
+            } catch (error) {
+                logger.warn('Error fetching Stripe subscription:', error)
+            }
         }
 
-        // Get customer's subscriptions
-        const subscriptions = await stripe.subscriptions.list({
-            customer: user.stripeCustomerId,
-            status: 'active',
-            limit: 1,
-        })
-
-        if (subscriptions.data.length === 0) {
-            return c.json({ subscription: null })
-        }
-
-        const subscription = subscriptions.data[0]
-        const price = await stripe.prices.retrieve(subscription.items.data[0].price.id)
-
-        logger.info(`Subscription status requested by ${user?.email}`)
-
-        return c.json({
-            subscription: {
-                id: subscription.id,
-                status: subscription.status,
-                currentPeriodStart: subscription.current_period_start,
-                currentPeriodEnd: subscription.current_period_end,
-                price: {
-                    id: price.id,
-                    amount: price.unit_amount,
-                    currency: price.currency,
-                    interval: price.recurring?.interval,
+        // Check crypto subscription
+        let cryptoSubscription = null
+        const activeCryptoPayment = await prisma.cryptoPayment.findFirst({
+            where: {
+                userId: user.id,
+                paymentStatus: 'finished',
+                expiresAt: {
+                    not: null,
+                    gte: new Date(), // Not expired yet
                 },
             },
+            orderBy: {
+                expiresAt: 'desc', // Get most recent
+            },
+        })
+
+        if (activeCryptoPayment && activeCryptoPayment.expiresAt) {
+            const now = new Date()
+            const daysUntilExpiration = Math.ceil(
+                (activeCryptoPayment.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            )
+
+            cryptoSubscription = {
+                id: activeCryptoPayment.id,
+                status: daysUntilExpiration > 0 ? 'active' : 'expired',
+                tier: activeCryptoPayment.tier,
+                expiresAt: activeCryptoPayment.expiresAt.toISOString(),
+                daysUntilExpiration,
+                paymentMethod: 'crypto' as const,
+                payCurrency: activeCryptoPayment.actuallyPaidCurrency || activeCryptoPayment.payCurrency,
+            }
+        }
+
+        logger.info(`Subscription status requested by ${user?.email}`, {
+            hasStripe: !!stripeSubscription,
+            hasCrypto: !!cryptoSubscription,
+        })
+
+        return c.json({
+            stripe: stripeSubscription,
+            crypto: cryptoSubscription,
+            // For backward compatibility, return primary subscription
+            subscription: stripeSubscription || cryptoSubscription,
         })
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
@@ -1059,16 +1102,27 @@ payments.post('/nowpayments/webhook', async (c) => {
             // Get user's previous tier before updating (for email notification)
             const previousTier = cryptoPayment.user.tier
 
+            // Calculate expiration date (30 days from now for subscription)
+            const expiresAt = new Date()
+            expiresAt.setDate(expiresAt.getDate() + 30) // 30-day subscription period
+
             // Update user tier
             await prisma.user.update({
                 where: { id: cryptoPayment.userId },
                 data: { tier: cryptoPayment.tier },
             })
 
+            // Update crypto payment with expiration date
+            await prisma.cryptoPayment.update({
+                where: { id: cryptoPayment.id },
+                data: { expiresAt },
+            })
+
             logger.info(`User ${cryptoPayment.userId} upgraded to ${cryptoPayment.tier} via crypto payment`, {
                 paymentId: payment_id,
                 previousTier,
                 newTier: cryptoPayment.tier,
+                expiresAt,
             })
 
             // Send email notification
