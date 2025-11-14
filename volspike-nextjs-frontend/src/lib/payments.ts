@@ -248,12 +248,36 @@ export async function startCryptoCheckout(
     }
   }
 
+  // Validate response has required fields
+  if (!responseData.paymentId) {
+    console.error('[startCryptoCheckout] No payment ID returned', {
+      responseData,
+    })
+    throw new Error('Payment ID not returned from server. Please check server logs.')
+  }
+  
   if (!responseData.paymentUrl) {
-    console.error('[startCryptoCheckout] No payment URL returned', {
+    console.error('[startCryptoCheckout] No payment URL returned - FULL RESPONSE:', {
       responseData,
       hasPaymentId: !!responseData.paymentId,
       hasPaymentUrl: !!responseData.paymentUrl,
+      keys: Object.keys(responseData),
+      fullResponse: JSON.stringify(responseData, null, 2),
     })
+    
+    // Try to construct payment URL from payment ID as fallback
+    if (responseData.paymentId) {
+      const fallbackUrl = `https://nowpayments.io/payment/?iid=${responseData.paymentId}`
+      console.warn('[startCryptoCheckout] Using fallback payment URL', {
+        paymentId: responseData.paymentId,
+        fallbackUrl,
+      })
+      return {
+        paymentUrl: fallbackUrl,
+        paymentId: responseData.paymentId,
+      }
+    }
+    
     throw new Error('Payment URL not returned from server. Please check server logs.')
   }
 

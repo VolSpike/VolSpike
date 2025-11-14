@@ -816,7 +816,20 @@ payments.post('/nowpayments/checkout', async (c) => {
             paymentStatus: payment.payment_status,
             payUrl: payment.pay_url,
             payAddress: payment.pay_address,
+            fullResponse: JSON.stringify(payment), // Log full response for debugging
         })
+        
+        // Validate required fields
+        if (!payment.payment_id) {
+            throw new Error('NowPayments API did not return payment_id')
+        }
+        
+        if (!payment.pay_url && !payment.pay_address) {
+            logger.error('NowPayments response missing both pay_url and pay_address', {
+                paymentResponse: payment,
+            })
+            throw new Error('NowPayments API did not return payment URL or address')
+        }
 
         // Store payment in database
         try {
@@ -854,10 +867,38 @@ payments.post('/nowpayments/checkout', async (c) => {
             tier,
         })
 
+        // Construct payment URL if not provided
+        // NowPayments sometimes returns pay_url, sometimes we need to construct it
+        let paymentUrl = payment.pay_url
+        if (!paymentUrl && payment.payment_id) {
+            // Construct payment URL from payment ID
+            // Format: https://nowpayments.io/payment/?iid={payment_id}
+            paymentUrl = `https://nowpayments.io/payment/?iid=${payment.payment_id}`
+            logger.info('Constructed payment URL from payment_id', {
+                paymentId: payment.payment_id,
+                constructedUrl: paymentUrl,
+            })
+        }
+        
+        if (!paymentUrl) {
+            logger.error('Cannot determine payment URL', {
+                hasPayUrl: !!payment.pay_url,
+                hasPaymentId: !!payment.payment_id,
+                paymentResponse: payment,
+            })
+            throw new Error('Payment URL could not be determined from NowPayments response')
+        }
+        
+        logger.info('Returning payment response to frontend', {
+            paymentId: payment.payment_id,
+            paymentUrl,
+            hasPayAddress: !!payment.pay_address,
+        })
+        
         return c.json({
             paymentId: payment.payment_id,
-            paymentUrl: payment.pay_url,
-            payAddress: payment.pay_address,
+            paymentUrl: paymentUrl,
+            payAddress: payment.pay_address || null,
             payAmount: payment.pay_amount,
             payCurrency: payment.pay_currency,
             priceAmount: payment.price_amount,
