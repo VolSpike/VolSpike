@@ -935,30 +935,19 @@ payments.post('/nowpayments/checkout', async (c) => {
             }
 
             // Create new payment record
-            // Build data object with only required fields first
-            const paymentData: any = {
-                userId: user.id,
-                paymentStatus: 'waiting', // Initial status
-                tier: tier,
-                invoiceId: String(invoiceId), // Required - used for hosted checkout
-                orderId: orderId, // Required - used for tracking
-                paymentUrl: invoiceUrl, // Required - invoice_url from API
-            }
-
-            // Try to include optional fields if they exist in schema (for migration compatibility)
-            // If schema doesn't have these fields yet, Prisma will ignore them
-            try {
-                // Check if expiresAt field exists by attempting a test query
-                await prisma.$queryRaw`SELECT "expiresAt" FROM "crypto_payments" LIMIT 1`.catch(() => {
-                    // Field doesn't exist - don't include it
-                })
-                // If we get here, field exists - but we don't need to set it yet (will be set on payment completion)
-            } catch {
-                // Schema check failed - continue without optional fields
-            }
-
+            // Use only required fields - optional fields (expiresAt, renewalReminderSent) are nullable
+            // and will be set when payment completes via webhook
             const cryptoPayment = await prisma.cryptoPayment.create({
-                data: paymentData,
+                data: {
+                    userId: user.id,
+                    paymentStatus: 'waiting', // Initial status
+                    tier: tier,
+                    invoiceId: String(invoiceId), // Required - used for hosted checkout
+                    orderId: orderId, // Required - used for tracking
+                    paymentUrl: invoiceUrl, // Required - invoice_url from API
+                    // Optional fields are not set here - they'll be null until payment completes
+                    // expiresAt and renewalReminderSent will be set by webhook when payment_status = 'finished'
+                },
             })
             
             logger.info('Crypto payment record created in database', {
