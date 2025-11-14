@@ -400,9 +400,13 @@ export function MarketTable({
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className="hidden sm:inline text-xs text-muted-foreground">
-                        {guestMode ? 'Top 5 preview' : `${sortedData.length} symbols`}
+                <div className="flex flex-col items-end gap-1 text-right sm:flex-row sm:items-center sm:gap-3">
+                    <span className="text-[11px] leading-tight text-muted-foreground sm:text-xs">
+                        {guestMode
+                            ? 'Top 5 preview'
+                            : userTier === 'free'
+                                ? 'Top 50 symbols (Free tier)'
+                                : `${sortedData.length} symbols`}
                     </span>
                     <WatchlistExportButton 
                         data={sortedData}
