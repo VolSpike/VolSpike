@@ -213,7 +213,7 @@ export function Dashboard() {
                         </div>
                     )}
 
-                    <div className="lg:hidden animate-fade-in">
+                    <div className="xl:hidden animate-fade-in">
                         <Tabs 
                             defaultValue="market" 
                             className="w-full"
@@ -246,7 +246,7 @@ export function Dashboard() {
                         </Tabs>
                     </div>
 
-                    <div className="hidden lg:flex gap-2 animate-fade-in items-stretch">
+                    <div className="hidden xl:flex gap-2 animate-fade-in items-stretch">
                         <div className="flex-[3]">
                             {marketDataCard}
                         </div>
