@@ -61,7 +61,7 @@ export function ScrollArea({
             <div
                 ref={containerRef}
                 className={cn(
-                    'vs-scroll',
+                    'vs-scroll h-full',
                     direction === 'vertical' && 'overflow-y-auto',
                     direction === 'horizontal' && 'overflow-x-auto overflow-y-hidden',
                     direction === 'both' && 'overflow-auto'

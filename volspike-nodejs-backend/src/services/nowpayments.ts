@@ -19,6 +19,17 @@ export interface CreatePaymentParams {
   cancel_url?: string
 }
 
+export interface CreateInvoiceParams {
+  price_amount: number
+  price_currency: string
+  pay_currency?: string  // Optional - if omitted, user can choose on checkout page
+  order_id?: string
+  order_description?: string
+  ipn_callback_url?: string
+  success_url?: string
+  cancel_url?: string
+}
+
 export interface PaymentResponse {
   payment_id: string
   payment_status: string
@@ -35,6 +46,17 @@ export interface PaymentResponse {
   outcome_currency?: string
   pay_url?: string
   invoice_id?: string
+}
+
+export interface InvoiceResponse {
+  invoice_id?: string | number
+  invoice_url?: string
+  order_id?: string
+  price_amount?: number
+  price_currency?: string
+  pay_currency?: string
+  // Keep it open-ended so we don't fight their schema
+  [key: string]: any
 }
 
 export class NowPaymentsService {
@@ -160,6 +182,75 @@ export class NowPaymentsService {
     } catch (error) {
       logger.error('IPN signature verification error:', error)
       return false
+    }
+  }
+
+  async createInvoice(params: CreateInvoiceParams): Promise<InvoiceResponse> {
+    if (!API_KEY) {
+      logger.error('NowPayments API key is not configured')
+      throw new Error('NowPayments API key is not configured. Please set NOWPAYMENTS_API_KEY environment variable.')
+    }
+
+    try {
+      logger.info('Creating NowPayments invoice', {
+        price_amount: params.price_amount,
+        price_currency: params.price_currency,
+        order_id: params.order_id,
+        pay_currency: params.pay_currency || '(omitted - user will choose)',
+        API_URL,
+      })
+
+      const response = await axios.post(
+        `${API_URL}/invoice`,
+        params,
+        {
+          headers: {
+            'x-api-key': API_KEY,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      const data = response.data
+
+      logger.info('NowPayments invoice created successfully - FULL RESPONSE ANALYSIS', {
+        invoiceId: data.invoice_id,
+        invoiceUrl: data.invoice_url,
+        orderId: data.order_id,
+        priceAmount: data.price_amount,
+        priceCurrency: data.price_currency,
+        payCurrency: data.pay_currency,
+        responseKeys: Object.keys(data),
+        responseKeysCount: Object.keys(data).length,
+        fullResponse: JSON.stringify(data, null, 2),
+        status: response.status,
+        statusText: response.statusText,
+      })
+
+      return data
+    } catch (error: any) {
+      const errorDetails = error.response?.data || {}
+      const errorMessage = errorDetails.message || error.message || 'Unknown error'
+      const errorCode = errorDetails.error_code || error.response?.status
+
+      logger.error('NowPayments create invoice error:', {
+        message: errorMessage,
+        code: errorCode,
+        status: error.response?.status,
+        data: errorDetails,
+        fullError: error.message,
+      })
+
+      // Provide more helpful error messages
+      if (error.response?.status === 401) {
+        throw new Error('NowPayments API authentication failed. Please check your API key.')
+      } else if (error.response?.status === 400) {
+        throw new Error(`Invalid invoice request: ${errorMessage}`)
+      } else if (!error.response) {
+        throw new Error(`Cannot connect to NowPayments API. Please check your network connection and API URL.`)
+      }
+
+      throw new Error(`Failed to create invoice: ${errorMessage}`)
     }
   }
 

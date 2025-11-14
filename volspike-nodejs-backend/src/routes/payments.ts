@@ -713,157 +713,21 @@ payments.post('/nowpayments/checkout', async (c) => {
             orderId,
         })
 
-        // Create payment with NowPayments
+        // Create invoice with NowPayments (hosted checkout flow)
+        // This is the correct endpoint for getting invoice_id and invoice_url
         const nowpayments = NowPaymentsService.getInstance()
         
-        // Supported currencies in order of preference:
-        // 1. USDT on SOL (preferred)
-        // 2. USDT on ETH
-        // 3. USDC on ETH
-        // 4. SOL
-        // 5. BTC
-        // 6. ETH
-        // NowPayments uses lowercase currency codes, but we'll check what's actually available
-        const preferredCurrencies = [
-            'usdtsol',      // USDT on Solana (preferred)
-            'usdt_sol',     // Alternative format
-            'usdttrc20',    // Sometimes used
-            'usdterc20',    // USDT on Ethereum (ERC-20)
-            'usdt_eth',     // Alternative format
-            'usdt',         // Generic USDT
-            'usdcerc20',    // USDC on Ethereum (ERC-20)
-            'usdc_eth',     // Alternative format
-            'usdc',         // Generic USDC
-            'sol',          // Solana
-            'btc',          // Bitcoin
-            'eth',          // Ethereum
-        ]
-        
-        // Also try uppercase versions
-        const preferredCurrenciesUpper = preferredCurrencies.map(c => c.toUpperCase())
-        
-        let defaultPayCurrency = 'usdtsol' // Preferred: USDT on Solana (lowercase)
-        try {
-            const availableCurrencies = await nowpayments.getAvailableCurrencies()
-            logger.info('Available currencies from NowPayments', {
-                currencies: availableCurrencies,
-                count: availableCurrencies.length,
-                sample: availableCurrencies.slice(0, 20), // First 20 for debugging
-            })
-            
-            // Normalize available currencies for comparison (convert to lowercase)
-            const normalizedAvailable = availableCurrencies.map((c: string) => c.toLowerCase())
-            
-            // Find the first preferred currency that's available
-            let foundCurrency: string | null = null
-            for (const preferred of preferredCurrencies) {
-                // Check exact lowercase match
-                const index = normalizedAvailable.indexOf(preferred.toLowerCase())
-                if (index !== -1) {
-                    foundCurrency = availableCurrencies[index] // Use original case from API
-                    defaultPayCurrency = foundCurrency
-                    logger.info(`Selected preferred currency: ${foundCurrency} (matched ${preferred})`)
-                    break
-                }
-            }
-            
-            // If none of our preferred currencies found, try to find any USDT variant
-            if (!foundCurrency && availableCurrencies.length > 0) {
-                // Check if any USDT variant exists (case-insensitive)
-                const usdtVariant = availableCurrencies.find((c: string) => 
-                    c.toLowerCase().includes('usdt')
-                )
-                if (usdtVariant) {
-                    defaultPayCurrency = usdtVariant
-                    logger.info(`Selected USDT variant: ${usdtVariant}`)
-                } else {
-                    // Try to find SOL, BTC, ETH, or USDC
-                    const fallbackOptions = ['sol', 'btc', 'eth', 'usdc']
-                    for (const option of fallbackOptions) {
-                        const found = availableCurrencies.find((c: string) => 
-                            c.toLowerCase() === option.toLowerCase()
-                        )
-                        if (found) {
-                            defaultPayCurrency = found
-                            logger.info(`Selected fallback currency: ${found}`)
-                            break
-                        }
-                    }
-                    
-                    // Last resort: use first available
-                    if (defaultPayCurrency === 'usdtsol') {
-                        defaultPayCurrency = availableCurrencies[0]
-                        logger.info(`No preferred currency found, using first available: ${defaultPayCurrency}`)
-                    }
-                }
-            }
-            
-            logger.info('Currency selection result', {
-                selected: defaultPayCurrency,
-                availableCount: availableCurrencies.length,
-            })
-        } catch (currencyError) {
-            logger.warn('Failed to get available currencies, using default USDTSOL', {
-                error: currencyError instanceof Error ? currencyError.message : String(currencyError),
-            })
-            // Continue with default USDTSOL (preferred)
-        }
-        
-        // NowPayments API: pay_currency is OPTIONAL
-        // If not provided, NowPayments shows all available currencies for user to choose
-        // If provided, it must be a valid currency code that NowPayments supports
-        // Based on research: use specific codes like "usdtsol", "usdterc20", "usdce", "sol", "btc", "eth"
-        // OR omit pay_currency entirely to let user choose
-        
-        // Strategy: Try to use a valid currency code, but if estimation fails, omit it
-        // This allows NowPayments to show all currencies and user can select
-        
-        // Map our preferred currencies to NowPayments format
-        const currencyCodeMap: Record<string, string> = {
-            'usdtsol': 'usdtsol',      // USDT on Solana
-            'usdt_sol': 'usdtsol',
-            'usdttrc20': 'usdttrc20',
-            'usdterc20': 'usdterc20',  // USDT on Ethereum (ERC-20)
-            'usdt_eth': 'usdterc20',
-            'usdt': 'usdtsol',         // Default to Solana USDT
-            'usdcerc20': 'usdce',      // USDC on Ethereum
-            'usdc_eth': 'usdce',
-            'usdc': 'usdce',
-            'sol': 'sol',
-            'btc': 'btc',
-            'eth': 'eth',
-        }
-        
-        let payCurrencyForAPI: string | undefined = undefined
-        
-        // Try to map to a valid NowPayments currency code
-        const normalized = defaultPayCurrency.toLowerCase()
-        if (currencyCodeMap[normalized]) {
-            payCurrencyForAPI = currencyCodeMap[normalized]
-            logger.info('Mapped currency code', {
-                original: defaultPayCurrency,
-                normalized,
-                mapped: payCurrencyForAPI,
-            })
-        } else {
-            // If we can't map it, omit pay_currency to let user choose
-            logger.info('Currency code not in map, omitting pay_currency to let user choose', {
-                original: defaultPayCurrency,
-                normalized,
-            })
-        }
-        
-        logger.info('Calling NowPayments API to create payment', {
+        logger.info('Creating NowPayments invoice for hosted checkout', {
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: payCurrencyForAPI || '(omitted - user will choose)',
             order_id: orderId,
+            tier,
             ipn_callback_url: ipnCallbackUrl,
-            originalCurrency: defaultPayCurrency,
         })
 
-        // Create payment parameters - pay_currency is optional
-        const paymentParams: any = {
+        // Create invoice parameters
+        // pay_currency is optional - if omitted, user can choose on checkout page
+        const invoiceParams: any = {
             price_amount: priceAmount,
             price_currency: 'usd',
             order_id: orderId,
@@ -873,248 +737,93 @@ payments.post('/nowpayments/checkout', async (c) => {
             cancel_url: cancelUrl,
         }
         
-        // Only add pay_currency if we have a valid mapped code
-        if (payCurrencyForAPI) {
-            paymentParams.pay_currency = payCurrencyForAPI
-        }
+        // Optionally set pay_currency if you want to default to a specific currency
+        // Leaving it out allows user to choose on the hosted checkout page
+        // If you want to default to USDT on Solana, uncomment:
+        // invoiceParams.pay_currency = 'usdtsol'
 
-        const payment = await nowpayments.createPayment(paymentParams)
+        const invoice = await nowpayments.createInvoice(invoiceParams)
 
-        // NowPayments might not return invoice_id/pay_url in initial response
-        // Try to fetch payment status to get complete details
-        let paymentWithDetails = payment
-        if (!payment.invoice_id && !payment.pay_url && payment.payment_id) {
-            logger.info('Payment created but missing invoice_id/pay_url, fetching payment status', {
-                paymentId: payment.payment_id,
-            })
-            try {
-                // Wait a moment for NowPayments to process
-                await new Promise(resolve => setTimeout(resolve, 500))
-                
-                const paymentStatus = await nowpayments.getPaymentStatus(payment.payment_id)
-                logger.info('Payment status fetched', {
-                    paymentId: paymentStatus.payment_id,
-                    invoiceId: paymentStatus.invoice_id,
-                    payUrl: paymentStatus.pay_url,
-                    hasInvoiceId: !!paymentStatus.invoice_id,
-                    hasPayUrl: !!paymentStatus.pay_url,
-                    fullStatusResponse: JSON.stringify(paymentStatus, null, 2),
-                })
-                
-                // Merge status response with initial payment response
-                paymentWithDetails = {
-                    ...payment,
-                    ...paymentStatus,
-                    // Prefer invoice_id and pay_url from status if available
-                    invoice_id: paymentStatus.invoice_id || payment.invoice_id,
-                    pay_url: paymentStatus.pay_url || payment.pay_url,
-                }
-            } catch (statusError) {
-                logger.warn('Failed to fetch payment status, using initial response', {
-                    error: statusError instanceof Error ? statusError.message : String(statusError),
-                    paymentId: payment.payment_id,
-                })
-                // Continue with initial payment response
-            }
-        }
+        // Extract invoice_id and invoice_url from response
+        const invoiceId = invoice.invoice_id
+        const invoiceUrl = invoice.invoice_url || (invoiceId && `https://nowpayments.io/payment/?iid=${invoiceId}`)
 
-        // Use paymentWithDetails which may have been enriched with status call
-        const finalPayment = paymentWithDetails
-
-        // Log complete payment response for debugging
-        logger.info('NowPayments payment response received - COMPLETE ANALYSIS', {
-            // All fields from response
-            paymentId: finalPayment.payment_id,
-            invoiceId: finalPayment.invoice_id,
-            paymentStatus: finalPayment.payment_status,
-            payUrl: finalPayment.pay_url,
-            payAddress: finalPayment.pay_address,
-            payAmount: finalPayment.pay_amount,
-            payCurrency: finalPayment.pay_currency,
-            priceAmount: finalPayment.price_amount,
-            priceCurrency: finalPayment.price_currency,
-            orderId: finalPayment.order_id,
-            purchaseId: finalPayment.purchase_id,
-            
-            // Check all possible URL fields
-            hasPayUrl: !!finalPayment.pay_url,
-            hasPaymentUrl: !!(finalPayment as any).payment_url,
-            hasInvoiceUrl: !!(finalPayment as any).invoice_url,
-            hasUrl: !!(finalPayment as any).url,
-            hasInvoiceId: !!finalPayment.invoice_id,
-            hasPaymentId: !!finalPayment.payment_id,
-            
-            // All keys in response
-            allKeys: Object.keys(finalPayment),
-            keysCount: Object.keys(finalPayment).length,
-            
-            // Full response
-            fullResponse: JSON.stringify(finalPayment, null, 2),
-            
-            // Check for nested objects
-            hasInvoice: !!(finalPayment as any).invoice,
-            hasPayment: !!(finalPayment as any).payment,
-            
-            // Indicate if we fetched status
-            fetchedStatus: finalPayment !== payment,
+        logger.info('NowPayments invoice created successfully', {
+            invoiceId,
+            invoiceUrl,
+            orderId,
+            hasInvoiceId: !!invoiceId,
+            hasInvoiceUrl: !!invoiceUrl,
+            fullResponse: JSON.stringify(invoice, null, 2),
         })
-        
+
         // Validate required fields
-        if (!finalPayment.payment_id) {
-            logger.error('CRITICAL: NowPayments API did not return payment_id', {
-                paymentResponse: finalPayment,
-                allKeys: Object.keys(finalPayment),
+        if (!invoiceId) {
+            logger.error('CRITICAL: NowPayments invoice response missing invoice_id', {
+                invoiceResponse: invoice,
+                allKeys: Object.keys(invoice),
             })
-            throw new Error('NowPayments API did not return payment_id')
-        }
-        
-        // Check for payment URL in various possible fields
-        const possiblePayUrl = finalPayment.pay_url || (finalPayment as any).payment_url || (finalPayment as any).invoice_url || (finalPayment as any).url
-        const hasInvoiceId = !!finalPayment.invoice_id
-        
-        logger.info('Payment URL resolution check', {
-            hasPayUrl: !!finalPayment.pay_url,
-            hasPaymentUrl: !!(finalPayment as any).payment_url,
-            hasInvoiceUrl: !!(finalPayment as any).invoice_url,
-            hasUrl: !!(finalPayment as any).url,
-            hasInvoiceId,
-            possiblePayUrl,
-            paymentId: finalPayment.payment_id,
-        })
-        
-        // NowPayments uses invoice_id for the payment URL, not payment_id
-        // But if neither invoice_id nor pay_url exists, we need to handle it
-        if (!hasInvoiceId && !possiblePayUrl) {
-            logger.error('CRITICAL: NowPayments response missing both invoice_id and pay_url', {
-                paymentResponse: finalPayment,
-                hasInvoiceId,
-                hasPayUrl: !!finalPayment.pay_url,
-                hasPaymentId: !!finalPayment.payment_id,
-                allKeys: Object.keys(finalPayment),
-                fullResponse: JSON.stringify(finalPayment, null, 2),
-            })
-            
-            // Don't throw error immediately - try to construct URL from payment_id as last resort
-            logger.warn('Attempting to use payment_id as fallback for URL construction', {
-                paymentId: finalPayment.payment_id,
-            })
+            throw new Error('NowPayments API did not return invoice_id')
         }
 
-        // Store payment in database
+        if (!invoiceUrl) {
+            logger.error('CRITICAL: NowPayments invoice response missing invoice_url', {
+                invoiceId,
+                invoiceResponse: invoice,
+                allKeys: Object.keys(invoice),
+            })
+            throw new Error('NowPayments API did not return invoice_url')
+        }
+
+        // Store invoice in database
+        // paymentId will be null until IPN webhook updates it
         try {
             await prisma.cryptoPayment.create({
                 data: {
                     userId: user.id,
-                    paymentId: finalPayment.payment_id,
-                    paymentStatus: finalPayment.payment_status,
-                    payAmount: finalPayment.price_amount,
-                    payCurrency: finalPayment.price_currency,
-                    actuallyPaid: finalPayment.actually_paid,
-                    actuallyPaidCurrency: finalPayment.pay_currency,
-                    purchaseId: finalPayment.purchase_id,
+                    paymentId: null, // Will be filled by IPN webhook
+                    paymentStatus: 'waiting', // Initial status
+                    payAmount: null, // Will be filled by IPN webhook
+                    payCurrency: null, // Will be filled by IPN webhook
+                    actuallyPaid: null,
+                    actuallyPaidCurrency: null,
+                    purchaseId: null,
                     tier: tier,
-                    invoiceId: finalPayment.invoice_id,
-                    orderId: finalPayment.order_id,
-                    paymentUrl: finalPayment.pay_url,
-                    payAddress: finalPayment.pay_address,
+                    invoiceId: String(invoiceId), // Required - used for hosted checkout
+                    orderId: orderId, // Required - used for tracking
+                    paymentUrl: invoiceUrl, // Required - invoice_url from API
+                    payAddress: null, // Will be filled by IPN webhook
                 },
             })
             logger.info('Crypto payment record created in database', {
-                paymentId: finalPayment.payment_id,
+                invoiceId,
+                orderId,
                 userId: user.id,
             })
         } catch (dbError) {
             logger.error('Failed to create crypto payment record in database', {
                 error: dbError instanceof Error ? dbError.message : String(dbError),
-                paymentId: finalPayment.payment_id,
+                invoiceId,
+                orderId,
             })
-            // Don't fail the request if DB write fails - payment was created successfully
+            throw new Error('Failed to save payment record. Please try again.')
         }
 
         logger.info(`NowPayments checkout completed successfully for ${user.email}`, {
-            paymentId: finalPayment.payment_id,
+            invoiceId,
+            invoiceUrl,
             tier,
         })
 
-        // Construct payment URL if not provided
-        // NowPayments uses invoice_id (iid) in the payment URL, NOT payment_id
-        // Format: https://nowpayments.io/payment?iid={invoice_id}
-        // OR: https://nowpayments.io/payment/?iid={invoice_id} (with trailing slash)
-        
-        // Check all possible URL fields
-        let paymentUrl = finalPayment.pay_url || (finalPayment as any).payment_url || (finalPayment as any).invoice_url || (finalPayment as any).url
-        
-        logger.info('Payment URL resolution attempt', {
-            step: 'initial_check',
-            hasPayUrl: !!finalPayment.pay_url,
-            hasPaymentUrl: !!(finalPayment as any).payment_url,
-            hasInvoiceUrl: !!(finalPayment as any).invoice_url,
-            hasUrl: !!(finalPayment as any).url,
-            foundUrl: !!paymentUrl,
-            urlValue: paymentUrl,
-        })
-        
-        if (!paymentUrl) {
-            // Try to construct from invoice_id (preferred)
-            if (finalPayment.invoice_id) {
-                paymentUrl = `https://nowpayments.io/payment?iid=${finalPayment.invoice_id}`
-                logger.info('✅ Constructed payment URL from invoice_id', {
-                    invoiceId: finalPayment.invoice_id,
-                    paymentId: finalPayment.payment_id,
-                    constructedUrl: paymentUrl,
-                })
-            } else if (finalPayment.payment_id) {
-                // Fallback: try payment_id (might work in some cases, but invoice_id is correct)
-                // Some NowPayments implementations might accept payment_id
-                paymentUrl = `https://nowpayments.io/payment?iid=${finalPayment.payment_id}`
-                logger.warn('⚠️ Constructed payment URL from payment_id (fallback - invoice_id preferred)', {
-                    paymentId: finalPayment.payment_id,
-                    invoiceId: finalPayment.invoice_id,
-                    constructedUrl: paymentUrl,
-                    note: 'This might not work if NowPayments requires invoice_id',
-                })
-            }
-        }
-        
-        logger.info('Final payment URL resolution', {
-            hasPaymentUrl: !!paymentUrl,
-            paymentUrl: paymentUrl,
-            source: paymentUrl === finalPayment.pay_url ? 'pay_url' : 
-                   paymentUrl === (finalPayment as any).payment_url ? 'payment_url' :
-                   paymentUrl === (finalPayment as any).invoice_url ? 'invoice_url' :
-                   paymentUrl === (finalPayment as any).url ? 'url' :
-                   finalPayment.invoice_id ? 'constructed_from_invoice_id' :
-                   finalPayment.payment_id ? 'constructed_from_payment_id' : 'unknown',
-        })
-        
-        if (!paymentUrl) {
-            logger.error('❌ CRITICAL: Cannot determine payment URL after all attempts', {
-                hasPayUrl: !!finalPayment.pay_url,
-                hasPaymentUrl: !!(finalPayment as any).payment_url,
-                hasInvoiceUrl: !!(finalPayment as any).invoice_url,
-                hasUrl: !!(finalPayment as any).url,
-                hasInvoiceId: !!finalPayment.invoice_id,
-                hasPaymentId: !!finalPayment.payment_id,
-                allKeys: Object.keys(finalPayment),
-                paymentResponse: JSON.stringify(finalPayment, null, 2),
-            })
-            throw new Error('Payment URL could not be determined from NowPayments response. Missing invoice_id and pay_url.')
-        }
-        
-        logger.info('Returning payment response to frontend', {
-            paymentId: finalPayment.payment_id,
-            paymentUrl,
-            hasPayAddress: !!finalPayment.pay_address,
-        })
-        
         return c.json({
-            paymentId: finalPayment.payment_id,
-            paymentUrl: paymentUrl,
-            payAddress: finalPayment.pay_address || null,
-            payAmount: finalPayment.pay_amount,
-            payCurrency: finalPayment.pay_currency,
-            priceAmount: finalPayment.price_amount,
-            priceCurrency: finalPayment.price_currency,
+            paymentId: null, // Not available until IPN webhook
+            invoiceId: invoiceId,
+            paymentUrl: invoiceUrl,
+            payAddress: null, // Not available until payment is created
+            payAmount: null,
+            payCurrency: null,
+            priceAmount: priceAmount,
+            priceCurrency: 'usd',
         })
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
@@ -1191,31 +900,67 @@ payments.post('/nowpayments/webhook', async (c) => {
         }
 
         const data = JSON.parse(body)
-        const { payment_id, payment_status } = data
+        const { payment_id, payment_status, invoice_id, order_id } = data
 
         logger.info('NowPayments webhook processing', {
             paymentId: payment_id,
+            invoiceId: invoice_id,
+            orderId: order_id,
             paymentStatus: payment_status,
+            webhookData: JSON.stringify(data, null, 2),
         })
 
-        // Find payment in database
-        const cryptoPayment = await prisma.cryptoPayment.findUnique({
-            where: { paymentId: payment_id },
-            include: { user: true },
-        })
+        // Find payment in database by payment_id, invoice_id, or order_id
+        // Try payment_id first (if it exists), then invoice_id, then order_id
+        let cryptoPayment = null
+        
+        if (payment_id) {
+            cryptoPayment = await prisma.cryptoPayment.findUnique({
+                where: { paymentId: payment_id },
+                include: { user: true },
+            })
+        }
+        
+        if (!cryptoPayment && invoice_id) {
+            cryptoPayment = await prisma.cryptoPayment.findUnique({
+                where: { invoiceId: String(invoice_id) },
+                include: { user: true },
+            })
+        }
+        
+        if (!cryptoPayment && order_id) {
+            cryptoPayment = await prisma.cryptoPayment.findFirst({
+                where: { orderId: order_id },
+                include: { user: true },
+            })
+        }
 
         if (!cryptoPayment) {
-            logger.warn(`Crypto payment not found: ${payment_id}`)
+            logger.warn(`Crypto payment not found in database`, {
+                paymentId: payment_id,
+                invoiceId: invoice_id,
+                orderId: order_id,
+            })
             return c.json({ error: 'Payment not found' }, 404)
         }
 
         // Update payment status
+        // Use the ID we found (could be paymentId, invoiceId, or orderId)
+        const updateWhere = cryptoPayment.paymentId 
+            ? { paymentId: cryptoPayment.paymentId }
+            : { invoiceId: cryptoPayment.invoiceId }
+        
         await prisma.cryptoPayment.update({
-            where: { paymentId: payment_id },
+            where: updateWhere,
             data: {
+                paymentId: payment_id || cryptoPayment.paymentId, // Set paymentId if it was null
                 paymentStatus: payment_status,
+                payAmount: data.price_amount || cryptoPayment.payAmount,
+                payCurrency: data.price_currency || cryptoPayment.payCurrency,
                 actuallyPaid: data.actually_paid,
-                actuallyPaidCurrency: data.actually_paid_currency,
+                actuallyPaidCurrency: data.pay_currency || data.actually_paid_currency,
+                payAddress: data.pay_address || cryptoPayment.payAddress,
+                purchaseId: data.purchase_id || cryptoPayment.purchaseId,
                 updatedAt: new Date(),
                 ...(payment_status === 'finished' && { paidAt: new Date() }),
             },

@@ -295,24 +295,26 @@ model CryptoPayment {
   id                String   @id @default(cuid())
   userId            String
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymentId         String   @unique // NowPayments payment_id
-  paymentStatus     String   // waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
-  payAmount         Float    // Amount in USD
-  payCurrency        String   @default("usd") // USD
+  paymentId         String?  @unique // NowPayments payment_id (null until IPN/webhook)
+  paymentStatus     String?  // waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
+  payAmount         Float?   // Amount in USD (null until payment details available)
+  payCurrency        String?  @default("usd") // USD
   actuallyPaid      Float?   // Amount actually paid in crypto
   actuallyPaidCurrency String? // Crypto currency (BTC, ETH, etc.)
   purchaseId        String?  // Order ID for tracking
   tier              String   // pro, elite
-  invoiceId         String?  // NowPayments invoice_id
-  orderId           String?  // NowPayments order_id
-  paymentUrl        String?  @db.Text // Payment page URL
-  payAddress        String?  // Crypto address to send payment to
+  invoiceId         String   @unique // NowPayments invoice_id (required - used for hosted checkout)
+  orderId           String   // NowPayments order_id (required for tracking)
+  paymentUrl        String   @db.Text // Payment page URL (required - invoice_url from API)
+  payAddress        String?  // Crypto address to send payment to (null until payment created)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   paidAt            DateTime?
   
   @@index([userId])
   @@index([paymentId])
+  @@index([invoiceId])
+  @@index([orderId])
   @@index([paymentStatus])
   @@map("crypto_payments")
 }
