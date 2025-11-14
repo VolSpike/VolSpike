@@ -1009,10 +1009,64 @@ payments.post('/nowpayments/checkout', async (c) => {
                 }
             }
 
-            // For schema errors, provide helpful message
+            // For schema errors, try to work around missing fields
+            // This handles cases where migration hasn't been applied yet
             if (errorMessage.includes('expiresAt') || errorMessage.includes('renewalReminderSent') || 
                 errorMessage.includes('Unknown column') || (errorMessage.includes('column') && errorMessage.includes('does not exist'))) {
-                throw new Error('Database migration required. Please contact support or try again in a few minutes.')
+                
+                // Log the error but don't fail - the migration will be applied on next deployment
+                logger.warn('Database schema mismatch detected - migration may be in progress', {
+                    error: errorMessage,
+                    invoiceId,
+                    orderId,
+                    suggestion: 'Migration will be applied automatically on next deployment',
+                })
+                
+                // Try to create payment without optional fields by using raw SQL as fallback
+                // This is a temporary workaround until migration completes
+                try {
+                    // Use Prisma's raw SQL to insert only required fields
+                    await prisma.$executeRaw`
+                        INSERT INTO crypto_payments (
+                            id, "userId", "paymentStatus", tier, "invoiceId", "orderId", "paymentUrl", "createdAt", "updatedAt"
+                        ) VALUES (
+                            gen_random_uuid()::text, ${user.id}, 'waiting', ${tier}, ${String(invoiceId)}, ${orderId}, ${invoiceUrl}, NOW(), NOW()
+                        )
+                        ON CONFLICT ("invoiceId") DO NOTHING
+                    `
+                    
+                    // Fetch the created payment
+                    const createdPayment = await prisma.cryptoPayment.findUnique({
+                        where: { invoiceId: String(invoiceId) },
+                    })
+                    
+                    if (createdPayment) {
+                        logger.info('Payment created successfully using raw SQL fallback', {
+                            invoiceId,
+                            orderId,
+                            paymentId: createdPayment.id,
+                        })
+                        
+                        return c.json({
+                            paymentId: createdPayment.paymentId,
+                            invoiceId: createdPayment.invoiceId,
+                            paymentUrl: createdPayment.paymentUrl,
+                            payAddress: createdPayment.payAddress,
+                            payAmount: createdPayment.payAmount,
+                            payCurrency: createdPayment.payCurrency,
+                            priceAmount: priceAmount,
+                            priceCurrency: 'usd',
+                        })
+                    }
+                } catch (rawSqlError) {
+                    logger.error('Raw SQL fallback also failed', {
+                        error: rawSqlError instanceof Error ? rawSqlError.message : String(rawSqlError),
+                        invoiceId,
+                    })
+                }
+                
+                // If fallback also fails, throw user-friendly error
+                throw new Error('Database migration in progress. Please try again in a few moments.')
             }
 
             // For other errors, throw generic message
