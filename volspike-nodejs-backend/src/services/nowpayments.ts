@@ -49,12 +49,20 @@ export interface PaymentResponse {
 }
 
 export interface InvoiceResponse {
-  invoice_id?: string | number
+  // Raw fields from NowPayments API
+  id?: string | number  // NowPayments returns 'id', not 'invoice_id'
   invoice_url?: string
   order_id?: string
-  price_amount?: number
+  price_amount?: number | string  // Sometimes returned as string
   price_currency?: string
   pay_currency?: string
+  is_fixed_rate?: boolean
+  is_fee_paid_by_user?: boolean
+  created_at?: string
+  
+  // Normalized aliases that the rest of your code expects
+  invoice_id?: string | number  // Normalized from 'id'
+  
   // Keep it open-ended so we don't fight their schema
   [key: string]: any
 }
@@ -211,23 +219,51 @@ export class NowPaymentsService {
         }
       )
 
-      const data = response.data
+      const data = response.data as InvoiceResponse
+
+      // Normalize NowPayments field names to match our codebase expectations
+      // NowPayments returns 'id' not 'invoice_id', and 'invoice_url' (which is correct)
+      const invoiceId = data.invoice_id ?? data.id ?? (data as any)?.invoice?.id
+      const invoiceUrl = data.invoice_url ?? (data as any).payment_url ?? (data as any).url ?? (data as any)?.invoice?.invoice_url
+
+      // Create normalized response with both raw and normalized fields
+      const normalized: InvoiceResponse = {
+        ...data,
+        // Keep raw fields
+        id: data.id ?? invoiceId,
+        invoice_url: invoiceUrl,
+        // Add normalized aliases for our codebase
+        invoice_id: invoiceId,
+      }
 
       logger.info('NowPayments invoice created successfully - FULL RESPONSE ANALYSIS', {
-        invoiceId: data.invoice_id,
-        invoiceUrl: data.invoice_url,
-        orderId: data.order_id,
-        priceAmount: data.price_amount,
-        priceCurrency: data.price_currency,
-        payCurrency: data.pay_currency,
+        // Raw fields from API
+        rawId: data.id,
+        rawInvoiceUrl: data.invoice_url,
+        // Normalized fields (what our code uses)
+        invoiceId: normalized.invoice_id,
+        invoiceUrl: normalized.invoice_url,
+        orderId: normalized.order_id,
+        priceAmount: normalized.price_amount,
+        priceCurrency: normalized.price_currency,
+        payCurrency: normalized.pay_currency,
+        // Response metadata
         responseKeys: Object.keys(data),
         responseKeysCount: Object.keys(data).length,
-        fullResponse: JSON.stringify(data, null, 2),
+        normalizedKeys: Object.keys(normalized),
+        // Full responses for debugging
+        rawResponse: JSON.stringify(data, null, 2),
+        normalizedResponse: JSON.stringify(normalized, null, 2),
         status: response.status,
         statusText: response.statusText,
+        // Validation checks
+        hasRawId: !!data.id,
+        hasRawInvoiceUrl: !!data.invoice_url,
+        hasNormalizedInvoiceId: !!normalized.invoice_id,
+        hasNormalizedInvoiceUrl: !!normalized.invoice_url,
       })
 
-      return data
+      return normalized
     } catch (error: any) {
       const errorDetails = error.response?.data || {}
       const errorMessage = errorDetails.message || error.message || 'Unknown error'

@@ -417,21 +417,22 @@ export function MarketTable({
             </div>
 
             {/* Table with sticky header */}
-            <div 
-                ref={scrollContainerRef}
-                className={`relative max-h-[600px] vs-scroll ${guestMode ? 'overflow-y-hidden' : 'overflow-y-auto'} overflow-x-auto`} 
-                style={{ 
-                    WebkitOverflowScrolling: 'touch',
-                    // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
-                    overscrollBehaviorX: 'none',
-                    // Allow scroll chaining to the page at top/bottom so the page can scroll
-                    overscrollBehaviorY: 'auto',
-                    // Ensure proper gesture handling on mobile while preserving momentum scroll
-                    touchAction: 'pan-x pan-y pinch-zoom',
-                }}
-            >
-                <table className="vs-market-table w-full min-w-[800px]">
-                    <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
+            <div className="relative">
+                <div 
+                    ref={scrollContainerRef}
+                    className={`max-h-[600px] vs-scroll ${guestMode ? 'overflow-y-hidden' : 'overflow-y-auto'} overflow-x-auto`} 
+                    style={{ 
+                        WebkitOverflowScrolling: 'touch',
+                        // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
+                        overscrollBehaviorX: 'none',
+                        // Allow scroll chaining to the page at top/bottom so the page can scroll
+                        overscrollBehaviorY: 'auto',
+                        // Ensure proper gesture handling on mobile while preserving momentum scroll
+                        touchAction: 'pan-x pan-y pinch-zoom',
+                    }}
+                >
+                    <table className="vs-market-table w-full min-w-[800px]">
+                        <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
                         <tr className="border-b border-border/50">
                             <th className="text-left p-3">
                                 <Button
@@ -719,6 +720,10 @@ export function MarketTable({
                     </tbody>
                 </table>
 
+                {/* Vertical scroll affordance – subtle bottom fade when the table scrolls (non-guest only) */}
+                {!guestMode && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background to-transparent" />
+                )}
             </div>
 
             {/* Guest overlays anchored to wrapper (not affected by horizontal scroll) */}
