@@ -141,7 +141,7 @@ export default function CryptoCheckoutPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>
-                      <span>Choose from 100+ supported cryptocurrencies</span>
+                      <span>Choose from: USDT (Solana/Ethereum), USDC, SOL, BTC, or ETH</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-sec-600 dark:text-sec-400 mt-0.5">•</span>

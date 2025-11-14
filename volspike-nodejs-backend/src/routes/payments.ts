@@ -723,22 +723,26 @@ payments.post('/nowpayments/checkout', async (c) => {
         // 4. SOL
         // 5. BTC
         // 6. ETH
+        // NowPayments uses lowercase currency codes, but we'll check what's actually available
         const preferredCurrencies = [
-            'USDTSOL',      // USDT on Solana (preferred)
-            'USDT_SOL',     // Alternative format
-            'USDTTRC20',    // Sometimes used
-            'USDTERC20',    // USDT on Ethereum
-            'USDT_ETH',     // Alternative format
-            'USDT',         // Generic USDT (might default to a chain)
-            'USDCERC20',    // USDC on Ethereum
-            'USDC_ETH',     // Alternative format
-            'USDC',         // Generic USDC
-            'SOL',          // Solana
-            'BTC',          // Bitcoin
-            'ETH',          // Ethereum
+            'usdtsol',      // USDT on Solana (preferred)
+            'usdt_sol',     // Alternative format
+            'usdttrc20',    // Sometimes used
+            'usdterc20',    // USDT on Ethereum (ERC-20)
+            'usdt_eth',     // Alternative format
+            'usdt',         // Generic USDT
+            'usdcerc20',    // USDC on Ethereum (ERC-20)
+            'usdc_eth',     // Alternative format
+            'usdc',         // Generic USDC
+            'sol',          // Solana
+            'btc',          // Bitcoin
+            'eth',          // Ethereum
         ]
         
-        let defaultPayCurrency = 'USDTSOL' // Preferred: USDT on Solana
+        // Also try uppercase versions
+        const preferredCurrenciesUpper = preferredCurrencies.map(c => c.toUpperCase())
+        
+        let defaultPayCurrency = 'usdtsol' // Preferred: USDT on Solana (lowercase)
         try {
             const availableCurrencies = await nowpayments.getAvailableCurrencies()
             logger.info('Available currencies from NowPayments', {
@@ -747,37 +751,50 @@ payments.post('/nowpayments/checkout', async (c) => {
                 sample: availableCurrencies.slice(0, 20), // First 20 for debugging
             })
             
+            // Normalize available currencies for comparison (convert to lowercase)
+            const normalizedAvailable = availableCurrencies.map((c: string) => c.toLowerCase())
+            
             // Find the first preferred currency that's available
+            let foundCurrency: string | null = null
             for (const preferred of preferredCurrencies) {
-                // Check exact match
-                if (availableCurrencies.includes(preferred)) {
-                    defaultPayCurrency = preferred
-                    logger.info(`Selected preferred currency: ${preferred}`)
-                    break
-                }
-                // Check case-insensitive match
-                const found = availableCurrencies.find(
-                    (c: string) => c.toUpperCase() === preferred.toUpperCase()
-                )
-                if (found) {
-                    defaultPayCurrency = found
-                    logger.info(`Selected preferred currency (case-insensitive): ${found}`)
+                // Check exact lowercase match
+                const index = normalizedAvailable.indexOf(preferred.toLowerCase())
+                if (index !== -1) {
+                    foundCurrency = availableCurrencies[index] // Use original case from API
+                    defaultPayCurrency = foundCurrency
+                    logger.info(`Selected preferred currency: ${foundCurrency} (matched ${preferred})`)
                     break
                 }
             }
             
-            // If none of our preferred currencies found, use first available
-            if (defaultPayCurrency === 'USDTSOL' && availableCurrencies.length > 0) {
-                // Check if any USDT variant exists
+            // If none of our preferred currencies found, try to find any USDT variant
+            if (!foundCurrency && availableCurrencies.length > 0) {
+                // Check if any USDT variant exists (case-insensitive)
                 const usdtVariant = availableCurrencies.find((c: string) => 
-                    c.toUpperCase().includes('USDT')
+                    c.toLowerCase().includes('usdt')
                 )
                 if (usdtVariant) {
                     defaultPayCurrency = usdtVariant
                     logger.info(`Selected USDT variant: ${usdtVariant}`)
                 } else {
-                    defaultPayCurrency = availableCurrencies[0]
-                    logger.info(`No preferred currency found, using first available: ${defaultPayCurrency}`)
+                    // Try to find SOL, BTC, ETH, or USDC
+                    const fallbackOptions = ['sol', 'btc', 'eth', 'usdc']
+                    for (const option of fallbackOptions) {
+                        const found = availableCurrencies.find((c: string) => 
+                            c.toLowerCase() === option.toLowerCase()
+                        )
+                        if (found) {
+                            defaultPayCurrency = found
+                            logger.info(`Selected fallback currency: ${found}`)
+                            break
+                        }
+                    }
+                    
+                    // Last resort: use first available
+                    if (defaultPayCurrency === 'usdtsol') {
+                        defaultPayCurrency = availableCurrencies[0]
+                        logger.info(`No preferred currency found, using first available: ${defaultPayCurrency}`)
+                    }
                 }
             }
             
