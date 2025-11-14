@@ -719,6 +719,7 @@ export function MarketTable({
                         })}
                     </tbody>
                 </table>
+                </div>
 
                 {/* Vertical scroll affordance – subtle bottom fade when the table scrolls (non-guest only) */}
                 {!guestMode && (
