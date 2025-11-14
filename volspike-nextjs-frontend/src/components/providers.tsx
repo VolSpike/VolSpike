@@ -88,7 +88,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 <Web3Providers>
                     <ThemeProvider
                         attribute="class"
-                        defaultTheme="system"
+                        defaultTheme="dark"  
                         enableSystem
                         disableTransitionOnChange
                     >
