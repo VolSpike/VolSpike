@@ -76,6 +76,10 @@ export class NowPaymentsService {
         paymentId: response.data.payment_id,
         orderId: params.order_id,
         paymentStatus: response.data.payment_status,
+        payUrl: response.data.pay_url,
+        payAddress: response.data.pay_address,
+        fullResponse: JSON.stringify(response.data, null, 2), // Log full response
+        responseKeys: Object.keys(response.data),
       })
 
       return response.data
