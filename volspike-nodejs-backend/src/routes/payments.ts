@@ -716,30 +716,80 @@ payments.post('/nowpayments/checkout', async (c) => {
         // Create payment with NowPayments
         const nowpayments = NowPaymentsService.getInstance()
         
-        // Get available currencies and use a default (BTC) if pay_currency is required
-        // User can still change currency on NowPayments payment page
-        let defaultPayCurrency = 'BTC' // Default to Bitcoin
+        // Supported currencies in order of preference:
+        // 1. USDT on SOL (preferred)
+        // 2. USDT on ETH
+        // 3. USDC on ETH
+        // 4. SOL
+        // 5. BTC
+        // 6. ETH
+        const preferredCurrencies = [
+            'USDTSOL',      // USDT on Solana (preferred)
+            'USDT_SOL',     // Alternative format
+            'USDTTRC20',    // Sometimes used
+            'USDTERC20',    // USDT on Ethereum
+            'USDT_ETH',     // Alternative format
+            'USDT',         // Generic USDT (might default to a chain)
+            'USDCERC20',    // USDC on Ethereum
+            'USDC_ETH',     // Alternative format
+            'USDC',         // Generic USDC
+            'SOL',          // Solana
+            'BTC',          // Bitcoin
+            'ETH',          // Ethereum
+        ]
+        
+        let defaultPayCurrency = 'USDTSOL' // Preferred: USDT on Solana
         try {
             const availableCurrencies = await nowpayments.getAvailableCurrencies()
             logger.info('Available currencies from NowPayments', {
                 currencies: availableCurrencies,
                 count: availableCurrencies.length,
+                sample: availableCurrencies.slice(0, 20), // First 20 for debugging
             })
-            // Prefer stablecoins if available
-            if (availableCurrencies.includes('USDT')) {
-                defaultPayCurrency = 'USDT'
-            } else if (availableCurrencies.includes('USDC')) {
-                defaultPayCurrency = 'USDC'
-            } else if (availableCurrencies.includes('BTC')) {
-                defaultPayCurrency = 'BTC'
-            } else if (availableCurrencies.length > 0) {
-                defaultPayCurrency = availableCurrencies[0]
+            
+            // Find the first preferred currency that's available
+            for (const preferred of preferredCurrencies) {
+                // Check exact match
+                if (availableCurrencies.includes(preferred)) {
+                    defaultPayCurrency = preferred
+                    logger.info(`Selected preferred currency: ${preferred}`)
+                    break
+                }
+                // Check case-insensitive match
+                const found = availableCurrencies.find(
+                    (c: string) => c.toUpperCase() === preferred.toUpperCase()
+                )
+                if (found) {
+                    defaultPayCurrency = found
+                    logger.info(`Selected preferred currency (case-insensitive): ${found}`)
+                    break
+                }
             }
+            
+            // If none of our preferred currencies found, use first available
+            if (defaultPayCurrency === 'USDTSOL' && availableCurrencies.length > 0) {
+                // Check if any USDT variant exists
+                const usdtVariant = availableCurrencies.find((c: string) => 
+                    c.toUpperCase().includes('USDT')
+                )
+                if (usdtVariant) {
+                    defaultPayCurrency = usdtVariant
+                    logger.info(`Selected USDT variant: ${usdtVariant}`)
+                } else {
+                    defaultPayCurrency = availableCurrencies[0]
+                    logger.info(`No preferred currency found, using first available: ${defaultPayCurrency}`)
+                }
+            }
+            
+            logger.info('Currency selection result', {
+                selected: defaultPayCurrency,
+                availableCount: availableCurrencies.length,
+            })
         } catch (currencyError) {
-            logger.warn('Failed to get available currencies, using default BTC', {
+            logger.warn('Failed to get available currencies, using default USDTSOL', {
                 error: currencyError instanceof Error ? currencyError.message : String(currencyError),
             })
-            // Continue with default BTC
+            // Continue with default USDTSOL (preferred)
         }
         
         logger.info('Calling NowPayments API to create payment', {

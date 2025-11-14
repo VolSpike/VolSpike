@@ -139,9 +139,27 @@ export class NowPaymentsService {
           'x-api-key': API_KEY,
         },
       })
-      return response.data.currencies || []
+      
+      const currencies = response.data.currencies || []
+      
+      logger.info('NowPayments currencies fetched', {
+        count: currencies.length,
+        currencies: currencies.slice(0, 50), // Log first 50 for debugging
+        hasUSDTSOL: currencies.some((c: string) => c.toUpperCase().includes('USDTSOL') || c.toUpperCase().includes('USDT_SOL')),
+        hasUSDTERC20: currencies.some((c: string) => c.toUpperCase().includes('USDTERC20') || c.toUpperCase().includes('USDT_ETH')),
+        hasUSDCERC20: currencies.some((c: string) => c.toUpperCase().includes('USDCERC20') || c.toUpperCase().includes('USDC_ETH')),
+        hasSOL: currencies.some((c: string) => c.toUpperCase() === 'SOL'),
+        hasBTC: currencies.some((c: string) => c.toUpperCase() === 'BTC'),
+        hasETH: currencies.some((c: string) => c.toUpperCase() === 'ETH'),
+      })
+      
+      return currencies
     } catch (error: any) {
-      logger.error('NowPayments get currencies error:', error.response?.data || error.message)
+      logger.error('NowPayments get currencies error:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        fullError: error.message,
+      })
       return []
     }
   }

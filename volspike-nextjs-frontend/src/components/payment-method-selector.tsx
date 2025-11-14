@@ -124,10 +124,10 @@ export function PaymentMethodSelector({
                   )}
                 </div>
                 <CardDescription className="text-xs leading-relaxed">
-                  BTC, ETH, USDT, SOL & more
+                  USDT (SOL/ETH), USDC, SOL, BTC, ETH
                 </CardDescription>
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Instant • Low fees
+                  Instant • Low fees • USDT preferred
                 </p>
               </div>
             </div>
