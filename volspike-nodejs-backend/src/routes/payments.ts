@@ -809,40 +809,76 @@ payments.post('/nowpayments/checkout', async (c) => {
             // Continue with default USDTSOL (preferred)
         }
         
-        // Normalize currency code for NowPayments API
-        // NowPayments expects simple lowercase codes like "usdt", "btc", "sol", "eth"
-        // For multi-chain tokens, they might use "usdt" and let user choose network
-        let payCurrencyForAPI = defaultPayCurrency.toLowerCase()
+        // NowPayments API: pay_currency is OPTIONAL
+        // If not provided, NowPayments shows all available currencies for user to choose
+        // If provided, it must be a valid currency code that NowPayments supports
+        // Based on research: use specific codes like "usdtsol", "usdterc20", "usdce", "sol", "btc", "eth"
+        // OR omit pay_currency entirely to let user choose
         
-        // If we got a complex code like "usdtsol", simplify it
-        // NowPayments might prefer just "usdt" and let user choose network on payment page
-        if (payCurrencyForAPI.includes('usdt')) {
-            payCurrencyForAPI = 'usdt' // Use generic USDT, user can choose Solana/Ethereum
-        } else if (payCurrencyForAPI.includes('usdc')) {
-            payCurrencyForAPI = 'usdc' // Use generic USDC
+        // Strategy: Try to use a valid currency code, but if estimation fails, omit it
+        // This allows NowPayments to show all currencies and user can select
+        
+        // Map our preferred currencies to NowPayments format
+        const currencyCodeMap: Record<string, string> = {
+            'usdtsol': 'usdtsol',      // USDT on Solana
+            'usdt_sol': 'usdtsol',
+            'usdttrc20': 'usdttrc20',
+            'usdterc20': 'usdterc20',  // USDT on Ethereum (ERC-20)
+            'usdt_eth': 'usdterc20',
+            'usdt': 'usdtsol',         // Default to Solana USDT
+            'usdcerc20': 'usdce',      // USDC on Ethereum
+            'usdc_eth': 'usdce',
+            'usdc': 'usdce',
+            'sol': 'sol',
+            'btc': 'btc',
+            'eth': 'eth',
         }
-        // Keep SOL, BTC, ETH as-is (they're already simple)
+        
+        let payCurrencyForAPI: string | undefined = undefined
+        
+        // Try to map to a valid NowPayments currency code
+        const normalized = defaultPayCurrency.toLowerCase()
+        if (currencyCodeMap[normalized]) {
+            payCurrencyForAPI = currencyCodeMap[normalized]
+            logger.info('Mapped currency code', {
+                original: defaultPayCurrency,
+                normalized,
+                mapped: payCurrencyForAPI,
+            })
+        } else {
+            // If we can't map it, omit pay_currency to let user choose
+            logger.info('Currency code not in map, omitting pay_currency to let user choose', {
+                original: defaultPayCurrency,
+                normalized,
+            })
+        }
         
         logger.info('Calling NowPayments API to create payment', {
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: payCurrencyForAPI,
+            pay_currency: payCurrencyForAPI || '(omitted - user will choose)',
             order_id: orderId,
             ipn_callback_url: ipnCallbackUrl,
             originalCurrency: defaultPayCurrency,
-            normalizedCurrency: payCurrencyForAPI,
         })
 
-        const payment = await nowpayments.createPayment({
+        // Create payment parameters - pay_currency is optional
+        const paymentParams: any = {
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: payCurrencyForAPI, // Use normalized currency code
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription`,
             ipn_callback_url: ipnCallbackUrl,
             success_url: successUrl,
             cancel_url: cancelUrl,
-        })
+        }
+        
+        // Only add pay_currency if we have a valid mapped code
+        if (payCurrencyForAPI) {
+            paymentParams.pay_currency = payCurrencyForAPI
+        }
+
+        const payment = await nowpayments.createPayment(paymentParams)
 
         logger.info('NowPayments payment created successfully', {
             paymentId: payment.payment_id,

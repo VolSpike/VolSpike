@@ -11,7 +11,7 @@ const IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET || ''
 export interface CreatePaymentParams {
   price_amount: number
   price_currency: string
-  pay_currency?: string
+  pay_currency?: string  // Optional - if omitted, user can choose from all available currencies
   order_id?: string
   order_description?: string
   ipn_callback_url?: string
