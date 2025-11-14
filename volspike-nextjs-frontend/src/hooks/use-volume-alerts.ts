@@ -40,6 +40,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   const [nextUpdate, setNextUpdate] = useState<number>(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const socketRef = useRef<Socket | null>(null)
+  const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
   
   // Get tier from session, default to free
   const tier = (session?.user as any)?.tier || 'free'
@@ -172,6 +173,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
         socketRef.current = socket
 
         socket.on('connect', () => {
+          if (disconnectTimerRef.current) { clearTimeout(disconnectTimerRef.current); disconnectTimerRef.current = null }
           console.log('✅ Guest connected to volume alerts WebSocket (free tier)')
           setIsConnected(true)
           setError(null)
@@ -187,7 +189,8 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
 
         socket.on('disconnect', () => {
           console.log('❌ Guest socket disconnected; continuing polling fallback')
-          setIsConnected(false)
+          if (disconnectTimerRef.current) clearTimeout(disconnectTimerRef.current)
+          disconnectTimerRef.current = setTimeout(() => setIsConnected(false), 800)
         })
 
         socket.on('connect_error', (err) => {
@@ -217,11 +220,15 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       })
       socketRef.current = socket
       socket.on('connect', () => {
+        if (disconnectTimerRef.current) { clearTimeout(disconnectTimerRef.current); disconnectTimerRef.current = null }
         console.log('✅ Wallet-only user connected to alerts WebSocket (by id)')
         setIsConnected(true)
         setError(null)
       })
-      socket.on('disconnect', () => setIsConnected(false))
+      socket.on('disconnect', () => {
+        if (disconnectTimerRef.current) clearTimeout(disconnectTimerRef.current)
+        disconnectTimerRef.current = setTimeout(() => setIsConnected(false), 800)
+      })
       socket.on('connect_error', (err) => { console.warn('Socket error:', err); setIsConnected(false) })
       socket.on('volume-alert', (a: VolumeAlert) => {
         setAlerts(prev => {

@@ -20,6 +20,7 @@ const createCheckoutSchema = z.object({
     priceId: z.string(),
     successUrl: z.string().url(),
     cancelUrl: z.string().url(),
+    mode: z.enum(['subscription', 'payment']).optional().default('subscription'),
 })
 
 // Create Stripe checkout session
@@ -27,7 +28,7 @@ payments.post('/checkout', async (c) => {
     try {
         const user = requireUser(c)
         const body = await c.req.json()
-        const { priceId, successUrl, cancelUrl } = createCheckoutSchema.parse(body)
+        const { priceId, successUrl, cancelUrl, mode } = createCheckoutSchema.parse(body)
 
         // Create or get Stripe customer
         let customerId = user.stripeCustomerId
@@ -59,15 +60,16 @@ payments.post('/checkout', async (c) => {
                     quantity: 1,
                 },
             ],
-            mode: 'subscription',
+            mode: mode, // 'subscription' or 'payment'
             success_url: successUrl,
             cancel_url: cancelUrl,
             metadata: {
                 userId: user.id,
+                paymentMode: mode,
             },
         })
 
-        logger.info(`Checkout session created for ${user?.email}`)
+        logger.info(`Checkout session created for ${user?.email}`, { mode, priceId })
 
         return c.json({ sessionId: session.id, url: session.url })
     } catch (error) {
@@ -240,17 +242,34 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             userId: session.metadata?.userId,
         })
 
-        // For subscription checkouts, get the subscription to find the price
+        const customerId = session.customer as string
+        let tier: string | null = null
+        let priceId: string | null = null
+
+        // Handle subscription checkouts
         if (session.mode === 'subscription' && session.subscription) {
             const subscription = await stripe.subscriptions.retrieve(
                 session.subscription as string
             )
-            const priceId = subscription.items.data[0].price.id
+            priceId = subscription.items.data[0].price.id
             const price = await stripe.prices.retrieve(priceId)
-            const tier = price.metadata?.tier || 'pro'
+            tier = price.metadata?.tier || 'pro'
+        }
+        // Handle one-time payment checkouts
+        else if (session.mode === 'payment' && session.line_items) {
+            // For one-time payments, get the price from line items
+            const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 })
+            if (lineItems.data.length > 0) {
+                priceId = lineItems.data[0].price?.id || null
+                if (priceId) {
+                    const price = await stripe.prices.retrieve(priceId)
+                    tier = price.metadata?.tier || 'pro' // Default to 'pro' for test payment
+                }
+            }
+        }
 
-            const customerId = session.customer as string
-
+        // Update user tier if we determined one
+        if (tier) {
             // Update user tier
             const result = await prisma.user.updateMany({
                 where: { stripeCustomerId: customerId },
@@ -260,9 +279,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             logger.info(`Checkout completed: User tier updated to ${tier}`, {
                 customerId,
                 tier,
+                mode: session.mode,
                 usersUpdated: result.count,
                 priceId,
-                priceMetadata: price.metadata,
             })
 
             // Also update via userId if available (more reliable)
@@ -296,6 +315,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
                 logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
             }
+        } else {
+            logger.warn('Checkout completed but could not determine tier', {
+                sessionId: session.id,
+                mode: session.mode,
+                customerId,
+            })
         }
     } catch (error) {
         logger.error('Error handling checkout.session.completed:', error)

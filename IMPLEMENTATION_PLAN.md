@@ -7,11 +7,13 @@
 Last updated: December 2025
 
 ## Current state (production)
-- Auth: Email/password with verification (SendGrid), OAuth (Google/GitHub), EVM wallets (RainbowKit, SIWE), Solana Phantom (mobile deep‑link flow fixed).
+- Auth: Email/password with verification (SendGrid), OAuth (Google), EVM wallets (RainbowKit + SIWE), Solana (prefers Phantom; mobile deep‑link).
 - Data: Client‑side Binance WebSocket; tier throttling (Free 15m, Pro 5m, Elite live).
-- Alerts: DigitalOcean script → `/api/volume-alerts/ingest` → DB → Socket.IO → UI; initial 10 alerts on login; wall‑clock batching.
+- Alerts: DO script → `/api/volume-alerts/ingest` → DB → Socket.IO → UI; initial 10 alerts on login; wall‑clock batching.
+- Guests: Live dashboard preview at `/` (top 5 Market Data, top 2 Alerts; sorting/export locked). Dark is default theme.
+- Sockets: Guest token `guest` joins `tier-free`; wallet‑only users connect with `method=id` and token=user id.
 - Payments: Stripe subscriptions; webhook wired; customer portal.
-- UI/UX: Responsive dashboard, pricing, terms, privacy; mobile scrolling/touch fixed; Pro banner; Open Interest fixed (Pro/Elite).
+- UI/UX: Unified guest CTA pill, PREVIEW pill, export lock state, compact mobile Export, header decluttered, Linked Accounts tab (no chain chips), doc/support/status spacing fixed.
 - Infra: Vercel frontend; Railway backend; Neon Postgres.
 
 ## What’s in code (key endpoints)
@@ -31,12 +33,14 @@ Ready now:
 - Stripe checkout + basic subscription gating
 - Open Interest column (Pro/Elite)
 - Basic admin and health checks
+- Guest landing preview + sockets for guests/wallet‑only users
 
 Minimal to finish before launch:
 1) Email alerts for Pro (single template, 15 min cadence)
 2) “Elite Coming Soon” gating with waitlist capture (no purchase)
 3) Harden payments: confirm proration + cancel flows in UI
 4) Remove public debug UI; keep `?debug=true` only
+5) Optional: wallet chooser modal for Solana with remembered preference
 
 Nice‑to‑have (post‑launch):
 - Sound assets for alerts (replace placeholders)
@@ -62,5 +66,5 @@ Nice‑to‑have (post‑launch):
 - [ ] Open Interest shows non‑zero for Pro/Elite symbols
 - [ ] Solana Phantom mobile sign‑in completes to dashboard
 - [ ] Admin access restricted; health endpoint OK
-
+- [ ] Guest landing preview behaves correctly (top 5 / top 2, export & sorting locked)
 

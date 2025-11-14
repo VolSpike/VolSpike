@@ -164,6 +164,7 @@ VolSpike/
 
 - **[AGENTS.md](./AGENTS.md)**: Detailed contributor guidelines, architecture, and deployment instructions
 - **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)**: Implementation roadmap, current status, and next steps
+- **[OVERVIEW.md](./OVERVIEW.md)**: High‑level overview (guest preview, tiers, sockets, theming)
 
 ---
 

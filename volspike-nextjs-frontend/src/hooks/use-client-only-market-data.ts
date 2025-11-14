@@ -63,8 +63,8 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
     const lastRenderRef = useRef<number>(0);
     const firstPaintDoneRef = useRef<boolean>(false);
     const connectedAtRef = useRef<number>(0);
-    const bootstrapWindowMs = 2500; // gather symbols before first paint
-    const minBootstrapSymbols = 50; // wait for at least this many if possible
+    const bootstrapWindowMs = 900; // faster first paint to reduce perceived latency
+    const minBootstrapSymbols = 30; // still aim for a reasonable set
     const reconnectAttemptsRef = useRef<number>(0);
     const renderPendingRef = useRef<boolean>(false);
 
@@ -441,7 +441,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                             fundingRef.current.set(it.s, it);
 
                             // Debug logging for funding rate data
-                            if (msg.stream === '!markPrice@arr') {
+                            if (process.env.NODE_ENV === 'development' && msg.stream === '!markPrice@arr') {
                                 console.log('📊 MarkPrice data:', {
                                     symbol: it.s,
                                     r: it.r,
@@ -517,12 +517,12 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 }, delay);
             };
 
-            // If it never opens (geofence), show fallback after 5s
+            // If it never opens (geofence), show fallback after 3s
             setTimeout(() => {
                 if (!opened && wsRef.current?.readyState !== WebSocket.OPEN) {
                     geofenceFallback();
                 }
-            }, 5000);
+            }, 3000);
 
         } catch (error) {
             if (process.env.NODE_ENV === 'development') {

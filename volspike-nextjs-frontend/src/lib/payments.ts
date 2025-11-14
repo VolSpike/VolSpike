@@ -4,6 +4,7 @@ import { Session } from 'next-auth'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID
+const TEST_ONETIME_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEST_ONETIME_PRICE_ID
 
 type CreateCheckoutResponse = {
     sessionId?: string
@@ -77,4 +78,66 @@ export async function startProCheckout(session: Session | null): Promise<void> {
     throw new Error('Checkout session URL not returned.')
 }
 
+// One-time test payment ($1) - for testing only
+export async function startOneTimeTestPayment(session: Session | null, priceId?: string): Promise<void> {
+    if (!session?.user) {
+        throw new Error('You must be signed in to make a payment.')
+    }
+    
+    const oneTimePriceId = priceId || TEST_ONETIME_PRICE_ID
+    if (!oneTimePriceId) {
+        throw new Error('One-time payment Price ID is not configured. Please provide priceId parameter or set NEXT_PUBLIC_STRIPE_TEST_ONETIME_PRICE_ID.')
+    }
 
+    const successUrl = `${window.location.origin}/checkout/success`
+    const cancelUrl = `${window.location.origin}/checkout/cancel`
+
+    // Get auth token - prefer accessToken, fallback to user.id
+    const authToken = (session as any)?.accessToken || session.user.id
+    
+    if (!authToken) {
+        console.error('[startOneTimeTestPayment] No auth token available')
+        throw new Error('Authentication token not available. Please sign in again.')
+    }
+
+    console.log('[startOneTimeTestPayment] Starting one-time payment checkout', {
+        priceId: oneTimePriceId,
+        userId: session.user.id,
+        email: session.user.email
+    })
+
+    const resp = await fetch(`${API_URL}/api/payments/checkout`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+            priceId: oneTimePriceId,
+            successUrl,
+            cancelUrl,
+            mode: 'payment', // One-time payment, not subscription
+        }),
+    })
+
+    if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}))
+        const message = data?.error || `Payment failed (HTTP ${resp.status})`
+        console.error('[startOneTimeTestPayment] Payment failed', {
+            status: resp.status,
+            statusText: resp.statusText,
+            error: data?.error,
+            message
+        })
+        throw new Error(message)
+    }
+
+    const data: CreateCheckoutResponse = await resp.json()
+
+    if (data.url) {
+        window.location.href = data.url
+        return
+    }
+
+    throw new Error('Checkout session URL not returned.')
+}

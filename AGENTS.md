@@ -32,6 +32,15 @@ VolSpike is a comprehensive Binance Perpetual Futures trading dashboard featurin
 - ✅ **Automatic reconnection** with exponential backoff
 - ✅ **localStorage fallback** for region-blocked users
 
+### **Guest Preview & Theming**
+- ✅ Landing shows a safe, live dashboard preview for unauthenticated users
+- ✅ Market Data: top 5 rows visible; rest blurred and non‑scrollable
+- ✅ Volume Alerts: top 2 alerts visible; rest blurred and non‑scrollable
+- ✅ Sorting/Export disabled with clear tooltips and locked Export dropdown
+- ✅ Unified CTA pill (Start Free / Get Pro) with consistent styling
+- ✅ Mobile: guest banner hidden; PREVIEW pill on Market Data card
+- ✅ Dark theme is the default for guests and new accounts
+
 ## Setup & Build
 
 ### Prerequisites
@@ -224,6 +233,11 @@ VolSpike/
 
 **Note**: The ingestion service and Redis dependencies have been removed. Market data is now handled entirely by the frontend via direct Binance WebSocket connections.
 
+### Socket.IO Auth Notes (Alerts)
+- Guests connect with `auth.token = 'guest'` and join `tier-free`
+- Wallet‑only users (no email) connect with `auth.token = userId` and `query.method = 'id'`
+- Rooms: `tier-free`, `tier-pro`, `tier-elite` follow wall‑clock batching
+
 ## Code Style & Rules
 
 ### Next.js Frontend (Client-Side WebSocket)
@@ -275,11 +289,10 @@ VolSpike/
 - **Admin session policy**: Shorter session duration for admin accounts
 
 ### Web3 Integration
-- Use RainbowKit for wallet connection
-- Implement proper error handling for wallet failures
-- Use secure signing methods with SIWE (Sign-In with Ethereum)
-- Handle network switching properly
-- Support multiple wallet types (MetaMask, WalletConnect, etc.)
+ - Use RainbowKit for EVM wallet connection (SIWE)
+ - Prefer Phantom for Solana when multiple providers are present; otherwise fallback
+ - Keep chain/balance/address out of the header; surface them in the user menu and Linked Accounts
+ - Linked Accounts shows a single row per wallet (no chain chips), and hides placeholder wallet “emails”
 
 ## PR/Commit Rules
 
@@ -716,3 +729,10 @@ npm install && npm run dev
 - ✅ **Mobile UX**: Horizontal table scrolling now works correctly on all mobile devices
 - ✅ **Open Interest**: Data displays correctly for Pro/Elite tiers with proper symbol matching
 - ✅ **Touch Handling**: Optimized touch event handlers for better mobile performance
+ - ✅ **Guest Preview**: PREVIEW pill, banner hidden on mobile, unified CTA
+ - ✅ **Export Locking**: Guests see a locked Export with explanation; Free users get TradingView top‑50
+ - ✅ **Default Theme**: Dark by default for guests/new users
+ - ✅ **Socket Auth**: Guests and wallet‑only users connect cleanly (guest token and method=id)
+ - ✅ **Linked Accounts**: Renamed from Wallets; simplified wallet rows; neutral Solana copy
+ - ✅ **Header Cleanup**: Removed wallet connect clutter for signed‑in users
+ - ✅ **Docs/Support/Status**: Fixed bottom spacing; consistent banner/footer alignment
