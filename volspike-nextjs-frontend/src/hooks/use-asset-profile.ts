@@ -228,7 +228,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
     const coin = (await coinRes.json()) as any
 
     const descriptionRaw = typeof coin?.description?.en === 'string' ? coin.description.en : ''
-    const descriptionText = shorten(stripHtml(descriptionRaw), 320)
+    const descriptionText = stripHtml(descriptionRaw)
 
     const homepage: string | undefined = Array.isArray(coin?.links?.homepage)
         ? coin.links.homepage.find((url: string | null | undefined) => !!url?.trim())
