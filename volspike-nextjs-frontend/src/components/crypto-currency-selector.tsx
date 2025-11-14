@@ -88,45 +88,41 @@ export function CryptoCurrencySelector({
                 'cursor-pointer transition-all duration-300 relative overflow-hidden group',
                 isSelected
                   ? 'ring-2 ring-sec-500 bg-sec-500/5 shadow-lg scale-[1.02]'
-                  : 'hover:border-sec-500/50 hover:shadow-md hover:scale-[1.01]'
+                  : 'hover:border-sec-500/50 hover:shadow-md hover:scale-[1.01]',
+                currency.preferred && !isSelected && 'border-sec-500/30'
               )}
               onClick={() => onCurrencyChange(currency.code)}
             >
-              {isSelected && (
-                <div className="absolute top-2 right-2">
-                  <div className="h-5 w-5 rounded-full bg-sec-500 flex items-center justify-center">
-                    <Check className="h-3 w-3 text-white" />
-                  </div>
-                </div>
-              )}
-              {currency.preferred && (
-                <div className="absolute top-2 left-2">
-                  <Badge className="bg-sec-500/20 text-sec-700 dark:text-sec-300 border-0 text-xs px-1.5 py-0.5">
-                    Preferred
-                  </Badge>
-                </div>
-              )}
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    'text-2xl flex-shrink-0 transition-transform duration-300',
-                    isSelected ? 'scale-110' : 'group-hover:scale-105'
-                  )}>
-                    {currency.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-semibold text-sm">{currency.name}</span>
-                      {isSelected && (
-                        <Badge className="bg-sec-500/20 text-sec-700 dark:text-sec-300 border-0 text-xs px-1.5 py-0">
-                          Selected
-                        </Badge>
-                      )}
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={cn(
+                      'text-2xl flex-shrink-0 transition-transform duration-300',
+                      isSelected ? 'scale-110' : 'group-hover:scale-105'
+                    )}>
+                      {currency.icon}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {currency.network}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-semibold text-sm">{currency.name}</span>
+                        {currency.preferred && (
+                          <Badge className="bg-sec-500/20 text-sec-700 dark:text-sec-300 border border-sec-500/30 text-[10px] px-1.5 py-0 h-4 leading-none">
+                            ⭐ Preferred
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {currency.network}
+                      </p>
+                    </div>
                   </div>
+                  {isSelected && (
+                    <div className="flex-shrink-0">
+                      <div className="h-5 w-5 rounded-full bg-sec-500 flex items-center justify-center">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -134,11 +130,13 @@ export function CryptoCurrencySelector({
         })}
       </div>
 
-      <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+      <div className="p-3 rounded-lg bg-gradient-to-r from-sec-500/10 via-sec-500/5 to-transparent border border-sec-500/20">
         <div className="flex items-start gap-2">
-          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-700 dark:text-blue-400">
-            <strong>USDT on Solana</strong> is recommended for fastest confirmation and lowest fees. Other currencies are also accepted.
+          <div className="p-1 rounded bg-sec-500/20 flex-shrink-0 mt-0.5">
+            <Info className="h-3 w-3 text-sec-600 dark:text-sec-400" />
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="font-semibold text-sec-700 dark:text-sec-300">USDT on Solana</span> is recommended for fastest confirmation and lowest fees. All listed currencies are accepted.
           </p>
         </div>
       </div>
