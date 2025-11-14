@@ -30,7 +30,7 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
                         <img
                             src={profile.logoUrl}
                             alt={`${displayName} logo`}
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain p-1"
                             loading="lazy"
                         />
                     ) : (
