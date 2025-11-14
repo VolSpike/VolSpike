@@ -801,7 +801,6 @@ export function MarketTable({
                                 {/* Project Overview */}
                                 <AssetProjectOverview
                                     baseSymbol={formatSymbol(selectedSymbol.symbol)}
-                                    pairSymbol={selectedSymbol.symbol}
                                 />
 
                                 {/* Actions */}

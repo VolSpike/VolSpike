@@ -1,15 +1,14 @@
 import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { BarChart3, ExternalLink, Globe, Twitter } from 'lucide-react'
 import { useAssetProfile } from '@/hooks/use-asset-profile'
+import { Badge } from '@/components/ui/badge'
 
 interface AssetProjectOverviewProps {
     baseSymbol: string
-    pairSymbol: string
 }
 
-export function AssetProjectOverview({ baseSymbol, pairSymbol }: AssetProjectOverviewProps) {
+export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) {
     const { profile, loading } = useAssetProfile(baseSymbol)
 
     const tradingViewUrl = useMemo(() => {
@@ -45,12 +44,6 @@ export function AssetProjectOverview({ baseSymbol, pairSymbol }: AssetProjectOve
                         <h3 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                             Project Overview
                         </h3>
-                        <Badge
-                            variant="outline"
-                            className="text-[10px] uppercase tracking-wide bg-brand-500/5 border-brand-500/30 text-brand-400"
-                        >
-                            {pairSymbol.toUpperCase()} Perpetual
-                        </Badge>
                         {primaryCategory && (
                             <Badge
                                 variant="outline"
