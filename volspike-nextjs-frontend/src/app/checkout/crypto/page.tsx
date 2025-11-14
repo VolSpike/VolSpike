@@ -98,7 +98,7 @@ export default function CryptoCheckoutPage() {
               </div>
               <CardDescription className="break-words text-base">
                 {isDatabaseError 
-                  ? 'The payment system is being updated. Please try again in a few minutes.'
+                  ? 'The payment system is updating. This usually completes in under a minute. Please try again.'
                   : isNetworkError
                   ? 'Unable to connect to payment server. Please check your internet connection.'
                   : isAuthError
@@ -141,7 +141,7 @@ export default function CryptoCheckoutPage() {
                   <>
                     <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                       <p className="text-xs text-blue-700 dark:text-blue-400">
-                        <strong>What&apos;s happening?</strong> We&apos;re updating our payment system to add new features. This usually takes just a few minutes.
+                        <strong>What&apos;s happening?</strong> We&apos;re updating our payment system to add new features. The update is automatic and usually completes in under a minute. Your payment will process normally once complete.
                       </p>
                     </div>
                     <Button 
