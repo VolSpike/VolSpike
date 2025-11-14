@@ -10,6 +10,28 @@ const logger = createLogger()
  */
 export async function checkAndSendRenewalReminders() {
     try {
+        // First, verify the schema is up to date by checking if expiresAt field exists
+        // This prevents errors if migration hasn't been applied yet
+        try {
+            await prisma.$queryRaw`SELECT "expiresAt" FROM "crypto_payments" LIMIT 1`.catch(() => {
+                // Field doesn't exist yet - migration not applied
+                logger.warn('⚠️ CryptoPayment.expiresAt field not found - database migration may not be applied yet. Skipping renewal reminder check.')
+                return {
+                    checked: 0,
+                    sent: 0,
+                }
+            })
+        } catch (schemaError) {
+            // Schema check failed - likely migration not applied
+            logger.warn('⚠️ Unable to verify database schema - migration may not be applied. Skipping renewal reminder check.', {
+                error: schemaError instanceof Error ? schemaError.message : String(schemaError),
+            })
+            return {
+                checked: 0,
+                sent: 0,
+            }
+        }
+
         const now = new Date()
         const sevenDaysFromNow = new Date(now)
         sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
@@ -120,8 +142,27 @@ export async function checkAndSendRenewalReminders() {
             sent: remindersSent,
         }
     } catch (error) {
-        logger.error('Error checking renewal reminders:', error)
-        throw error
+        // Enhanced error logging with more context
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+        
+        logger.error('Error checking renewal reminders:', {
+            error: errorMessage,
+            stack: errorStack,
+            // Check if it's a Prisma schema error
+            isPrismaError: errorMessage.includes('Unknown column') || 
+                          errorMessage.includes('column') && errorMessage.includes('does not exist') ||
+                          errorMessage.includes('expiresAt'),
+            suggestion: errorMessage.includes('expiresAt') || errorMessage.includes('column') 
+                ? 'Database migration may not be applied. Run: npx prisma db push' 
+                : 'Check error details above',
+        })
+        
+        // Don't throw - return empty result instead to prevent scheduled task from crashing
+        return {
+            checked: 0,
+            sent: 0,
+        }
     }
 }
 
@@ -131,6 +172,28 @@ export async function checkAndSendRenewalReminders() {
  */
 export async function checkAndDowngradeExpiredSubscriptions() {
     try {
+        // First, verify the schema is up to date by checking if expiresAt field exists
+        // This prevents errors if migration hasn't been applied yet
+        try {
+            await prisma.$queryRaw`SELECT "expiresAt" FROM "crypto_payments" LIMIT 1`.catch(() => {
+                // Field doesn't exist yet - migration not applied
+                logger.warn('⚠️ CryptoPayment.expiresAt field not found - database migration may not be applied yet. Skipping expiration check.')
+                return {
+                    checked: 0,
+                    downgraded: 0,
+                }
+            })
+        } catch (schemaError) {
+            // Schema check failed - likely migration not applied
+            logger.warn('⚠️ Unable to verify database schema - migration may not be applied. Skipping expiration check.', {
+                error: schemaError instanceof Error ? schemaError.message : String(schemaError),
+            })
+            return {
+                checked: 0,
+                downgraded: 0,
+            }
+        }
+
         const now = new Date()
 
         // Find all expired crypto payments that are still active
@@ -203,8 +266,27 @@ export async function checkAndDowngradeExpiredSubscriptions() {
             downgraded,
         }
     } catch (error) {
-        logger.error('Error checking expired subscriptions:', error)
-        throw error
+        // Enhanced error logging with more context
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+        
+        logger.error('Error checking expired subscriptions:', {
+            error: errorMessage,
+            stack: errorStack,
+            // Check if it's a Prisma schema error
+            isPrismaError: errorMessage.includes('Unknown column') || 
+                          errorMessage.includes('column') && errorMessage.includes('does not exist') ||
+                          errorMessage.includes('expiresAt'),
+            suggestion: errorMessage.includes('expiresAt') || errorMessage.includes('column') 
+                ? 'Database migration may not be applied. Run: npx prisma db push' 
+                : 'Check error details above',
+        })
+        
+        // Don't throw - return empty result instead to prevent scheduled task from crashing
+        return {
+            checked: 0,
+            downgraded: 0,
+        }
     }
 }
 

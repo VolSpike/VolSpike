@@ -256,17 +256,23 @@ if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SCHEDULED_TASKS 
         }
     }, EXPIRATION_CHECK_INTERVAL)
 
-    // Run initial checks after 1 minute (to allow server to fully start)
+    // Run initial checks after 2 minutes (to allow server and database to fully start)
     setTimeout(async () => {
         try {
             logger.info('🔄 Running initial renewal reminder check')
-            await checkAndSendRenewalReminders()
+            const reminderResult = await checkAndSendRenewalReminders()
+            logger.info(`✅ Initial renewal reminder check completed: ${reminderResult.sent} reminders sent, ${reminderResult.checked} subscriptions checked`)
+            
             logger.info('🔄 Running initial expired subscription check')
-            await checkAndDowngradeExpiredSubscriptions()
+            const expirationResult = await checkAndDowngradeExpiredSubscriptions()
+            logger.info(`✅ Initial expired subscription check completed: ${expirationResult.downgraded} users downgraded, ${expirationResult.checked} subscriptions checked`)
         } catch (error) {
-            logger.error('❌ Initial scheduled task check failed:', error)
+            logger.error('❌ Initial scheduled task check failed:', {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+            })
         }
-    }, 60000) // 1 minute delay
+    }, 120000) // 2 minute delay to ensure database is ready
 
     logger.info('✅ Scheduled tasks initialized (renewal reminders every 6h, expiration checks daily)')
 } else {
