@@ -155,7 +155,7 @@ export default function TestPaymentPage() {
                         {/* Warning */}
                         <Alert className="border-yellow-500/50 bg-yellow-500/10">
                             <AlertDescription className="text-yellow-700 dark:text-yellow-400">
-                                <strong>Warning:</strong> This will charge a real $1.00 payment. Make sure you're using a real card (not test cards like 4242...).
+                                <strong>Warning:</strong> This will charge a real $1.00 payment. Make sure you&apos;re using a real card (not test cards like 4242...).
                             </AlertDescription>
                         </Alert>
 
@@ -163,11 +163,11 @@ export default function TestPaymentPage() {
                         <div className="p-4 bg-muted/30 rounded-lg space-y-2">
                             <p className="text-sm font-semibold">How to test:</p>
                             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                                <li>Click "Test $1 Payment" button above</li>
-                                <li>You'll be redirected to Stripe Checkout</li>
-                                <li>Enter a real card (your friend's card)</li>
+                                <li>Click &quot;Test $1 Payment&quot; button above</li>
+                                <li>You&apos;ll be redirected to Stripe Checkout</li>
+                                <li>Enter a real card (your friend&apos;s card)</li>
                                 <li>Complete the payment</li>
-                                <li>You'll be redirected back to /checkout/success</li>
+                                <li>You&apos;ll be redirected back to /checkout/success</li>
                                 <li>Check Stripe Dashboard → Payments to verify</li>
                                 <li>Check your Settings → Subscription to see Pro Tier</li>
                             </ol>
