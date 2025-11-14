@@ -379,18 +379,18 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
           </div>
         )}
         
-        <ScrollArea className={`h-[600px] pr-4 ${guestMode ? 'overflow-hidden' : ''}`}>
-          {isLoading && displayAlerts.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              Loading alerts...
-            </div>
-          ) : displayAlerts.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              <Bell className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p>No recent volume spikes</p>
-              <p className="text-xs mt-1">Check back soon for new alerts</p>
-            </div>
-          ) : (
+        {isLoading && displayAlerts.length === 0 ? (
+          <div className="flex h-[600px] items-center justify-center pr-4 text-center text-muted-foreground">
+            Loading alerts...
+          </div>
+        ) : displayAlerts.length === 0 ? (
+          <div className="flex h-[600px] flex-col items-center justify-center pr-4 text-center text-muted-foreground">
+            <Bell className="h-12 w-12 mx-auto mb-3 opacity-20" />
+            <p>No recent volume spikes</p>
+            <p className="mt-1 text-xs">Check back soon for new alerts</p>
+          </div>
+        ) : guestMode ? (
+          <div className="h-[600px] overflow-hidden pr-4">
             <div className="space-y-3" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
               {displayAlerts.map((alert, index) => {
                 // Determine color based on candle direction
@@ -476,96 +476,280 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                 }
                 
                 return (
-                <div
-                  key={alert.id}
-                  onClick={handleAlertClick}
-                  className={`p-3 rounded-lg border transition-all duration-150 cursor-pointer hover:shadow-md ${
-                    isBullish
-                      ? 'border-brand-500/30 bg-brand-500/5 hover:bg-brand-500/10' 
-                      : isBearish
-                        ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
-                        : 'border-border hover:bg-muted/50'
-                  } ${getAnimationClass()} ${getGlowClass()} ${
-                    isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
-                  } ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
-                  title="Click to replay animation and sound"
-                >
-                  <div className="space-y-2">
-                    {/* Header: Asset name and timestamp */}
-                    <div className="flex items-start justify-between gap-3">
+                  <div
+                    key={alert.id}
+                    onClick={handleAlertClick}
+                    className={`cursor-pointer rounded-lg border p-3 transition-all duration-150 hover:shadow-md ${
+                      isBullish
+                        ? 'border-brand-500/30 bg-brand-500/5 hover:bg-brand-500/10' 
+                        : isBearish
+                          ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
+                          : 'border-border hover:bg-muted/50'
+                    } ${getAnimationClass()} ${getGlowClass()} ${
+                      isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
+                    } ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
+                    title="Click to replay animation and sound"
+                  >
+                    <div className="space-y-2">
+                      {/* Header: Asset name and timestamp */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          {isBearish ? (
+                            <TrendingDown className="h-4 w-4 flex-shrink-0 text-danger-500" />
+                          ) : (
+                            <TrendingUp
+                              className={`h-4 w-4 flex-shrink-0 ${
+                                isBullish ? 'text-brand-500' : 'text-muted-foreground'
+                              }`}
+                            />
+                          )}
+                          <span className="text-base font-semibold">{alert.asset}</span>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <div className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatExactTime(alert.timestamp)}
+                          </div>
+                          <div className="text-xs text-muted-foreground/70 whitespace-nowrap">
+                            ({formatRelativeTime(alert.timestamp)})
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Multiplier and Update badges on second line */}
                       <div className="flex items-center gap-2">
-                        {isBearish ? (
-                          <TrendingDown className="h-4 w-4 flex-shrink-0 text-danger-500" />
-                        ) : (
-                          <TrendingUp className={`h-4 w-4 flex-shrink-0 ${
-                            isBullish ? 'text-brand-500' : 'text-muted-foreground'
-                          }`} />
-                        )}
-                        <span className="font-semibold text-base">{alert.asset}</span>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatExactTime(alert.timestamp)}
-                        </div>
-                        <div className="text-xs text-muted-foreground/70 whitespace-nowrap">
-                          ({formatRelativeTime(alert.timestamp)})
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Multiplier and Update badges on second line */}
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs font-mono-tabular ${
-                          isBullish 
-                            ? 'bg-brand-500/10 border-brand-500/30 text-brand-600 dark:text-brand-400' 
-                            : isBearish 
-                              ? 'bg-danger-500/10 border-danger-500/30 text-danger-600 dark:text-danger-400'
-                              : 'bg-brand-500/10 border-brand-500/30'
-                        }`}
-                      >
-                        {alert.volumeRatio.toFixed(2)}x
-                      </Badge>
-                      {alert.isUpdate && (
-                        <Badge variant="secondary" className="text-xs">
-                          {alert.alertType === 'HALF_UPDATE' ? '30m Update' : 'Hourly Update'}
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs font-mono-tabular ${
+                            isBullish 
+                              ? 'bg-brand-500/10 border-brand-500/30 text-brand-600 dark:text-brand-400' 
+                              : isBearish 
+                                ? 'bg-danger-500/10 border-danger-500/30 text-danger-600 dark:text-danger-400'
+                                : 'bg-brand-500/10 border-brand-500/30'
+                          }`}
+                        >
+                          {alert.volumeRatio.toFixed(2)}x
                         </Badge>
+                        {alert.isUpdate && (
+                          <Badge variant="secondary" className="text-xs">
+                            {alert.alertType === 'HALF_UPDATE' ? '30m Update' : 'Hourly Update'}
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {/* Volume information - current and previous */}
+                      <div className="space-y-0.5 text-sm text-muted-foreground">
+                        <div>This hour: {formatVolume(alert.currentVolume)}</div>
+                        <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
+                      </div>
+                      
+                      {/* Price and funding on one line */}
+                      {(alert.price || alert.fundingRate) && (
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {alert.price && (
+                            <span>Price: {formatPrice(alert.price)}</span>
+                          )}
+                          {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                            <span
+                              className={
+                                alert.fundingRate > 0.03 
+                                  ? 'text-brand-600 dark:text-brand-400' 
+                                  : alert.fundingRate < -0.03 
+                                    ? 'text-danger-600 dark:text-danger-400' 
+                                    : ''
+                              }
+                            >
+                              Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
-                    
-                    {/* Volume information - current and previous */}
-                    <div className="text-sm text-muted-foreground space-y-0.5">
-                      <div>This hour: {formatVolume(alert.currentVolume)}</div>
-                      <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
-                    </div>
-                    
-                    {/* Price and funding on one line */}
-                    {(alert.price || alert.fundingRate) && (
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {alert.price && (
-                          <span>Price: {formatPrice(alert.price)}</span>
-                        )}
-                        {alert.fundingRate !== undefined && alert.fundingRate !== null && (
-                          <span className={
-                            alert.fundingRate > 0.03 
-                              ? 'text-brand-600 dark:text-brand-400' 
-                              : alert.fundingRate < -0.03 
-                                ? 'text-danger-600 dark:text-danger-400' 
-                                : ''
-                          }>
-                            Funding: {(alert.fundingRate * 100).toFixed(3)}%
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
-                </div>
                 )
               })}
             </div>
-          )}
-        </ScrollArea>
+          </div>
+        ) : (
+          <ScrollArea className="h-[600px] pr-4" direction="vertical" showHint>
+            <div className="space-y-3 pb-3" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
+              {displayAlerts.map((alert, index) => {
+                // Determine color based on candle direction
+                const isBullish = alert.candleDirection === 'bullish'
+                const isBearish = alert.candleDirection === 'bearish'
+                const isNew = newAlertIds.has(alert.id)
+                const isBlurred = guestMode && index >= guestVisibleCount
+                
+                // 🎨 Sophisticated animation selection based on type AND direction
+                const getAnimationClass = () => {
+                  if (!isNew) return ''
+                  
+                  // SPIKE ALERTS - Maximum Drama
+                  if (alert.alertType === 'SPIKE' || !alert.isUpdate) {
+                    return isBullish 
+                      ? 'animate-lightning-strike-green' // ⚡ Lightning from above
+                      : 'animate-meteor-impact-red'      // ☄️ Meteor from diagonal
+                  }
+                  
+                  // 30M UPDATES - Medium Drama
+                  if (alert.alertType === 'HALF_UPDATE') {
+                    return isBullish
+                      ? 'animate-quantum-shimmer-green'  // ✨ Quantum phase-in
+                      : 'animate-warning-pulse-red'      // 🚨 Warning pulse
+                  }
+                  
+                  // HOURLY UPDATES - Elegant Subtlety
+                  if (alert.alertType === 'FULL_UPDATE') {
+                    return isBullish
+                      ? 'animate-aurora-wave-green'      // 🌅 Aurora wave
+                      : 'animate-ember-glow-red'         // 🔥 Ember glow
+                  }
+                  
+                  return ''
+                }
+                
+                // 🌟 Complementary glow effects for each animation
+                const getGlowClass = () => {
+                  if (!isNew) return ''
+                  
+                  // SPIKE ALERTS
+                  if (alert.alertType === 'SPIKE' || !alert.isUpdate) {
+                    return isBullish
+                      ? 'animate-electric-charge-green'  // Electric charge pulses
+                      : 'animate-shockwave-red'          // Shockwave ripples
+                  }
+                  
+                  // 30M UPDATES
+                  if (alert.alertType === 'HALF_UPDATE') {
+                    return isBullish
+                      ? 'animate-energy-wave-green'      // Energy waves
+                      : 'animate-alert-beacon-red'       // Alert beacon
+                  }
+                  
+                  // HOURLY UPDATES
+                  if (alert.alertType === 'FULL_UPDATE') {
+                    return isBullish
+                      ? 'animate-gentle-glow-green'      // Gentle glow
+                      : 'animate-soft-pulse-red'         // Soft pulse
+                  }
+                  
+                  return ''
+                }
+                
+                // Handler for replaying animations by clicking on alert cards
+                // Available for ALL users (desktop click or mobile tap)
+                const handleAlertClick = () => {
+                  // Determine sound type based on alert type
+                  const soundType = alert.alertType === 'HALF_UPDATE' 
+                    ? 'half_update' 
+                    : alert.alertType === 'FULL_UPDATE'
+                      ? 'full_update'
+                      : 'spike'
+                  
+                  // Trigger animation and sound
+                  setNewAlertIds(new Set([alert.id]))
+                  playSound(soundType)
+                  
+                  // Clear animation after completion
+                  setTimeout(() => {
+                    setNewAlertIds(new Set())
+                  }, 2000)
+                }
+                
+                return (
+                  <div
+                    key={alert.id}
+                    onClick={handleAlertClick}
+                    className={`cursor-pointer rounded-lg border p-3 transition-all duration-150 hover:shadow-md ${
+                      isBullish
+                        ? 'border-brand-500/30 bg-brand-500/5 hover:bg-brand-500/10' 
+                        : isBearish
+                          ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
+                          : 'border-border hover:bg-muted/50'
+                    } ${getAnimationClass()} ${getGlowClass()} ${
+                      isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
+                    } ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
+                    title="Click to replay animation and sound"
+                  >
+                    <div className="space-y-2">
+                      {/* Header: Asset name and timestamp */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          {isBearish ? (
+                            <TrendingDown className="h-4 w-4 flex-shrink-0 text-danger-500" />
+                          ) : (
+                            <TrendingUp
+                              className={`h-4 w-4 flex-shrink-0 ${
+                                isBullish ? 'text-brand-500' : 'text-muted-foreground'
+                              }`}
+                            />
+                          )}
+                          <span className="text-base font-semibold">{alert.asset}</span>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <div className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatExactTime(alert.timestamp)}
+                          </div>
+                          <div className="text-xs text-muted-foreground/70 whitespace-nowrap">
+                            ({formatRelativeTime(alert.timestamp)})
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Multiplier and Update badges on second line */}
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs font-mono-tabular ${
+                            isBullish 
+                              ? 'bg-brand-500/10 border-brand-500/30 text-brand-600 dark:text-brand-400' 
+                              : isBearish 
+                                ? 'bg-danger-500/10 border-danger-500/30 text-danger-600 dark:text-danger-400'
+                                : 'bg-brand-500/10 border-brand-500/30'
+                          }`}
+                        >
+                          {alert.volumeRatio.toFixed(2)}x
+                        </Badge>
+                        {alert.isUpdate && (
+                          <Badge variant="secondary" className="text-xs">
+                            {alert.alertType === 'HALF_UPDATE' ? '30m Update' : 'Hourly Update'}
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {/* Volume information - current and previous */}
+                      <div className="space-y-0.5 text-sm text-muted-foreground">
+                        <div>This hour: {formatVolume(alert.currentVolume)}</div>
+                        <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
+                      </div>
+                      
+                      {/* Price and funding on one line */}
+                      {(alert.price || alert.fundingRate) && (
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          {alert.price && (
+                            <span>Price: {formatPrice(alert.price)}</span>
+                          )}
+                          {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                            <span
+                              className={
+                                alert.fundingRate > 0.03 
+                                  ? 'text-brand-600 dark:text-brand-400' 
+                                  : alert.fundingRate < -0.03 
+                                    ? 'text-danger-600 dark:text-danger-400' 
+                                    : ''
+                              }
+                            >
+                              Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </ScrollArea>
+        )}
 
         {guestMode && (
           <div className="relative">
