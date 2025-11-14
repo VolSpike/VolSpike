@@ -5,6 +5,7 @@ import { prisma, io } from '../index'
 import { createLogger } from '../lib/logger'
 import { User } from '../types'
 import { getUser, requireUser } from '../lib/hono-extensions'
+import { EmailService } from '../services/email'
 
 const logger = createLogger()
 
@@ -270,6 +271,31 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
         // Update user tier if we determined one
         if (tier) {
+            // Get user's previous tier before updating (for email notification)
+            let previousTier: string | undefined
+            let userEmail: string | undefined
+
+            if (session.metadata?.userId) {
+                const existingUser = await prisma.user.findUnique({
+                    where: { id: session.metadata.userId },
+                    select: { tier: true, email: true },
+                })
+                if (existingUser) {
+                    previousTier = existingUser.tier
+                    userEmail = existingUser.email || undefined
+                }
+            } else {
+                // Fallback: get from customerId
+                const existingUser = await prisma.user.findFirst({
+                    where: { stripeCustomerId: customerId },
+                    select: { tier: true, email: true },
+                })
+                if (existingUser) {
+                    previousTier = existingUser.tier
+                    userEmail = existingUser.email || undefined
+                }
+            }
+
             // Update user tier
             const result = await prisma.user.updateMany({
                 where: { stripeCustomerId: customerId },
@@ -279,6 +305,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             logger.info(`Checkout completed: User tier updated to ${tier}`, {
                 customerId,
                 tier,
+                previousTier,
                 mode: session.mode,
                 usersUpdated: result.count,
                 priceId,
@@ -295,6 +322,22 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                     tier: userResult.tier,
                 })
 
+                // Send tier upgrade email to customer
+                if (userResult.email && previousTier !== tier) {
+                    try {
+                        const emailService = EmailService.getInstance()
+                        await emailService.sendTierUpgradeEmail({
+                            email: userResult.email,
+                            newTier: tier,
+                            previousTier: previousTier,
+                        })
+                        logger.info(`Tier upgrade email sent to ${userResult.email}`)
+                    } catch (error) {
+                        logger.error(`Failed to send tier upgrade email to ${userResult.email}:`, error)
+                        // Don't throw - email failure shouldn't break the webhook
+                    }
+                }
+
                 // Broadcast tier change via WebSocket
                 if (io) {
                     io.to(`user-${session.metadata.userId}`).emit('tier-changed', { tier })
@@ -306,12 +349,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             if (result.count > 0 && io) {
                 const updatedUsers = await prisma.user.findMany({
                     where: { stripeCustomerId: customerId },
-                    select: { id: true },
+                    select: { id: true, email: true },
                 })
 
                 updatedUsers.forEach(user => {
                     io.to(`user-${user.id}`).emit('tier-changed', { tier })
                 })
+
+                // Send email to users updated by customerId (if not already sent via userId)
+                if (!session.metadata?.userId && userEmail && previousTier !== tier) {
+                    try {
+                        const emailService = EmailService.getInstance()
+                        await emailService.sendTierUpgradeEmail({
+                            email: userEmail,
+                            newTier: tier,
+                            previousTier: previousTier,
+                        })
+                        logger.info(`Tier upgrade email sent to ${userEmail}`)
+                    } catch (error) {
+                        logger.error(`Failed to send tier upgrade email to ${userEmail}:`, error)
+                        // Don't throw - email failure shouldn't break the webhook
+                    }
+                }
 
                 logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
             }
@@ -350,6 +409,17 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
             metadata: price.metadata,
         })
 
+        // Get user's previous tier before updating (for email notification)
+        const existingUsers = await prisma.user.findMany({
+            where: { stripeCustomerId: customerId },
+            select: { id: true, tier: true, email: true },
+        })
+
+        const previousTiers = new Map<string, string>()
+        existingUsers.forEach(user => {
+            previousTiers.set(user.id, user.tier)
+        })
+
         // Update user tier
         const result = await prisma.user.updateMany({
             where: { stripeCustomerId: customerId },
@@ -366,19 +436,38 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
         if (result.count === 0) {
             logger.warn(`No users found with stripeCustomerId: ${customerId}`)
         } else {
-            // Broadcast tier change to affected users via WebSocket
-            if (io) {
-                const updatedUsers = await prisma.user.findMany({
-                    where: { stripeCustomerId: customerId },
-                    select: { id: true },
-                })
+            // Get updated users to send emails and broadcast
+            const updatedUsers = await prisma.user.findMany({
+                where: { stripeCustomerId: customerId },
+                select: { id: true, email: true, tier: true },
+            })
 
-                updatedUsers.forEach(user => {
+            // Send tier upgrade emails and broadcast tier changes
+            const emailService = EmailService.getInstance()
+            updatedUsers.forEach(user => {
+                const previousTier = previousTiers.get(user.id)
+                
+                // Broadcast tier change via WebSocket
+                if (io) {
                     io.to(`user-${user.id}`).emit('tier-changed', { tier })
-                })
+                }
 
-                logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
-            }
+                // Send email if tier actually changed
+                if (user.email && previousTier && previousTier !== tier) {
+                    emailService.sendTierUpgradeEmail({
+                        email: user.email,
+                        newTier: tier,
+                        previousTier: previousTier,
+                    }).then(() => {
+                        logger.info(`Tier upgrade email sent to ${user.email}`)
+                    }).catch((error) => {
+                        logger.error(`Failed to send tier upgrade email to ${user.email}:`, error)
+                        // Don't throw - email failure shouldn't break the webhook
+                    })
+                }
+            })
+
+            logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
         }
     } catch (error) {
         logger.error('Error handling subscription change:', error)
@@ -388,6 +477,17 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     const customerId = subscription.customer as string
+
+    // Get user's previous tier before downgrading (for email notification)
+    const existingUsers = await prisma.user.findMany({
+        where: { stripeCustomerId: customerId },
+        select: { id: true, tier: true, email: true },
+    })
+
+    const previousTiers = new Map<string, string>()
+    existingUsers.forEach(user => {
+        previousTiers.set(user.id, user.tier)
+    })
 
     // Downgrade to free tier
     const result = await prisma.user.updateMany({
@@ -409,6 +509,13 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
         try {
             const customer = await stripe.customers.retrieve(customerId)
             if (!customer.deleted && customer.email) {
+                const existingUser = await prisma.user.findFirst({
+                    where: { email: customer.email },
+                    select: { id: true, tier: true, email: true },
+                })
+
+                const previousTier = existingUser?.tier
+
                 const emailResult = await prisma.user.updateMany({
                     where: { email: customer.email },
                     data: { tier: 'free' },
@@ -417,15 +524,32 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
                     usersUpdated: emailResult.count,
                 })
 
-                // Broadcast tier change if user was updated
-                if (emailResult.count > 0 && io) {
+                // Broadcast tier change and send email if user was updated
+                if (emailResult.count > 0) {
                     const updatedUser = await prisma.user.findFirst({
                         where: { email: customer.email },
-                        select: { id: true },
+                        select: { id: true, email: true },
                     })
                     if (updatedUser) {
-                        io.to(`user-${updatedUser.id}`).emit('tier-changed', { tier: 'free' })
-                        logger.info(`Broadcasted tier change to user ${updatedUser.id}`)
+                        if (io) {
+                            io.to(`user-${updatedUser.id}`).emit('tier-changed', { tier: 'free' })
+                            logger.info(`Broadcasted tier change to user ${updatedUser.id}`)
+                        }
+
+                        // Send downgrade email
+                        if (updatedUser.email && previousTier && previousTier !== 'free') {
+                            try {
+                                const emailService = EmailService.getInstance()
+                                await emailService.sendTierUpgradeEmail({
+                                    email: updatedUser.email,
+                                    newTier: 'free',
+                                    previousTier: previousTier,
+                                })
+                                logger.info(`Tier downgrade email sent to ${updatedUser.email}`)
+                            } catch (error) {
+                                logger.error(`Failed to send tier downgrade email to ${updatedUser.email}:`, error)
+                            }
+                        }
                     }
                 }
             }
@@ -433,19 +557,37 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
             logger.error(`Failed to retrieve customer ${customerId} for fallback update:`, error)
         }
     } else {
-        // Broadcast tier change to affected users via WebSocket
-        if (io && result.count > 0) {
-            const updatedUsers = await prisma.user.findMany({
-                where: { stripeCustomerId: customerId },
-                select: { id: true },
-            })
+        // Get updated users to send emails and broadcast
+        const updatedUsers = await prisma.user.findMany({
+            where: { stripeCustomerId: customerId },
+            select: { id: true, email: true },
+        })
 
-            updatedUsers.forEach(user => {
+        // Broadcast tier change and send emails
+        const emailService = EmailService.getInstance()
+        updatedUsers.forEach(user => {
+            const previousTier = previousTiers.get(user.id)
+
+            // Broadcast tier change via WebSocket
+            if (io) {
                 io.to(`user-${user.id}`).emit('tier-changed', { tier: 'free' })
-            })
+            }
 
-            logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
-        }
+            // Send email if tier actually changed
+            if (user.email && previousTier && previousTier !== 'free') {
+                emailService.sendTierUpgradeEmail({
+                    email: user.email,
+                    newTier: 'free',
+                    previousTier: previousTier,
+                }).then(() => {
+                    logger.info(`Tier downgrade email sent to ${user.email}`)
+                }).catch((error) => {
+                    logger.error(`Failed to send tier downgrade email to ${user.email}:`, error)
+                })
+            }
+        })
+
+        logger.info(`Broadcasted tier change to ${updatedUsers.length} user(s)`)
     }
 }
 
