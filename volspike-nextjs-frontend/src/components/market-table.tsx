@@ -415,7 +415,7 @@ export function MarketTable({
             {/* Table with sticky header */}
             <div 
                 ref={scrollContainerRef}
-                className={`relative max-h-[600px] ${guestMode ? 'overflow-y-hidden' : 'overflow-y-auto'} overflow-x-auto`} 
+                className={`relative max-h-[600px] vs-scroll ${guestMode ? 'overflow-y-hidden' : 'overflow-y-auto'} overflow-x-auto`} 
                 style={{ 
                     WebkitOverflowScrolling: 'touch',
                     // Prevent horizontal rubber-band overscroll; allow normal vertical behavior

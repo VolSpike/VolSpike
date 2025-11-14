@@ -8,7 +8,7 @@ interface ScrollAreaProps {
 
 export function ScrollArea({ children, className }: ScrollAreaProps) {
     return (
-        <div className={cn('overflow-auto', className)}>
+        <div className={cn('overflow-auto vs-scroll', className)}>
             {children}
         </div>
     )

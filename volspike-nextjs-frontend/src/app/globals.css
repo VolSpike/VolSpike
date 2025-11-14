@@ -240,6 +240,76 @@ table.vs-market-table tr {
     }
 }
 
+@layer base {
+    /* VolSpike signature scrollbars – subtle, neon-infused, and card-aware */
+    .vs-scroll,
+    body {
+        /* Firefox */
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--brand-500) / 0.7) transparent;
+    }
+
+    .vs-scroll::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+    }
+
+    .vs-scroll:hover::-webkit-scrollbar,
+    body:hover::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .vs-scroll::-webkit-scrollbar-track,
+    body::-webkit-scrollbar-track {
+        background: transparent;
+        /* Subtle rail hint that respects card radius */
+        border-radius: 999px;
+    }
+
+    .vs-scroll::-webkit-scrollbar-thumb,
+    body::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        background-image: linear-gradient(
+            to bottom,
+            hsl(var(--brand-500) / 0.25),
+            hsl(var(--secondary-500) / 0.55)
+        );
+        box-shadow:
+            0 0 0 1px hsl(var(--bg-elevated)),
+            0 0 16px hsl(var(--brand-glow));
+    }
+
+    .vs-scroll::-webkit-scrollbar-thumb:hover,
+    body::-webkit-scrollbar-thumb:hover {
+        background-image: linear-gradient(
+            to bottom,
+            hsl(var(--brand-500) / 0.6),
+            hsl(var(--secondary-500) / 0.9)
+        );
+        box-shadow:
+            0 0 0 1px hsl(var(--brand-500) / 0.8),
+            0 0 22px hsl(var(--brand-glow));
+    }
+
+    .vs-scroll::-webkit-scrollbar-thumb:active,
+    body::-webkit-scrollbar-thumb:active {
+        background-image: linear-gradient(
+            to bottom,
+            hsl(var(--brand-600)),
+            hsl(var(--secondary-600))
+        );
+    }
+
+    .vs-scroll::-webkit-scrollbar-corner,
+    body::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+}
+
 @layer utilities {
     /* Hide scrollbar for Chrome, Safari and Opera */
     .scrollbar-hide::-webkit-scrollbar {
