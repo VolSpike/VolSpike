@@ -27,6 +27,66 @@ export const prisma = new PrismaClient()
 // Initialize logger
 const logger = createLogger()
 
+// ============================================
+// DATABASE HEALTH CHECK & MIGRATION VERIFICATION
+// ============================================
+
+async function verifyDatabaseSchema() {
+    try {
+        // Check if crypto_payments table exists and has required columns
+        const tableInfo = await prisma.$queryRaw<Array<{column_name: string}>>`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'crypto_payments'
+        `.catch(() => [])
+
+        if (tableInfo.length === 0) {
+            logger.warn('⚠️ crypto_payments table not found - database migration may be required')
+            logger.warn('💡 Run: npx prisma db push (or wait for automatic migration on next deployment)')
+            return false
+        }
+
+        const requiredColumns = ['id', 'userId', 'invoiceId', 'orderId', 'paymentUrl', 'tier']
+        const existingColumns = tableInfo.map(c => c.column_name)
+        const missingColumns = requiredColumns.filter(col => !existingColumns.includes(col))
+
+        if (missingColumns.length > 0) {
+            logger.warn('⚠️ crypto_payments table missing required columns:', missingColumns)
+            logger.warn('💡 Database migration may be in progress or incomplete')
+            return false
+        }
+
+        // Check for optional columns (expiresAt, renewalReminderSent)
+        const hasExpiresAt = existingColumns.includes('expiresAt')
+        const hasRenewalReminderSent = existingColumns.includes('renewalReminderSent')
+
+        if (!hasExpiresAt || !hasRenewalReminderSent) {
+            logger.info('ℹ️ crypto_payments table exists but missing optional columns (expiresAt, renewalReminderSent)')
+            logger.info('ℹ️ Payment creation will use fallback mode until migration completes')
+            return true // Table exists with required columns, optional columns can be added later
+        }
+
+        logger.info('✅ Database schema verified - all columns present')
+        return true
+    } catch (error) {
+        logger.error('❌ Database schema verification failed:', {
+            error: error instanceof Error ? error.message : String(error),
+        })
+        return false
+    }
+}
+
+// Run schema verification on startup (non-blocking)
+verifyDatabaseSchema().then((isHealthy) => {
+    if (isHealthy) {
+        logger.info('✅ Database ready')
+    } else {
+        logger.warn('⚠️ Database schema may need migration - payment creation will use fallback mode')
+    }
+}).catch((error) => {
+    logger.error('❌ Database verification error:', error)
+})
+
 // Create Hono app
 const app = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
 
