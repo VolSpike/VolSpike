@@ -218,6 +218,12 @@ auth.post('/signin', async (c) => {
         
         logger.info(`[AUTH] Password valid, generating token for: ${email}`)
 
+        // Update last login time
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+        })
+
         const token = await generateToken(user.id)
 
         logger.info(`User ${user.email} signed in`)
@@ -370,6 +376,12 @@ auth.post('/oauth-link', async (c) => {
                 },
             })
         }
+
+        // Update last login time
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+        })
 
         const token = await generateToken(user.id)
 
@@ -820,6 +832,11 @@ auth.post('/siwe/verify', async (c) => {
                 where: { id: walletAccount.id },
                 data: { lastLoginAt: new Date() },
             })
+            // Also update user's last login time
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { lastLoginAt: new Date() },
+            })
             logger.info(`Existing wallet signed in: ${caip10}`)
         } else {
             // New wallet - check if user is logged in
@@ -857,6 +874,11 @@ auth.post('/siwe/verify', async (c) => {
                             chainId: String(chainId),
                             lastLoginAt: new Date(),
                         },
+                    })
+                    // Update user's last login time when linking wallet
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { lastLoginAt: new Date() },
                     })
                     
                     logger.info(`Wallet ${caip10} linked to existing user account: ${user.email}`)
@@ -917,6 +939,11 @@ auth.post('/siwe/verify', async (c) => {
                             chainId: String(chainId),
                             lastLoginAt: new Date(),
                         },
+                    })
+                    // Update user's last login time for new wallet users
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { lastLoginAt: new Date() },
                     })
                     
                     logger.info(`New wallet-only account created: ${caip10}`)
@@ -1053,6 +1080,11 @@ auth.post('/solana/verify', async (c) => {
         if (walletAccount) {
             user = walletAccount.user
             await prisma.walletAccount.update({ where: { id: walletAccount.id }, data: { lastLoginAt: new Date() } })
+            // Also update user's last login time
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { lastLoginAt: new Date() },
+            })
         } else {
             user = await prisma.user.create({
                 data: {
@@ -1082,6 +1114,11 @@ auth.post('/solana/verify', async (c) => {
                     chainId: String(chainId || '101'),
                     lastLoginAt: new Date(),
                 },
+            })
+            // Update user's last login time for new wallet users
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { lastLoginAt: new Date() },
             })
         }
 
