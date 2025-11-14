@@ -662,8 +662,25 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 // Create NowPayments checkout
 payments.post('/nowpayments/checkout', async (c) => {
     try {
+        logger.info('NowPayments checkout request received', {
+            method: c.req.method,
+            url: c.req.url,
+            hasAuth: !!c.req.header('authorization'),
+        })
+
         const user = requireUser(c)
+        logger.info('User authenticated for NowPayments checkout', {
+            userId: user.id,
+            email: user.email,
+        })
+
         const body = await c.req.json()
+        logger.info('Request body parsed', {
+            tier: body.tier,
+            hasSuccessUrl: !!body.successUrl,
+            hasCancelUrl: !!body.cancelUrl,
+        })
+
         const { tier, successUrl, cancelUrl } = z.object({
             tier: z.enum(['pro', 'elite']),
             successUrl: z.string().url(),
@@ -680,38 +697,81 @@ payments.post('/nowpayments/checkout', async (c) => {
         // Generate unique order ID
         const orderId = `volspike-${user.id}-${Date.now()}`
 
+        // Check environment variables
+        const backendUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(':3000', ':3001') || 'http://localhost:3001'
+        const ipnCallbackUrl = `${backendUrl}/api/payments/nowpayments/webhook`
+
+        logger.info('NowPayments configuration check', {
+            hasApiKey: !!process.env.NOWPAYMENTS_API_KEY,
+            hasIpnSecret: !!process.env.NOWPAYMENTS_IPN_SECRET,
+            apiUrl: process.env.NOWPAYMENTS_API_URL,
+            sandboxMode: process.env.NOWPAYMENTS_SANDBOX_MODE,
+            backendUrl,
+            ipnCallbackUrl,
+            priceAmount,
+            tier,
+            orderId,
+        })
+
         // Create payment with NowPayments
         const nowpayments = NowPaymentsService.getInstance()
+        
+        logger.info('Calling NowPayments API to create payment', {
+            price_amount: priceAmount,
+            price_currency: 'usd',
+            order_id: orderId,
+            ipn_callback_url: ipnCallbackUrl,
+        })
+
         const payment = await nowpayments.createPayment({
             price_amount: priceAmount,
             price_currency: 'usd',
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription`,
-            ipn_callback_url: `${process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(':3000', ':3001') || 'http://localhost:3001'}/api/payments/nowpayments/webhook`,
+            ipn_callback_url: ipnCallbackUrl,
             success_url: successUrl,
             cancel_url: cancelUrl,
         })
 
-        // Store payment in database
-        await prisma.cryptoPayment.create({
-            data: {
-                userId: user.id,
-                paymentId: payment.payment_id,
-                paymentStatus: payment.payment_status,
-                payAmount: payment.price_amount,
-                payCurrency: payment.price_currency,
-                actuallyPaid: payment.actually_paid,
-                actuallyPaidCurrency: payment.pay_currency,
-                purchaseId: payment.purchase_id,
-                tier: tier,
-                invoiceId: payment.invoice_id,
-                orderId: payment.order_id,
-                paymentUrl: payment.pay_url,
-                payAddress: payment.pay_address,
-            },
+        logger.info('NowPayments payment created successfully', {
+            paymentId: payment.payment_id,
+            paymentStatus: payment.payment_status,
+            payUrl: payment.pay_url,
+            payAddress: payment.pay_address,
         })
 
-        logger.info(`NowPayments checkout created for ${user.email}`, {
+        // Store payment in database
+        try {
+            await prisma.cryptoPayment.create({
+                data: {
+                    userId: user.id,
+                    paymentId: payment.payment_id,
+                    paymentStatus: payment.payment_status,
+                    payAmount: payment.price_amount,
+                    payCurrency: payment.price_currency,
+                    actuallyPaid: payment.actually_paid,
+                    actuallyPaidCurrency: payment.pay_currency,
+                    purchaseId: payment.purchase_id,
+                    tier: tier,
+                    invoiceId: payment.invoice_id,
+                    orderId: payment.order_id,
+                    paymentUrl: payment.pay_url,
+                    payAddress: payment.pay_address,
+                },
+            })
+            logger.info('Crypto payment record created in database', {
+                paymentId: payment.payment_id,
+                userId: user.id,
+            })
+        } catch (dbError) {
+            logger.error('Failed to create crypto payment record in database', {
+                error: dbError instanceof Error ? dbError.message : String(dbError),
+                paymentId: payment.payment_id,
+            })
+            // Don't fail the request if DB write fails - payment was created successfully
+        }
+
+        logger.info(`NowPayments checkout completed successfully for ${user.email}`, {
             paymentId: payment.payment_id,
             tier,
         })
@@ -726,12 +786,49 @@ payments.post('/nowpayments/checkout', async (c) => {
             priceCurrency: payment.price_currency,
         })
     } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        logger.error('NowPayments checkout error:', message)
-        if (message.includes('User not authenticated') || message.includes('Authorization')) {
-            return c.json({ error: 'Unauthorized' }, 401)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+        
+        logger.error('NowPayments checkout error - FULL DETAILS:', {
+            message: errorMessage,
+            stack: errorStack,
+            errorType: error?.constructor?.name,
+            errorDetails: error instanceof Error ? {
+                name: error.name,
+                message: error.message,
+            } : String(error),
+        })
+
+        // Check for specific error types
+        if (errorMessage.includes('User not authenticated') || errorMessage.includes('Authorization')) {
+            return c.json({ 
+                error: 'Unauthorized',
+                details: 'Authentication failed. Please sign in again.',
+            }, 401)
         }
-        return c.json({ error: 'Failed to create checkout session' }, 500)
+
+        if (errorMessage.includes('API key')) {
+            return c.json({ 
+                error: 'Configuration Error',
+                details: 'NowPayments API key is not configured correctly. Please check your environment variables.',
+                message: errorMessage,
+            }, 500)
+        }
+
+        if (errorMessage.includes('Cannot connect')) {
+            return c.json({ 
+                error: 'Connection Error',
+                details: 'Cannot connect to NowPayments API. Please check your network connection and API URL.',
+                message: errorMessage,
+            }, 500)
+        }
+
+        // Return detailed error for debugging
+        return c.json({ 
+            error: 'Failed to create checkout session',
+            details: errorMessage,
+            message: errorMessage,
+        }, 500)
     }
 })
 

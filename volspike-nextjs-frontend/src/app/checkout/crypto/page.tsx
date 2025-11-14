@@ -82,9 +82,20 @@ export default function CryptoCheckoutPage() {
                 <AlertCircle className="h-5 w-5" />
                 <CardTitle>Payment Error</CardTitle>
               </div>
-              <CardDescription>{error}</CardDescription>
+              <CardDescription className="break-words">{error}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                <p className="text-sm text-muted-foreground mb-2">
+                  <strong>Error Details:</strong>
+                </p>
+                <p className="text-xs font-mono text-muted-foreground break-all">
+                  {error}
+                </p>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Check the browser console (F12) and Railway logs for more details.
+                </p>
+              </div>
               <Button onClick={() => router.push('/pricing')} className="w-full">
                 Back to Pricing
               </Button>

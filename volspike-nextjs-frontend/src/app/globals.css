@@ -249,27 +249,32 @@ table.vs-market-table tr {
         scrollbar-color: hsl(var(--brand-500) / 0.7) transparent;
     }
 
+    /* Apply WebKit styling broadly so mobile browsers pick it up */
     .vs-scroll::-webkit-scrollbar,
-    body::-webkit-scrollbar {
+    body::-webkit-scrollbar,
+    *::-webkit-scrollbar {
         width: 7px;
         height: 7px;
     }
 
     .vs-scroll:hover::-webkit-scrollbar,
-    body:hover::-webkit-scrollbar {
+    body:hover::-webkit-scrollbar,
+    *:hover::-webkit-scrollbar {
         width: 10px;
         height: 10px;
     }
 
     .vs-scroll::-webkit-scrollbar-track,
-    body::-webkit-scrollbar-track {
+    body::-webkit-scrollbar-track,
+    *::-webkit-scrollbar-track {
         background: transparent;
         /* Subtle rail hint that respects card radius */
         border-radius: 999px;
     }
 
     .vs-scroll::-webkit-scrollbar-thumb,
-    body::-webkit-scrollbar-thumb {
+    body::-webkit-scrollbar-thumb,
+    *::-webkit-scrollbar-thumb {
         border-radius: 999px;
         border: 2px solid transparent;
         background-clip: padding-box;
@@ -284,7 +289,8 @@ table.vs-market-table tr {
     }
 
     .vs-scroll::-webkit-scrollbar-thumb:hover,
-    body::-webkit-scrollbar-thumb:hover {
+    body::-webkit-scrollbar-thumb:hover,
+    *::-webkit-scrollbar-thumb:hover {
         background-image: linear-gradient(
             to bottom,
             hsl(var(--brand-500) / 0.6),
@@ -296,7 +302,8 @@ table.vs-market-table tr {
     }
 
     .vs-scroll::-webkit-scrollbar-thumb:active,
-    body::-webkit-scrollbar-thumb:active {
+    body::-webkit-scrollbar-thumb:active,
+    *::-webkit-scrollbar-thumb:active {
         background-image: linear-gradient(
             to bottom,
             hsl(var(--brand-600)),
@@ -305,7 +312,8 @@ table.vs-market-table tr {
     }
 
     .vs-scroll::-webkit-scrollbar-corner,
-    body::-webkit-scrollbar-corner {
+    body::-webkit-scrollbar-corner,
+    *::-webkit-scrollbar-corner {
         background: transparent;
     }
 }

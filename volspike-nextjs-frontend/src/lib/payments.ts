@@ -165,42 +165,106 @@ export async function startCryptoCheckout(
     API_URL,
     userId: session.user.id,
     email: session.user.email,
+    hasAuthToken: !!authToken,
+    authTokenLength: authToken?.toString().length,
+    successUrl,
+    cancelUrl,
   })
 
-  const resp = await fetch(`${API_URL}/api/payments/nowpayments/checkout`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`,
-    },
-    body: JSON.stringify({
-      tier,
-      successUrl,
-      cancelUrl,
-    }),
-  })
+  let resp: Response
+  try {
+    resp = await fetch(`${API_URL}/api/payments/nowpayments/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        tier,
+        successUrl,
+        cancelUrl,
+      }),
+    })
 
-  if (!resp.ok) {
-    const data = await resp.json().catch(() => ({}))
-    const errorMessage = data?.error || data?.message || `Checkout failed (HTTP ${resp.status})`
-    console.error('[startCryptoCheckout] Checkout failed', {
+    console.log('[startCryptoCheckout] Response received', {
       status: resp.status,
       statusText: resp.statusText,
-      error: data?.error,
-      message: errorMessage,
+      ok: resp.ok,
+      headers: Object.fromEntries(resp.headers.entries()),
     })
-    throw new Error(errorMessage)
+  } catch (fetchError) {
+    console.error('[startCryptoCheckout] Fetch error (network/connection)', {
+      error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+      API_URL,
+      stack: fetchError instanceof Error ? fetchError.stack : undefined,
+    })
+    throw new Error(`Network error: Cannot connect to payment server. Please check your connection and try again.`)
   }
 
-  const data = await resp.json()
-  
-  if (!data.paymentUrl) {
-    console.error('[startCryptoCheckout] No payment URL returned', data)
-    throw new Error('Payment URL not returned from server')
+  let responseData: any
+  try {
+    const responseText = await resp.text()
+    console.log('[startCryptoCheckout] Response body (raw)', {
+      text: responseText.substring(0, 500), // First 500 chars
+      length: responseText.length,
+    })
+    
+    try {
+      responseData = JSON.parse(responseText)
+      console.log('[startCryptoCheckout] Response body (parsed)', responseData)
+    } catch (parseError) {
+      console.error('[startCryptoCheckout] Failed to parse JSON response', {
+        error: parseError instanceof Error ? parseError.message : String(parseError),
+        responseText: responseText.substring(0, 500),
+      })
+      throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`)
+    }
+  } catch (readError) {
+    console.error('[startCryptoCheckout] Error reading response', {
+      error: readError instanceof Error ? readError.message : String(readError),
+    })
+    throw readError instanceof Error ? readError : new Error('Failed to read server response')
   }
+
+  if (!resp.ok) {
+    const errorMessage = responseData?.error || responseData?.details || responseData?.message || `Checkout failed (HTTP ${resp.status})`
+    console.error('[startCryptoCheckout] Checkout failed - FULL ERROR DETAILS', {
+      status: resp.status,
+      statusText: resp.statusText,
+      responseData,
+      error: responseData?.error,
+      details: responseData?.details,
+      message: responseData?.message,
+      errorMessage,
+    })
+    
+    // Provide more helpful error messages
+    if (resp.status === 401) {
+      throw new Error('Authentication failed. Please sign in again.')
+    } else if (resp.status === 500 && responseData?.details) {
+      throw new Error(responseData.details)
+    } else {
+      throw new Error(errorMessage)
+    }
+  }
+
+  if (!responseData.paymentUrl) {
+    console.error('[startCryptoCheckout] No payment URL returned', {
+      responseData,
+      hasPaymentId: !!responseData.paymentId,
+      hasPaymentUrl: !!responseData.paymentUrl,
+    })
+    throw new Error('Payment URL not returned from server. Please check server logs.')
+  }
+
+  console.log('[startCryptoCheckout] Success!', {
+    paymentId: responseData.paymentId,
+    paymentUrl: responseData.paymentUrl,
+    payAddress: responseData.payAddress,
+  })
 
   return {
-    paymentUrl: data.paymentUrl,
-    paymentId: data.paymentId,
+    paymentUrl: responseData.paymentUrl,
+    paymentId: responseData.paymentId,
   }
 }
