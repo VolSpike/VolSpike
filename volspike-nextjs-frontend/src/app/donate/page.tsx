@@ -17,6 +17,7 @@ type AssetInfo = {
   network: string
   seo: string
   steps: string[]
+  badge?: string
 }
 
 const ASSETS: Record<AssetKey, AssetInfo> = {
@@ -49,6 +50,7 @@ const ASSETS: Record<AssetKey, AssetInfo> = {
     address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
     network: 'Ethereum Mainnet (USDC)',
     seo: 'Donate USDC to VolSpike',
+    badge: 'Stablecoin • Preferred',
     steps: [
       'Install MetaMask.',
       'Acquire USDC and add the USDC token in MetaMask if needed.',
@@ -61,6 +63,7 @@ const ASSETS: Record<AssetKey, AssetInfo> = {
     address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
     network: 'Ethereum Mainnet (USDT)',
     seo: 'Donate USDT on Ethereum to VolSpike',
+    badge: 'Stablecoin • Preferred',
     steps: [
       'Install MetaMask.',
       'Acquire USDT (ERC‑20).',
@@ -85,6 +88,7 @@ const ASSETS: Record<AssetKey, AssetInfo> = {
     address: 'DWDTRqQ2zJn6becjTypRwSAVBqoGEh7v7PoAjvwiJ2PS',
     network: 'Solana (USDT)',
     seo: 'Donate USDT on Solana to VolSpike',
+    badge: 'Stablecoin • Preferred',
     steps: [
       'Install Phantom wallet.',
       'Acquire USDT on Solana (via exchange or bridge).',
@@ -131,8 +135,17 @@ function AssetCard({ asset }: { asset: AssetInfo }) {
   return (
     <Card className="border border-purple-500/20 bg-gradient-to-b from-background/40 to-background/10 shadow-lg hover:shadow-xl transition-shadow">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-lg font-semibold">{asset.label}</CardTitle>
-        <CardDescription className="text-xs">{asset.network}</CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg font-semibold">{asset.label}</CardTitle>
+            <CardDescription className="text-xs">{asset.network}</CardDescription>
+          </div>
+          {asset.badge && (
+            <span className="inline-flex items-center rounded-full border border-brand-500/40 bg-brand-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-300">
+              {asset.badge}
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm break-all select-all">
@@ -178,12 +191,14 @@ function AssetCard({ asset }: { asset: AssetInfo }) {
 export default function DonatePage() {
   const items = useMemo(
     () => [
+      // Stablecoins first (most practical for donors)
+      ASSETS.USDT_ETH,
+      ASSETS.USDT_SOL,
+      ASSETS.USDC_ETH,
+      // Then L1 tokens
+      ASSETS.SOL,
       ASSETS.BTC,
       ASSETS.ETH,
-      ASSETS.USDC_ETH,
-      ASSETS.USDT_ETH,
-      ASSETS.SOL,
-      ASSETS.USDT_SOL,
     ],
     []
   )
@@ -242,5 +257,3 @@ export default function DonatePage() {
       </div>
   )
 }
-
-
