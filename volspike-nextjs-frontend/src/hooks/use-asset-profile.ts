@@ -48,6 +48,18 @@ const SYMBOL_OVERRIDES: Record<string, AssetProfileOverride> = {
         coingeckoId: 'soon-2',
         name: 'SOON',
     },
+    SOL: {
+        // CoinGecko has an empty twitter_screen_name for Solana; patch it
+        coingeckoId: 'solana',
+        name: 'Solana',
+        websiteUrl: 'https://solana.com/',
+        twitterUrl: 'https://x.com/solana',
+    },
+    '1000PEPE': {
+        // Binance perp ticker maps to the underlying PEPE token
+        coingeckoId: 'pepe',
+        name: 'Pepe',
+    },
 }
 
 const safeParseCache = (): CacheShape => {
@@ -124,7 +136,27 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
         }
 
         const searchJson = (await searchRes.json()) as any
-        const coins: any[] = Array.isArray(searchJson?.coins) ? searchJson.coins : []
+        let coins: any[] = Array.isArray(searchJson?.coins) ? searchJson.coins : []
+
+        // If nothing comes back for the raw perp symbol (e.g. 1000PEPE),
+        // try a de-multiplied variant like PEPE as a second pass.
+        if (!coins.length) {
+            const multiplierMatch = /^(10|100|1000|10000)([A-Z0-9]+)$/.exec(upper)
+            const stripped = multiplierMatch?.[2]
+
+            if (stripped && stripped !== upper) {
+                const altRes = await fetch(
+                    `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(stripped)}`
+                )
+                if (altRes.ok) {
+                    const altJson = (await altRes.json()) as any
+                    const altCoins: any[] = Array.isArray(altJson?.coins) ? altJson.coins : []
+                    if (altCoins.length) {
+                        coins = altCoins
+                    }
+                }
+            }
+        }
 
         if (!coins.length) {
             if (override) {

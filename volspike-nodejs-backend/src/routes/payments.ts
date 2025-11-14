@@ -1012,32 +1012,97 @@ payments.post('/nowpayments/checkout', async (c) => {
             // For schema errors, try to work around missing fields
             // This handles cases where migration hasn't been applied yet
             if (errorMessage.includes('expiresAt') || errorMessage.includes('renewalReminderSent') || 
-                errorMessage.includes('Unknown column') || (errorMessage.includes('column') && errorMessage.includes('does not exist'))) {
+                errorMessage.includes('Unknown column') || (errorMessage.includes('column') && errorMessage.includes('does not exist')) ||
+                errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
                 
                 // Log the error but don't fail - the migration will be applied on next deployment
                 logger.warn('Database schema mismatch detected - migration may be in progress', {
                     error: errorMessage,
                     invoiceId,
                     orderId,
+                    fullError: dbError,
                     suggestion: 'Migration will be applied automatically on next deployment',
                 })
                 
                 // Try to create payment without optional fields by using raw SQL as fallback
                 // This is a temporary workaround until migration completes
                 try {
-                    // Generate a unique ID (using cuid-like format or UUID)
-                    const paymentId = `crypto_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+                    // First, check if table exists and what columns it has
+                    const tableInfo = await prisma.$queryRaw<Array<{column_name: string, data_type: string}>>`
+                        SELECT column_name, data_type 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'crypto_payments'
+                        ORDER BY ordinal_position
+                    `.catch(() => [])
                     
-                    // Use Prisma's raw SQL to insert only required fields
-                    // Table name is 'crypto_payments' (from @@map directive)
-                    await prisma.$executeRaw`
-                        INSERT INTO crypto_payments (
-                            id, "userId", "paymentStatus", tier, "invoiceId", "orderId", "paymentUrl", "createdAt", "updatedAt"
-                        ) VALUES (
-                            ${paymentId}, ${user.id}, 'waiting', ${tier}, ${String(invoiceId)}, ${orderId}, ${invoiceUrl}, NOW(), NOW()
-                        )
-                        ON CONFLICT ("invoiceId") DO NOTHING
-                    `
+                    logger.info('Checking crypto_payments table schema', {
+                        columnsFound: tableInfo.length,
+                        columns: tableInfo.map(c => c.column_name),
+                    })
+                    
+                    if (tableInfo.length === 0) {
+                        throw new Error('Table crypto_payments does not exist - migration required')
+                    }
+                    
+                    // Check which columns exist
+                    const hasExpiresAt = tableInfo.some(c => c.column_name === 'expiresAt')
+                    const hasRenewalReminderSent = tableInfo.some(c => c.column_name === 'renewalReminderSent')
+                    const hasInvoiceId = tableInfo.some(c => c.column_name === 'invoiceId')
+                    const hasUserId = tableInfo.some(c => c.column_name === 'userId')
+                    const hasOrderId = tableInfo.some(c => c.column_name === 'orderId')
+                    const hasPaymentUrl = tableInfo.some(c => c.column_name === 'paymentUrl')
+                    const hasTier = tableInfo.some(c => c.column_name === 'tier')
+                    const hasPaymentStatus = tableInfo.some(c => c.column_name === 'paymentStatus')
+                    
+                    if (!hasInvoiceId || !hasUserId || !hasOrderId || !hasPaymentUrl || !hasTier) {
+                        throw new Error(`Required columns missing: invoiceId=${hasInvoiceId}, userId=${hasUserId}, orderId=${hasOrderId}, paymentUrl=${hasPaymentUrl}, tier=${hasTier}`)
+                    }
+                    
+                    // Generate a unique ID (using cuid-like format)
+                    const paymentId = `crypto_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
+                    
+                    // Check if invoiceId has unique constraint for ON CONFLICT
+                    const constraints = await prisma.$queryRaw<Array<{constraint_name: string}>>`
+                        SELECT constraint_name
+                        FROM information_schema.table_constraints
+                        WHERE table_name = 'crypto_payments' 
+                        AND constraint_type = 'UNIQUE'
+                    `.catch(() => [])
+                    
+                    const hasInvoiceIdUnique = constraints.some(c => 
+                        c.constraint_name.includes('invoiceId') || c.constraint_name.includes('invoice')
+                    )
+                    
+                    logger.info('Attempting raw SQL insert', {
+                        paymentId,
+                        invoiceId,
+                        orderId,
+                        hasInvoiceIdUnique,
+                        constraints: constraints.map(c => c.constraint_name),
+                    })
+                    
+                    // Use Prisma's parameterized query for safety
+                    // Insert only required fields that we know exist
+                    if (hasInvoiceIdUnique) {
+                        // Try insert with ON CONFLICT
+                        await prisma.$executeRaw`
+                            INSERT INTO crypto_payments (
+                                id, "userId", "paymentStatus", tier, "invoiceId", "orderId", "paymentUrl", "createdAt", "updatedAt"
+                            ) VALUES (
+                                ${paymentId}, ${user.id}, 'waiting', ${tier}, ${String(invoiceId)}, ${orderId}, ${invoiceUrl}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                            )
+                            ON CONFLICT ("invoiceId") DO NOTHING
+                        `
+                    } else {
+                        // Insert without ON CONFLICT (no unique constraint yet)
+                        await prisma.$executeRaw`
+                            INSERT INTO crypto_payments (
+                                id, "userId", "paymentStatus", tier, "invoiceId", "orderId", "paymentUrl", "createdAt", "updatedAt"
+                            ) VALUES (
+                                ${paymentId}, ${user.id}, 'waiting', ${tier}, ${String(invoiceId)}, ${orderId}, ${invoiceUrl}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                            )
+                        `
+                    }
                     
                     // Fetch the created payment
                     const createdPayment = await prisma.cryptoPayment.findUnique({
@@ -1049,6 +1114,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                             invoiceId,
                             orderId,
                             paymentId: createdPayment.id,
+                            method: 'raw_sql_fallback',
                         })
                         
                         return c.json({
@@ -1061,16 +1127,26 @@ payments.post('/nowpayments/checkout', async (c) => {
                             priceAmount: priceAmount,
                             priceCurrency: 'usd',
                         })
+                    } else {
+                        throw new Error('Payment record not found after insert - possible conflict or constraint issue')
                     }
                 } catch (rawSqlError) {
-                    logger.error('Raw SQL fallback also failed', {
-                        error: rawSqlError instanceof Error ? rawSqlError.message : String(rawSqlError),
+                    const rawErrorMsg = rawSqlError instanceof Error ? rawSqlError.message : String(rawSqlError)
+                    const rawErrorStack = rawSqlError instanceof Error ? rawSqlError.stack : undefined
+                    
+                    logger.error('Raw SQL fallback failed - FULL DETAILS', {
+                        error: rawErrorMsg,
+                        stack: rawErrorStack,
                         invoiceId,
+                        orderId,
+                        userId: user.id,
+                        tier,
+                        rawError: rawSqlError,
                     })
+                    
+                    // If fallback also fails, throw user-friendly error
+                    throw new Error('Database migration in progress. Please try again in a few moments.')
                 }
-                
-                // If fallback also fails, throw user-friendly error
-                throw new Error('Database migration in progress. Please try again in a few moments.')
             }
 
             // For other errors, throw generic message
