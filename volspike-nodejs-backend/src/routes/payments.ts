@@ -727,8 +727,70 @@ payments.post('/nowpayments/checkout', async (c) => {
             ipn_callback_url: ipnCallbackUrl,
         })
 
+        // Map currency code to NowPayments format and validate
+        const nowpayments = NowPaymentsService.getInstance()
+        let mappedPayCurrency: string | null = null
+        
+        if (payCurrency) {
+            // Fetch available currencies from NowPayments to validate
+            logger.info('Fetching available currencies from NowPayments for validation', {
+                requestedCurrency: payCurrency,
+            })
+            
+            try {
+                const availableCurrencies = await nowpayments.getAvailableCurrencies()
+                
+                // Import currency mapper
+                const { mapCurrencyToNowPayments, isSupportedCurrency, getCurrencyDisplayName, getCurrencyNetwork } = await import('../services/currency-mapper')
+                
+                // Validate currency is supported
+                if (!isSupportedCurrency(payCurrency)) {
+                    logger.error('Unsupported currency code requested', {
+                        payCurrency,
+                        supportedCurrencies: ['usdtsol', 'usdterc20', 'usdce', 'sol', 'btc', 'eth'],
+                    })
+                    throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
+                }
+                
+                // Map to NowPayments code
+                mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
+                
+                if (!mappedPayCurrency) {
+                    logger.error('Failed to map currency code to NowPayments format', {
+                        payCurrency,
+                        availableCurrencies: availableCurrencies.slice(0, 50),
+                        availableCount: availableCurrencies.length,
+                    })
+                    throw new Error(`Currency ${payCurrency} is not available. Please select a different currency.`)
+                }
+                
+                logger.info('Currency code mapped successfully', {
+                    ourCode: payCurrency,
+                    nowpaymentsCode: mappedPayCurrency,
+                    displayName: getCurrencyDisplayName(payCurrency),
+                    network: getCurrencyNetwork(payCurrency),
+                })
+            } catch (error) {
+                logger.error('Error validating currency code', {
+                    error: error instanceof Error ? error.message : String(error),
+                    payCurrency,
+                })
+                // Re-throw validation errors
+                if (error instanceof Error && error.message.includes('Unsupported') || error.message.includes('not available')) {
+                    throw error
+                }
+                // For other errors, fall back to default but log warning
+                logger.warn('Currency validation failed, using default', {
+                    payCurrency,
+                    error: error instanceof Error ? error.message : String(error),
+                })
+            }
+        }
+        
+        // Use mapped currency or default to USDT on Solana
+        const finalPayCurrency = mappedPayCurrency || 'usdtsol'
+        
         // Create invoice parameters
-        // Use user-selected currency if provided, otherwise default to USDT on Solana
         const invoiceParams: any = {
             price_amount: priceAmount,
             price_currency: 'usd',
@@ -737,17 +799,15 @@ payments.post('/nowpayments/checkout', async (c) => {
             ipn_callback_url: ipnCallbackUrl,
             success_url: successUrl,
             cancel_url: cancelUrl,
+            pay_currency: finalPayCurrency, // Use validated/mapped currency code
         }
         
-        // Set pay_currency to user's selection (from our currency selector)
-        // This pre-selects the currency on NowPayments page, but user can still change it
-        // Default to USDT on Solana if not specified
-        invoiceParams.pay_currency = payCurrency || 'usdtsol'
-        
-        logger.info('Invoice parameters', {
-            payCurrency: invoiceParams.pay_currency,
+        logger.info('Invoice parameters prepared', {
+            payCurrency: finalPayCurrency,
+            originalPayCurrency: payCurrency,
             priceAmount: invoiceParams.price_amount,
             orderId: invoiceParams.order_id,
+            priceCurrency: invoiceParams.price_currency,
         })
 
         const invoice = await nowpayments.createInvoice(invoiceParams)
