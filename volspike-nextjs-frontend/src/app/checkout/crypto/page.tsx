@@ -7,6 +7,7 @@ import { Header } from '@/components/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Loader2, ExternalLink, AlertCircle, Coins, ArrowRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { startCryptoCheckout } from '@/lib/payments'
 import { toast } from 'react-hot-toast'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
@@ -80,40 +81,120 @@ export default function CryptoCheckoutPage() {
   }
 
   if (error) {
+    // Determine error type for better UX
+    const isDatabaseError = error.includes('Database migration') || error.includes('migration')
+    const isNetworkError = error.includes('Network error') || error.includes('Cannot connect')
+    const isAuthError = error.includes('signed in') || error.includes('authentication')
+    
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container mx-auto px-4 py-12 max-w-2xl">
-          <Card>
+          <Card className="border-destructive/50">
             <CardHeader>
-              <div className="flex items-center gap-2 text-destructive">
+              <div className="flex items-center gap-2 text-destructive mb-2">
                 <AlertCircle className="h-5 w-5" />
                 <CardTitle>Payment Error</CardTitle>
               </div>
-              <CardDescription className="break-words">{error}</CardDescription>
+              <CardDescription className="break-words text-base">
+                {isDatabaseError 
+                  ? 'The payment system is being updated. Please try again in a few minutes.'
+                  : isNetworkError
+                  ? 'Unable to connect to payment server. Please check your internet connection.'
+                  : isAuthError
+                  ? 'Please sign in to continue with your payment.'
+                  : 'We encountered an issue processing your payment. Please try again.'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-sm text-muted-foreground mb-2">
-                  <strong>Error Details:</strong>
-                </p>
-                <p className="text-xs font-mono text-muted-foreground break-all">
-                  {error}
-                </p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Check the browser console (F12) and Railway logs for more details.
+              {/* Error Details Card */}
+              <div className={cn(
+                "p-4 rounded-lg border",
+                isDatabaseError 
+                  ? "bg-yellow-500/10 border-yellow-500/20"
+                  : "bg-destructive/10 border-destructive/20"
+              )}>
+                <div className="flex items-start gap-2 mb-2">
+                  <AlertCircle className={cn(
+                    "h-4 w-4 mt-0.5 flex-shrink-0",
+                    isDatabaseError ? "text-yellow-600 dark:text-yellow-400" : "text-destructive"
+                  )} />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold mb-1">
+                      {isDatabaseError ? 'System Update in Progress' : 'Error Details'}
+                    </p>
+                    <p className="text-xs text-muted-foreground break-words">
+                      {error}
+                    </p>
+                    {!isDatabaseError && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Check the browser console (F12) and Railway logs for more details.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Helpful Actions */}
+              <div className="space-y-3">
+                {isDatabaseError ? (
+                  <>
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                      <p className="text-xs text-blue-700 dark:text-blue-400">
+                        <strong>What&apos;s happening?</strong> We&apos;re updating our payment system to add new features. This usually takes just a few minutes.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={() => window.location.reload()} 
+                      className="w-full"
+                      size="lg"
+                    >
+                      Try Again
+                    </Button>
+                    <Button 
+                      onClick={() => router.push('/pricing')} 
+                      variant="outline" 
+                      className="w-full"
+                    >
+                      Back to Pricing
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      onClick={() => {
+                        setError(null)
+                        setStep('select')
+                        window.location.reload()
+                      }} 
+                      className="w-full"
+                      size="lg"
+                    >
+                      Try Again
+                    </Button>
+                    <Button 
+                      onClick={() => router.push('/pricing')} 
+                      variant="outline" 
+                      className="w-full"
+                    >
+                      Back to Pricing
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {/* Support Link */}
+              <div className="pt-4 border-t border-border/50">
+                <p className="text-xs text-center text-muted-foreground">
+                  Need help? Contact us at{' '}
+                  <a 
+                    href="mailto:support@volspike.com" 
+                    className="text-sec-600 dark:text-sec-400 hover:underline"
+                  >
+                    support@volspike.com
+                  </a>
                 </p>
               </div>
-              <Button onClick={() => router.push('/pricing')} className="w-full">
-                Back to Pricing
-              </Button>
-              <Button 
-                onClick={() => window.location.reload()} 
-                variant="outline" 
-                className="w-full"
-              >
-                Try Again
-              </Button>
             </CardContent>
           </Card>
         </main>

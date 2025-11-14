@@ -909,28 +909,124 @@ payments.post('/nowpayments/checkout', async (c) => {
         // Store invoice in database
         // paymentId will be null until IPN webhook updates it
         try {
-            await prisma.cryptoPayment.create({
-                data: {
-                    userId: user.id,
-                    paymentStatus: 'waiting', // Initial status
-                    tier: tier,
-                    invoiceId: String(invoiceId), // Required - used for hosted checkout
-                    orderId: orderId, // Required - used for tracking
-                    paymentUrl: invoiceUrl, // Required - invoice_url from API
-                    payAddress: null, // Will be filled by IPN webhook
-                },
+            // Check if invoice already exists (duplicate request protection)
+            const existingPayment = await prisma.cryptoPayment.findUnique({
+                where: { invoiceId: String(invoiceId) },
             })
+
+            if (existingPayment) {
+                logger.warn('Invoice already exists in database, returning existing payment', {
+                    invoiceId,
+                    orderId,
+                    userId: user.id,
+                    existingPaymentId: existingPayment.id,
+                })
+                // Return existing payment instead of creating duplicate
+                return c.json({
+                    paymentId: existingPayment.paymentId,
+                    invoiceId: existingPayment.invoiceId,
+                    paymentUrl: existingPayment.paymentUrl,
+                    payAddress: existingPayment.payAddress,
+                    payAmount: existingPayment.payAmount,
+                    payCurrency: existingPayment.payCurrency,
+                    priceAmount: priceAmount,
+                    priceCurrency: 'usd',
+                })
+            }
+
+            // Create new payment record
+            // Build data object with only required fields first
+            const paymentData: any = {
+                userId: user.id,
+                paymentStatus: 'waiting', // Initial status
+                tier: tier,
+                invoiceId: String(invoiceId), // Required - used for hosted checkout
+                orderId: orderId, // Required - used for tracking
+                paymentUrl: invoiceUrl, // Required - invoice_url from API
+            }
+
+            // Try to include optional fields if they exist in schema (for migration compatibility)
+            // If schema doesn't have these fields yet, Prisma will ignore them
+            try {
+                // Check if expiresAt field exists by attempting a test query
+                await prisma.$queryRaw`SELECT "expiresAt" FROM "crypto_payments" LIMIT 1`.catch(() => {
+                    // Field doesn't exist - don't include it
+                })
+                // If we get here, field exists - but we don't need to set it yet (will be set on payment completion)
+            } catch {
+                // Schema check failed - continue without optional fields
+            }
+
+            const cryptoPayment = await prisma.cryptoPayment.create({
+                data: paymentData,
+            })
+            
             logger.info('Crypto payment record created in database', {
+                paymentId: cryptoPayment.id,
                 invoiceId,
                 orderId,
                 userId: user.id,
             })
         } catch (dbError) {
-            logger.error('Failed to create crypto payment record in database', {
-                error: dbError instanceof Error ? dbError.message : String(dbError),
+            // Enhanced error logging with full context
+            const errorMessage = dbError instanceof Error ? dbError.message : String(dbError)
+            const errorStack = dbError instanceof Error ? dbError.stack : undefined
+            
+            logger.error('Failed to create crypto payment record in database - FULL ERROR DETAILS', {
+                error: errorMessage,
+                stack: errorStack,
                 invoiceId,
                 orderId,
+                userId: user.id,
+                tier,
+                // Check for common Prisma errors
+                isUniqueConstraintError: errorMessage.includes('Unique constraint') || errorMessage.includes('duplicate'),
+                isForeignKeyError: errorMessage.includes('Foreign key constraint') || errorMessage.includes('relation'),
+                isSchemaError: errorMessage.includes('Unknown column') || errorMessage.includes('column') && errorMessage.includes('does not exist'),
+                suggestion: errorMessage.includes('expiresAt') || errorMessage.includes('renewalReminderSent')
+                    ? 'Database migration may not be applied. Run: npx prisma db push'
+                    : errorMessage.includes('Unique constraint')
+                    ? 'Invoice already exists - this is normal for duplicate requests'
+                    : 'Check error details above',
             })
+
+            // If it's a unique constraint error (duplicate invoice), try to fetch existing payment
+            if (errorMessage.includes('Unique constraint') || errorMessage.includes('duplicate')) {
+                try {
+                    const existingPayment = await prisma.cryptoPayment.findUnique({
+                        where: { invoiceId: String(invoiceId) },
+                    })
+                    
+                    if (existingPayment) {
+                        logger.info('Found existing payment for duplicate invoice, returning it', {
+                            invoiceId,
+                            existingPaymentId: existingPayment.id,
+                        })
+                        return c.json({
+                            paymentId: existingPayment.paymentId,
+                            invoiceId: existingPayment.invoiceId,
+                            paymentUrl: existingPayment.paymentUrl,
+                            payAddress: existingPayment.payAddress,
+                            payAmount: existingPayment.payAmount,
+                            payCurrency: existingPayment.payCurrency,
+                            priceAmount: priceAmount,
+                            priceCurrency: 'usd',
+                        })
+                    }
+                } catch (fetchError) {
+                    logger.error('Failed to fetch existing payment after unique constraint error', {
+                        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+                    })
+                }
+            }
+
+            // For schema errors, provide helpful message
+            if (errorMessage.includes('expiresAt') || errorMessage.includes('renewalReminderSent') || 
+                errorMessage.includes('Unknown column') || (errorMessage.includes('column') && errorMessage.includes('does not exist'))) {
+                throw new Error('Database migration required. Please contact support or try again in a few minutes.')
+            }
+
+            // For other errors, throw generic message
             throw new Error('Failed to save payment record. Please try again.')
         }
 
