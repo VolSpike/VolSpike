@@ -1,17 +1,16 @@
 'use client'
 
-import { useState } from 'react'
 import { Coins, Check, Info } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
 
 export interface SupportedCurrency {
   code: string
   name: string
   network: string
-  icon: string
+  logoId: string // CoinGecko asset ID for logo
   preferred?: boolean
 }
 
@@ -20,40 +19,109 @@ const SUPPORTED_CURRENCIES: SupportedCurrency[] = [
     code: 'usdtsol',
     name: 'USDT',
     network: 'Solana',
-    icon: '💎',
+    logoId: 'tether', // USDT logo (same for all networks)
     preferred: true,
   },
   {
     code: 'usdterc20',
     name: 'USDT',
     network: 'Ethereum',
-    icon: '🔷',
+    logoId: 'tether', // USDT logo
   },
   {
     code: 'usdce',
     name: 'USDC',
     network: 'Ethereum',
-    icon: '💵',
+    logoId: 'usd-coin', // USDC logo
   },
   {
     code: 'sol',
     name: 'SOL',
     network: 'Solana',
-    icon: '⚡',
+    logoId: 'solana', // Solana logo
   },
   {
     code: 'btc',
     name: 'BTC',
     network: 'Bitcoin',
-    icon: '₿',
+    logoId: 'bitcoin', // Bitcoin logo
   },
   {
     code: 'eth',
     name: 'ETH',
     network: 'Ethereum',
-    icon: 'Ξ',
+    logoId: 'ethereum', // Ethereum logo
   },
 ]
+
+/**
+ * Get CoinGecko logo URL for a cryptocurrency
+ * CoinGecko provides free, high-quality crypto logos via their CDN
+ */
+function getCryptoLogoUrl(logoId: string): string {
+  // CoinGecko CDN - free, reliable, high-quality logos
+  return `https://assets.coingecko.com/coins/images/${getCoinGeckoImageId(logoId)}/large/${logoId}.png`
+}
+
+/**
+ * Map our logo IDs to CoinGecko image IDs
+ * These are the image IDs from CoinGecko's API
+ */
+function getCoinGeckoImageId(logoId: string): number {
+  const imageIdMap: Record<string, number> = {
+    'tether': 825, // USDT
+    'usd-coin': 6319, // USDC
+    'solana': 4128, // SOL
+    'bitcoin': 1, // BTC
+    'ethereum': 279, // ETH
+  }
+  return imageIdMap[logoId] || 1
+}
+
+/**
+ * Crypto logo component with fallback
+ */
+function CryptoLogo({ 
+  logoId, 
+  name, 
+  isSelected 
+}: { 
+  logoId: string
+  name: string
+  isSelected: boolean
+}) {
+  const [imageError, setImageError] = useState(false)
+  const logoUrl = getCryptoLogoUrl(logoId)
+
+  if (imageError) {
+    return (
+      <div className={cn(
+        'h-10 w-10 flex-shrink-0 transition-transform duration-300 rounded-full overflow-hidden ring-1 ring-border/30 shadow-sm bg-gradient-to-br from-muted to-muted/60 flex items-center justify-center',
+        isSelected ? 'scale-110 ring-sec-500/50 shadow-md' : 'group-hover:scale-105 group-hover:ring-sec-500/30'
+      )}>
+        <span className="text-xs font-bold text-muted-foreground">
+          {name.slice(0, 2).toUpperCase()}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn(
+      'relative h-10 w-10 flex-shrink-0 transition-transform duration-300 rounded-full overflow-hidden ring-1 ring-border/30 shadow-sm bg-muted/20',
+      isSelected ? 'scale-110 ring-sec-500/50 shadow-md' : 'group-hover:scale-105 group-hover:ring-sec-500/30'
+    )}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={logoUrl}
+        alt={`${name} logo`}
+        className="h-full w-full object-cover"
+        onError={() => setImageError(true)}
+        loading="lazy"
+      />
+    </div>
+  )
+}
 
 interface CryptoCurrencySelectorProps {
   selectedCurrency: string | null
@@ -96,12 +164,11 @@ export function CryptoCurrencySelector({
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={cn(
-                      'text-2xl flex-shrink-0 transition-transform duration-300',
-                      isSelected ? 'scale-110' : 'group-hover:scale-105'
-                    )}>
-                      {currency.icon}
-                    </div>
+                    <CryptoLogo 
+                      logoId={currency.logoId}
+                      name={currency.name}
+                      isSelected={isSelected}
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="font-semibold text-sm">{currency.name}</span>
@@ -118,7 +185,7 @@ export function CryptoCurrencySelector({
                   </div>
                   {isSelected && (
                     <div className="flex-shrink-0">
-                      <div className="h-5 w-5 rounded-full bg-sec-500 flex items-center justify-center">
+                      <div className="h-5 w-5 rounded-full bg-sec-500 flex items-center justify-center shadow-sm">
                         <Check className="h-3 w-3 text-white" />
                       </div>
                     </div>
