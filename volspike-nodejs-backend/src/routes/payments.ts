@@ -320,23 +320,23 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             if (session.metadata?.userId) {
                 const existingUser = await prisma.user.findUnique({
                     where: { id: session.metadata.userId },
-                    select: { tier: true, email: true, name: true },
+                    select: { tier: true, email: true },
                 })
                 if (existingUser) {
                     previousTier = existingUser.tier
                     userEmail = existingUser.email || undefined
-                    userName = existingUser.name || undefined
+                    userName = undefined
                 }
             } else {
                 // Fallback: get from customerId
                 const existingUser = await prisma.user.findFirst({
                     where: { stripeCustomerId: customerId },
-                    select: { tier: true, email: true, name: true },
+                    select: { tier: true, email: true },
                 })
                 if (existingUser) {
                     previousTier = existingUser.tier
                     userEmail = existingUser.email || undefined
-                    userName = existingUser.name || undefined
+                    userName = undefined
                 }
             }
 
@@ -372,7 +372,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
                         const emailService = EmailService.getInstance()
                         await emailService.sendTierUpgradeEmail({
                             email: userResult.email,
-                            name: userResult.name || undefined,
+                            name: undefined,
                             newTier: tier,
                             previousTier: previousTier,
                         })
@@ -394,7 +394,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
             if (result.count > 0 && io) {
                 const updatedUsers = await prisma.user.findMany({
                     where: { stripeCustomerId: customerId },
-                    select: { id: true, email: true, name: true },
+                    select: { id: true, email: true },
                 })
 
                 updatedUsers.forEach(user => {
@@ -458,7 +458,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
         // Get user's previous tier before updating (for email notification)
         const existingUsers = await prisma.user.findMany({
             where: { stripeCustomerId: customerId },
-            select: { id: true, tier: true, email: true, name: true },
+            select: { id: true, tier: true, email: true },
         })
 
         const previousTiers = new Map<string, string>()
@@ -485,7 +485,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
             // Get updated users to send emails and broadcast
             const updatedUsers = await prisma.user.findMany({
                 where: { stripeCustomerId: customerId },
-                select: { id: true, email: true, name: true, tier: true },
+                select: { id: true, email: true, tier: true },
             })
 
             // Send tier upgrade emails and broadcast tier changes
@@ -502,7 +502,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
                 if (user.email && previousTier && previousTier !== tier) {
                     emailService.sendTierUpgradeEmail({
                         email: user.email,
-                        name: user.name || undefined,
+                        name: undefined,
                         newTier: tier,
                         previousTier: previousTier,
                     }).then(() => {
@@ -528,7 +528,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     // Get user's previous tier before downgrading (for email notification)
     const existingUsers = await prisma.user.findMany({
         where: { stripeCustomerId: customerId },
-        select: { id: true, tier: true, email: true, name: true },
+        select: { id: true, tier: true, email: true },
     })
 
     const previousTiers = new Map<string, string>()
@@ -558,7 +558,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
             if (!customer.deleted && customer.email) {
                 const existingUser = await prisma.user.findFirst({
                     where: { email: customer.email },
-                    select: { id: true, tier: true, email: true, name: true },
+                    select: { id: true, tier: true, email: true },
                 })
 
                 const previousTier = existingUser?.tier
@@ -575,7 +575,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
                 if (emailResult.count > 0) {
                     const updatedUser = await prisma.user.findFirst({
                         where: { email: customer.email },
-                        select: { id: true, email: true, name: true },
+                        select: { id: true, email: true },
                     })
                     if (updatedUser) {
                         if (io) {
@@ -589,7 +589,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
                                 const emailService = EmailService.getInstance()
                                 await emailService.sendTierUpgradeEmail({
                                     email: updatedUser.email,
-                                    name: updatedUser.name || undefined,
+                                    name: undefined,
                                     newTier: 'free',
                                     previousTier: previousTier,
                                 })
@@ -608,7 +608,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
         // Get updated users to send emails and broadcast
         const updatedUsers = await prisma.user.findMany({
             where: { stripeCustomerId: customerId },
-            select: { id: true, email: true, name: true },
+            select: { id: true, email: true },
         })
 
         // Broadcast tier change and send emails
@@ -625,7 +625,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
             if (user.email && previousTier && previousTier !== 'free') {
                 emailService.sendTierUpgradeEmail({
                     email: user.email,
-                    name: user.name || undefined,
+                    name: undefined,
                     newTier: 'free',
                     previousTier: previousTier,
                 }).then(() => {
