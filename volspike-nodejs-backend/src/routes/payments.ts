@@ -728,7 +728,6 @@ payments.post('/nowpayments/checkout', async (c) => {
         })
 
         // Map currency code to NowPayments format and validate
-        const nowpayments = NowPaymentsService.getInstance()
         let mappedPayCurrency: string | null = null
         
         if (payCurrency) {
@@ -870,13 +869,7 @@ payments.post('/nowpayments/checkout', async (c) => {
             await prisma.cryptoPayment.create({
                 data: {
                     userId: user.id,
-                    paymentId: null, // Will be filled by IPN webhook
                     paymentStatus: 'waiting', // Initial status
-                    payAmount: null, // Will be filled by IPN webhook
-                    payCurrency: null, // Will be filled by IPN webhook
-                    actuallyPaid: null,
-                    actuallyPaidCurrency: null,
-                    purchaseId: null,
                     tier: tier,
                     invoiceId: String(invoiceId), // Required - used for hosted checkout
                     orderId: orderId, // Required - used for tracking
@@ -1011,10 +1004,13 @@ payments.post('/nowpayments/webhook', async (c) => {
         }
         
         if (!cryptoPayment && invoice_id) {
-            cryptoPayment = await prisma.cryptoPayment.findUnique({
+            const found = await prisma.cryptoPayment.findUnique({
                 where: { invoiceId: String(invoice_id) },
                 include: { user: true },
             })
+            if (found) {
+                cryptoPayment = found
+            }
         }
         
         if (!cryptoPayment && order_id) {
@@ -1035,9 +1031,12 @@ payments.post('/nowpayments/webhook', async (c) => {
 
         // Update payment status
         // Use the ID we found (could be paymentId, invoiceId, or orderId)
+        // Must use id field for update if paymentId/invoiceId might be null
         const updateWhere = cryptoPayment.paymentId 
             ? { paymentId: cryptoPayment.paymentId }
-            : { invoiceId: cryptoPayment.invoiceId }
+            : cryptoPayment.invoiceId
+            ? { invoiceId: cryptoPayment.invoiceId }
+            : { id: cryptoPayment.id }
         
         await prisma.cryptoPayment.update({
             where: updateWhere,
