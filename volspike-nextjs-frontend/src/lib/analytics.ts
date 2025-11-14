@@ -15,11 +15,11 @@ const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''
 // Check if analytics should be enabled (disable in development unless explicitly enabled)
 const isAnalyticsEnabled = () => {
   if (typeof window === 'undefined') return false
-  
+
   const hasMeasurementId = GA_MEASUREMENT_ID !== ''
   const isProduction = process.env.NODE_ENV === 'production'
   const isExplicitlyEnabled = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true'
-  
+
   // Debug logging
   if (typeof window !== 'undefined') {
     console.log('[Analytics Debug]', {
@@ -31,7 +31,7 @@ const isAnalyticsEnabled = () => {
       enabled: hasMeasurementId && (isProduction || isExplicitlyEnabled)
     })
   }
-  
+
   return hasMeasurementId && (isProduction || isExplicitlyEnabled)
 }
 
@@ -61,24 +61,35 @@ export const initGA = () => {
     send_page_view: true,
   })
 
-  // Store gtag function globally
-  ;(window as any).gtag = gtag
+    // Store gtag function globally
+    ; (window as any).gtag = gtag
 
   console.log('[Analytics] GA4 initialized')
 }
 
 // Track page views
 export const trackPageView = (url: string, title?: string) => {
-  if (!isAnalyticsEnabled()) return
+  if (!isAnalyticsEnabled()) {
+    console.log('[Analytics] Page view tracking disabled')
+    return
+  }
 
   if (typeof window === 'undefined') return
 
   const gtag = (window as any).gtag
   if (gtag) {
+    console.log('[Analytics] Tracking page view:', url, title || document.title)
     gtag('config', GA_MEASUREMENT_ID, {
       page_path: url,
       page_title: title || document.title,
     })
+    // Also send as event for better tracking
+    gtag('event', 'page_view', {
+      page_path: url,
+      page_title: title || document.title,
+    })
+  } else {
+    console.warn('[Analytics] gtag function not available')
   }
 }
 
