@@ -533,34 +533,34 @@ export function MarketTable({
                             // For funding-highlight rows, tinting is handled via global CSS on tr.funding-pos/.funding-neg.
                             const cellHoverBg = exceedsThreshold ? '' : ' group-hover/row:bg-muted/70'
 
-            const rowClasses = [
-                'group/row border-b border-border/40 cursor-pointer relative'
-            ]
-            const isBlurred = guestMode && index >= guestVisibleRows
-            if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
-                // Make positive funding highlights more prominent with depth
-                rowClasses.push(
-                    // Keep border/shadow for positive rows; color is applied via CSS on cells
-                    'funding-pos',
-                    'border-l-4 border-l-brand-500/70',
-                    'shadow-sm shadow-brand-500/10',
-                    'hover:shadow-md hover:shadow-brand-500/20',
-                    'hover:brightness-105 dark:hover:brightness-110'
-                )
-            } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
-                // Make negative funding highlights more prominent with depth
-                rowClasses.push(
-                    // Keep border/shadow for negative rows; color is applied via CSS on cells
-                    'funding-neg',
-                    'border-l-4 border-l-danger-500/70',
-                    'shadow-sm shadow-danger-500/10',
-                    'hover:shadow-md hover:shadow-danger-500/20',
-                    'hover:brightness-105 dark:hover:brightness-110'
-                )
-            } else {
-                // Neutral funding rate rows – do not color the <tr>.
-                // Hover background is applied to each <td> via group-hover to avoid paint conflicts.
-            }
+                            const rowClasses = [
+                                'group/row border-b border-border/40 cursor-pointer relative'
+                            ]
+                            const isBlurred = guestMode && index >= guestVisibleRows
+                            if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
+                                // Make positive funding highlights more prominent with depth
+                                rowClasses.push(
+                                    // Keep border/shadow for positive rows; color is applied via CSS on cells
+                                    'funding-pos',
+                                    'border-l-4 border-l-brand-500/70',
+                                    'shadow-sm shadow-brand-500/10',
+                                    'hover:shadow-md hover:shadow-brand-500/20',
+                                    'hover:brightness-105 dark:hover:brightness-110'
+                                )
+                            } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
+                                // Make negative funding highlights more prominent with depth
+                                rowClasses.push(
+                                    // Keep border/shadow for negative rows; color is applied via CSS on cells
+                                    'funding-neg',
+                                    'border-l-4 border-l-danger-500/70',
+                                    'shadow-sm shadow-danger-500/10',
+                                    'hover:shadow-md hover:shadow-danger-500/20',
+                                    'hover:brightness-105 dark:hover:brightness-110'
+                                )
+                            } else {
+                                // Neutral funding rate rows – do not color the <tr>.
+                                // Hover background is applied to each <td> via group-hover to avoid paint conflicts.
+                            }
 
                             const fundingClass = exceedsThreshold
                                 ? fundingRate > 0
@@ -843,7 +843,7 @@ export function MarketTable({
     )
 
     if (!withContainer) {
-        return <>{tableContent}</>
+        return tableContent
     }
 
     return (
