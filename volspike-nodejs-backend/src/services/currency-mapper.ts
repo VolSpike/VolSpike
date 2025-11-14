@@ -82,60 +82,113 @@ export function mapCurrencyToNowPayments(
   if (availableCurrencies && availableCurrencies.length > 0) {
     const normalizedAvailable = availableCurrencies.map(c => c.toLowerCase().trim())
     
-    // Generate all possible format variations to try
+    // Generate prioritized format variations based on network
     const baseCode = mapping.displayName.toLowerCase()
     const network = mapping.network.toLowerCase()
+    const isSolana = network === 'solana'
+    const isEthereum = network === 'ethereum'
     
-    const formatVariations = [
-      // Our mapped code
-      mapping.nowpaymentsCode.toLowerCase(),
-      // Common formats
-      `${baseCode}_${network}`,           // usdt_sol
-      `${baseCode}-${network}`,           // usdt-sol
-      `${baseCode}${network}`,            // usdtsol
-      `${baseCode}_${network.substring(0, 3)}`, // usdt_sol (short)
-      `${baseCode}-${network.substring(0, 3)}`, // usdt-sol (short)
-      // With ERC20/TRC20 suffixes
-      `${baseCode}-erc20`,                // usdt-erc20
-      `${baseCode}_erc20`,                // usdt_erc20
-      `${baseCode}erc20`,                 // usdterc20
-      `${baseCode}-trc20`,                // usdt-trc20
-      `${baseCode}_trc20`,                // usdt_trc20
-      // Uppercase variations
+    // Priority 1: Network-specific formats (highest priority)
+    const networkSpecificFormats: string[] = []
+    if (isSolana) {
+      // Solana-specific formats
+      networkSpecificFormats.push(
+        `${baseCode}_sol`,           // usdt_sol
+        `${baseCode}-sol`,           // usdt-sol
+        `${baseCode}sol`,             // usdtsol
+        `${baseCode}_solana`,         // usdt_solana
+        `${baseCode}-solana`,         // usdt-solana
+        `${baseCode}solana`,          // usdtsolana
+        `${baseCode}_spl`,            // usdt_spl (SPL token)
+        `${baseCode}-spl`,            // usdt-spl
+        mapping.nowpaymentsCode.toLowerCase(), // Our mapped code
+      )
+    } else if (isEthereum) {
+      // Ethereum-specific formats
+      networkSpecificFormats.push(
+        `${baseCode}-erc20`,          // usdt-erc20
+        `${baseCode}_erc20`,          // usdt_erc20
+        `${baseCode}erc20`,           // usdterc20
+        `${baseCode}_eth`,            // usdt_eth
+        `${baseCode}-eth`,            // usdt-eth
+        `${baseCode}eth`,             // usdteth
+        `${baseCode}_ethereum`,       // usdt_ethereum
+        `${baseCode}-ethereum`,       // usdt-ethereum
+        mapping.nowpaymentsCode.toLowerCase(), // Our mapped code
+      )
+    } else {
+      // Other networks (Bitcoin, etc.)
+      networkSpecificFormats.push(
+        mapping.nowpaymentsCode.toLowerCase(),
+        `${baseCode}_${network}`,
+        `${baseCode}-${network}`,
+        `${baseCode}${network}`,
+      )
+    }
+    
+    // Priority 2: Generic formats (lower priority - only if network-specific fails)
+    const genericFormats = [
+      ourCode.toLowerCase(),
+      ourCode.toUpperCase(),
       `${baseCode.toUpperCase()}_${network.toUpperCase()}`,
       `${baseCode.toUpperCase()}-${network.toUpperCase()}`,
       `${baseCode.toUpperCase()}${network.toUpperCase()}`,
-      // Original code variations
-      ourCode.toLowerCase(),
-      ourCode.toUpperCase(),
     ]
     
-    // Try exact match first
-    for (const variation of formatVariations) {
-      if (normalizedAvailable.includes(variation)) {
-        logger.info('Currency code matched successfully', {
+    // Try network-specific formats first (exact match)
+    for (const format of networkSpecificFormats) {
+      if (normalizedAvailable.includes(format)) {
+        logger.info('Currency code matched with network-specific format (exact)', {
           ourCode,
-          matchedCode: variation,
+          matchedCode: format,
           displayName: mapping.displayName,
           network: mapping.network,
-          triedVariations: formatVariations.length,
+          matchType: 'network-specific-exact',
         })
-        return variation
+        return format
       }
     }
     
-    // Try partial/fuzzy matching (contains)
-    for (const variation of formatVariations) {
-      const match = normalizedAvailable.find(c => c.includes(variation) || variation.includes(c))
+    // Try network-specific formats with fuzzy matching (must include network identifier)
+    for (const format of networkSpecificFormats) {
+      const networkIdentifier = isSolana ? 'sol' : isEthereum ? 'erc20' : network.substring(0, 3)
+      const match = normalizedAvailable.find(c => {
+        const includesFormat = c.includes(format) || format.includes(c)
+        const includesNetwork = c.includes(networkIdentifier)
+        // For Solana, exclude ERC20 matches
+        if (isSolana && (c.includes('erc20') || c.includes('eth'))) {
+          return false
+        }
+        // For Ethereum, exclude Solana matches
+        if (isEthereum && (c.includes('sol') || c.includes('spl'))) {
+          return false
+        }
+        return includesFormat && includesNetwork
+      })
       if (match) {
-        logger.info('Currency code matched with fuzzy search', {
+        logger.info('Currency code matched with network-specific format (fuzzy)', {
           ourCode,
           matchedCode: match,
-          triedVariation: variation,
+          triedFormat: format,
           displayName: mapping.displayName,
           network: mapping.network,
+          matchType: 'network-specific-fuzzy',
         })
         return match
+      }
+    }
+    
+    // Last resort: Try generic formats (exact match only)
+    for (const format of genericFormats) {
+      if (normalizedAvailable.includes(format)) {
+        logger.info('Currency code matched with generic format', {
+          ourCode,
+          matchedCode: format,
+          displayName: mapping.displayName,
+          network: mapping.network,
+          matchType: 'generic-exact',
+        })
+        return format
       }
     }
     
@@ -152,7 +205,8 @@ export function mapCurrencyToNowPayments(
       availableCount: availableCurrencies.length,
       usdtRelatedCurrencies: usdtRelated,
       solRelatedCurrencies: solRelated,
-      triedVariations: formatVariations,
+      triedNetworkSpecificFormats: networkSpecificFormats,
+      triedGenericFormats: genericFormats,
     })
     
     return null
