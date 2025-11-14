@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'react-hot-toast'
-import { CreditCard, ExternalLink, ShieldCheck, Clock, ArrowLeft, Sparkles, FileText } from 'lucide-react'
+import { CreditCard, ExternalLink, Clock, ArrowLeft, Sparkles, FileText, Bell, Download, Lock, Activity, Database } from 'lucide-react'
 
 // Mark dynamic to avoid static caching with auth cookies
 export const dynamic = 'force-dynamic'
@@ -154,6 +154,72 @@ function BillingInner() {
     }
   }
 
+  // Feature chips — dynamic to current tier
+  const includedFeatures = useMemo(() => {
+    switch (tier) {
+      case 'elite':
+        return [
+          { icon: Activity, label: 'Live WebSocket updates' },
+          { icon: TrendingUpIcon, label: 'Unlimited symbols' },
+          { icon: Database, label: 'Open Interest' },
+          { icon: Bell, label: 'Email + SMS alerts' },
+          { icon: Download, label: 'CSV / JSON export' },
+        ]
+      case 'pro':
+        return [
+          { icon: Clock, label: '5‑min refresh' },
+          { icon: TrendingUpIcon, label: '100 symbols' },
+          { icon: Database, label: 'Open Interest' },
+          { icon: Bell, label: 'Email alerts' },
+          { icon: Download, label: 'CSV / JSON export' },
+        ]
+      default:
+        return [
+          { icon: Clock, label: '15‑min refresh' },
+          { icon: TrendingUpIcon, label: 'Top 50 symbols' },
+          { icon: Bell, label: 'In‑app notifications' },
+        ]
+    }
+  }, [tier])
+
+  const lockedFeatures = useMemo(() => {
+    if (tier === 'elite') return []
+    if (tier === 'pro') {
+      return [
+        { icon: Activity, label: 'Live WebSocket updates' },
+        { icon: TrendingUpIcon, label: 'Unlimited symbols' },
+        { icon: Bell, label: 'SMS alerts' },
+      ]
+    }
+    // free
+    return [
+      { icon: Clock, label: '5‑min refresh' },
+      { icon: Database, label: 'Open Interest' },
+      { icon: TrendingUpIcon, label: '100+ symbols' },
+      { icon: Bell, label: 'Email alerts' },
+      { icon: Download, label: 'CSV / JSON export' },
+      { icon: Activity, label: 'Live WebSocket updates' },
+      { icon: Bell, label: 'SMS alerts' },
+    ]
+  }, [tier])
+
+  function TrendingUpIcon(props: any) {
+    // small local alias to keep imports tidy
+    return <svg {...props} viewBox="0 0 24 24" className={(props.className || '') + ' fill-none stroke-current'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+  }
+
+  function FeatureChip({ icon: Icon, label, locked = false }: { icon: any; label: string; locked?: boolean }) {
+    return (
+      <div className={`group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${locked ? 'border-border/60 bg-muted/40 text-muted-foreground' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 dark:text-emerald-300'} transition-colors`}
+           title={locked ? 'Unlock with upgrade' : 'Included in your plan'}>
+        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${locked ? 'bg-muted/60 text-muted-foreground' : 'bg-emerald-500/20 text-emerald-400'}`}>
+          {locked ? <Lock className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+        </span>
+        <span className="truncate">{label}</span>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 bg-background">
       <HeaderWithBanner />
@@ -229,44 +295,33 @@ function BillingInner() {
           </div>
         </div>
 
-        {/* Details grid: benefits and invoices */}
+        {/* Details grid: feature chips and invoices */}
         <div className="mt-6 grid md:grid-cols-3 gap-4">
           <Card className="md:col-span-2">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Benefits</CardTitle>
-              <CardDescription>Highlights of your current access</CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Included in your plan</CardTitle>
+              <CardDescription>Fast overview of what you get</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="rounded-lg border p-4 bg-card/50">
-                  <div className="text-sm font-medium mb-1">Market data</div>
-                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>Elite: live; Pro: 5 min; Free: 15 min</li>
-                    <li>More symbols + Open Interest on Pro/Elite</li>
-                  </ul>
-                </div>
-                <div className="rounded-lg border p-4 bg-card/50">
-                  <div className="text-sm font-medium mb-1">Alerts</div>
-                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>Email notifications on Pro</li>
-                    <li>SMS on Elite (when enabled)</li>
-                  </ul>
-                </div>
-                <div className="rounded-lg border p-4 bg-card/50">
-                  <div className="text-sm font-medium mb-1">Control</div>
-                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>Update payment method anytime</li>
-                    <li>Cancel or resume in Stripe portal</li>
-                  </ul>
-                </div>
-                <div className="rounded-lg border p-4 bg-card/50">
-                  <div className="text-sm font-medium mb-1">Security</div>
-                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                    <li><ShieldCheck className="inline h-3.5 w-3.5 mr-1" />Stripe‑secured payments</li>
-                    <li>No card data stored by VolSpike</li>
-                  </ul>
-                </div>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {includedFeatures.map((f, i) => (
+                  <FeatureChip key={i} icon={f.icon} label={f.label} />
+                ))}
               </div>
+
+              {lockedFeatures.length > 0 && (
+                <div className="pt-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Unlock more</div>
+                  <div className="flex flex-wrap gap-2">
+                    {lockedFeatures.map((f, i) => (
+                      <FeatureChip key={`l-${i}`} icon={f.icon} label={f.label} locked />
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <Link href="/pricing" className="text-sm text-brand-500 hover:underline inline-flex items-center">See full comparison<ExternalLink className="h-3.5 w-3.5 ml-1" /></Link>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
