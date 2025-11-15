@@ -30,7 +30,14 @@ export function Dashboard() {
     const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
     const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')
     const [unreadAlertsCount, setUnreadAlertsCount] = useState(0)
-    const [currentTab, setCurrentTab] = useState('market')
+    const [currentTab, setCurrentTab] = useState<'market' | 'alerts'>(() => {
+        if (typeof window === 'undefined') {
+            return 'market'
+        }
+        // On mobile/tablet, surface Volume Alerts first;
+        // on desktop, keep Market Data as the primary focus.
+        return window.innerWidth < 1280 ? 'alerts' : 'market'
+    })
 
     // Debug session status
     console.log('[Dashboard] useSession status:', status)

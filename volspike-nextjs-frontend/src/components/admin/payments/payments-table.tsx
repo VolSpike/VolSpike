@@ -167,7 +167,7 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
 
     return (
         <>
-            <div className="bg-card border rounded-lg">
+            <div className="bg-card border rounded-lg shadow-sm">
                 <Table>
                     <TableHeader>
                         <TableRow>
