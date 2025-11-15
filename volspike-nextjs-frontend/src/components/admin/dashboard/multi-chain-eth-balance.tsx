@@ -92,6 +92,11 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         }
     }, [expanded, session?.accessToken])
 
+    const currencyUpper = currency.toUpperCase()
+    const isETH = currencyUpper === 'ETH'
+    const isToken = currencyUpper === 'USDC' || currencyUpper === 'USDT'
+    const displayName = isETH ? 'ETH' : currencyUpper
+
     const totalBalance = chainBalances.reduce((sum, chain) => sum + chain.balance, 0)
     const chainsWithBalance = chainBalances.filter(chain => chain.balance > 0)
     const hasBalances = chainsWithBalance.length > 0
@@ -109,11 +114,6 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
             return balance.toFixed(2).replace(/\.?0+$/, '')
         }
     }
-
-    const currencyUpper = currency.toUpperCase()
-    const isETH = currencyUpper === 'ETH'
-    const isToken = currencyUpper === 'USDC' || currencyUpper === 'USDT'
-    const displayName = isETH ? 'ETH' : currencyUpper
 
     if (!expanded) {
         return (
