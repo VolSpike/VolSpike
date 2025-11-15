@@ -12,6 +12,8 @@ import {
     Loader2,
     ArrowRight,
     Radio,
+    ChevronDown,
+    ChevronUp,
 } from 'lucide-react'
 import { MultiChainETHBalance } from './multi-chain-eth-balance'
 import { useRouter } from 'next/navigation'
@@ -49,6 +51,7 @@ export function DashboardWalletBalances() {
     const hasCheckedStaleRef = useRef(false)
     const isFetchingRef = useRef(false)
     const isRefreshingRef = useRef(false)
+    const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set())
 
     // Check if data is stale
     const isDataStale = useCallback((updatedAt: string | null): boolean => {
@@ -474,13 +477,40 @@ export function DashboardWalletBalances() {
                         const isETH = wallet.currency.toUpperCase() === 'ETH' && !wallet.network
                         const isUSDC = wallet.currency.toUpperCase() === 'USDC' && wallet.network?.toLowerCase().includes('eth')
                         const isUSDT = wallet.currency.toUpperCase() === 'USDT' && wallet.network?.toLowerCase().includes('eth')
+                        const isMultiChain = isETH || isUSDC || isUSDT
+                        const isExpanded = expandedWallets.has(wallet.id)
+
+                        const toggleExpanded = () => {
+                            setExpandedWallets(prev => {
+                                const next = new Set(prev)
+                                if (next.has(wallet.id)) {
+                                    next.delete(wallet.id)
+                                } else {
+                                    next.add(wallet.id)
+                                }
+                                return next
+                            })
+                        }
 
                         return (
-                            <div key={wallet.id}>
+                            <div key={wallet.id} className="space-y-0">
                                 <div
-                                    className={`group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-300 hover:bg-muted/30 hover:border-border ${
+                                    onClick={isMultiChain ? toggleExpanded : undefined}
+                                    className={`group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-300 ${
+                                        isMultiChain ? 'cursor-pointer hover:bg-muted/40 hover:border-border hover:shadow-sm' : ''
+                                    } ${
                                         isStale ? 'opacity-90' : ''
+                                    } ${
+                                        isExpanded ? 'bg-muted/20 border-border' : ''
                                     }`}
+                                    role={isMultiChain ? 'button' : undefined}
+                                    tabIndex={isMultiChain ? 0 : undefined}
+                                    onKeyDown={isMultiChain ? (e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault()
+                                            toggleExpanded()
+                                        }
+                                    } : undefined}
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${gradientClass} flex-shrink-0 transition-transform duration-200 group-hover:scale-105`}>
@@ -505,42 +535,60 @@ export function DashboardWalletBalances() {
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="text-right ml-4 flex-shrink-0">
-                                        <p
-                                            className={`text-sm font-semibold transition-colors duration-200 ${
-                                                isBalanceLoaded
-                                                    ? isStale
-                                                        ? 'text-foreground/80'
-                                                        : 'text-foreground'
-                                                    : 'text-muted-foreground'
-                                            }`}
-                                        >
-                                            {formatBalance(wallet.balance, wallet.currency)}
-                                        </p>
-                                        {wallet.balanceUpdatedAt && (
-                                            <p className="text-xs text-muted-foreground">
-                                                {formatTimeAgo(wallet.balanceUpdatedAt)}
+                                    <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                                        <div className="text-right">
+                                            <p
+                                                className={`text-sm font-semibold transition-colors duration-200 ${
+                                                    isBalanceLoaded
+                                                        ? isStale
+                                                            ? 'text-foreground/80'
+                                                            : 'text-foreground'
+                                                        : 'text-muted-foreground'
+                                                }`}
+                                            >
+                                                {formatBalance(wallet.balance, wallet.currency)}
                                             </p>
+                                            {wallet.balanceUpdatedAt && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {formatTimeAgo(wallet.balanceUpdatedAt)}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {isMultiChain && (
+                                            <div className={`flex items-center justify-center w-6 h-6 rounded-md transition-all duration-200 ${
+                                                isExpanded 
+                                                    ? 'bg-muted rotate-180' 
+                                                    : 'bg-muted/50 group-hover:bg-muted'
+                                            }`}>
+                                                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                                                    isExpanded ? 'rotate-180' : ''
+                                                }`} />
+                                            </div>
                                         )}
                                     </div>
                                 </div>
-                                {/* Multi-chain balance view for ETH, USDC, and USDT wallets */}
-                                {(isETH || isUSDC || isUSDT) && (
-                                    <MultiChainETHBalance
-                                        walletId={wallet.id}
-                                        address={wallet.address}
-                                        mainBalance={wallet.balance}
-                                        currency={wallet.currency}
-                                        network={wallet.network}
-                                        onBalanceUpdate={(newBalance) => {
-                                            // Update the wallet balance in local state when multi-chain fetch completes
-                                            setWallets(prev => prev.map(w => 
-                                                w.id === wallet.id 
-                                                    ? { ...w, balance: newBalance, balanceUpdatedAt: new Date().toISOString() }
-                                                    : w
-                                            ))
-                                        }}
-                                    />
+                                {/* Multi-chain balance view - expanded inline */}
+                                {isMultiChain && isExpanded && (
+                                    <div className="overflow-hidden transition-all duration-300 ease-in-out">
+                                        <div className="pt-2 pb-1">
+                                            <MultiChainETHBalance
+                                                walletId={wallet.id}
+                                                address={wallet.address}
+                                                mainBalance={wallet.balance}
+                                                currency={wallet.currency}
+                                                network={wallet.network}
+                                                onBalanceUpdate={(newBalance) => {
+                                                    // Update the wallet balance in local state when multi-chain fetch completes
+                                                    setWallets(prev => prev.map(w => 
+                                                        w.id === wallet.id 
+                                                            ? { ...w, balance: newBalance, balanceUpdatedAt: new Date().toISOString() }
+                                                            : w
+                                                    ))
+                                                }}
+                                                autoExpand={true}
+                                            />
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         )
