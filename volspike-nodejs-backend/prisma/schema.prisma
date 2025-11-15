@@ -22,6 +22,12 @@ enum UserStatus {
   BANNED
 }
 
+enum AssetStatus {
+  AUTO
+  VERIFIED
+  HIDDEN
+}
+
 model User {
   id                   String    @id @default(cuid())
   email                String    @unique
@@ -153,6 +159,25 @@ model MarketSnapshot {
 
   @@index([contractId, timestamp])
   @@map("market_snapshots")
+}
+
+// Canonical mapping of Binance perps to underlying projects
+model Asset {
+  id              String      @id @default(cuid())
+  baseSymbol      String      @unique // e.g. BTC, SOL, 1000PEPE base
+  binanceSymbol   String?     // Primary Binance perp symbol, e.g. BTCUSDT
+  extraSymbols    String?     @db.Text // JSON array of additional symbols / aliases
+  coingeckoId     String?     // CoinGecko id for enrichment
+  displayName     String?     // Human-friendly name override (e.g. "Ethena")
+  websiteUrl      String?
+  twitterUrl      String?
+  logoUrl         String?     // Optional custom logo URL
+  status          AssetStatus @default(AUTO)
+  notes           String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("assets")
 }
 
 model Alert {

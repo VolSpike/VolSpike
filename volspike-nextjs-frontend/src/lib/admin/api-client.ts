@@ -1,4 +1,5 @@
 import { AdminUser, UserListQuery, UserListResponse, CreateUserRequest, UpdateUserRequest, BulkActionRequest, AuditLogResponse, AuditLogQuery, SystemMetrics, SubscriptionSummary, AdminSettings, TwoFactorSetup, TwoFactorVerification } from '@/types/admin'
+import type { AssetRecord } from '@/lib/asset-manifest'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -334,6 +335,30 @@ class AdminAPIClient {
         return this.request<any>('/api/admin/payments/create-from-nowpayments', {
             method: 'POST',
             body: JSON.stringify(data),
+        })
+    }
+
+    // Assets API
+    async getAssets(query: { q?: string; status?: string; page?: number; limit?: number } = {}): Promise<{ assets: AssetRecord[]; pagination: any }> {
+        const params = new URLSearchParams()
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                params.append(key, String(value))
+            }
+        })
+        return this.request<{ assets: AssetRecord[]; pagination: any }>(`/api/admin/assets?${params.toString()}`)
+    }
+
+    async saveAsset(data: AssetRecord & { id?: string }): Promise<{ asset: AssetRecord }> {
+        return this.request<{ asset: AssetRecord }>('/api/admin/assets', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async deleteAsset(id: string): Promise<{ success: boolean }> {
+        return this.request<{ success: boolean }>(`/api/admin/assets/${id}`, {
+            method: 'DELETE',
         })
     }
 

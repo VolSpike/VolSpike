@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import {
     Table,
     TableBody,
@@ -91,10 +92,19 @@ const actionColors = {
 
 export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableProps) {
     const router = useRouter()
+    const { data: session } = useSession()
     const [loading, setLoading] = useState<string | null>(null)
     const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null)
     const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
     const [detailsLoading, setDetailsLoading] = useState(false)
+
+    // Ensure admin API has the current access token on the client
+    useEffect(() => {
+        const token = (session as any)?.accessToken as string | undefined
+        if (token) {
+            adminAPI.setAccessToken(token)
+        }
+    }, [session])
 
     const handleSort = (field: string) => {
         const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
@@ -127,14 +137,24 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
     }
 
     const handleViewDetails = async (logId: string) => {
+        // Ensure we have the access token before making the request
+        const token = (session as any)?.accessToken as string | undefined
+        if (!token) {
+            toast.error('Authentication required. Please sign in again.')
+            return
+        }
+
         setLoading(logId)
         setDetailsLoading(true)
         try {
+            // Set token before making the request
+            adminAPI.setAccessToken(token)
             const log = await adminAPI.getAuditLogById(logId)
             setSelectedLog(log as AuditLogEntry)
             setDetailsDialogOpen(true)
         } catch (error: any) {
-            toast.error(error.message || 'Failed to load log details')
+            const errorMessage = error?.response?.error || error?.message || 'Failed to load log details'
+            toast.error(errorMessage)
             console.error('Error loading audit log details:', error)
         } finally {
             setLoading(null)

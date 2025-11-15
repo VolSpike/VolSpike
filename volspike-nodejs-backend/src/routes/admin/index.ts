@@ -6,6 +6,7 @@ import { adminPaymentRoutes } from './payments'
 import { adminAuditRoutes } from './audit'
 import { adminMetricsRoutes } from './metrics'
 import { adminSettingsRoutes } from './settings'
+import { adminAssetRoutes } from './assets'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
 const adminRoutes = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
@@ -29,6 +30,7 @@ adminRoutes.route('/payments', adminPaymentRoutes)
 adminRoutes.route('/audit', adminAuditRoutes)
 adminRoutes.route('/metrics', adminMetricsRoutes)
 adminRoutes.route('/settings', adminSettingsRoutes)
+adminRoutes.route('/assets', adminAssetRoutes)
 
 // Admin dashboard overview
 adminRoutes.get('/', async (c) => {

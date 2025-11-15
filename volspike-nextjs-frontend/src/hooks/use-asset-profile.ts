@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { STATIC_ASSET_MANIFEST } from '@/lib/asset-manifest'
 
 export interface AssetProfile {
     id: string
@@ -39,30 +40,20 @@ type AssetProfileOverride = Partial<AssetProfile> & {
 // Hand-tuned overrides for assets where CoinGecko metadata is missing
 // or we want to guarantee a stable mapping from symbol -> CoinGecko id.
 const SYMBOL_OVERRIDES: Record<string, AssetProfileOverride> = {
-    ENA: {
-        id: 'ethena',
-        coingeckoId: 'ethena',
-        name: 'Ethena',
-        description:
-            'Ethena is a synthetic dollar protocol that issues the USDe stable asset and the ENA governance token, using delta-hedged positions across centralized and decentralized venues to create a crypto-native, yield-bearing alternative to traditional stablecoins.',
-    },
-    SOON: {
-        id: 'soon-2',
-        coingeckoId: 'soon-2',
-        name: 'SOON',
-    },
-    SOL: {
-        // CoinGecko has an empty twitter_screen_name for Solana; patch it
-        coingeckoId: 'solana',
-        name: 'Solana',
-        websiteUrl: 'https://solana.com/',
-        twitterUrl: 'https://x.com/solana',
-    },
-    '1000PEPE': {
-        // Binance perp ticker maps to the underlying PEPE token
-        coingeckoId: 'pepe',
-        name: 'Pepe',
-    },
+    // Seeded from STATIC_ASSET_MANIFEST to keep the hook
+    // self-contained even before admin data is populated.
+    ...Object.fromEntries(
+        Object.entries(STATIC_ASSET_MANIFEST).map(([symbol, asset]) => [
+            symbol,
+            {
+                coingeckoId: asset.coingeckoId ?? undefined,
+                name: asset.displayName ?? asset.baseSymbol,
+                websiteUrl: asset.websiteUrl ?? undefined,
+                twitterUrl: asset.twitterUrl ?? undefined,
+                logoUrl: asset.logoUrl ?? undefined,
+            } satisfies AssetProfileOverride,
+        ])
+    ),
 }
 
 const safeParseCache = (): CacheShape => {
