@@ -51,7 +51,7 @@ export function WalletBalances() {
                 // Group by payAddress and currency
                 const walletMap = new Map<string, WalletAddress>()
                 
-                response.payments.forEach((payment: any) => {
+                data.payments.forEach((payment: any) => {
                     if (payment.payAddress && payment.paymentStatus === 'finished') {
                         const key = `${payment.payAddress}-${payment.actuallyPaidCurrency || 'unknown'}`
                         
