@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { AdminLayout } from '@/components/admin/layout/admin-layout'
 import { SubscriptionsTable } from '@/components/admin/subscriptions/subscriptions-table'
 import { SubscriptionFilters } from '@/components/admin/subscriptions/subscription-filters'
+import { BulkSyncButton } from '@/components/admin/subscriptions/bulk-sync-button'
 import { adminAPI } from '@/lib/admin/api-client'
 
 export const metadata: Metadata = {
@@ -63,6 +64,7 @@ export default async function SubscriptionsPage({ searchParams }: SubscriptionsP
                             </p>
                         </div>
                         <div className="flex items-center space-x-3">
+                            <BulkSyncButton subscriptions={subscriptionsData.subscriptions} />
                             <div className="rounded-lg border border-border/60 bg-card/50 px-4 py-2 backdrop-blur-sm">
                                 <span className="text-sm font-medium text-foreground">
                                     {subscriptionsData.pagination.total.toLocaleString()}
