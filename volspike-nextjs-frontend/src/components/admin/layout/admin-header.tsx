@@ -50,7 +50,7 @@ export function AdminHeader() {
 
     return (
         <header className="sticky top-0 z-30 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
-            <div className="flex h-16 items-center justify-between px-4 md:px-6 lg:px-8">
+            <div className="flex h-16 items-center justify-between pl-16 pr-4 md:pl-6 md:pr-6 lg:pl-8 lg:pr-8">
                 {/* Left side - current page context */}
                 <div className="flex items-center gap-3">
                     <div className="flex flex-col">

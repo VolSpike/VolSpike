@@ -335,7 +335,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     {getSortIcon('lastLoginAt')}
                                 </div>
                             </TableHead>
-                            <TableHead className="text-right sticky right-0 bg-card/50 backdrop-blur-sm z-10 border-l border-border/60">
+                            <TableHead className="text-right sticky right-0 bg-background border-l border-border/60 z-10 min-w-[80px]">
                                 Actions
                             </TableHead>
                         </TableRow>
@@ -581,7 +581,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     )}
                                 </TableCell>
                                 <TableCell 
-                                    className="text-right sticky right-0 bg-card/50 backdrop-blur-sm z-10 border-l border-border/60 group-hover:bg-muted/50 transition-colors" 
+                                    className="text-right sticky right-0 bg-background border-l border-border/60 z-10 group-hover:bg-muted/50 transition-colors min-w-[80px]" 
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <DropdownMenu>
