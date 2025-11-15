@@ -217,7 +217,12 @@ async function fetchWalletBalance(
         if (currencyUpper === 'BTC') {
             const response = await fetch(`https://blockstream.info/api/address/${address}`)
             if (!response.ok) throw new Error('Blockstream API error')
-            const data = await response.json()
+            const data = await response.json() as {
+                chain_stats: {
+                    funded_txo_sum: number
+                    spent_txo_sum: number
+                }
+            }
             // Balance is in satoshis, convert to BTC
             return (data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 100000000
         }
@@ -231,7 +236,10 @@ async function fetchWalletBalance(
 
             const response = await fetch(apiUrl)
             if (!response.ok) throw new Error('Etherscan API error')
-            const data = await response.json()
+            const data = await response.json() as {
+                status: string
+                result: string
+            }
 
             if (data.status === '1' && data.result) {
                 // Balance is in Wei, convert to ETH
@@ -255,7 +263,11 @@ async function fetchWalletBalance(
                 }),
             })
             if (!response.ok) throw new Error('Solana API error')
-            const data = await response.json()
+            const data = await response.json() as {
+                result: {
+                    value: number
+                } | null
+            }
 
             if (data.result) {
                 // Balance is in lamports, convert to SOL
