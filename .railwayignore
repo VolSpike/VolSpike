@@ -1,9 +1,0 @@
-# Ignore everything except backend directory
-volspike-nextjs-frontend/
-AGENTS.md
-OVERVIEW.md
-IMPLEMENTATION_PLAN.md
-docker-compose.yml
-Digital Ocean/
-*.md
-
