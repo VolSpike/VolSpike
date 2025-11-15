@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import Stripe from 'stripe'
+import type { Prisma } from '@prisma/client'
 import { prisma, io } from '../index'
 import { createLogger } from '../lib/logger'
 import { User } from '../types'
@@ -132,11 +133,11 @@ payments.get('/subscription', async (c) => {
                     not: null,
                     gte: new Date(), // Not expired yet
                 },
-            },
+            } as any,
             orderBy: {
                 expiresAt: 'desc', // Get most recent
-            },
-        })
+            } as any,
+        }) as any
 
         if (activeCryptoPayment && activeCryptoPayment.expiresAt) {
             const now = new Date()
@@ -699,6 +700,19 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 }
 
 // ============================================
+type CryptoPaymentWithUser = Prisma.CryptoPaymentGetPayload<{
+    include: {
+        user: {
+            select: {
+                id: true
+                email: true
+                tier: true
+                createdAt: true
+            }
+        }
+    }
+}>
+
 // NowPayments Crypto Payment Routes
 // ============================================
 
@@ -727,7 +741,7 @@ function inferTierFromWebhook(data: any): 'pro' | 'elite' {
     return 'pro'
 }
 
-async function createCryptoPaymentFallbackFromWebhook(data: any) {
+async function createCryptoPaymentFallbackFromWebhook(data: any): Promise<CryptoPaymentWithUser | null> {
     const orderId = data?.order_id
     const paymentStatus = data?.payment_status
     const userId = extractUserIdFromOrderId(orderId)
@@ -751,11 +765,11 @@ async function createCryptoPaymentFallbackFromWebhook(data: any) {
 
     const tier = inferTierFromWebhook(data)
     const amount = Number(data?.price_amount) || null
-    const payCurrency = (data?.price_currency || 'usd').toLowerCase()
-    const invoiceId = data?.invoice_id ? String(data.invoice_id) : null
+    const payCurrency = ((data?.price_currency as string) || 'usd').toLowerCase()
+    const invoiceId = data?.invoice_id ? String(data.invoice_id) : `fallback-${orderId || user.id}-${Date.now()}`
 
     try {
-        const payment = await prisma.cryptoPayment.create({
+        const created = await prisma.cryptoPayment.create({
             data: {
                 userId: user.id,
                 paymentId: data?.payment_id || null,
@@ -772,8 +786,25 @@ async function createCryptoPaymentFallbackFromWebhook(data: any) {
                 purchaseId: data?.purchase_id ? String(data.purchase_id) : null,
                 paidAt: paymentStatus === 'finished' ? new Date() : null,
             },
-            include: { user: true },
         })
+
+        const payment = await prisma.cryptoPayment.findUnique({
+            where: { id: created.id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        tier: true,
+                        createdAt: true,
+                    },
+                },
+            },
+        })
+
+        if (!payment) {
+            return null
+        }
 
         logger.warn('Fallback crypto payment created from webhook payload', {
             paymentId: payment.id,
@@ -937,7 +968,7 @@ payments.post('/nowpayments/checkout', async (c) => {
         }
 
         // Use mapped currency or default to USDT on Solana (usdt_sol format)
-        const finalPayCurrency = mappedPayCurrency || 'usdt_sol'
+        const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
 
         logger.info('Final currency code determined', {
             originalPayCurrency: payCurrency,
@@ -1348,7 +1379,7 @@ payments.post('/nowpayments/webhook', async (c) => {
 
         // Find payment in database by payment_id, invoice_id, or order_id
         // Try payment_id first (if it exists), then invoice_id, then order_id
-        let cryptoPayment = null
+        let cryptoPayment: CryptoPaymentWithUser | null = null
 
         if (payment_id) {
             cryptoPayment = await prisma.cryptoPayment.findUnique({
@@ -1398,6 +1429,39 @@ payments.post('/nowpayments/webhook', async (c) => {
             return c.json({ error: 'Payment not found' }, 404)
         }
 
+        // Ensure we have the user relation on the payment
+        const paymentWithUser = await prisma.cryptoPayment.findUnique({
+            where: { id: cryptoPayment.id },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        tier: true,
+                        createdAt: true,
+                    },
+                },
+            },
+        })
+
+        if (!paymentWithUser) {
+            logger.error('Failed to load payment with user after fallback', {
+                paymentId: cryptoPayment.id,
+            })
+            return c.json({ error: 'Payment not found' }, 404)
+        }
+
+        cryptoPayment = paymentWithUser
+
+        if (!cryptoPayment) {
+            logger.error('Payment reference lost after reload', {
+                paymentId: payment_id,
+                invoiceId: invoice_id,
+                orderId: order_id,
+            })
+            return c.json({ error: 'Payment not found' }, 404)
+        }
+
         // Update payment status
         // Use the ID we found (could be paymentId, invoiceId, or orderId)
         // Must use id field for update if paymentId/invoiceId might be null
@@ -1441,7 +1505,7 @@ payments.post('/nowpayments/webhook', async (c) => {
             // Update crypto payment with expiration date
             await prisma.cryptoPayment.update({
                 where: { id: cryptoPayment.id },
-                data: { expiresAt },
+                data: { expiresAt } as any,
             })
 
             logger.info(`User ${cryptoPayment.userId} upgraded to ${cryptoPayment.tier} via crypto payment`, {
