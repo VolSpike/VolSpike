@@ -88,6 +88,34 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
         return Math.round((value / total) * 100)
     }
 
+    // Format currency display name (e.g., "USDCE" -> "USDC (Ethereum)")
+    const formatCurrencyDisplayName = (currency: string): string => {
+        const upper = currency.toUpperCase()
+        
+        // Handle NowPayments currency codes
+        // USDCE = USDC on Ethereum
+        if (upper === 'USDCE' || upper === 'USDC-E') {
+            return 'USDC (Ethereum)'
+        }
+        // USDTE = USDT on Ethereum
+        if (upper === 'USDTE' || upper === 'USDT-E') {
+            return 'USDT (Ethereum)'
+        }
+        // USDTS = USDT on Solana
+        if (upper === 'USDTS' || upper === 'USDT-S') {
+            return 'USDT (Solana)'
+        }
+        // Standard currencies
+        if (upper === 'BTC') return 'Bitcoin'
+        if (upper === 'ETH') return 'Ethereum'
+        if (upper === 'SOL') return 'Solana'
+        if (upper === 'USDC') return 'USDC'
+        if (upper === 'USDT') return 'USDT'
+        
+        // Fallback: return as-is if unknown
+        return upper
+    }
+
     const cryptoRevenue = revenueMetrics?.revenueBySource?.crypto || 0
     const stripeRevenue = revenueMetrics?.revenueBySource?.stripe || 0
     const proRevenue = revenueMetrics?.revenueByTier?.pro || 0
@@ -214,34 +242,40 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                             Crypto Payments by Currency
                                         </h4>
                                         <div className="space-y-2">
-                                            {cryptoCurrencyBreakdown.map((item) => (
-                                                <div key={item.currency} className="space-y-1.5">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 text-xs font-medium">
-                                                                {item.currency}
-                                                            </Badge>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                {item.count} payment{item.count !== 1 ? 's' : ''}
-                                                            </span>
+                                            {cryptoCurrencyBreakdown.map((item) => {
+                                                const displayName = formatCurrencyDisplayName(item.currency)
+                                                // Extract base currency for amount display (e.g., "USDCE" -> "USDC")
+                                                const baseCurrency = item.currency.replace(/[^A-Z]/gi, '').replace(/E$/, '').replace(/S$/, '') || item.currency
+                                                
+                                                return (
+                                                    <div key={item.currency} className="space-y-1.5">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 text-xs font-medium">
+                                                                    {displayName}
+                                                                </Badge>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {item.count} payment{item.count !== 1 ? 's' : ''}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-sm font-semibold">
+                                                                    {formatCurrency(item.usdValue)}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {formatCrypto(item.amount)} {baseCurrency}
+                                                                </p>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="text-sm font-semibold">
-                                                                {formatCurrency(item.usdValue)}
-                                                            </p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {formatCrypto(item.amount)} {item.currency}
-                                                            </p>
+                                                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500"
+                                                                style={{ width: `${getPercentage(item.usdValue, cryptoRevenue)}%` }}
+                                                            />
                                                         </div>
                                                     </div>
-                                                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500"
-                                                            style={{ width: `${getPercentage(item.usdValue, cryptoRevenue)}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                )
+                                            })}
                                         </div>
                                     </div>
                                 )}
