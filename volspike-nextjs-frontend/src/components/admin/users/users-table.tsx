@@ -309,7 +309,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                     <TableBody>
                         {users.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={8} className="h-64">
+                                <TableCell colSpan={9} className="h-64">
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
                                             <Users className="h-8 w-8 text-muted-foreground/50" />
@@ -393,6 +393,52 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     <Badge className={getStatusColor(user.status)}>
                                         {user.status}
                                     </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {user.subscriptionExpiresAt ? (() => {
+                                        const expiresAt = new Date(user.subscriptionExpiresAt)
+                                        const isExpired = isPast(expiresAt)
+                                        const daysRemaining = differenceInDays(expiresAt, new Date())
+                                        
+                                        let badgeColor = 'bg-emerald-600/90 text-white dark:bg-emerald-600/80'
+                                        let badgeText = `${Math.abs(daysRemaining)}d left`
+                                        
+                                        if (isExpired) {
+                                            badgeColor = 'bg-red-600/90 text-white dark:bg-red-600/80'
+                                            badgeText = 'Expired'
+                                        } else if (daysRemaining <= 7) {
+                                            badgeColor = 'bg-red-500/90 text-white dark:bg-red-500/70'
+                                        } else if (daysRemaining <= 30) {
+                                            badgeColor = 'bg-amber-500/90 text-white dark:bg-amber-500/70'
+                                        }
+                                        
+                                        return (
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <Badge className={badgeColor} variant="default">
+                                                        {badgeText}
+                                                    </Badge>
+                                                    {user.subscriptionMethod && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {user.subscriptionMethod === 'stripe' ? 'Stripe' : 'Crypto'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-medium text-foreground">
+                                                        {format(expiresAt, 'MMM d, yyyy')}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {format(expiresAt, 'h:mm a')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )
+                                    })() : (
+                                        <span className="text-sm text-muted-foreground italic">
+                                            {user.tier === 'free' ? 'Free tier' : 'No subscription'}
+                                        </span>
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex flex-col">
