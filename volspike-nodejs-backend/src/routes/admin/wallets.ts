@@ -371,6 +371,20 @@ adminWalletRoutes.post('/refresh-all', async (c) => {
                         stack: error?.stack,
                         address: wallet.address,
                     })
+
+                    // Update balanceUpdatedAt even on error to show we tried to refresh
+                    // This prevents the UI from showing stale data when refresh attempts are happening
+                    try {
+                        await prisma.adminWallet.update({
+                            where: { id: wallet.id },
+                            data: {
+                                balanceUpdatedAt: new Date(),
+                            },
+                        })
+                    } catch (updateError) {
+                        logger.warn(`Failed to update balanceUpdatedAt for wallet ${wallet.id}:`, updateError)
+                    }
+
                     // Don't set balance to 0 on error - keep the last known balance
                     // This way if there's a temporary API issue, we don't lose the actual balance
                     return { 
