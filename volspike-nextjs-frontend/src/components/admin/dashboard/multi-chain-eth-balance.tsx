@@ -22,12 +22,32 @@ interface MultiChainETHBalanceProps {
     mainBalance: number | null
 }
 
-const CHAIN_INFO: Record<string, { icon: string; color: string }> = {
-    ethereum: { icon: '⟠', color: 'from-blue-500 to-blue-600' },
-    polygon: { icon: '⬟', color: 'from-purple-500 to-purple-600' },
-    optimism: { icon: '🔴', color: 'from-red-500 to-red-600' },
-    arbitrum: { icon: '🔵', color: 'from-blue-400 to-blue-500' },
-    base: { icon: '🔷', color: 'from-blue-300 to-blue-400' },
+const CHAIN_INFO: Record<string, { icon: string; color: string; bgColor: string }> = {
+    ethereum: { 
+        icon: '⟠', 
+        color: 'from-blue-500 to-blue-600',
+        bgColor: 'bg-blue-500/10 border-blue-500/20',
+    },
+    polygon: { 
+        icon: '⬟', 
+        color: 'from-purple-500 to-purple-600',
+        bgColor: 'bg-purple-500/10 border-purple-500/20',
+    },
+    optimism: { 
+        icon: '🔴', 
+        color: 'from-red-500 to-red-600',
+        bgColor: 'bg-red-500/10 border-red-500/20',
+    },
+    arbitrum: { 
+        icon: '🔵', 
+        color: 'from-blue-400 to-blue-500',
+        bgColor: 'bg-cyan-500/10 border-cyan-500/20',
+    },
+    base: { 
+        icon: '🔷', 
+        color: 'from-blue-300 to-blue-400',
+        bgColor: 'bg-sky-500/10 border-sky-500/20',
+    },
 }
 
 export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiChainETHBalanceProps) {
@@ -141,25 +161,31 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
 
             <div className="space-y-2">
                 {chainBalances.map((chain) => {
-                    const chainInfo = CHAIN_INFO[chain.chain] || { icon: '●', color: 'from-gray-500 to-gray-600' }
+                    const chainInfo = CHAIN_INFO[chain.chain] || { 
+                        icon: '●', 
+                        color: 'from-gray-500 to-gray-600',
+                        bgColor: 'bg-gray-500/10 border-gray-500/20',
+                    }
                     const hasBalance = chain.balance > 0
 
                     return (
                         <div
                             key={chain.chain}
-                            className={`group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-200 ${
+                            className={`group flex items-center justify-between rounded-lg border p-3 transition-all duration-200 ${
                                 hasBalance
-                                    ? 'hover:bg-muted/30 hover:border-border hover:shadow-sm'
-                                    : 'opacity-60'
+                                    ? `${chainInfo.bgColor} hover:shadow-md hover:scale-[1.01]`
+                                    : 'border-border/60 bg-background/30 opacity-60'
                             }`}
                         >
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${chainInfo.color} flex-shrink-0 text-white text-xs font-bold`}>
+                                <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${chainInfo.color} flex-shrink-0 text-white text-sm font-bold shadow-sm`}>
                                     {chainInfo.icon}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-medium text-foreground">{chain.name}</span>
+                                        <span className={`text-sm font-semibold ${hasBalance ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                            {chain.name}
+                                        </span>
                                         {hasBalance && (
                                             <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-xs px-1.5 py-0">
                                                 Active
@@ -172,8 +198,10 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
                             <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                                 <div className="text-right">
                                     <p
-                                        className={`text-sm font-semibold ${
-                                            hasBalance ? 'text-foreground' : 'text-muted-foreground'
+                                        className={`text-sm font-bold ${
+                                            hasBalance 
+                                                ? 'bg-gradient-to-r ' + chainInfo.color + ' bg-clip-text text-transparent' 
+                                                : 'text-muted-foreground'
                                         }`}
                                     >
                                         {formatBalance(chain.balance)} ETH
@@ -184,8 +212,9 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
                                         href={chain.explorerUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-muted-foreground hover:text-foreground transition-colors"
+                                        className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted/50"
                                         onClick={(e) => e.stopPropagation()}
+                                        title={`View on ${chain.name} explorer`}
                                     >
                                         <ExternalLink className="h-3.5 w-3.5" />
                                     </a>
