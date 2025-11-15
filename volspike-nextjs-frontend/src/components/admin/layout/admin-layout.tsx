@@ -12,9 +12,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="relative min-h-screen bg-background flex flex-col">
             <BackgroundPattern />
             <div className="relative z-10 flex flex-1 min-h-0">
-                {/* Sidebar column - full height, no footer interference */}
-                {/* AdminSidebar handles both mobile (fixed overlay) and desktop (static) internally */}
-                <AdminSidebar />
+                {/* Sidebar column - sticky on desktop, fixed overlay on mobile */}
+                <div className="hidden lg:block lg:sticky lg:top-0 lg:self-start lg:h-screen">
+                    <AdminSidebar />
+                </div>
+                
+                {/* Mobile sidebar - fixed overlay */}
+                <div className="lg:hidden">
+                    <AdminSidebar />
+                </div>
 
                 {/* Content column - flex-1 to fill remaining space */}
                 <div className="flex flex-col flex-1 min-w-0 bg-background/95 lg:border-l lg:border-border/60">
