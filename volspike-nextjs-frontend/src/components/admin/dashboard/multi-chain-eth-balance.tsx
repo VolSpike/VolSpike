@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Loader2, ChevronDown, ChevronUp, ExternalLink, Network } from 'lucide-react'
@@ -60,7 +60,7 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
     const [expanded, setExpanded] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchMultiChainBalances = async () => {
+    const fetchMultiChainBalances = useCallback(async () => {
         if (!session?.accessToken) return
 
         setLoading(true)
@@ -90,7 +90,7 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         } finally {
             setLoading(false)
         }
-    }
+    }, [walletId, session?.accessToken, onBalanceUpdate])
 
     // Auto-fetch Ethereum balance on mount for USDC/USDT wallets to update main card
     useEffect(() => {
@@ -102,14 +102,14 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         if ((isUSDC || isUSDT) && chainBalances.length === 0 && !loading && session?.accessToken) {
             fetchMultiChainBalances()
         }
-    }, [currency, network, session?.accessToken])
+    }, [currency, network, chainBalances.length, loading, session?.accessToken, fetchMultiChainBalances])
     
     // Fetch all chains when expanded
     useEffect(() => {
         if (expanded && chainBalances.length === 0 && !loading && session?.accessToken) {
             fetchMultiChainBalances()
         }
-    }, [expanded, session?.accessToken])
+    }, [expanded, chainBalances.length, loading, session?.accessToken, fetchMultiChainBalances])
 
     const currencyUpper = currency.toUpperCase()
     const isETH = currencyUpper === 'ETH'
