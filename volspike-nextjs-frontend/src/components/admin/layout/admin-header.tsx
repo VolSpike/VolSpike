@@ -39,28 +39,30 @@ export function AdminHeader() {
         return 'Overview'
     }
 
+    const sectionLabel = getSectionLabel()
+    const sectionDescriptions: Record<string, string> = {
+        'Overview': 'Monitor users, subscriptions, security and system health.',
+        'Users': 'Manage user accounts, roles, and subscriptions.',
+        'Subscriptions': 'View and manage user subscription plans.',
+        'Payments': 'Track payment transactions and revenue.',
+        'Audit Logs': 'Review system activity and security events.',
+        'Metrics': 'Analyze system performance and user analytics.',
+        'Settings': 'Configure platform settings and preferences.',
+    }
+
     return (
         <header className="sticky top-0 z-30 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
             <div className="flex h-16 items-center justify-between px-4 md:px-6 lg:px-8">
-                {/* Left side - brand + section context */}
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500/20 via-elite-500/10 to-sec-500/20 text-brand-600 dark:text-brand-300 shadow-inner ring-1 ring-brand-500/30">
-                            <Shield className="h-4 w-4" aria-hidden="true" />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-semibold leading-tight">
-                                VolSpike Admin
-                            </span>
-                            <span className="text-xs text-muted-foreground leading-tight">
-                                {getSectionLabel()}
-                            </span>
-                        </div>
+                {/* Left side - current page context */}
+                <div className="flex items-center gap-3">
+                    <div className="flex flex-col">
+                        <h1 className="text-lg font-semibold leading-tight text-foreground">
+                            {sectionLabel}
+                        </h1>
+                        <p className="hidden text-xs text-muted-foreground leading-tight md:inline">
+                            {sectionDescriptions[sectionLabel] || sectionDescriptions['Overview']}
+                        </p>
                     </div>
-                    <Separator orientation="vertical" className="hidden h-6 md:inline-flex" />
-                    <p className="hidden text-xs text-muted-foreground md:inline">
-                        Monitor users, subscriptions, security and system health.
-                    </p>
                 </div>
 
                 {/* Right side - theme and user menu */}
