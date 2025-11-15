@@ -15,7 +15,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <div className="flex flex-1 flex-col lg:ml-64">
                 <AdminHeader />
                 <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
-                    <div className="mx-auto max-w-7xl space-y-6">
+                    <div className="mr-auto w-full max-w-7xl space-y-6">
                         {children}
                     </div>
                 </main>

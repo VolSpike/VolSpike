@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme-toggle'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -68,8 +69,11 @@ export function AdminHeader() {
                     </p>
                 </div>
 
-                {/* Right side - notifications and user menu */}
-                <div className="flex items-center space-x-4">
+                {/* Right side - theme, notifications and user menu */}
+                <div className="flex items-center space-x-2 md:space-x-4">
+                    {/* Theme toggle */}
+                    <ThemeToggle />
+
                     {/* Notifications */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
