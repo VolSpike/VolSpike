@@ -64,18 +64,19 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
     const hasActiveFilters = Object.values(filters).some(value => value)
 
     return (
-        <Card>
+        <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
             <CardContent className="p-4">
                 <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
                     {/* Search */}
                     <div className="flex-1">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                             <Input
                                 placeholder="Search users by email or wallet..."
                                 value={filters.search}
                                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                                className="pl-10"
+                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                className="pl-10 h-11 border-border/60 bg-background/50"
                             />
                         </div>
                     </div>
