@@ -33,13 +33,21 @@ export function WalletBalances() {
         setLoading(true)
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            // We'll need to add this endpoint to the backend
-            // For now, we'll fetch from payments
-            const response = await adminAPI.request('/api/admin/payments', {
-                method: 'GET',
+            // Fetch payments to extract wallet addresses
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/payments?limit=1000`, {
+                headers: {
+                    'Authorization': `Bearer ${session.accessToken}`,
+                    'Content-Type': 'application/json',
+                },
             })
             
-            if (response.payments) {
+            if (!response.ok) {
+                throw new Error('Failed to fetch payments')
+            }
+            
+            const data = await response.json()
+            
+            if (data.payments) {
                 // Group by payAddress and currency
                 const walletMap = new Map<string, WalletAddress>()
                 
