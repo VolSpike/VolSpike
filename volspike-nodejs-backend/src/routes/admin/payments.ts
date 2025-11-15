@@ -10,7 +10,8 @@ const adminPaymentRoutes = new Hono<{ Bindings: AppBindings; Variables: AppVaria
 // Validation schemas
 const paymentListSchema = z.object({
     userId: z.string().optional(),
-    email: z.string().email().optional(),
+    // Allow any non-empty string here; we'll trim and validate loosely to avoid 500s
+    email: z.string().min(1).optional(),
     paymentStatus: z.string().optional(),
     tier: z.enum(['free', 'pro', 'elite']).optional(),
     paymentId: z.string().optional(),
@@ -42,9 +43,11 @@ adminPaymentRoutes.get('/', async (c) => {
             where.userId = params.userId
         }
 
-        if (params.email) {
+        const trimmedEmail = params.email?.trim()
+
+        if (trimmedEmail) {
             const user = await prisma.user.findFirst({
-                where: { email: { equals: params.email, mode: 'insensitive' } },
+                where: { email: { equals: trimmedEmail, mode: 'insensitive' } },
                 select: { id: true },
             })
             if (user) {
@@ -401,4 +404,3 @@ adminPaymentRoutes.post('/create-from-nowpayments', async (c) => {
 })
 
 export { adminPaymentRoutes }
-
