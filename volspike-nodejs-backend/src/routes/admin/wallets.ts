@@ -419,7 +419,10 @@ async function fetchERC20BalanceFromChain(
             logger.info(`Fetching ERC-20 balance from ${chain.name} (chainId: ${chain.chainId}) via ${rpcUrl} for ${address}, contract: ${contractAddress}`)
             
             // ERC-20 balanceOf(address) - function selector: 0x70a08231
-            const data = '0x70a08231' + address.slice(2).padStart(64, '0')
+            // Address needs to be padded to 64 hex characters (32 bytes) without 0x prefix
+            const addressWithoutPrefix = address.startsWith('0x') ? address.slice(2) : address
+            const paddedAddress = addressWithoutPrefix.toLowerCase().padStart(64, '0')
+            const data = '0x70a08231' + paddedAddress
             
             const response = await fetch(rpcUrl, {
                 method: 'POST',
