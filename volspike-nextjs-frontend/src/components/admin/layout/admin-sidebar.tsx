@@ -20,6 +20,7 @@ import {
     User
 } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
+import { Separator } from '@/components/ui/separator'
 
 const navigation = [
     {
@@ -71,11 +72,12 @@ export function AdminSidebar() {
     return (
         <>
             {/* Mobile menu button */}
-            <div className="lg:hidden fixed top-4 left-4 z-50">
+            <div className="fixed top-4 left-4 z-50 lg:hidden">
                 <Button
                     variant="outline"
                     size="icon"
                     onClick={() => setIsOpen(!isOpen)}
+                    aria-label="Toggle admin navigation"
                 >
                     {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                 </Button>
@@ -83,56 +85,130 @@ export function AdminSidebar() {
 
             {/* Sidebar */}
             <div className={cn(
-                "fixed inset-y-0 left-0 z-40 w-64 bg-white dark:bg-gray-900 border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
+                "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/90 shadow-lg transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <div className="flex flex-col h-full">
                     {/* Logo */}
-                    <div className="flex items-center justify-center h-16 px-4 border-b">
+                    <div className="flex items-center justify-between h-16 px-4 border-b border-border/60">
                         <div className="flex items-center space-x-2">
-                            <Shield className="h-8 w-8 text-blue-600" />
-                            <span className="text-xl font-bold">Admin Panel</span>
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500/20 via-elite-500/10 to-sec-500/20 text-brand-600 dark:text-brand-300 shadow-inner ring-1 ring-brand-500/30">
+                                <Shield className="h-5 w-5" aria-hidden="true" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-semibold tracking-tight">
+                                    VolSpike Admin
+                                </span>
+                                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                    Control Center
+                                </span>
+                            </div>
                         </div>
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                            Admin
+                        </span>
                     </div>
 
                     {/* Navigation */}
-                    <ScrollArea className="flex-1 px-4 py-6">
-                        <nav className="space-y-2">
-                            {navigation.map((item) => {
-                                const isActive = pathname === item.href
-                                return (
-                                    <Link
-                                        key={item.name}
-                                        href={item.href}
-                                        onClick={() => setIsOpen(false)}
-                                        className={cn(
-                                            "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                                            isActive
-                                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                                                : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                                        )}
-                                    >
-                                        <item.icon className="h-4 w-4" />
-                                        <span>{item.name}</span>
-                                    </Link>
-                                )
-                            })}
-                        </nav>
+                    <ScrollArea className="flex-1 px-4 py-5">
+                        <nav className="space-y-4 text-sm">
+                            <div>
+                                <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Overview
+                                </p>
+                                {navigation.slice(0, 1).map((item) => {
+                                    const isActive = pathname === item.href
+                                    return (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            onClick={() => setIsOpen(false)}
+                                            className={cn(
+                                                "flex items-center gap-3 rounded-lg px-3 py-2 font-medium transition-colors border border-transparent",
+                                                isActive
+                                                    ? "bg-gradient-to-r from-brand-500/15 via-brand-500/10 to-transparent text-foreground border-brand-500/30 shadow-sm"
+                                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                            )}
+                                            aria-current={isActive ? 'page' : undefined}
+                                        >
+                                            <item.icon className="h-4 w-4" aria-hidden="true" />
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    )
+                                })}
+                            </div>
+
+                            <Separator className="my-1" />
+
+                            <div>
+                                <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Users & Billing
+                                </p>
+                                {navigation.slice(1, 4).map((item) => {
+                                    const isActive = pathname === item.href
+                                    return (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            onClick={() => setIsOpen(false)}
+                                            className={cn(
+                                                "flex items-center gap-3 rounded-lg px-3 py-2 font-medium transition-colors border border-transparent",
+                                                isActive
+                                                    ? "bg-gradient-to-r from-brand-500/15 via-sec-500/10 to-transparent text-foreground border-brand-500/30 shadow-sm"
+                                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                            )}
+                                            aria-current={isActive ? 'page' : undefined}
+                                        >
+                                            <item.icon className="h-4 w-4" aria-hidden="true" />
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    )
+                                })}
+                            </div>
+
+                            <Separator className="my-1" />
+
+                            <div>
+                                <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Monitoring &amp; Settings
+                                </p>
+                                {navigation.slice(4).map((item) => {
+                                    const isActive = pathname === item.href
+                                    return (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            onClick={() => setIsOpen(false)}
+                                            className={cn(
+                                                "flex items-center gap-3 rounded-lg px-3 py-2 font-medium transition-colors border border-transparent",
+                                                isActive
+                                                    ? "bg-gradient-to-r from-elite-500/15 via-brand-500/10 to-transparent text-foreground border-elite-500/30 shadow-sm"
+                                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                            )}
+                                            aria-current={isActive ? 'page' : undefined}
+                                        >
+                                            <item.icon className="h-4 w-4" aria-hidden="true" />
+                                            <span>{item.name}</span>
+                                        </Link>
+                                    )
+                                })}
+                            </div>
+                        </div>
                     </ScrollArea>
 
                     {/* User info and logout */}
-                    <div className="p-4 border-t">
+                    <div className="border-t border-border/60 p-4">
                         <div className="flex items-center space-x-3 mb-4">
                             <div className="flex-shrink-0">
-                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <User className="h-4 w-4 text-blue-600" />
+                                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500/10 via-elite-500/10 to-sec-500/10">
+                                    <User className="h-4 w-4 text-brand-600 dark:text-brand-300" />
                                 </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                <p className="truncate text-sm font-medium text-foreground">
                                     {session?.user?.email}
                                 </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                <p className="truncate text-xs text-muted-foreground">
                                     Administrator
                                 </p>
                             </div>
@@ -141,7 +217,7 @@ export function AdminSidebar() {
                             variant="outline"
                             size="sm"
                             onClick={handleSignOut}
-                            className="w-full justify-start"
+                            className="w-full justify-start border-border/70 hover:border-destructive/40 hover:bg-destructive/5 text-destructive"
                         >
                             <LogOut className="h-4 w-4 mr-2" />
                             Sign Out

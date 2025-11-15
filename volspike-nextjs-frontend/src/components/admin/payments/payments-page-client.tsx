@@ -8,6 +8,7 @@ import { adminAPI } from '@/lib/admin/api-client'
 import { Loader2, AlertCircle, Plus, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { AdminPageHeader } from '../layout/admin-page-header'
 
 interface PaymentsPageClientProps {
     initialData: any
@@ -68,14 +69,11 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
     if (error) {
         return (
             <div className="space-y-6">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        Crypto Payments
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        View and manage cryptocurrency payments, troubleshoot issues, and manually upgrade users
-                    </p>
-                </div>
+                <AdminPageHeader
+                    title="Crypto Payments"
+                    description="View and manage cryptocurrency payments, troubleshoot issues, and manually upgrade users."
+                    icon={CreditCard}
+                />
                 <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
                     <CardContent className="pt-6">
                         <div className="flex items-start space-x-4">
@@ -88,7 +86,7 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
                                     {error}
                                 </p>
                                 <Button
-                        onClick={fetchPayments}
+                                    onClick={fetchPayments}
                                     variant="outline"
                                     className="border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900"
                                 >
@@ -106,35 +104,30 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        Crypto Payments
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        View and manage cryptocurrency payments, troubleshoot issues, and manually upgrade users
-                    </p>
-                </div>
-                <div className="flex items-center space-x-3">
-                    {paymentsData && (
-                        <div className="text-right">
-                            <div className="text-sm font-medium">
-                                {paymentsData.pagination.total.toLocaleString()} total payments
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                                {paymentsData.payments.length} on this page
-                            </div>
+            <AdminPageHeader
+                title="Crypto Payments"
+                description="View and manage cryptocurrency payments, troubleshoot issues, and manually upgrade users."
+                icon={CreditCard}
+                meta={paymentsData && (
+                    <div className="text-xs text-muted-foreground sm:text-sm">
+                        <div className="font-medium text-foreground">
+                            {paymentsData.pagination.total.toLocaleString()} total payments
                         </div>
-                    )}
+                        <div>
+                            {paymentsData.payments.length} on this page
+                        </div>
+                    </div>
+                )}
+                actions={
                     <Button
                         onClick={() => setCreateDialogOpen(true)}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        className="bg-gradient-to-r from-brand-500 via-elite-500 to-sec-500 hover:from-brand-600 hover:via-elite-600 hover:to-sec-600"
                     >
-                        <Plus className="h-4 w-4 mr-2" />
+                        <Plus className="mr-2 h-4 w-4" />
                         Create Payment
                     </Button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Filters */}
             <PaymentFilters currentFilters={query} />

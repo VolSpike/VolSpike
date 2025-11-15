@@ -1,6 +1,7 @@
 import React from 'react'
 import { AdminHeader } from './admin-header'
 import { AdminSidebar } from './admin-sidebar'
+import { BackgroundPattern } from '@/components/ui/background-pattern'
 
 interface AdminLayoutProps {
     children: React.ReactNode
@@ -8,12 +9,13 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
     return (
-        <div className="flex min-h-screen bg-gray-100 dark:bg-gray-950">
+        <div className="relative flex min-h-screen bg-gradient-to-br from-background via-background to-muted/60">
+            <BackgroundPattern />
             <AdminSidebar />
-            <div className="flex flex-col flex-1 lg:ml-64">
+            <div className="flex flex-1 flex-col lg:ml-64">
                 <AdminHeader />
                 <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
-                    <div className="max-w-6xl mx-auto space-y-6">
+                    <div className="mx-auto max-w-7xl space-y-6">
                         {children}
                     </div>
                 </main>
