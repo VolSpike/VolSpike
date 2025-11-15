@@ -6,7 +6,7 @@ import { CheckCircle2, Clock, Database } from 'lucide-react'
 export function SystemHealth() {
     return (
         <div className="rounded-lg border border-border/60 bg-card/50 backdrop-blur-sm p-4">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 sm:gap-4">
                 {/* Uptime */}
                 <div className="flex items-center gap-3 flex-1">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 flex-shrink-0">
