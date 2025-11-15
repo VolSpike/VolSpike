@@ -99,8 +99,8 @@ export function AuditLogDetailsDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
-                <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colorClass}`}>
                             <Icon className="h-5 w-5" />
@@ -116,9 +116,8 @@ export function AuditLogDetailsDialog({
                     </div>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-hidden min-h-0">
-                    <ScrollArea className="h-full px-6 py-4">
-                        <div className="space-y-6 pb-4">
+                <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4">
+                    <div className="space-y-6 pb-4">
                         {/* Action Information */}
                         <div className="rounded-lg border border-border/60 bg-card/50 p-4 space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -311,11 +310,11 @@ export function AuditLogDetailsDialog({
                                                 <CheckCircle2 className="h-3 w-3 text-green-500" />
                                                 New Values
                                             </label>
-                                            <ScrollArea className="h-48 rounded-md border border-border/60 bg-muted/30 p-3">
+                                            <div className="h-48 overflow-y-auto rounded-md border border-border/60 bg-muted/30 p-3">
                                                 <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-words">
                                                     {formatJSON(log.newValues)}
                                                 </pre>
-                                            </ScrollArea>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -339,8 +338,7 @@ export function AuditLogDetailsDialog({
                                 </button>
                             </div>
                         </div>
-                        </div>
-                    </ScrollArea>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>
