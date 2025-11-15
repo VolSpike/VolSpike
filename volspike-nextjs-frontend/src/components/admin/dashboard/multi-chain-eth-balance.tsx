@@ -93,8 +93,10 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         }
     }, [walletId, session?.accessToken, onBalanceUpdate])
 
-    // Auto-fetch Ethereum balance on mount for USDC/USDT wallets to update main card
+    // Auto-fetch Ethereum balance on mount for USDC/USDT wallets to update main card (only if not auto-expanded)
     useEffect(() => {
+        if (autoExpand) return // Skip if auto-expanded (will fetch when parent expands)
+        
         const currencyUpper = currency.toUpperCase()
         const isUSDC = currencyUpper === 'USDC'
         const isUSDT = currencyUpper === 'USDT' && network?.toLowerCase().includes('eth')
@@ -103,14 +105,14 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         if ((isUSDC || isUSDT) && chainBalances.length === 0 && !loading && session?.accessToken) {
             fetchMultiChainBalances()
         }
-    }, [currency, network, chainBalances.length, loading, session?.accessToken, fetchMultiChainBalances])
+    }, [currency, network, chainBalances.length, loading, session?.accessToken, fetchMultiChainBalances, autoExpand])
     
-    // Fetch all chains when expanded
+    // Fetch all chains when expanded (or auto-expanded)
     useEffect(() => {
-        if (expanded && chainBalances.length === 0 && !loading && session?.accessToken) {
+        if ((expanded || autoExpand) && chainBalances.length === 0 && !loading && session?.accessToken) {
             fetchMultiChainBalances()
         }
-    }, [expanded, chainBalances.length, loading, session?.accessToken, fetchMultiChainBalances])
+    }, [expanded, autoExpand, chainBalances.length, loading, session?.accessToken, fetchMultiChainBalances])
 
     const currencyUpper = currency.toUpperCase()
     const isETH = currencyUpper === 'ETH'
