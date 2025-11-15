@@ -404,7 +404,7 @@ export function DashboardWalletBalances() {
                             <div key={wallet.id}>
                                 <div
                                     className={`group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-300 hover:bg-muted/30 hover:border-border ${
-                                        isStale ? 'opacity-75' : ''
+                                        isStale ? 'opacity-90' : ''
                                     }`}
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
