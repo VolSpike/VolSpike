@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession, signOut } from 'next-auth/react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import {
@@ -21,6 +21,7 @@ import {
 export function AdminHeader() {
     const { data: session } = useSession()
     const pathname = usePathname()
+    const router = useRouter()
 
     const handleSignOut = () => {
         signOut({ callbackUrl: '/' })
@@ -86,7 +87,7 @@ export function AdminHeader() {
                                 Account
                             </DropdownMenuLabel>
                             <DropdownMenuItem
-                                onClick={() => window.location.href = '/admin/settings'}
+                                onClick={() => router.push('/admin/settings')}
                                 className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
                             >
                                 <Settings className="h-4 w-4 mr-2.5 text-muted-foreground" />
