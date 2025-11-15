@@ -99,7 +99,7 @@ export function AdminSidebar() {
                                 </span>
                             </div>
                         </div>
-                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                        <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400">
                             Admin
                         </span>
                     </div>

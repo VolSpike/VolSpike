@@ -184,13 +184,13 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'ACTIVE':
-                return 'bg-green-500'
+                return 'bg-emerald-600/90 text-white dark:bg-emerald-600/80'
             case 'SUSPENDED':
-                return 'bg-yellow-500'
+                return 'bg-amber-500/90 text-white dark:bg-amber-500/70'
             case 'BANNED':
-                return 'bg-red-500'
+                return 'bg-red-600/90 text-white dark:bg-red-600/80'
             default:
-                return 'bg-gray-500'
+                return 'bg-gray-500/80 text-white'
         }
     }
 
@@ -437,7 +437,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             ) : (
                                                 <DropdownMenuItem
                                                     onClick={() => handleAction('activate', user)}
-                                                    className="text-green-600"
+                                                    className="text-emerald-600 dark:text-emerald-400"
                                                 >
                                                     <RefreshCw className="h-4 w-4 mr-2" />
                                                     Activate User

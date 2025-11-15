@@ -136,7 +136,10 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
 
                     {/* Action Buttons */}
                     <div className="flex space-x-2">
-                        <Button onClick={applyFilters} className="flex items-center space-x-2">
+                        <Button 
+                            onClick={applyFilters} 
+                            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                        >
                             <Filter className="h-4 w-4" />
                             <span>Apply</span>
                         </Button>
