@@ -31,8 +31,8 @@ interface AdminWallet {
 }
 
 // Configuration
-const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
-const STALE_THRESHOLD = 5 * 60 * 1000 // Consider data stale after 5 minutes
+const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000 // 2 minutes - more frequent updates
+const STALE_THRESHOLD = 10 * 60 * 1000 // Consider data stale after 10 minutes (less aggressive)
 const FRESH_THRESHOLD = 60 * 1000 // Consider data "live" if updated within 1 minute
 
 export function DashboardWalletBalances() {
@@ -148,10 +148,10 @@ export function DashboardWalletBalances() {
             refreshBalances(false)
         }
 
-        // Set up periodic refresh
+        // Set up periodic refresh - refresh more aggressively
         refreshIntervalRef.current = setInterval(() => {
-            // Only refresh if tab is visible and data is stale
-            if (isVisibleRef.current && needsRefresh()) {
+            // Refresh if tab is visible (always refresh, not just when stale)
+            if (isVisibleRef.current) {
                 refreshBalances(false)
             }
         }, AUTO_REFRESH_INTERVAL)

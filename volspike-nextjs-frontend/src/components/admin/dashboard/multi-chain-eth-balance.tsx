@@ -136,27 +136,49 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
 
     if (!expanded) {
         return (
-            <Button
-                variant="ghost"
-                size="sm"
+            <div
+                className="w-full mt-2 rounded-lg p-2 -mx-2 cursor-pointer group/expand hover:bg-muted/50 transition-colors"
                 onClick={() => setExpanded(true)}
-                className="w-full justify-between text-xs text-muted-foreground hover:text-foreground mt-2"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setExpanded(true)
+                    }
+                }}
             >
-                <div className="flex items-center gap-2">
-                    <Network className="h-3.5 w-3.5" />
-                    <span>View {displayName} balances across all EVM chains</span>
+                <div className="flex items-center justify-between text-xs text-muted-foreground group-hover/expand:text-foreground transition-colors">
+                    <div className="flex items-center gap-2">
+                        <Network className="h-3.5 w-3.5" />
+                        <span>View {displayName} balances across all EVM chains</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span className="hidden sm:inline text-[10px]">Click to expand</span>
+                        <ChevronDown className="h-3.5 w-3.5 group-hover/expand:scale-110 transition-transform" />
+                    </div>
                 </div>
-                <ChevronDown className="h-3.5 w-3.5" />
-            </Button>
+            </div>
         )
     }
 
     return (
         <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
-            <div className="flex items-center justify-between">
+            <div 
+                className="flex items-center justify-between cursor-pointer group/header rounded-lg p-2 -m-2 hover:bg-muted/50 transition-colors"
+                onClick={() => setExpanded(false)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setExpanded(false)
+                    }
+                }}
+            >
                 <div className="flex items-center gap-2">
-                    <Network className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Multi-Chain {displayName} Balances</span>
+                    <Network className="h-4 w-4 text-muted-foreground group-hover/header:text-foreground transition-colors" />
+                    <span className="text-sm font-medium group-hover/header:text-foreground transition-colors">Multi-Chain {displayName} Balances</span>
                     {hasBalances && (
                         <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-xs">
                             {chainsWithBalance.length} chain{chainsWithBalance.length !== 1 ? 's' : ''} with balance
@@ -165,14 +187,10 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
                 </div>
                 <div className="flex items-center gap-2">
                     {loading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setExpanded(false)}
-                        className="h-6 w-6 p-0"
-                    >
-                        <ChevronUp className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground group-hover/header:text-foreground transition-colors">
+                        <span className="hidden sm:inline">Click to collapse</span>
+                        <ChevronUp className="h-4 w-4 group-hover/header:scale-110 transition-transform" />
+                    </div>
                 </div>
             </div>
 
