@@ -346,5 +346,8 @@ class AdminAPIClient {
 // Create singleton instance
 export const adminAPI = new AdminAPIClient()
 
+// Export class for creating instances with different tokens
+export { AdminAPIClient }
+
 // Export error class
 export { AdminAPIError }

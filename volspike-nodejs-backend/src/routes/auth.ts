@@ -167,13 +167,13 @@ auth.post('/signin', async (c) => {
     try {
         const body = await c.req.json()
         logger.info(`[AUTH] /signin request received for: ${body.email}`)
-        
+
         const { email, password } = signInSchema.parse(body)
         logger.info(`[AUTH] Schema validation passed for: ${email}`)
 
         // Case-insensitive email lookup
         const user = await prisma.user.findFirst({
-            where: { 
+            where: {
                 email: {
                     equals: email,
                     mode: 'insensitive'
@@ -210,12 +210,12 @@ auth.post('/signin', async (c) => {
         logger.info(`[AUTH] Verifying password for: ${email}`)
         const isValidPassword = await verifyPassword(password, user.passwordHash)
         logger.info(`[AUTH] Password verification result: ${isValidPassword ? 'VALID' : 'INVALID'}`)
-        
+
         if (!isValidPassword) {
             logger.warn(`Invalid password attempt for ${email}`)
             return c.json({ error: 'Invalid email or password' }, 401)
         }
-        
+
         logger.info(`[AUTH] Password valid, generating token for: ${email}`)
 
         // Update last login time
@@ -511,7 +511,7 @@ auth.post('/password/forgot', async (c) => {
 
         // Return helpful info for OAuth-only users (still return success to prevent enumeration)
         const isOAuthOnly = !user.passwordHash
-        return c.json({ 
+        return c.json({
             success: true,
             isOAuthOnly: isOAuthOnly || undefined // Only include if true
         })
@@ -549,12 +549,12 @@ auth.post('/password/reset', async (c) => {
         }
 
         const hash = await bcrypt.hash(newPassword, 12)
-        await prisma.user.update({ 
-            where: { id: user.id }, 
-            data: { 
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
                 passwordHash: hash,
                 passwordChangedAt: new Date() // Track password change for session invalidation
-            } 
+            }
         })
         await prisma.verificationToken.deleteMany({ where: { identifier } })
 
@@ -602,20 +602,20 @@ auth.post('/password/change', async (c) => {
         if (!valid) {
             return c.json({ error: 'Current password is incorrect' }, 400)
         }
-        
+
         // Prevent reusing the current password
         const isSamePassword = await bcrypt.compare(newPassword, user.passwordHash)
         if (isSamePassword) {
             return c.json({ error: 'New password must be different from your current password' }, 400)
         }
-        
+
         const hash = await bcrypt.hash(newPassword, 12)
-        await prisma.user.update({ 
-            where: { id: user.id }, 
-            data: { 
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
                 passwordHash: hash,
                 passwordChangedAt: new Date() // Track password change for session invalidation
-            } 
+            }
         })
         return c.json({ success: true })
     } catch (error) {
@@ -675,12 +675,12 @@ auth.get('/siwe/nonce', async (c) => {
     try {
         const address = c.req.header('X-Wallet-Address') || 'unknown'
         logger.info(`Nonce request received for address: ${address}`)
-        
+
         // ✅ Use nonceManager which uses generateNonce() internally for spec-compliant nonce
         const nonce = nonceManager.generate(address, 'evm')
-        
+
         logger.info(`Nonce issued successfully for EVM address: ${address}`)
-        
+
         return c.json({ nonce })
     } catch (error) {
         logger.error('Nonce issuance error:', error)
@@ -695,21 +695,21 @@ auth.get('/siwe/prepare', async (c) => {
         const address = c.req.query('address')
         const chainId = c.req.query('chainId')
         const providedNonce = c.req.query('nonce')
-        
+
         if (!address || !chainId) {
             return c.json({ error: 'address and chainId required' }, 400)
         }
-        
+
         // Reuse the previously issued nonce - do not generate a new one here
         const nonce = typeof providedNonce === 'string' ? providedNonce : ''
         const nonceData = nonceManager.validate(nonce)
         if (!nonceData) {
             return c.json({ error: 'No valid nonce. Call /siwe/nonce first.' }, 400)
         }
-        
+
         const expectedDomain = new URL(process.env.FRONTEND_URL || 'http://localhost:3000').hostname
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
-        
+
         const msg = new SiweMessage({
             domain: expectedDomain,
             address,
@@ -719,12 +719,12 @@ auth.get('/siwe/prepare', async (c) => {
             chainId: Number(chainId),
             nonce,
         })
-        
+
         // v3 prepareMessage()
         const message = msg.prepareMessage()
-        
+
         logger.info(`SIWE message prepared for ${address} on chain ${chainId}`)
-        
+
         return c.json({ message })
     } catch (error) {
         logger.error('SIWE prepare error:', error)
@@ -742,7 +742,7 @@ auth.post('/siwe/verify', async (c) => {
 
         // Parse SIWE message using siwe v3
         const siweMessage = new SiweMessage(message)
-        
+
         // Extract nonce from the SIWE message and validate against server store
         const expectedNonce = siweMessage.nonce
         const nonceData = nonceManager.validate(expectedNonce || '')
@@ -750,7 +750,7 @@ auth.post('/siwe/verify', async (c) => {
             logger.warn('SIWE verification failed: invalid or missing nonce')
             return c.json({ error: 'Invalid nonce' }, 401)
         }
-        
+
         // v3 verify API - ✅ exact domain, no port
         const result = await siweMessage.verify({
             signature,
@@ -765,7 +765,7 @@ auth.post('/siwe/verify', async (c) => {
         }
 
         const { address, chainId } = siweMessage
-        
+
         console.log('[SIWE Verify] Successfully verified:', { address, chainId })
 
         // Validate chain
@@ -784,7 +784,7 @@ auth.post('/siwe/verify', async (c) => {
         // Check if user is already logged in (has Authorization header)
         const authHeader = c.req.header('Authorization')
         const loggedInUserId = await getUserIdFromHeader(authHeader)
-        
+
         // Find existing wallet account
         let walletAccount = await prisma.walletAccount.findUnique({
             where: {
@@ -818,16 +818,16 @@ auth.post('/siwe/verify', async (c) => {
         if (walletAccount) {
             // Existing wallet account - sign in to associated user
             user = walletAccount.user
-            
+
             // If user is logged in with email/OAuth and wallet belongs to different user, don't auto-link
             if (loggedInUserId && loggedInUserId !== user.id) {
                 logger.warn(`[SIWE Verify] Wallet ${caip10} belongs to different user. User ${loggedInUserId} attempted to sign in.`)
-                return c.json({ 
+                return c.json({
                     error: 'This wallet is already linked to another account. Please unlink it first or use a different wallet.',
-                    walletLinkedToDifferentAccount: true 
+                    walletLinkedToDifferentAccount: true
                 }, 403)
             }
-            
+
             await prisma.walletAccount.update({
                 where: { id: walletAccount.id },
                 data: { lastLoginAt: new Date() },
@@ -859,11 +859,11 @@ auth.post('/siwe/verify', async (c) => {
                             twoFactorEnabled: true,
                         },
                     })
-                    
+
                     if (!user) {
                         throw new Error('Logged-in user not found')
                     }
-                    
+
                     // Create wallet account linked to existing user
                     await prisma.walletAccount.create({
                         data: {
@@ -880,7 +880,7 @@ auth.post('/siwe/verify', async (c) => {
                         where: { id: user.id },
                         data: { lastLoginAt: new Date() },
                     })
-                    
+
                     logger.info(`Wallet ${caip10} linked to existing user account: ${user.email}`)
                 } catch (linkError: any) {
                     logger.error('[SIWE Verify] Error linking wallet to existing account:', linkError)
@@ -906,7 +906,7 @@ auth.post('/siwe/verify', async (c) => {
                             twoFactorEnabled: true,
                         },
                     })
-                    
+
                     if (!user) {
                         user = await prisma.user.create({
                             data: {
@@ -945,7 +945,7 @@ auth.post('/siwe/verify', async (c) => {
                         where: { id: user.id },
                         data: { lastLoginAt: new Date() },
                     })
-                    
+
                     logger.info(`New wallet-only account created: ${caip10}`)
                 } catch (createError: any) {
                     logger.error('[SIWE Verify] Error creating wallet-only account:', createError)
@@ -1156,14 +1156,14 @@ auth.post('/solana/verify', async (c) => {
 auth.post('/wallet/link', authMiddleware, async (c) => {
     try {
         const { message, signature, address, chainId, provider } = await c.req.json()
-        
+
         if (!message || !signature || !address || !chainId || !provider) {
             return c.json({ error: 'Missing required fields' }, 400)
         }
 
         // Get logged-in user from middleware (guaranteed to exist by authMiddleware)
         const user = c.get('user')!
-        
+
         // Verify signature based on provider
         let verified = false
         let caip10 = ''
@@ -1176,11 +1176,11 @@ auth.post('/wallet/link', authMiddleware, async (c) => {
                 nonce: siweMessage.nonce,
                 time: new Date().toISOString(),
             })
-            
+
             if (!result.success) {
                 return c.json({ error: 'Signature verification failed' }, 401)
             }
-            
+
             verified = true
             caip10 = `eip155:${chainId}:${address}`
         } else if (provider === 'solana') {
@@ -1188,20 +1188,20 @@ auth.post('/wallet/link', authMiddleware, async (c) => {
             const expectedNonceMatch = message.match(/Nonce: (.*)/)
             const expectedNonce = expectedNonceMatch ? expectedNonceMatch[1]?.trim() : ''
             const nonceData = nonceManager.validate(expectedNonce || '')
-            
+
             if (!nonceData) {
                 return c.json({ error: 'Invalid nonce' }, 401)
             }
-            
+
             const pubkey = bs58.decode(address)
             const sig = bs58.decode(signature)
             const msgBytes = new TextEncoder().encode(message)
             verified = nacl.sign.detached.verify(msgBytes, sig, pubkey)
-            
+
             if (!verified) {
                 return c.json({ error: 'Signature verification failed' }, 401)
             }
-            
+
             nonceManager.consume(expectedNonce || '')
             caip10 = `solana:${chainId || '101'}:${address}`
         } else {
@@ -1278,7 +1278,7 @@ auth.post('/wallet/link', authMiddleware, async (c) => {
 
         logger.info(`Wallet ${caip10} linked to user ${user.email}`)
 
-        return c.json({ 
+        return c.json({
             success: true,
             message: 'Wallet linked successfully'
         })
@@ -1292,7 +1292,7 @@ auth.post('/wallet/link', authMiddleware, async (c) => {
 auth.post('/wallet/unlink', authMiddleware, async (c) => {
     try {
         const { address, chainId, provider } = await c.req.json()
-        
+
         if (!address || !chainId || !provider) {
             return c.json({ error: 'Missing required fields' }, 400)
         }
@@ -1300,7 +1300,7 @@ auth.post('/wallet/unlink', authMiddleware, async (c) => {
         // Get logged-in user from middleware (guaranteed to exist by authMiddleware)
         const user = c.get('user')!
 
-        const caip10 = provider === 'evm' 
+        const caip10 = provider === 'evm'
             ? `eip155:${chainId}:${address}`
             : `solana:${chainId || '101'}:${address}`
 
@@ -1340,8 +1340,8 @@ auth.post('/wallet/unlink', authMiddleware, async (c) => {
         const hasOtherWallets = userWallets.filter(w => w.id !== walletAccount.id).length > 0
 
         if (!hasPassword && !hasOAuth && !hasOtherWallets) {
-            return c.json({ 
-                error: 'Cannot unlink. This is your only authentication method. Please link another method first.' 
+            return c.json({
+                error: 'Cannot unlink. This is your only authentication method. Please link another method first.'
             }, 400)
         }
 
@@ -1352,7 +1352,7 @@ auth.post('/wallet/unlink', authMiddleware, async (c) => {
 
         logger.info(`Wallet ${caip10} unlinked from user ${user.email}`)
 
-        return c.json({ 
+        return c.json({
             success: true,
             message: 'Wallet unlinked successfully'
         })
@@ -1447,7 +1447,7 @@ auth.get('/accounts/list', authMiddleware, async (c) => {
 auth.post('/email/link', authMiddleware, async (c) => {
     try {
         const { email, password } = await c.req.json()
-        
+
         if (!email || !password) {
             return c.json({ error: 'Email and password are required' }, 400)
         }
@@ -1501,7 +1501,7 @@ auth.post('/email/link', authMiddleware, async (c) => {
 
         logger.info(`Email/password linked to user ${user.id}`)
 
-        return c.json({ 
+        return c.json({
             success: true,
             message: 'Email and password linked successfully'
         })
@@ -1515,7 +1515,7 @@ auth.post('/email/link', authMiddleware, async (c) => {
 auth.post('/oauth/link', authMiddleware, async (c) => {
     try {
         const { email, name, image, provider, providerId } = await c.req.json()
-        
+
         if (!email || !provider || !providerId) {
             return c.json({ error: 'Missing required fields' }, 400)
         }
@@ -1603,7 +1603,7 @@ auth.post('/oauth/link', authMiddleware, async (c) => {
 
         logger.info(`Google OAuth linked to user ${user.id}`)
 
-        return c.json({ 
+        return c.json({
             success: true,
             message: 'Google account linked successfully'
         })
@@ -1617,7 +1617,7 @@ auth.post('/oauth/link', authMiddleware, async (c) => {
 auth.post('/oauth/unlink', authMiddleware, async (c) => {
     try {
         const { provider } = await c.req.json()
-        
+
         if (!provider) {
             return c.json({ error: 'Provider is required' }, 400)
         }
@@ -1654,8 +1654,8 @@ auth.post('/oauth/unlink', authMiddleware, async (c) => {
         const hasWallets = userWallets.length > 0
 
         if (!hasPassword && !hasOtherOAuth && !hasWallets) {
-            return c.json({ 
-                error: 'Cannot unlink. This is your only authentication method. Please link another method first.' 
+            return c.json({
+                error: 'Cannot unlink. This is your only authentication method. Please link another method first.'
             }, 400)
         }
 
@@ -1666,7 +1666,7 @@ auth.post('/oauth/unlink', authMiddleware, async (c) => {
 
         logger.info(`OAuth ${provider} unlinked from user ${user.id}`)
 
-        return c.json({ 
+        return c.json({
             success: true,
             message: 'OAuth account unlinked successfully'
         })
@@ -1904,20 +1904,20 @@ auth.post('/phantom/dl/decrypt', async (c) => {
         // Phantom may send 'data' or 'payload' - accept both
         const payloadValue = payload || data
         if (!state || !payloadValue || !nonce) {
-            logger.warn(`[PhantomDL] decrypt: missing required params`, { 
-                hasState: !!state, 
-                hasPubKey: !!phantom_encryption_public_key, 
+            logger.warn(`[PhantomDL] decrypt: missing required params`, {
+                hasState: !!state,
+                hasPubKey: !!phantom_encryption_public_key,
                 hasPayload: !!payload,
                 hasData: !!data,
                 hasPayloadValue: !!payloadValue,
-                hasNonce: !!nonce 
+                hasNonce: !!nonce
             })
             return c.json({ error: 'Invalid payload' }, 400)
         }
         const rec = phantomStateStore.get(state)
         if (!rec) {
-            logger.warn(`[PhantomDL] decrypt: state not found or expired`, { 
-                state, 
+            logger.warn(`[PhantomDL] decrypt: state not found or expired`, {
+                state,
                 storeSize: phantomStateStore.size,
                 storeKeys: Array.from(phantomStateStore.keys()).slice(0, 5)
             })
@@ -1925,7 +1925,7 @@ auth.post('/phantom/dl/decrypt', async (c) => {
         }
         // For sign stage, Phantom may not include phantom_encryption_public_key in redirect
         // Use the stored one from the connect stage if available
-        const phantomPubKeyToUse = phantom_encryption_public_key 
+        const phantomPubKeyToUse = phantom_encryption_public_key
             ? bs58.decode(phantom_encryption_public_key)
             : (rec.phantomPubKey || null)
         if (!phantomPubKeyToUse) {
@@ -1944,14 +1944,14 @@ auth.post('/phantom/dl/decrypt', async (c) => {
             const rec = phantomStateStore.get(state)
             if (rec) {
                 rec.session = decryptedData.session
-                try { rec.phantomPubKey = bs58.decode(phantom_encryption_public_key || '') } catch {}
+                try { rec.phantomPubKey = bs58.decode(phantom_encryption_public_key || '') } catch { }
                 phantomStateStore.set(state, rec)
             }
         }
-        logger.info(`[PhantomDL] decrypt ok state=${state} stage=${stage}`, { 
-            hasSignature: !!decryptedData.signature, 
-            hasSession: !!decryptedData.session, 
-            hasPublicKey: !!decryptedData.public_key 
+        logger.info(`[PhantomDL] decrypt ok state=${state} stage=${stage}`, {
+            hasSignature: !!decryptedData.signature,
+            hasSession: !!decryptedData.session,
+            hasPublicKey: !!decryptedData.public_key
         })
         return c.json({ ok: true, data: decryptedData })
     } catch (e: any) {

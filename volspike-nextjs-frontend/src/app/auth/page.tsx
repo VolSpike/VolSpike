@@ -65,12 +65,12 @@ function AuthPageContent() {
             const checkAndRedirect = async () => {
                 // Refresh session to get latest role data
                 await new Promise(resolve => setTimeout(resolve, 300))
-                
+
                 // Check session again after refresh
                 const response = await fetch('/api/auth/session')
                 const latestSession = await response.json().catch(() => null)
                 const userRole = latestSession?.user?.role || session?.user?.role
-                
+
                 // SECURITY: Strict check - only 'ADMIN' role (case-sensitive) allows access
                 if (userRole === 'ADMIN') {
                     console.log('[AuthPage] Admin session confirmed, redirecting to', nextUrl)
@@ -83,7 +83,7 @@ function AuthPageContent() {
                     // Do NOT redirect - keep them on auth page
                 }
             }
-            
+
             checkAndRedirect()
         }
     }, [isAdminMode, status, session, router, nextUrl])

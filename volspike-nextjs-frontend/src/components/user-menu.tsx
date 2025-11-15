@@ -21,12 +21,12 @@ import {
     DropdownMenuSubContent,
     DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu'
-import { 
-    Settings, 
-    LogOut, 
-    Copy, 
-    CreditCard, 
-    Wallet, 
+import {
+    Settings,
+    LogOut,
+    Copy,
+    CreditCard,
+    Wallet,
     Bell,
     Star,
     Zap,
@@ -74,7 +74,7 @@ export function UserMenu() {
                     setAvatarMode(lsMode)
                 }
             }
-        } catch (_) {}
+        } catch (_) { }
     }, [])
 
     const handleCopy = async (text: string, label: string) => {
@@ -94,13 +94,13 @@ export function UserMenu() {
     const emailFromSession = session?.user?.email
     const normalizedEmail = (emailFromIdentity || emailFromSession)?.toLowerCase().trim() || null
     const userIdentifier = normalizedEmail || (session?.user as any)?.walletAddress || session?.user?.id || null
-    
+
     // Always use email for initials - ignore displayName to ensure consistency
     // If email is not available, fallback to a safe default
-    const initials = normalizedEmail 
+    const initials = normalizedEmail
         ? generateInitials(normalizedEmail, null)
         : generateInitials(null, null, identity.address)
-    
+
     // Use normalized email for color generation to ensure consistency
     // If no email, use user ID as fallback
     const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
@@ -114,7 +114,7 @@ export function UserMenu() {
         if (typeof window !== 'undefined') {
             hideTiles = window.localStorage?.getItem('vs_avatar_hide_tiles') === '1'
         }
-    } catch (_) {}
+    } catch (_) { }
     const shouldFilterTiles = envFilterTiles || hideTiles
     // Show image whenever available, unless explicitly filtered and detected as a tile
     const showAvatarImage = Boolean(
@@ -196,8 +196,8 @@ export function UserMenu() {
                     </div>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-                align="end" 
+            <DropdownMenuContent
+                align="end"
                 className="w-[280px] p-0 backdrop-blur-lg bg-popover/95 border-border/50 shadow-lg-dark dark:shadow-lg-dark animate-scale-in rounded-xl"
             >
                 {/* User Info Section with Glassmorphism */}
@@ -244,18 +244,17 @@ export function UserMenu() {
                                 })()}
                             </div>
                         </div>
-                        
+
                         {/* Tier Badge with icon */}
                         <div className="flex items-center justify-between">
                             <Badge
                                 variant="default"
-                                className={`text-xs font-semibold px-2.5 py-1 transition-all duration-150 ${
-                                    tier === 'pro'
+                                className={`text-xs font-semibold px-2.5 py-1 transition-all duration-150 ${tier === 'pro'
                                         ? 'bg-sec-600 dark:bg-sec-500 text-white border-0 shadow-sec'
                                         : tier === 'elite'
                                             ? 'bg-elite-600 dark:bg-elite-500 text-white border-0 shadow-sm'
                                             : 'bg-gray-600 dark:bg-gray-500 text-white border-0'
-                                }`}
+                                    }`}
                             >
                                 {tier === 'free' && <Zap className="h-3 w-3 mr-1 inline" />}
                                 {tier === 'pro' && <Star className="h-3 w-3 mr-1 inline" />}
@@ -283,7 +282,7 @@ export function UserMenu() {
 
                 {/* Quick Actions Section */}
                 <div className="py-1">
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                         onClick={() => {
                             router.push('/settings')
                             setIsOpen(false)
@@ -298,7 +297,7 @@ export function UserMenu() {
                     {identity.role === 'ADMIN' && (
                         <>
                             <DropdownMenuSeparator className="my-1 mx-2" />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                                 onClick={() => {
                                     router.push('/admin')
                                     setIsOpen(false)
@@ -316,7 +315,7 @@ export function UserMenu() {
                     )}
 
                     {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                             onClick={() => {
                                 router.push('/settings/billing')
                                 setIsOpen(false)
@@ -328,7 +327,7 @@ export function UserMenu() {
                         </DropdownMenuItem>
                     )}
 
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                         onClick={() => {
                             router.push('/alerts')
                             setIsOpen(false)
@@ -339,7 +338,7 @@ export function UserMenu() {
                         <span className="flex-1">Email Alerts</span>
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                         onClick={() => {
                             router.push('/watchlist')
                             setIsOpen(false)
@@ -356,7 +355,7 @@ export function UserMenu() {
                 {/* Copy Actions */}
                 <div className="py-1">
                     {identity.email && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                             onClick={() => handleCopy(identity.email!, 'Email')}
                             className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
                         >
@@ -365,7 +364,7 @@ export function UserMenu() {
                         </DropdownMenuItem>
                     )}
                     {identity.address && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                             onClick={() => handleCopy(identity.address!, 'Address')}
                             className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
                         >
@@ -401,18 +400,18 @@ export function UserMenu() {
                 <div className="p-2">
                     <DropdownMenuItem
                         onClick={() => {
-                            try { disconnect() } catch (_) {}
+                            try { disconnect() } catch (_) { }
                             try {
                                 const anyWindow: any = typeof window !== 'undefined' ? window : null
                                 anyWindow?.solana?.isConnected && anyWindow?.solana?.disconnect?.()
-                            } catch (_) {}
+                            } catch (_) { }
                             try {
                                 if (typeof window !== 'undefined') {
                                     window.localStorage.removeItem('vs_normalized_email')
                                     window.localStorage.removeItem('vs_avatar_mode')
                                     window.localStorage.removeItem('debugAvatar')
                                 }
-                            } catch (_) {}
+                            } catch (_) { }
                             signOut({ callbackUrl: '/' })
                         }}
                         className="rounded-lg text-danger-600 dark:text-danger-400 focus:text-danger-600 dark:focus:text-danger-400 focus:bg-danger-500/10 transition-all duration-150"

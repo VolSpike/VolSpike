@@ -2,6 +2,7 @@
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { AdminLayout } from '@/components/admin/layout/admin-layout'
 import AdminDashboardClient from './admin-dashboard-client'
 
 export const metadata: Metadata = {
@@ -26,5 +27,9 @@ export default async function AdminPage() {
     }
 
     // User is authenticated AND has ADMIN role - allow access
-    return <AdminDashboardClient />
+    return (
+        <AdminLayout>
+            <AdminDashboardClient />
+        </AdminLayout>
+    )
 }

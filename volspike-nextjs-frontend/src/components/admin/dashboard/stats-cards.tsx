@@ -27,33 +27,33 @@ export function StatsCards({ stats }: StatsCardsProps) {
             title: 'Total Users',
             value: stats.totalUsers.toLocaleString(),
             icon: Users,
-            change: '+12%',
-            changeType: 'positive' as const,
+            change: null, // Remove fake percentage
+            changeType: null as any,
             description: 'All registered users',
         },
         {
             title: 'Active Users',
             value: stats.activeUsers.toLocaleString(),
             icon: UserCheck,
-            change: '+8%',
-            changeType: 'positive' as const,
+            change: null,
+            changeType: null as any,
             description: 'Users active in last 30 days',
         },
         {
             title: 'Total Revenue',
             value: `$${stats.totalRevenue.toLocaleString()}`,
             icon: DollarSign,
-            change: '+15%',
-            changeType: 'positive' as const,
+            change: null,
+            changeType: null as any,
             description: 'Lifetime revenue',
         },
         {
             title: 'Recent Signups',
             value: stats.recentSignups.toString(),
             icon: UserPlus,
-            change: '+5%',
-            changeType: 'positive' as const,
-            description: 'New users this week',
+            change: null,
+            changeType: null as any,
+            description: 'New users in last 30 days',
         },
     ]
 
@@ -70,19 +70,23 @@ export function StatsCards({ stats }: StatsCardsProps) {
                             <Icon className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{card.value}</div>
-                            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                                {card.changeType === 'positive' ? (
-                                    <TrendingUp className="h-3 w-3 text-green-500" />
-                                ) : (
-                                    <TrendingDown className="h-3 w-3 text-red-500" />
-                                )}
-                                <span className={card.changeType === 'positive' ? 'text-green-500' : 'text-red-500'}>
-                                    {card.change}
-                                </span>
-                                <span>from last month</span>
+                            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                {card.value}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            {card.change && card.changeType && (
+                                <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
+                                    {card.changeType === 'positive' ? (
+                                        <TrendingUp className="h-3 w-3 text-green-500" />
+                                    ) : (
+                                        <TrendingDown className="h-3 w-3 text-red-500" />
+                                    )}
+                                    <span className={card.changeType === 'positive' ? 'text-green-500' : 'text-red-500'}>
+                                        {card.change}
+                                    </span>
+                                    <span>from last month</span>
+                                </div>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-2">
                                 {card.description}
                             </p>
                         </CardContent>

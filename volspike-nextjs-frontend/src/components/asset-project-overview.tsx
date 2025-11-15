@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { BarChart3, ExternalLink, Globe, Twitter } from 'lucide-react'
 import { useAssetProfile } from '@/hooks/use-asset-profile'
@@ -10,10 +11,12 @@ interface AssetProjectOverviewProps {
 export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) {
     const { profile, loading } = useAssetProfile(baseSymbol)
     const [logoFailed, setLogoFailed] = useState(false)
+    const [expanded, setExpanded] = useState(false)
 
     useEffect(() => {
         // Reset logo error state when switching to a different asset
         setLogoFailed(false)
+        setExpanded(false)
     }, [baseSymbol])
 
     const tradingViewUrl = useMemo(() => {
@@ -22,19 +25,19 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
     }, [baseSymbol])
 
     const displayName = profile?.name || baseSymbol.toUpperCase()
-    const description = profile?.description
+    const description = profile?.description ?? ''
 
     return (
         <section className="rounded-xl border border-border/50 bg-gradient-to-br from-background/80 via-background/60 to-background/30 shadow-sm">
             <div className="flex items-start gap-3 p-4 pb-3">
                 <div className="relative h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center overflow-hidden ring-1 ring-brand-500/30 shadow-md shadow-brand-500/10">
                     {profile?.logoUrl && !logoFailed ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
+                        <Image
                             src={profile.logoUrl}
                             alt={`${displayName} logo`}
-                            className="h-full w-full object-contain p-1"
-                            loading="lazy"
+                            fill
+                            sizes="40px"
+                            className="object-contain p-1"
                             onError={() => setLogoFailed(true)}
                         />
                     ) : (
@@ -64,9 +67,22 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
                     </div>
                 )}
                 {!loading && description && (
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                        {description}
-                    </p>
+                    <>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                            {expanded || description.length <= 320
+                                ? description
+                                : `${description.slice(0, 320).replace(/\s+\S*$/, '')}…`}
+                        </p>
+                        {description.length > 320 && (
+                            <button
+                                type="button"
+                                onClick={() => setExpanded((v) => !v)}
+                                className="mt-1 text-[11px] font-medium text-brand-400 hover:text-brand-300 underline-offset-2 hover:underline"
+                            >
+                                {expanded ? 'Show less' : 'Read full overview'}
+                            </button>
+                        )}
+                    </>
                 )}
                 {!loading && !description && (
                     <p className="text-xs leading-relaxed text-muted-foreground/80">

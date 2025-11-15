@@ -126,12 +126,22 @@ export function AdminHeader() {
                         {getThemeIcon()}
                     </Button>
 
+                    {/* Logout Button - Prominent */}
+                    <Button
+                        variant="outline"
+                        onClick={handleSignOut}
+                        className="flex items-center space-x-2 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950 hover:border-red-300 dark:hover:border-red-700"
+                    >
+                        <LogOut className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <span className="hidden md:inline text-red-600 dark:text-red-400 font-medium">Sign Out</span>
+                    </Button>
+
                     {/* User menu */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="flex items-center space-x-2">
-                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <User className="h-4 w-4 text-blue-600" />
+                                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                                    <User className="h-4 w-4 text-white" />
                                 </div>
                                 <div className="hidden md:block text-left">
                                     <div className="text-sm font-medium">{session?.user?.email}</div>
@@ -151,7 +161,7 @@ export function AdminHeader() {
                                 Settings
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleSignOut}>
+                            <DropdownMenuItem onClick={handleSignOut} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
                                 <LogOut className="h-4 w-4 mr-2" />
                                 Sign Out
                             </DropdownMenuItem>

@@ -3,10 +3,10 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import type { NextAuthConfig } from 'next-auth'
 
-const BACKEND_API_URL = process.env.BACKEND_API_URL 
-    || process.env.NEXT_PUBLIC_API_URL 
-    || (typeof window === 'undefined' && process.env.NODE_ENV === 'production' 
-        ? 'https://volspike-production.up.railway.app' 
+const BACKEND_API_URL = process.env.BACKEND_API_URL
+    || process.env.NEXT_PUBLIC_API_URL
+    || (typeof window === 'undefined' && process.env.NODE_ENV === 'production'
+        ? 'https://volspike-production.up.railway.app'
         : 'http://localhost:3001')
 
 export const authConfig: NextAuthConfig = {
@@ -51,7 +51,7 @@ export const authConfig: NextAuthConfig = {
                 try {
                     console.log('[NextAuth] Calling backend:', `${BACKEND_API_URL}/api/auth/signin`)
                     console.log('[NextAuth] Credentials:', { email: credentials.email, hasPassword: !!credentials.password })
-                    
+
                     const response = await fetch(`${BACKEND_API_URL}/api/auth/signin`, {
                         method: 'POST',
                         headers: {
@@ -62,7 +62,7 @@ export const authConfig: NextAuthConfig = {
                             password: credentials.password,
                         }),
                     })
-                    
+
                     console.log('[NextAuth] Response status:', response.status, response.statusText)
 
                     if (!response.ok) {
@@ -199,11 +199,11 @@ export const authConfig: NextAuthConfig = {
             // Always fetch fresh tier data from database when update() is called or periodically
             // This ensures tier changes are reflected immediately
             // Also fetch immediately after OAuth sign-in (when user object is present but token might be stale)
-            const shouldRefresh = trigger === 'update' || 
-                                 !token.tierLastChecked || 
-                                 Date.now() - (token.tierLastChecked as number) > 30000 ||
-                                 (user && account?.provider === 'google') // Force refresh after Google OAuth
-            
+            const shouldRefresh = trigger === 'update' ||
+                !token.tierLastChecked ||
+                Date.now() - (token.tierLastChecked as number) > 30000 ||
+                (user && account?.provider === 'google') // Force refresh after Google OAuth
+
             if (token.id && shouldRefresh) {
                 try {
                     const meUrl = `${BACKEND_API_URL}/api/auth/me`
@@ -216,18 +216,18 @@ export const authConfig: NextAuthConfig = {
 
                     if (response.ok) {
                         const { user: dbUser } = await response.json()
-                        
+
                         if (dbUser) {
                             // Check if password was changed after this token was issued
                             const dbPasswordChangedAt = dbUser.passwordChangedAt ? new Date(dbUser.passwordChangedAt).getTime() : 0
                             const tokenIssuedAt = (token.iat as number) * 1000 || 0
-                            
+
                             if (dbPasswordChangedAt > tokenIssuedAt) {
                                 // Password was changed after token was issued - invalidate session
                                 console.log(`[Auth] ⚠️ Password changed after token issued - invalidating session`)
                                 return null // Return null to invalidate the session
                             }
-                            
+
                             const oldTier = token.tier
                             token.tier = dbUser.tier || 'free'
                             token.emailVerified = dbUser.emailVerified
@@ -244,7 +244,7 @@ export const authConfig: NextAuthConfig = {
                                 token.image = user.image
                             }
                             token.tierLastChecked = Date.now() // Cache timestamp
-                            
+
                             if (oldTier !== token.tier) {
                                 console.log(`[Auth] ✅ Tier updated: ${oldTier} → ${token.tier} for ${dbUser.email}`)
                             }
@@ -304,10 +304,10 @@ export const authConfig: NextAuthConfig = {
                     } else {
                         console.warn('[NextAuth] ⚠️ Google OAuth user object missing image field:', user)
                     }
-                    
+
                     // Check if user is already logged in (for account linking)
                     const existingSession = token.id ? { userId: token.id } : null
-                    
+
                     const requestBody: any = {
                         // Send normalized email to backend for consistent linking
                         email: String(user.email).toLowerCase().trim(),
@@ -323,7 +323,7 @@ export const authConfig: NextAuthConfig = {
                     const headers: HeadersInit = {
                         'Content-Type': 'application/json',
                     }
-                    
+
                     let endpoint = `${BACKEND_API_URL}/api/auth/oauth-link`
                     if (existingSession?.userId) {
                         headers['Authorization'] = `Bearer ${existingSession.userId}`
@@ -341,7 +341,7 @@ export const authConfig: NextAuthConfig = {
 
                     if (response.ok) {
                         const responseData = await response.json()
-                        
+
                         // If linking to existing account, use existing token data
                         if (existingSession?.userId && responseData.success) {
                             console.log('[NextAuth] Google OAuth linked successfully to existing account')
@@ -363,7 +363,7 @@ export const authConfig: NextAuthConfig = {
                             token.twoFactorEnabled = dbUser.twoFactorEnabled
                             token.accessToken = dbToken
                             token.tierLastChecked = Date.now() // Mark as checked so refresh happens
-                            
+
                             console.log(`[NextAuth] ✅ OAuth account created/linked: ${dbUser.email}, role: ${token.role}, tier: ${token.tier}`)
                             // CRITICAL: Preserve Google profile image - backend doesn't return it
                             // Always use user.image if available (it's the fresh Google profile photo)
@@ -394,7 +394,7 @@ export const authConfig: NextAuthConfig = {
             if (!token) {
                 return null as any
             }
-            
+
             if (token && session.user) {
                 session.user.id = token.id
                 // Ensure email is normalized in the session
@@ -407,7 +407,7 @@ export const authConfig: NextAuthConfig = {
                 session.user.twoFactorEnabled = token.twoFactorEnabled
                 session.user.walletAddress = token.walletAddress
                 session.user.walletProvider = token.walletProvider
-                ;(session as any).authMethod = token.authMethod || null
+                    ; (session as any).authMethod = token.authMethod || null
                 // Always include profile image if available in token
                 if (token.image) {
                     session.user.image = token.image
