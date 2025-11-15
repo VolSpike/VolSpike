@@ -241,12 +241,6 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
                     </div>
                 )
             )}
-
-            {chainBalances.length === 0 && !loading && !error && (
-                <div className="text-center py-4 text-sm text-muted-foreground">
-                    Click to load chain balances
-                </div>
-            )}
         </div>
     )
 }
