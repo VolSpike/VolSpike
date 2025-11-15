@@ -286,7 +286,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
             )}
 
             <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden relative">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-visible">
                     <Table>
                     <TableHeader>
                         <TableRow>
@@ -335,7 +335,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     {getSortIcon('lastLoginAt')}
                                 </div>
                             </TableHead>
-                            <TableHead className="text-right sticky right-0 bg-card/95 backdrop-blur-sm z-10 border-l border-border/60">
+                            <TableHead className="text-right sticky right-0 bg-card/50 backdrop-blur-sm z-10 border-l border-border/60">
                                 Actions
                             </TableHead>
                         </TableRow>
@@ -372,7 +372,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                             users.map((user) => (
                             <TableRow
                                 key={user.id}
-                                className="group cursor-pointer transition-colors hover:bg-muted/50 border-border/60"
+                                className="group cursor-pointer transition-colors hover:bg-muted/50 border-border/60 bg-card/50"
                                 onClick={() => router.push(`/admin/users/${user.id}`)}
                             >
                                 <TableCell onClick={(e) => e.stopPropagation()}>
@@ -580,7 +580,10 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         <span className="text-sm text-muted-foreground italic">No login yet</span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-right sticky right-0 bg-card/95 backdrop-blur-sm z-10 border-l border-border/60" onClick={(e) => e.stopPropagation()}>
+                                <TableCell 
+                                    className="text-right sticky right-0 bg-card/50 backdrop-blur-sm z-10 border-l border-border/60 group-hover:bg-muted/50 transition-colors" 
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
@@ -596,7 +599,11 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                 )}
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-56 rounded-lg border border-border/60 bg-card/95 backdrop-blur-sm shadow-lg p-1">
+                                        <DropdownMenuContent 
+                                            align="end" 
+                                            usePortal={true}
+                                            className="w-56 rounded-lg border border-border/60 bg-card/95 backdrop-blur-sm shadow-lg p-1 z-[9999]"
+                                        >
                                             <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                                 Actions
                                             </DropdownMenuLabel>
