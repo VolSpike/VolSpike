@@ -31,7 +31,7 @@ interface AuditFiltersProps {
 }
 
 const actionOptions = [
-    { value: '', label: 'All Actions' },
+    { value: 'all', label: 'All Actions' },
     { value: 'USER_CREATED', label: 'User Created' },
     { value: 'USER_UPDATED', label: 'User Updated' },
     { value: 'USER_DELETED', label: 'User Deleted' },
@@ -43,7 +43,7 @@ const actionOptions = [
 ]
 
 const targetTypeOptions = [
-    { value: '', label: 'All Types' },
+    { value: 'all', label: 'All Types' },
     { value: 'USER', label: 'User' },
     { value: 'SUBSCRIPTION', label: 'Subscription' },
     { value: 'SETTINGS', label: 'Settings' },
@@ -54,8 +54,8 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
     const router = useRouter()
     const [filters, setFilters] = useState({
         actorUserId: currentFilters.actorUserId || '',
-        action: currentFilters.action || '',
-        targetType: currentFilters.targetType || '',
+        action: currentFilters.action || 'all',
+        targetType: currentFilters.targetType || 'all',
         targetId: currentFilters.targetId || '',
         startDate: currentFilters.startDate ? format(currentFilters.startDate, 'yyyy-MM-dd') : '',
         endDate: currentFilters.endDate ? format(currentFilters.endDate, 'yyyy-MM-dd') : '',
@@ -65,7 +65,8 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
         const params = new URLSearchParams()
 
         Object.entries(filters).forEach(([key, value]) => {
-            if (value) {
+            // Skip 'all' values and empty strings
+            if (value && value !== 'all') {
                 params.set(key, value)
             }
         })
@@ -79,8 +80,8 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
     const clearFilters = () => {
         setFilters({
             actorUserId: '',
-            action: '',
-            targetType: '',
+            action: 'all',
+            targetType: 'all',
             targetId: '',
             startDate: '',
             endDate: '',
@@ -88,7 +89,10 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
         router.push('/admin/audit')
     }
 
-    const hasActiveFilters = Object.values(filters).some(value => value)
+    const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+        // Don't count 'all' values or empty strings as active filters
+        return value && value !== 'all'
+    })
 
     return (
         <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
@@ -112,11 +116,11 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
 
                         {/* Action Filter */}
                         <Select
-                            value={filters.action}
+                            value={filters.action || 'all'}
                             onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
                         >
                             <SelectTrigger className="w-48 h-11 border-border/60 bg-background/50">
-                                <SelectValue placeholder="Action" />
+                                <SelectValue placeholder="All Actions" />
                             </SelectTrigger>
                             <SelectContent>
                                 {actionOptions.map((option) => (
@@ -129,11 +133,11 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
 
                         {/* Target Type Filter */}
                         <Select
-                            value={filters.targetType}
+                            value={filters.targetType || 'all'}
                             onValueChange={(value) => setFilters(prev => ({ ...prev, targetType: value }))}
                         >
                             <SelectTrigger className="w-32 h-11 border-border/60 bg-background/50">
-                                <SelectValue placeholder="Target" />
+                                <SelectValue placeholder="All Types" />
                             </SelectTrigger>
                             <SelectContent>
                                 {targetTypeOptions.map((option) => (
@@ -213,22 +217,22 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
                                     </button>
                                 </span>
                             )}
-                            {filters.action && (
+                            {filters.action && filters.action !== 'all' && (
                                 <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs">
                                     Action: {filters.action}
                                     <button
-                                        onClick={() => setFilters(prev => ({ ...prev, action: '' }))}
+                                        onClick={() => setFilters(prev => ({ ...prev, action: 'all' }))}
                                         className="ml-1 hover:text-blue-600"
                                     >
                                         <X className="h-3 w-3" />
                                     </button>
                                 </span>
                             )}
-                            {filters.targetType && (
+                            {filters.targetType && filters.targetType !== 'all' && (
                                 <span className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs">
                                     Target: {filters.targetType}
                                     <button
-                                        onClick={() => setFilters(prev => ({ ...prev, targetType: '' }))}
+                                        onClick={() => setFilters(prev => ({ ...prev, targetType: 'all' }))}
                                         className="ml-1 hover:text-blue-600"
                                     >
                                         <X className="h-3 w-3" />
