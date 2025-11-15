@@ -397,6 +397,8 @@ export function DashboardWalletBalances() {
                         const isStale = isDataStale(wallet.balanceUpdatedAt)
 
                         const isETH = wallet.currency.toUpperCase() === 'ETH' && !wallet.network
+                        const isUSDC = wallet.currency.toUpperCase() === 'USDC' && wallet.network?.toLowerCase().includes('eth')
+                        const isUSDT = wallet.currency.toUpperCase() === 'USDT' && wallet.network?.toLowerCase().includes('eth')
 
                         return (
                             <div key={wallet.id}>
@@ -447,12 +449,14 @@ export function DashboardWalletBalances() {
                                         )}
                                     </div>
                                 </div>
-                                {/* Multi-chain balance view for ETH wallets */}
-                                {isETH && (
+                                {/* Multi-chain balance view for ETH, USDC, and USDT wallets */}
+                                {(isETH || isUSDC || isUSDT) && (
                                     <MultiChainETHBalance
                                         walletId={wallet.id}
                                         address={wallet.address}
                                         mainBalance={wallet.balance}
+                                        currency={wallet.currency}
+                                        network={wallet.network}
                                     />
                                 )}
                             </div>

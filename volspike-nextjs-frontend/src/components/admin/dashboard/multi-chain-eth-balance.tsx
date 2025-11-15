@@ -20,6 +20,8 @@ interface MultiChainETHBalanceProps {
     walletId: string
     address: string
     mainBalance: number | null
+    currency: string
+    network?: string | null
 }
 
 const CHAIN_INFO: Record<string, { icon: string; color: string; bgColor: string }> = {
@@ -50,7 +52,7 @@ const CHAIN_INFO: Record<string, { icon: string; color: string; bgColor: string 
     },
 }
 
-export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiChainETHBalanceProps) {
+export function MultiChainETHBalance({ walletId, address, mainBalance, currency, network }: MultiChainETHBalanceProps) {
     const { data: session } = useSession()
     const [chainBalances, setChainBalances] = useState<ChainBalance[]>([])
     const [loading, setLoading] = useState(false)
@@ -100,6 +102,11 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
         return balance.toFixed(6).replace(/\.?0+$/, '')
     }
 
+    const currencyUpper = currency.toUpperCase()
+    const isETH = currencyUpper === 'ETH'
+    const isToken = currencyUpper === 'USDC' || currencyUpper === 'USDT'
+    const displayName = isETH ? 'ETH' : currencyUpper
+
     if (!expanded) {
         return (
             <Button
@@ -110,7 +117,7 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
             >
                 <div className="flex items-center gap-2">
                     <Network className="h-3.5 w-3.5" />
-                    <span>View balances across all EVM chains</span>
+                    <span>View {displayName} balances across all EVM chains</span>
                 </div>
                 <ChevronDown className="h-3.5 w-3.5" />
             </Button>
@@ -122,7 +129,7 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Network className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Multi-Chain ETH Balances</span>
+                    <span className="text-sm font-medium">Multi-Chain {displayName} Balances</span>
                     {hasBalances && (
                         <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-xs">
                             {chainsWithBalance.length} chain{chainsWithBalance.length !== 1 ? 's' : ''} with balance
@@ -153,7 +160,7 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">Total Across All Chains</span>
                         <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            {formatBalance(totalBalance)} ETH
+                            {formatBalance(totalBalance)} {displayName}
                         </span>
                     </div>
                 </div>
@@ -204,7 +211,7 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
                                                 : 'text-muted-foreground'
                                         }`}
                                     >
-                                        {formatBalance(chain.balance)} ETH
+                                        {formatBalance(chain.balance)} {displayName}
                                     </p>
                                 </div>
                                 {chain.explorerUrl && (

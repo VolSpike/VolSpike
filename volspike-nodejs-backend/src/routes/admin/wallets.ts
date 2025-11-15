@@ -214,7 +214,7 @@ adminWalletRoutes.post('/:id/refresh-balance', async (c) => {
     }
 })
 
-// GET /api/admin/wallets/:id/multi-chain-balances - Get ETH balances across all EVM chains
+// GET /api/admin/wallets/:id/multi-chain-balances - Get balances across all EVM chains (ETH, USDC, USDT)
 adminWalletRoutes.get('/:id/multi-chain-balances', async (c) => {
     try {
         const walletId = c.req.param('id')
@@ -226,15 +226,42 @@ adminWalletRoutes.get('/:id/multi-chain-balances', async (c) => {
             return c.json({ error: 'Wallet not found' }, 404)
         }
 
-        if (wallet.currency.toUpperCase() !== 'ETH') {
-            return c.json({ error: 'Multi-chain balances only supported for ETH' }, 400)
+        const currencyUpper = wallet.currency.toUpperCase()
+        const isETH = currencyUpper === 'ETH'
+        const isUSDC = currencyUpper === 'USDC'
+        const isUSDT = currencyUpper === 'USDT' && wallet.network?.toLowerCase().includes('eth')
+
+        if (!isETH && !isUSDC && !isUSDT) {
+            return c.json({ error: 'Multi-chain balances only supported for ETH, USDC, and USDT' }, 400)
         }
 
         // Fetch balances from all EVM chains
         const chainBalances = await Promise.allSettled(
             Object.entries(EVM_CHAINS).map(async ([key, chain]) => {
                 try {
-                    const balance = await fetchETHBalanceFromChain(wallet.address, chain)
+                    let balance = 0
+                    
+                    if (isETH) {
+                        balance = await fetchETHBalanceFromChain(wallet.address, chain)
+                    } else if (isUSDC || isUSDT) {
+                        const tokenType = isUSDC ? 'USDC' : 'USDT'
+                        const contractAddress = TOKEN_CONTRACTS[tokenType]?.[key]
+                        if (contractAddress) {
+                            balance = await fetchERC20BalanceFromChain(wallet.address, contractAddress, chain)
+                        } else {
+                            logger.warn(`No contract address found for ${tokenType} on ${chain.name}`)
+                            return {
+                                chain: key,
+                                chainId: chain.chainId,
+                                name: chain.name,
+                                balance: 0,
+                                error: 'Token not available on this chain',
+                                explorerUrl: `${chain.explorerUrl}/address/${wallet.address}`,
+                                color: chain.color,
+                            }
+                        }
+                    }
+                    
                     return {
                         chain: key,
                         chainId: chain.chainId,
@@ -275,6 +302,7 @@ adminWalletRoutes.get('/:id/multi-chain-balances', async (c) => {
         return c.json({
             walletId: wallet.id,
             address: wallet.address,
+            currency: currencyUpper,
             totalBalance,
             chains: balances,
         })
@@ -351,13 +379,104 @@ adminWalletRoutes.post('/refresh-all', async (c) => {
     }
 })
 
-// Token contract addresses
-const TOKEN_CONTRACTS = {
-    // Ethereum ERC-20 tokens
-    USDC_ETH: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC on Ethereum
-    USDT_ETH: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT on Ethereum
-    // Solana SPL tokens
-    USDT_SOL: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT on Solana (SPL token mint)
+// Token contract addresses across all EVM chains
+const TOKEN_CONTRACTS: Record<string, Record<string, string>> = {
+    USDC: {
+        ethereum: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC on Ethereum
+        polygon: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', // USDC on Polygon
+        optimism: '0x7F5c764cBc14f9669B88837ca1490cCa17c31607', // USDC on Optimism
+        arbitrum: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8', // USDC on Arbitrum
+        base: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
+    },
+    USDT: {
+        ethereum: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT on Ethereum
+        polygon: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', // USDT on Polygon
+        optimism: '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58', // USDT on Optimism
+        arbitrum: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', // USDT on Arbitrum
+        base: '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2', // USDT on Base (bridged)
+    },
+}
+
+// Solana SPL tokens
+const SOLANA_TOKENS = {
+    USDT: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT on Solana
+}
+
+// Helper function to fetch ERC-20 token balance from a specific EVM chain
+async function fetchERC20BalanceFromChain(
+    address: string,
+    contractAddress: string,
+    chain: typeof EVM_CHAINS[keyof typeof EVM_CHAINS]
+): Promise<number> {
+    const chainKey = Object.keys(EVM_CHAINS).find(k => EVM_CHAINS[k as keyof typeof EVM_CHAINS] === chain) || 'ethereum'
+    const rpcUrls = [chain.rpcUrl, ...(FALLBACK_RPCS[chainKey] || [])]
+    
+    let lastError: Error | null = null
+    
+    // Try primary RPC, then fallbacks
+    for (const rpcUrl of rpcUrls) {
+        try {
+            logger.info(`Fetching ERC-20 balance from ${chain.name} (chainId: ${chain.chainId}) via ${rpcUrl} for ${address}, contract: ${contractAddress}`)
+            
+            // ERC-20 balanceOf(address) - function selector: 0x70a08231
+            const data = '0x70a08231' + address.slice(2).padStart(64, '0')
+            
+            const response = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'eth_call',
+                    params: [
+                        {
+                            to: contractAddress,
+                            data: data,
+                        },
+                        'latest',
+                    ],
+                }),
+            })
+
+            if (!response.ok) {
+                throw new Error(`RPC error: ${response.status}`)
+            }
+
+            const result = await response.json() as {
+                result?: string
+                error?: {
+                    code: number
+                    message: string
+                }
+            }
+
+            if (result.error) {
+                throw new Error(`RPC error: ${result.error.message}`)
+            }
+
+            if (result.result && result.result !== '0x') {
+                // Balance is in token's smallest unit (usually 6 decimals for USDC/USDT)
+                const balance = BigInt(result.result)
+                // Most stablecoins use 6 decimals, but we'll detect from the contract if needed
+                // For now, assume 6 decimals for USDC/USDT
+                const tokenAmount = Number(balance) / 1e6
+                logger.info(`Fetched ERC-20 balance from ${chain.name}: ${tokenAmount}`)
+                return tokenAmount
+            }
+
+            // Zero balance
+            return 0
+        } catch (error: any) {
+            lastError = error
+            logger.warn(`Failed to fetch from ${rpcUrl}:`, error?.message || error)
+            // Continue to next RPC
+            continue
+        }
+    }
+    
+    // All RPCs failed
+    logger.error(`All RPC endpoints failed for ${chain.name}:`, lastError)
+    throw lastError || new Error(`Failed to fetch ERC-20 balance from ${chain.name}`)
 }
 
 // Helper function to fetch ETH balance from a specific EVM chain
