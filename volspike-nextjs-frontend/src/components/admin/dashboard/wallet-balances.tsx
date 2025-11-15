@@ -139,16 +139,21 @@ export function DashboardWalletBalances() {
         }
     }, [session, fetchWallets])
     
-    // Check and refresh stale data after wallets are loaded
+    // Check and refresh stale data after wallets are loaded (only once after initial load)
+    const hasCheckedStaleRef = useRef(false)
     useEffect(() => {
-        if (wallets.length > 0 && needsRefresh() && session?.accessToken) {
-            // Small delay to avoid race conditions
-            const timer = setTimeout(() => {
-                refreshBalances(false)
-            }, 2000)
-            return () => clearTimeout(timer)
+        if (wallets.length > 0 && !hasCheckedStaleRef.current && session?.accessToken) {
+            hasCheckedStaleRef.current = true
+            // Check if data is stale and refresh if needed
+            if (needsRefresh()) {
+                // Small delay to avoid race conditions
+                const timer = setTimeout(() => {
+                    refreshBalances(false)
+                }, 2000)
+                return () => clearTimeout(timer)
+            }
         }
-    }, [wallets.length, session?.accessToken]) // Only depend on wallets.length to avoid loops
+    }, [wallets.length, session?.accessToken, needsRefresh, refreshBalances])
 
     // Auto-refresh balances periodically
     useEffect(() => {
