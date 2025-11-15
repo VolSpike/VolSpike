@@ -165,9 +165,20 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
 
     const handleSort = (field: string) => {
         const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
-        const params = new URLSearchParams(currentQuery)
+        const params = new URLSearchParams()
+        
+        // Preserve existing query params
+        if (currentQuery.search) params.set('search', String(currentQuery.search))
+        if (currentQuery.role) params.set('role', String(currentQuery.role))
+        if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
+        if (currentQuery.status) params.set('status', String(currentQuery.status))
+        if (currentQuery.page) params.set('page', String(currentQuery.page))
+        if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+        
+        // Set sort params
         params.set('sortBy', field)
         params.set('sortOrder', newSortOrder)
+        
         router.push(`/admin/users?${params.toString()}`)
     }
 
