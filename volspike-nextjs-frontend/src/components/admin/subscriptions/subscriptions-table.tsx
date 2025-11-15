@@ -301,8 +301,9 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                         </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            )
-                        })}
+                                )
+                            })
+                        )}
                     </TableBody>
                 </Table>
             </div>
