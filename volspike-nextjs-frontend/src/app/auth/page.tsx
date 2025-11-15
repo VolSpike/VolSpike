@@ -113,7 +113,12 @@ function AuthPageContent() {
 
         if (errorParam) {
             setTab('signin')
-            setInitialAuthError(errorParam)
+            // Map error codes to user-friendly messages
+            if (errorParam === 'access_denied') {
+                setInitialAuthError('Access denied. Administrator privileges required.')
+            } else {
+                setInitialAuthError(errorParam)
+            }
 
             if (pathname) {
                 const params = new URLSearchParams(searchParams.toString())
