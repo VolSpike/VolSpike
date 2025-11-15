@@ -65,10 +65,22 @@ export function DashboardWalletBalances() {
     }, [wallets, isDataStale])
 
     const fetchWallets = useCallback(async (silent = false) => {
-        if (!session?.accessToken) return
+        if (!session?.accessToken) {
+            console.log('[WalletBalances] No session token, skipping fetch')
+            return
+        }
 
+        // Prevent duplicate calls
+        if (isFetchingRef.current) {
+            console.log('[WalletBalances] Already fetching, skipping duplicate call')
+            return
+        }
+
+        isFetchingRef.current = true
         if (!silent) setLoading(true)
+        
         try {
+            console.log('[WalletBalances] Fetching wallets...', { silent })
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets`,
                 {
@@ -79,8 +91,15 @@ export function DashboardWalletBalances() {
                 }
             )
 
-            if (!response.ok) throw new Error('Failed to fetch wallets')
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error('[WalletBalances] API error:', response.status, errorText)
+                throw new Error(`Failed to fetch wallets: ${response.status}`)
+            }
+            
             const data = await response.json()
+            console.log('[WalletBalances] Fetched wallets:', data.wallets?.length || 0)
+            
             setWallets(data.wallets || [])
             setLastRefresh(Date.now())
             
@@ -91,12 +110,14 @@ export function DashboardWalletBalances() {
                 return (Date.now() - updated) < FRESH_THRESHOLD
             })
             setIsLive(hasFreshData || false)
-        } catch (error) {
-            console.error('Failed to fetch wallets:', error)
-            if (!silent) {
+        } catch (error: any) {
+            console.error('[WalletBalances] Failed to fetch wallets:', error)
+            // Only show toast if not silent AND it's a real error (not just no session)
+            if (!silent && error?.message) {
                 toast.error('Failed to load wallet balances')
             }
         } finally {
+            isFetchingRef.current = false
             if (!silent) setLoading(false)
         }
     }, [session])
