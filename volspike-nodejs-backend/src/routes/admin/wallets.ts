@@ -715,62 +715,75 @@ async function fetchWalletBalance(
 
         // SPL tokens on Solana (USDT on Solana)
         if (currencyUpper === 'USDT' && (network?.toLowerCase().includes('sol') || network?.toLowerCase().includes('solana'))) {
-            logger.info(`Fetching USDT (Solana) balance for ${address} using mint ${TOKEN_CONTRACTS.USDT_SOL}`)
+            logger.info(`Fetching USDT (Solana) balance for ${address} using mint ${SOLANA_TOKENS.USDT}`)
             
-            // Fetch SPL token balance using getTokenAccountsByOwner
-            const response = await fetch(`https://api.mainnet-beta.solana.com`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: 1,
-                    method: 'getTokenAccountsByOwner',
-                    params: [
-                        address,
-                        {
-                            mint: TOKEN_CONTRACTS.USDT_SOL,
-                        },
-                        {
-                            encoding: 'jsonParsed',
-                        },
-                    ],
-                }),
-            })
+            // Try multiple Solana RPC endpoints for reliability
+            const solanaRpcUrls = [
+                'https://api.mainnet-beta.solana.com',
+                'https://solana-api.projectserum.com',
+                'https://rpc.ankr.com/solana',
+            ]
             
-            if (!response.ok) {
-                logger.warn(`Solana API HTTP error for USDT: ${response.status}`)
-                throw new Error(`Solana API error: ${response.status}`)
-            }
+            let lastError: Error | null = null
             
-            const data = await response.json() as {
-                result: {
-                    value: Array<{
-                        account: {
-                            data: {
-                                parsed: {
-                                    info: {
-                                        tokenAmount: {
-                                            amount: string
-                                            decimals: number
+            for (const rpcUrl of solanaRpcUrls) {
+                try {
+                    logger.info(`Trying Solana RPC: ${rpcUrl}`)
+                    
+                    // Fetch SPL token balance using getTokenAccountsByOwner
+                    const response = await fetch(rpcUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: 1,
+                            method: 'getTokenAccountsByOwner',
+                            params: [
+                                address,
+                                {
+                                    mint: SOLANA_TOKENS.USDT,
+                                },
+                                {
+                                    encoding: 'jsonParsed',
+                                },
+                            ],
+                        }),
+                    })
+            
+                    if (!response.ok) {
+                        logger.warn(`Solana API HTTP error for USDT from ${rpcUrl}: ${response.status}`)
+                        throw new Error(`Solana API error: ${response.status}`)
+                    }
+                    
+                    const data = await response.json() as {
+                        result: {
+                            value: Array<{
+                                account: {
+                                    data: {
+                                        parsed: {
+                                            info: {
+                                                tokenAmount: {
+                                                    amount: string
+                                                    decimals: number
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                            }
+                            }>
+                        } | null
+                        error?: {
+                            code: number
+                            message: string
                         }
-                    }>
-                } | null
-                error?: {
-                    code: number
-                    message: string
-                }
-            }
+                    }
 
-            if (data.error) {
-                logger.warn(`Solana API error for USDT: ${data.error.message} (code: ${data.error.code})`)
-                throw new Error(`Solana API error: ${data.error.message}`)
-            }
+                    if (data.error) {
+                        logger.warn(`Solana API error for USDT from ${rpcUrl}: ${data.error.message} (code: ${data.error.code})`)
+                        throw new Error(`Solana API error: ${data.error.message}`)
+                    }
 
-            logger.info(`Solana response for USDT: found ${data.result?.value?.length || 0} token accounts`)
+                    logger.info(`Solana response for USDT from ${rpcUrl}: found ${data.result?.value?.length || 0} token accounts`)
 
             if (data.result && data.result.value.length > 0) {
                 // Get the first token account (should only be one for a specific mint)
