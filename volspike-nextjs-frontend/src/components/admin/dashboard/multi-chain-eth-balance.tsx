@@ -97,9 +97,17 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
     const hasBalances = chainsWithBalance.length > 0
 
     const formatBalance = (balance: number) => {
-        if (balance === 0) return '0.000000'
-        if (balance < 0.000001) return balance.toExponential(2)
-        return balance.toFixed(6).replace(/\.?0+$/, '')
+        if (balance === 0) {
+            // USDC/USDT use 2 decimals, ETH uses 6
+            return isETH ? '0.000000' : '0.00'
+        }
+        if (isETH) {
+            if (balance < 0.000001) return balance.toExponential(2)
+            return balance.toFixed(6).replace(/\.?0+$/, '')
+        } else {
+            // USDC/USDT - 2 decimal places
+            return balance.toFixed(2).replace(/\.?0+$/, '')
+        }
     }
 
     const currencyUpper = currency.toUpperCase()
