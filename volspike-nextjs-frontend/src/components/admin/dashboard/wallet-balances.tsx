@@ -217,26 +217,44 @@ export function DashboardWalletBalances() {
     const totalBalance = wallets.reduce((sum, wallet) => {
         if (wallet.balance === null) return sum
         // Rough estimates for display (in production, use real-time price API)
+        // USDT and USDC are always $1 regardless of network
         const priceMap: Record<string, number> = {
             BTC: 60000,
             ETH: 3000,
             SOL: 100,
-            USDT: 1,
-            USDC: 1,
+            USDT: 1, // $1 for both Ethereum and Solana
+            USDC: 1, // $1
         }
         const price = priceMap[wallet.currency] || 0
         return sum + wallet.balance * price
     }, 0)
 
-    const getCurrencyColor = (currency: string) => {
+    const getCurrencyColor = (currency: string, network?: string | null) => {
         const colors: Record<string, string> = {
             BTC: 'from-orange-500 to-orange-600',
             ETH: 'from-blue-500 to-blue-600',
             SOL: 'from-purple-500 to-purple-600',
-            USDT: 'from-green-500 to-green-600',
+            USDT: network?.toLowerCase().includes('sol') 
+                ? 'from-green-500 to-emerald-600' 
+                : 'from-green-500 to-green-600',
             USDC: 'from-blue-400 to-blue-500',
         }
         return colors[currency] || 'from-gray-500 to-gray-600'
+    }
+
+    const getCurrencyDisplayName = (currency: string, network?: string | null) => {
+        if (network) {
+            if (currency === 'USDT' && network.toLowerCase().includes('sol')) {
+                return 'USDT (Solana)'
+            }
+            if (currency === 'USDT' && network.toLowerCase().includes('eth')) {
+                return 'USDT (Ethereum)'
+            }
+            if (currency === 'USDC' && network.toLowerCase().includes('eth')) {
+                return 'USDC (Ethereum)'
+            }
+        }
+        return currency
     }
 
     const getCurrencyIcon = (currency: string) => {
@@ -372,7 +390,8 @@ export function DashboardWalletBalances() {
                 <div className="space-y-2">
                     {wallets.map((wallet) => {
                         const CurrencyIcon = getCurrencyIcon(wallet.currency)
-                        const gradientClass = getCurrencyColor(wallet.currency)
+                        const gradientClass = getCurrencyColor(wallet.currency, wallet.network)
+                        const currencyDisplayName = getCurrencyDisplayName(wallet.currency, wallet.network)
                         const isBalanceLoaded = wallet.balance !== null
                         const isStale = isDataStale(wallet.balanceUpdatedAt)
 
@@ -388,7 +407,7 @@ export function DashboardWalletBalances() {
                                         <CurrencyIcon className="h-5 w-5 text-white" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                                             {wallet.label && (
                                                 <span className="text-sm font-medium text-foreground truncate">
                                                     {wallet.label}
@@ -398,7 +417,7 @@ export function DashboardWalletBalances() {
                                                 variant="outline"
                                                 className={`bg-gradient-to-r ${gradientClass} bg-clip-text text-transparent border-current/20 text-xs font-medium`}
                                             >
-                                                {wallet.currency}
+                                                {currencyDisplayName}
                                             </Badge>
                                         </div>
                                         <p className="text-xs text-muted-foreground font-mono truncate">
