@@ -123,23 +123,43 @@ adminUserRoutes.get('/', async (c) => {
                 }
             }
             
-            // Get Stripe subscription expiration
+            // Get Stripe subscription expiration and check for actual payments
+            let hasActiveStripeSubscription = false
             if (hasStripe && user.stripeCustomerId) {
                 try {
                     const subscriptions = await stripe.subscriptions.list({
                         customer: user.stripeCustomerId,
-                        status: 'active',
-                        limit: 1,
+                        status: 'all', // Check all statuses to see if they ever had a subscription
+                        limit: 100,
                     })
                     
-                    if (subscriptions.data.length > 0) {
-                        const subscription = subscriptions.data[0]
-                        const stripeExpiresAt = new Date(subscription.current_period_end * 1000)
+                    // Check for active or past_due subscriptions (user actually paid)
+                    const activeSubscription = subscriptions.data.find(
+                        sub => sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due'
+                    )
+                    
+                    if (activeSubscription) {
+                        hasActiveStripeSubscription = true
+                        const stripeExpiresAt = new Date(activeSubscription.current_period_end * 1000)
                         
                         // Use Stripe expiration if it's later than crypto, or if no crypto expiration
                         if (!subscriptionExpiresAt || stripeExpiresAt > subscriptionExpiresAt) {
                             subscriptionExpiresAt = stripeExpiresAt
                             subscriptionMethod = 'stripe'
+                        }
+                    } else {
+                        // Check for completed checkout sessions (one-time payments)
+                        const checkoutSessions = await stripe.checkout.sessions.list({
+                            customer: user.stripeCustomerId,
+                            limit: 10,
+                        })
+                        
+                        const completedSession = checkoutSessions.data.find(
+                            session => session.payment_status === 'paid' && session.status === 'complete'
+                        )
+                        
+                        if (completedSession) {
+                            hasActiveStripeSubscription = true
                         }
                     }
                 } catch (error) {
@@ -147,13 +167,14 @@ adminUserRoutes.get('/', async (c) => {
                 }
             }
             
-            if (hasCryptoPayment && hasStripe) {
+            // Only show payment method if user actually paid
+            if (hasCryptoPayment && hasActiveStripeSubscription) {
                 // If user has both, prioritize the most recent payment
                 // For now, show crypto if they have a finished crypto payment
                 paymentMethod = 'crypto'
             } else if (hasCryptoPayment) {
                 paymentMethod = 'crypto'
-            } else if (hasStripe) {
+            } else if (hasActiveStripeSubscription) {
                 paymentMethod = 'stripe'
             }
 
