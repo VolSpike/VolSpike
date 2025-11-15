@@ -191,8 +191,8 @@ export function AdminSidebar() {
                         </nav>
                     </ScrollArea>
 
-                    {/* User info summary */}
-                    <div className="border-t border-border/60 p-4">
+                    {/* User info summary - kept for mobile context, hidden on desktop where header already shows account */}
+                    <div className="border-t border-border/60 p-4 lg:hidden">
                         <div className="flex items-center space-x-3">
                             <div className="flex-shrink-0">
                                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500/10 via-elite-500/10 to-sec-500/10">

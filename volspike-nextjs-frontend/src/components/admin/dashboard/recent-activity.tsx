@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 import {
     User,
     CreditCard,
@@ -58,11 +59,17 @@ const actionLabels = {
 }
 
 export function RecentActivity({ activities }: RecentActivityProps) {
+    const router = useRouter()
+
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Recent Activity</CardTitle>
-                <Button variant="outline" size="sm">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push('/admin/audit')}
+                >
                     <Eye className="h-4 w-4 mr-2" />
                     View All
                 </Button>
@@ -103,7 +110,20 @@ export function RecentActivity({ activities }: RecentActivityProps) {
                                         </p>
                                     </div>
                                     <div className="flex-shrink-0">
-                                        <Button variant="ghost" size="sm">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                const params = new URLSearchParams()
+                                                if (activity.targetType) {
+                                                    params.set('targetType', activity.targetType)
+                                                }
+                                                if (activity.targetId) {
+                                                    params.set('targetId', activity.targetId)
+                                                }
+                                                router.push(`/admin/audit?${params.toString()}`)
+                                            }}
+                                        >
                                             <ExternalLink className="h-4 w-4" />
                                         </Button>
                                     </div>
