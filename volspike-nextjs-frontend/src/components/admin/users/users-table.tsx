@@ -39,6 +39,12 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
     MoreHorizontal,
     Mail,
     Ban,
@@ -270,7 +276,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                 />
                             </TableHead>
                             <TableHead
-                                className="cursor-pointer hover:bg-muted/50"
+                                className="cursor-pointer hover:bg-muted/50 w-[200px] min-w-[180px] max-w-[250px]"
                                 onClick={() => handleSort('email')}
                             >
                                 <div className="flex items-center space-x-1">
@@ -356,35 +362,58 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         }
                                     />
                                 </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">{user.email}</span>
-                                        {user.walletAddress && (
-                                            <span className="text-xs text-muted-foreground">
-                                                {user.walletAddress.slice(0, 6)}...{user.walletAddress.slice(-4)}
-                                            </span>
-                                        )}
-                                        <div className="flex gap-1 mt-1">
-                                            {user.emailVerified && (
-                                                <Badge variant="outline" className="text-xs border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                                                    <Mail className="h-3 w-3 mr-1" />
-                                                    Verified
-                                                </Badge>
-                                            )}
-                                            {user.paymentMethod === 'stripe' && (
-                                                <Badge variant="outline" className="text-xs border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400">
-                                                    <DollarSign className="h-3 w-3 mr-1" />
-                                                    Stripe
-                                                </Badge>
-                                            )}
-                                            {user.paymentMethod === 'crypto' && (
-                                                <Badge variant="outline" className="text-xs border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400">
-                                                    <DollarSign className="h-3 w-3 mr-1" />
-                                                    Crypto
-                                                </Badge>
-                                            )}
+                                <TableCell className="w-[200px] min-w-[180px] max-w-[250px]">
+                                    <TooltipProvider>
+                                        <div className="flex flex-col gap-1.5">
+                                            {/* Email/Wallet - Truncated with tooltip */}
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                        {user.walletAddress ? (
+                                                            <span className="font-medium text-sm truncate">
+                                                                {user.walletAddress.includes('@') 
+                                                                    ? user.walletAddress.split('@')[0].slice(0, 8) + '...@' + user.walletAddress.split('@')[1]
+                                                                    : `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}`
+                                                                }
+                                                            </span>
+                                                        ) : (
+                                                            <span className="font-medium text-sm truncate">
+                                                                {user.email.length > 25 
+                                                                    ? `${user.email.slice(0, 22)}...`
+                                                                    : user.email
+                                                                }
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="max-w-xs">
+                                                    <p className="break-all">{user.email || user.walletAddress}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            
+                                            {/* Badges - Compact horizontal layout */}
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                {user.emailVerified && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                                                        <Mail className="h-2.5 w-2.5 mr-0.5" />
+                                                        Verified
+                                                    </Badge>
+                                                )}
+                                                {user.paymentMethod === 'stripe' && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                                                        <DollarSign className="h-2.5 w-2.5 mr-0.5" />
+                                                        Stripe
+                                                    </Badge>
+                                                )}
+                                                {user.paymentMethod === 'crypto' && (
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400">
+                                                        <DollarSign className="h-2.5 w-2.5 mr-0.5" />
+                                                        Crypto
+                                                    </Badge>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </TooltipProvider>
                                 </TableCell>
                                 <TableCell>
                                     <Badge className={getTierColor(user.tier)}>
