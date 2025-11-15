@@ -161,17 +161,50 @@ export function DropdownMenuContent({
     }, [])
 
     useEffect(() => {
-        if (!context.open || !usePortal || !context.triggerRef.current) return
+        if (!context.open || !usePortal || !context.triggerRef.current) {
+            console.log('[DropdownMenu] Position update skipped:', {
+                open: context.open,
+                usePortal,
+                hasTrigger: !!context.triggerRef.current,
+            })
+            return
+        }
 
         const updatePosition = () => {
             const trigger = context.triggerRef.current
-            if (!trigger) return
+            if (!trigger) {
+                console.warn('[DropdownMenu] No trigger element found')
+                return
+            }
 
             const rect = trigger.getBoundingClientRect()
-            const scrollY = window.scrollY
-            const scrollX = window.scrollX
             const contentHeight = contentRef.current?.offsetHeight || 200
             const contentWidth = contentRef.current?.offsetWidth || 180
+
+            console.log('[DropdownMenu] Position calculation:', {
+                triggerRect: {
+                    top: rect.top,
+                    bottom: rect.bottom,
+                    left: rect.left,
+                    right: rect.right,
+                    width: rect.width,
+                    height: rect.height,
+                },
+                contentSize: {
+                    width: contentWidth,
+                    height: contentHeight,
+                },
+                viewport: {
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                },
+                scroll: {
+                    x: window.scrollX,
+                    y: window.scrollY,
+                },
+                align,
+                side,
+            })
 
             let top = 0
             let left = 0
@@ -183,66 +216,91 @@ export function DropdownMenuContent({
             const useTop = side === 'top' || (side === 'bottom' && spaceBelow < contentHeight && spaceAbove > spaceBelow)
 
             if (useTop) {
-                top = rect.top + scrollY - contentHeight - 4
+                // Position above the trigger
+                top = rect.top - contentHeight - 4
                 // Ensure it doesn't go off-screen
-                if (top < scrollY) {
-                    top = scrollY + 4
+                if (top < 0) {
+                    top = 4
                 }
             } else {
-                top = rect.bottom + scrollY + 4
+                // Position below the trigger
+                top = rect.bottom + 4
                 // Ensure it doesn't go off-screen
-                if (top + contentHeight > scrollY + window.innerHeight) {
-                    top = scrollY + window.innerHeight - contentHeight - 4
+                if (top + contentHeight > window.innerHeight) {
+                    top = window.innerHeight - contentHeight - 4
+                    // If still off-screen, position above
+                    if (top < 0) {
+                        top = rect.top - contentHeight - 4
+                        if (top < 0) {
+                            top = 4
+                        }
+                    }
                 }
             }
 
             if (align === 'end') {
-                right = window.innerWidth - rect.right - scrollX
+                // Align to the right edge of the trigger
+                right = window.innerWidth - rect.right
                 // Ensure it doesn't go off-screen
                 if (right < 0) {
                     right = 4
+                } else if (right + contentWidth > window.innerWidth) {
+                    right = window.innerWidth - contentWidth - 4
                 }
             } else if (align === 'center') {
-                left = rect.left + scrollX + rect.width / 2 - contentWidth / 2
+                // Center on the trigger
+                left = rect.left + rect.width / 2 - contentWidth / 2
                 // Ensure it doesn't go off-screen
-                if (left < scrollX) {
-                    left = scrollX + 4
-                } else if (left + contentWidth > scrollX + window.innerWidth) {
-                    left = scrollX + window.innerWidth - contentWidth - 4
+                if (left < 0) {
+                    left = 4
+                } else if (left + contentWidth > window.innerWidth) {
+                    left = window.innerWidth - contentWidth - 4
                 }
             } else {
-                left = rect.left + scrollX
+                // Align to the left edge of the trigger
+                left = rect.left
                 // Ensure it doesn't go off-screen
-                if (left + contentWidth > scrollX + window.innerWidth) {
-                    left = scrollX + window.innerWidth - contentWidth - 4
+                if (left + contentWidth > window.innerWidth) {
+                    left = window.innerWidth - contentWidth - 4
                 }
-                if (left < scrollX) {
-                    left = scrollX + 4
+                if (left < 0) {
+                    left = 4
                 }
             }
 
-            setPosition({ top, left: left as number, right: right as number, bottom: 0 })
+            const finalPosition = { top, left: left as number, right: right as number, bottom: 0 }
+            console.log('[DropdownMenu] Final position:', finalPosition)
+            setPosition(finalPosition)
         }
 
-        // Initial position
-        updatePosition()
+        // Small delay to ensure DOM is ready
+        const timeoutId = setTimeout(() => {
+            updatePosition()
+        }, 0)
         
         // Update on scroll/resize
-        window.addEventListener('scroll', updatePosition, true)
-        window.addEventListener('resize', updatePosition)
+        const handleScroll = () => updatePosition()
+        const handleResize = () => updatePosition()
+        
+        window.addEventListener('scroll', handleScroll, true)
+        window.addEventListener('resize', handleResize)
         
         // Update when content size changes
-        const resizeObserver = new ResizeObserver(updatePosition)
+        const resizeObserver = new ResizeObserver(() => {
+            // Small delay to allow content to render
+            setTimeout(updatePosition, 0)
+        })
         if (contentRef.current) {
             resizeObserver.observe(contentRef.current)
         }
 
         return () => {
-            window.removeEventListener('scroll', updatePosition, true)
-            window.removeEventListener('resize', updatePosition)
+            clearTimeout(timeoutId)
+            window.removeEventListener('scroll', handleScroll, true)
+            window.removeEventListener('resize', handleResize)
             resizeObserver.disconnect()
         }
-    }, [context.open, usePortal, align, side])
+    }, [context.open, usePortal, align, side, context.triggerRef])
 
     if (!context.open) return null
 
