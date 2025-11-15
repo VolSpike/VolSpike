@@ -99,8 +99,8 @@ export function AuditLogDetailsDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                <DialogHeader>
+            <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
+                <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
                     <div className="flex items-center gap-3">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colorClass}`}>
                             <Icon className="h-5 w-5" />
@@ -116,8 +116,9 @@ export function AuditLogDetailsDialog({
                     </div>
                 </DialogHeader>
 
-                <ScrollArea className="flex-1 pr-4">
-                    <div className="space-y-6">
+                <div className="flex-1 overflow-hidden min-h-0">
+                    <ScrollArea className="h-full px-6 py-4">
+                        <div className="space-y-6 pb-4">
                         {/* Action Information */}
                         <div className="rounded-lg border border-border/60 bg-card/50 p-4 space-y-4">
                             <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -176,8 +177,10 @@ export function AuditLogDetailsDialog({
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-muted-foreground">Role</label>
-                                    <Badge variant="outline">{log.actor.role}</Badge>
+                                    <label className="text-xs font-medium text-muted-foreground block mb-2">Role</label>
+                                    <div className="mt-0.5">
+                                        <Badge variant="outline">{log.actor.role}</Badge>
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-medium text-muted-foreground">Actor ID</label>
@@ -336,8 +339,9 @@ export function AuditLogDetailsDialog({
                                 </button>
                             </div>
                         </div>
-                    </div>
-                </ScrollArea>
+                        </div>
+                    </ScrollArea>
+                </div>
             </DialogContent>
         </Dialog>
     )
