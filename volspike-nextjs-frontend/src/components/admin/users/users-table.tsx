@@ -258,8 +258,9 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                 </div>
             )}
 
-            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-                <Table>
+            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden relative">
+                <div className="overflow-x-auto">
+                    <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead className="w-12">
@@ -307,7 +308,9 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     {getSortIcon('lastLoginAt')}
                                 </div>
                             </TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead className="text-right sticky right-0 bg-card/95 backdrop-blur-sm z-10 border-l border-border/60">
+                                Actions
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -527,7 +530,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         <span className="text-sm text-muted-foreground italic">No login yet</span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                <TableCell className="text-right sticky right-0 bg-card/95 backdrop-blur-sm z-10 border-l border-border/60" onClick={(e) => e.stopPropagation()}>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
