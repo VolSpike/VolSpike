@@ -4,7 +4,8 @@
       "source": "/backend/:path*",
       "destination": "https://volspike-production.up.railway.app/api/:path*"
     }
-  ]
+  ],
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- volspike-nextjs-frontend/"
 }
 
 
