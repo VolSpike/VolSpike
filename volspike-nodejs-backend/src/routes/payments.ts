@@ -726,6 +726,18 @@ async function notifyAdminPaymentIssue(type: string, details: Record<string, any
     }
 }
 
+async function notifyAdminPaymentSuccess(type: string, details: Record<string, any>): Promise<void> {
+    try {
+        const emailService = EmailService.getInstance()
+        await emailService.sendPaymentIssueAlertEmail({
+            type,
+            details,
+        })
+    } catch (error) {
+        logger.error('Failed to send payment success alert email:', error)
+    }
+}
+
 // NowPayments Crypto Payment Routes
 // ============================================
 
@@ -1555,6 +1567,20 @@ payments.post('/nowpayments/webhook', async (c) => {
                 io.to(`user-${cryptoPayment.userId}`).emit('tier-changed', { tier: cryptoPayment.tier })
                 logger.info(`Broadcasted tier change to user ${cryptoPayment.userId}`)
             }
+
+            await notifyAdminPaymentSuccess('CRYPTO_PAYMENT_FINISHED', {
+                paymentId: payment_id || cryptoPayment.paymentId,
+                invoiceId: invoice_id || cryptoPayment.invoiceId,
+                orderId: order_id || cryptoPayment.orderId,
+                tier: cryptoPayment.tier,
+                userId: cryptoPayment.userId,
+                userEmail: cryptoPayment.user.email,
+                amountUsd: cryptoPayment.payAmount,
+                payCurrency: cryptoPayment.payCurrency,
+                actuallyPaid: cryptoPayment.actuallyPaid,
+                actuallyPaidCurrency: cryptoPayment.actuallyPaidCurrency,
+                expiresAt,
+            })
         }
 
         logger.info(`NowPayments webhook event processed successfully: ${payment_status}`)
