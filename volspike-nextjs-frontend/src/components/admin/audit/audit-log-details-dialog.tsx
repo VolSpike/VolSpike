@@ -296,11 +296,11 @@ export function AuditLogDetailsDialog({
                                                 <XCircle className="h-3 w-3 text-red-500" />
                                                 Old Values
                                             </label>
-                                            <ScrollArea className="h-48 rounded-md border border-border/60 bg-muted/30 p-3">
+                                            <div className="h-48 overflow-y-auto rounded-md border border-border/60 bg-muted/30 p-3">
                                                 <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-words">
                                                     {formatJSON(log.oldValues)}
                                                 </pre>
-                                            </ScrollArea>
+                                            </div>
                                         </div>
                                     )}
                                     {log.newValues && (
