@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,7 @@ import {
     Settings,
     Loader2,
     ArrowRight,
+    Radio,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -28,23 +29,41 @@ interface AdminWallet {
     updatedAt: string
 }
 
+// Configuration
+const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
+const STALE_THRESHOLD = 5 * 60 * 1000 // Consider data stale after 5 minutes
+const FRESH_THRESHOLD = 60 * 1000 // Consider data "live" if updated within 1 minute
+
 export function DashboardWalletBalances() {
     const { data: session } = useSession()
     const router = useRouter()
     const [wallets, setWallets] = useState<AdminWallet[]>([])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
+    const [lastRefresh, setLastRefresh] = useState<number | null>(null)
+    const [isLive, setIsLive] = useState(false)
+    
+    const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
+    const isVisibleRef = useRef(true)
 
-    useEffect(() => {
-        if (session?.accessToken) {
-            fetchWallets()
-        }
-    }, [session])
+    // Check if data is stale
+    const isDataStale = useCallback((updatedAt: string | null): boolean => {
+        if (!updatedAt) return true
+        const updated = new Date(updatedAt).getTime()
+        const now = Date.now()
+        return (now - updated) > STALE_THRESHOLD
+    }, [])
 
-    const fetchWallets = async () => {
+    // Check if any wallet needs refresh
+    const needsRefresh = useCallback((): boolean => {
+        if (wallets.length === 0) return false
+        return wallets.some(w => isDataStale(w.balanceUpdatedAt))
+    }, [wallets, isDataStale])
+
+    const fetchWallets = useCallback(async (silent = false) => {
         if (!session?.accessToken) return
 
-        setLoading(true)
+        if (!silent) setLoading(true)
         try {
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets`,
@@ -59,14 +78,26 @@ export function DashboardWalletBalances() {
             if (!response.ok) throw new Error('Failed to fetch wallets')
             const data = await response.json()
             setWallets(data.wallets || [])
+            setLastRefresh(Date.now())
+            
+            // Check if data is fresh (updated within 1 minute)
+            const hasFreshData = data.wallets?.some((w: AdminWallet) => {
+                if (!w.balanceUpdatedAt) return false
+                const updated = new Date(w.balanceUpdatedAt).getTime()
+                return (Date.now() - updated) < FRESH_THRESHOLD
+            })
+            setIsLive(hasFreshData || false)
         } catch (error) {
             console.error('Failed to fetch wallets:', error)
+            if (!silent) {
+                toast.error('Failed to load wallet balances')
+            }
         } finally {
-            setLoading(false)
+            if (!silent) setLoading(false)
         }
-    }
+    }, [session])
 
-    const handleRefreshAll = async () => {
+    const refreshBalances = useCallback(async (showToast = true) => {
         if (!session?.accessToken) return
 
         setRefreshing(true)
@@ -83,13 +114,73 @@ export function DashboardWalletBalances() {
 
             if (!response.ok) throw new Error('Failed to refresh balances')
             const data = await response.json()
-            toast.success(`Refreshed ${data.successful} of ${data.total} wallets`)
-            fetchWallets()
+            
+            if (showToast) {
+                toast.success(`Refreshed ${data.successful} of ${data.total} wallets`)
+            }
+            
+            // Fetch updated wallet data
+            await fetchWallets(true)
         } catch (error) {
-            toast.error('Failed to refresh balances')
+            console.error('Failed to refresh balances:', error)
+            if (showToast) {
+                toast.error('Failed to refresh balances')
+            }
         } finally {
             setRefreshing(false)
         }
+    }, [session, fetchWallets])
+
+    // Auto-refresh on mount
+    useEffect(() => {
+        if (session?.accessToken) {
+            fetchWallets()
+        }
+    }, [session, fetchWallets])
+
+    // Auto-refresh balances periodically
+    useEffect(() => {
+        if (!session?.accessToken || wallets.length === 0) return
+
+        // Initial refresh if data is stale
+        if (needsRefresh()) {
+            refreshBalances(false)
+        }
+
+        // Set up periodic refresh
+        refreshIntervalRef.current = setInterval(() => {
+            // Only refresh if tab is visible and data is stale
+            if (isVisibleRef.current && needsRefresh()) {
+                refreshBalances(false)
+            }
+        }, AUTO_REFRESH_INTERVAL)
+
+        return () => {
+            if (refreshIntervalRef.current) {
+                clearInterval(refreshIntervalRef.current)
+            }
+        }
+    }, [session, wallets, needsRefresh, refreshBalances])
+
+    // Page Visibility API - pause refresh when tab is hidden
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            isVisibleRef.current = !document.hidden
+            
+            // If tab becomes visible and data is stale, refresh immediately
+            if (!document.hidden && needsRefresh()) {
+                refreshBalances(false)
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
+        }
+    }, [needsRefresh, refreshBalances])
+
+    const handleManualRefresh = () => {
+        refreshBalances(true)
     }
 
     const formatBalance = (balance: number | null, currency: string) => {
@@ -105,6 +196,21 @@ export function DashboardWalletBalances() {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         }).format(amount)
+    }
+
+    const formatTimeAgo = (dateString: string | null) => {
+        if (!dateString) return 'Never'
+        const date = new Date(dateString)
+        const now = new Date()
+        const diffMs = now.getTime() - date.getTime()
+        const diffMins = Math.floor(diffMs / 60000)
+        const diffHours = Math.floor(diffMs / 3600000)
+        const diffDays = Math.floor(diffMs / 86400000)
+
+        if (diffMins < 1) return 'Just now'
+        if (diffMins < 60) return `${diffMins}m ago`
+        if (diffHours < 24) return `${diffHours}h ago`
+        return `${diffDays}d ago`
     }
 
     // Calculate total balance in USD (simplified - would need price API for real conversion)
@@ -134,7 +240,6 @@ export function DashboardWalletBalances() {
     }
 
     const getCurrencyIcon = (currency: string) => {
-        // Using Wallet icon for all, but could use specific icons per currency
         return Wallet
     }
 
@@ -201,14 +306,26 @@ export function DashboardWalletBalances() {
                             <Wallet className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                         </div>
                         <CardTitle>Wallet Balances</CardTitle>
+                        {isLive && (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-xs">
+                                <Radio className="h-3 w-3 mr-1 animate-pulse" />
+                                Live
+                            </Badge>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
+                        {lastRefresh && (
+                            <span className="text-xs text-muted-foreground hidden sm:inline">
+                                {formatTimeAgo(new Date(lastRefresh).toISOString())}
+                            </span>
+                        )}
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={handleRefreshAll}
+                            onClick={handleManualRefresh}
                             disabled={refreshing}
                             className="text-xs"
+                            title="Refresh balances now"
                         >
                             {refreshing ? (
                                 <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -232,16 +349,21 @@ export function DashboardWalletBalances() {
             <CardContent className="space-y-4">
                 {/* Total Balance Summary */}
                 {totalBalance > 0 && (
-                    <div className="rounded-xl border border-border/60 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent p-4">
+                    <div className="rounded-xl border border-border/60 bg-gradient-to-br from-purple-500/5 via-blue-500/5 to-transparent p-4 transition-all duration-300">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-medium text-muted-foreground">Total Portfolio Value</p>
-                            <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            <div className="flex items-center gap-2">
+                                {isLive && (
+                                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                                )}
+                                <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            </div>
                         </div>
                         <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                             {formatUSD(totalBalance)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Across {wallets.length} wallet{wallets.length !== 1 ? 's' : ''}
+                            Across {wallets.length} wallet{wallets.length !== 1 ? 's' : ''} • Auto-refreshes every 5 min
                         </p>
                     </div>
                 )}
@@ -252,14 +374,17 @@ export function DashboardWalletBalances() {
                         const CurrencyIcon = getCurrencyIcon(wallet.currency)
                         const gradientClass = getCurrencyColor(wallet.currency)
                         const isBalanceLoaded = wallet.balance !== null
+                        const isStale = isDataStale(wallet.balanceUpdatedAt)
 
                         return (
                             <div
                                 key={wallet.id}
-                                className="group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-200 hover:bg-muted/30 hover:border-border"
+                                className={`group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-300 hover:bg-muted/30 hover:border-border ${
+                                    isStale ? 'opacity-75' : ''
+                                }`}
                             >
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${gradientClass} flex-shrink-0`}>
+                                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${gradientClass} flex-shrink-0 transition-transform duration-200 group-hover:scale-105`}>
                                         <CurrencyIcon className="h-5 w-5 text-white" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -283,9 +408,11 @@ export function DashboardWalletBalances() {
                                 </div>
                                 <div className="text-right ml-4 flex-shrink-0">
                                     <p
-                                        className={`text-sm font-semibold ${
+                                        className={`text-sm font-semibold transition-colors duration-200 ${
                                             isBalanceLoaded
-                                                ? 'text-foreground'
+                                                ? isStale
+                                                    ? 'text-muted-foreground'
+                                                    : 'text-foreground'
                                                 : 'text-muted-foreground'
                                         }`}
                                     >
@@ -293,7 +420,7 @@ export function DashboardWalletBalances() {
                                     </p>
                                     {wallet.balanceUpdatedAt && (
                                         <p className="text-xs text-muted-foreground">
-                                            {new Date(wallet.balanceUpdatedAt).toLocaleDateString()}
+                                            {formatTimeAgo(wallet.balanceUpdatedAt)}
                                         </p>
                                     )}
                                 </div>
@@ -318,4 +445,3 @@ export function DashboardWalletBalances() {
         </Card>
     )
 }
-
