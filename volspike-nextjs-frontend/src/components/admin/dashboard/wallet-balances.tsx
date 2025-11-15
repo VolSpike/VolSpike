@@ -557,7 +557,7 @@ export function DashboardWalletBalances() {
                                         {isMultiChain && (
                                             <div className={`flex items-center justify-center w-6 h-6 rounded-md transition-all duration-200 ${
                                                 isExpanded 
-                                                    ? 'bg-muted rotate-180' 
+                                                    ? 'bg-muted' 
                                                     : 'bg-muted/50 group-hover:bg-muted'
                                             }`}>
                                                 <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
