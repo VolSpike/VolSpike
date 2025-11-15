@@ -1,10 +1,17 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import Stripe from 'stripe'
 import { prisma } from '../../index'
 import { createLogger } from '../../lib/logger'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
 const logger = createLogger()
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2023-10-16',
+})
+
 const adminMetricsRoutes = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
 
 // Validation schemas
@@ -45,6 +52,7 @@ adminMetricsRoutes.get('/', async (c) => {
             usersByTier,
             recentSignups,
             adminSessions,
+            totalRevenue,
         ] = await Promise.all([
             prisma.user.count(),
             prisma.user.count({
@@ -72,6 +80,7 @@ adminMetricsRoutes.get('/', async (c) => {
                     },
                 },
             }),
+            calculateTotalRevenue(),
         ])
 
         return c.json({
@@ -81,7 +90,7 @@ adminMetricsRoutes.get('/', async (c) => {
                 tier: item.tier,
                 count: item._count,
             })),
-            totalRevenue: 0, // Placeholder - implement with Stripe
+            totalRevenue,
             recentSignups,
             failedLogins: 0, // Placeholder - implement with audit logs
             adminSessions,
@@ -128,20 +137,140 @@ adminMetricsRoutes.get('/users', async (c) => {
     }
 })
 
+// Helper function to calculate total revenue from all sources
+async function calculateTotalRevenue(): Promise<number> {
+    try {
+        // Calculate revenue from crypto payments (finished payments only)
+        const cryptoRevenueResult = await prisma.cryptoPayment.aggregate({
+            where: {
+                paymentStatus: 'finished',
+                payAmount: { not: null },
+            },
+            _sum: {
+                payAmount: true,
+            },
+        })
+
+        const cryptoRevenue = cryptoRevenueResult._sum.payAmount || 0
+
+        // Calculate revenue from Stripe (paid invoices)
+        let stripeRevenue = 0
+        try {
+            // Get all paid invoices from Stripe
+            const invoices = await stripe.invoices.list({
+                status: 'paid',
+                limit: 100, // Stripe pagination - adjust if needed
+            })
+
+            // Sum up all paid invoice amounts
+            stripeRevenue = invoices.data.reduce((sum, invoice) => {
+                // Convert from cents to dollars
+                return sum + (invoice.amount_paid || 0) / 100
+            }, 0)
+
+            // Handle pagination if there are more than 100 invoices
+            let hasMore = invoices.has_more
+            let startingAfter = invoices.data[invoices.data.length - 1]?.id
+
+            while (hasMore && startingAfter) {
+                const moreInvoices = await stripe.invoices.list({
+                    status: 'paid',
+                    limit: 100,
+                    starting_after: startingAfter,
+                })
+
+                stripeRevenue += moreInvoices.data.reduce((sum, invoice) => {
+                    return sum + (invoice.amount_paid || 0) / 100
+                }, 0)
+
+                hasMore = moreInvoices.has_more
+                startingAfter = moreInvoices.data[moreInvoices.data.length - 1]?.id
+            }
+        } catch (stripeError: any) {
+            // If Stripe API fails, log but don't fail the entire request
+            logger.warn('Failed to fetch Stripe revenue:', stripeError.message)
+            stripeRevenue = 0
+        }
+
+        const totalRevenue = cryptoRevenue + stripeRevenue
+
+        logger.info('Revenue calculated', {
+            cryptoRevenue,
+            stripeRevenue,
+            totalRevenue,
+        })
+
+        return Math.round(totalRevenue * 100) / 100 // Round to 2 decimal places
+    } catch (error) {
+        logger.error('Calculate total revenue error:', error)
+        return 0
+    }
+}
+
 // GET /api/admin/metrics/revenue - Get revenue metrics
 adminMetricsRoutes.get('/revenue', async (c) => {
     try {
-        // Placeholder data - implement with actual Stripe integration
+        const totalRevenue = await calculateTotalRevenue()
+
+        // Get revenue breakdown by tier from crypto payments
+        const revenueByTier = await prisma.cryptoPayment.groupBy({
+            by: ['tier'],
+            where: {
+                paymentStatus: 'finished',
+                payAmount: { not: null },
+            },
+            _sum: {
+                payAmount: true,
+            },
+        })
+
+        // Calculate MRR from active Stripe subscriptions
+        let monthlyRecurringRevenue = 0
+        try {
+            const subscriptions = await stripe.subscriptions.list({
+                status: 'active',
+                limit: 100,
+            })
+
+            monthlyRecurringRevenue = subscriptions.data.reduce((sum, sub) => {
+                // Get the price amount (in cents) and convert to dollars
+                const amount = sub.items.data[0]?.price?.unit_amount || 0
+                return sum + amount / 100
+            }, 0)
+
+            // Handle pagination
+            let hasMore = subscriptions.has_more
+            let startingAfter = subscriptions.data[subscriptions.data.length - 1]?.id
+
+            while (hasMore && startingAfter) {
+                const moreSubs = await stripe.subscriptions.list({
+                    status: 'active',
+                    limit: 100,
+                    starting_after: startingAfter,
+                })
+
+                monthlyRecurringRevenue += moreSubs.data.reduce((sum, sub) => {
+                    const amount = sub.items.data[0]?.price?.unit_amount || 0
+                    return sum + amount / 100
+                }, 0)
+
+                hasMore = moreSubs.has_more
+                startingAfter = moreSubs.data[moreSubs.data.length - 1]?.id
+            }
+        } catch (stripeError: any) {
+            logger.warn('Failed to fetch Stripe MRR:', stripeError.message)
+        }
+
         return c.json({
-            totalRevenue: 0,
-            monthlyRecurringRevenue: 0,
+            totalRevenue,
+            monthlyRecurringRevenue: Math.round(monthlyRecurringRevenue * 100) / 100,
             revenueByTier: {
                 free: 0,
-                pro: 0,
-                elite: 0,
+                pro: revenueByTier.find(r => r.tier === 'pro')?._sum.payAmount || 0,
+                elite: revenueByTier.find(r => r.tier === 'elite')?._sum.payAmount || 0,
             },
-            revenueGrowth: [],
-            topCustomers: [],
+            revenueGrowth: [], // TODO: Implement time-series revenue data
+            topCustomers: [], // TODO: Implement top customers list
         })
     } catch (error) {
         logger.error('Get revenue metrics error:', error)
