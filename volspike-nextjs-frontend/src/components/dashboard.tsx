@@ -234,9 +234,10 @@ export function Dashboard() {
                             className="w-full"
                             value={currentTab}
                             onValueChange={(value) => {
-                                setCurrentTab(value)
+                                const nextValue = value as 'market' | 'alerts'
+                                setCurrentTab(nextValue)
                                 // Clear unread count when user switches to alerts tab
-                                if (value === 'alerts') {
+                                if (nextValue === 'alerts') {
                                     setUnreadAlertsCount(0)
                                 }
                             }}
