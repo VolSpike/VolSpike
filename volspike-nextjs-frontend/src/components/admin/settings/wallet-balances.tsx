@@ -124,9 +124,9 @@ export function WalletBalances() {
                         <Wallet className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div>
-                        <CardTitle className="text-lg font-semibold">Payment Wallets</CardTitle>
+                        <CardTitle className="text-lg font-semibold">Payment Receiving Wallets</CardTitle>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            Crypto addresses receiving payments
+                            Crypto addresses that receive customer payments (auto-detected)
                         </p>
                     </div>
                 </div>

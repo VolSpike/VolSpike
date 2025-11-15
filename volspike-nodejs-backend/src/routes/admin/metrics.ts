@@ -292,8 +292,34 @@ adminMetricsRoutes.get('/revenue', async (c) => {
                         const priceId = subscription.items.data[0]?.price?.id
                         if (priceId) {
                             const price = await stripe.prices.retrieve(priceId)
-                            const tier = price.metadata?.tier || 'pro'
+                            // Get tier from metadata, but also check price amount as fallback
+                            let tier = price.metadata?.tier
+                            
+                            // If no tier in metadata, try to infer from price amount
+                            if (!tier && price.unit_amount) {
+                                const priceAmount = price.unit_amount / 100
+                                // You may need to adjust these thresholds based on your pricing
+                                if (priceAmount >= 50) {
+                                    tier = 'elite'
+                                } else if (priceAmount >= 9) {
+                                    tier = 'pro'
+                                } else {
+                                    tier = 'free'
+                                }
+                                logger.warn(`Tier not found in metadata for price ${priceId}, inferred as ${tier} from amount ${priceAmount}`)
+                            }
+                            
+                            // Default to 'pro' only if we couldn't determine tier
+                            tier = tier || 'pro'
                             const amount = (invoice.amount_paid || 0) / 100
+                            
+                            logger.debug('Processing Stripe invoice', {
+                                invoiceId: invoice.id,
+                                priceId,
+                                tier,
+                                amount,
+                                hasMetadata: !!price.metadata,
+                            })
                             
                             if (tier === 'pro') {
                                 stripeRevenueByTier.pro += amount
@@ -325,7 +351,22 @@ adminMetricsRoutes.get('/revenue', async (c) => {
                             const priceId = subscription.items.data[0]?.price?.id
                             if (priceId) {
                                 const price = await stripe.prices.retrieve(priceId)
-                                const tier = price.metadata?.tier || 'pro'
+                                // Get tier from metadata, but also check price amount as fallback
+                                let tier = price.metadata?.tier
+                                
+                                // If no tier in metadata, try to infer from price amount
+                                if (!tier && price.unit_amount) {
+                                    const priceAmount = price.unit_amount / 100
+                                    if (priceAmount >= 50) {
+                                        tier = 'elite'
+                                    } else if (priceAmount >= 9) {
+                                        tier = 'pro'
+                                    } else {
+                                        tier = 'free'
+                                    }
+                                }
+                                
+                                tier = tier || 'pro'
                                 const amount = (invoice.amount_paid || 0) / 100
                                 
                                 if (tier === 'pro') {

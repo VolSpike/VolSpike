@@ -315,6 +315,23 @@ model AdminSession {
   @@map("admin_sessions")
 }
 
+// Admin-managed wallets for tracking balances
+model AdminWallet {
+  id              String    @id @default(cuid())
+  address         String    // Wallet address
+  currency        String    // BTC, ETH, SOL, etc.
+  network         String?   // Optional network identifier
+  label           String?   // Optional label/name for the wallet
+  balance         Float?    // Cached balance (updated periodically)
+  balanceUpdatedAt DateTime? // Last time balance was fetched
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([address, currency])
+  @@index([currency])
+  @@map("admin_wallets")
+}
+
 // Crypto payments via NowPayments
 model CryptoPayment {
   id                String   @id @default(cuid())

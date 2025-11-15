@@ -233,7 +233,7 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                                         <TableCell>
                                             <div className="font-medium">{payment.user.email}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                Current: {payment.user.tier}
+                                                Current: {payment.user.tier} • Method: Crypto
                                             </div>
                                         </TableCell>
                                         <TableCell>
