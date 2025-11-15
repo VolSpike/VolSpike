@@ -46,6 +46,7 @@ export function DashboardWalletBalances() {
     
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const isVisibleRef = useRef(true)
+    const hasCheckedStaleRef = useRef(false)
 
     // Check if data is stale
     const isDataStale = useCallback((updatedAt: string | null): boolean => {
@@ -140,7 +141,6 @@ export function DashboardWalletBalances() {
     }, [session, fetchWallets])
     
     // Check and refresh stale data after wallets are loaded (only once after initial load)
-    const hasCheckedStaleRef = useRef(false)
     useEffect(() => {
         if (wallets.length > 0 && !hasCheckedStaleRef.current && session?.accessToken) {
             hasCheckedStaleRef.current = true
