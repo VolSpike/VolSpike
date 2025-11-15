@@ -17,16 +17,11 @@ import {
     User,
     Settings,
     LogOut,
-    Shield,
-    Moon,
-    Sun,
-    Monitor
+    Shield
 } from 'lucide-react'
-import { useTheme } from 'next-themes'
 
 export function AdminHeader() {
     const { data: session } = useSession()
-    const { theme, setTheme } = useTheme()
     // Real notifications will be fetched from audit logs in the future
     // For now, show empty state
     const [notifications] = useState<Array<{ id: string; message: string; time: string }>>([])
@@ -34,38 +29,6 @@ export function AdminHeader() {
     const handleSignOut = () => {
         // This would be handled by the signOut function from next-auth
         window.location.href = '/api/auth/signout'
-    }
-
-    const handleThemeChange = () => {
-        if (theme === 'light') {
-            setTheme('dark')
-        } else if (theme === 'dark') {
-            setTheme('system')
-        } else {
-            setTheme('light')
-        }
-    }
-
-    const getThemeIcon = () => {
-        switch (theme) {
-            case 'light':
-                return <Sun className="h-4 w-4" />
-            case 'dark':
-                return <Moon className="h-4 w-4" />
-            default:
-                return <Monitor className="h-4 w-4" />
-        }
-    }
-
-    const getThemeLabel = () => {
-        switch (theme) {
-            case 'light':
-                return 'Light'
-            case 'dark':
-                return 'Dark'
-            default:
-                return 'System'
-        }
     }
 
     return (
@@ -123,16 +86,6 @@ export function AdminHeader() {
                             )}
                         </DropdownMenuContent>
                     </DropdownMenu>
-
-                    {/* Theme toggle */}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleThemeChange}
-                        title={`Switch to ${theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light'} theme`}
-                    >
-                        {getThemeIcon()}
-                    </Button>
 
                     {/* Logout Button - Prominent */}
                     <Button
