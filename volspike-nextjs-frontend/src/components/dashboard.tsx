@@ -39,15 +39,17 @@ export function Dashboard() {
         return window.innerWidth < 1280 ? 'alerts' : 'market'
     })
 
-    // Debug session status
-    console.log('[Dashboard] useSession status:', status)
-    console.log('[Dashboard] useSession data:', session ? 'Found' : 'Not found')
-    if (session?.user) {
-        console.log('[Dashboard] User details:', {
-            email: session.user.email,
-            tier: (session.user as any).tier,
-            role: (session.user as any).role
-        })
+    // Debug session status (development only)
+    if (process.env.NODE_ENV !== 'production') {
+        console.log('[Dashboard] useSession status:', status)
+        console.log('[Dashboard] useSession data:', session ? 'Found' : 'Not found')
+        if (session?.user) {
+            console.log('[Dashboard] User details:', {
+                email: session.user.email,
+                tier: (session.user as any).tier,
+                role: (session.user as any).role
+            })
+        }
     }
 
     // Determine user tier
@@ -61,7 +63,9 @@ export function Dashboard() {
 
     // Stable callback to avoid reconnect loops
     const handleDataUpdate = useCallback((data: any[]) => {
-        console.log(`📊 Market data updated: ${data.length} symbols`)
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`📊 Market data updated: ${data.length} symbols`)
+        }
     }, [])
 
     // Use client-only market data (no API calls, no Redis)
@@ -83,7 +87,9 @@ export function Dashboard() {
         if (socket && isConnected) {
             // Subscribe to market updates
             socket.on('market-update', (data) => {
-                console.log('Market update received:', data)
+                if (process.env.NODE_ENV !== 'production') {
+                    console.log('Market update received:', data)
+                }
                 // Handle both old and new data formats
                 const marketData = data.data || data
                 if (marketData) {
