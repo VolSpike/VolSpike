@@ -30,7 +30,8 @@ import {
     User,
     CreditCard,
     Settings,
-    Shield
+    Shield,
+    FileText
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'

@@ -10,7 +10,8 @@ import {
     Settings,
     Shield,
     Eye,
-    ExternalLink
+    ExternalLink,
+    FileText
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
