@@ -22,7 +22,7 @@ const userListSchema = z.object({
     status: z.enum(['ACTIVE', 'SUSPENDED', 'BANNED']).optional(),
     page: z.coerce.number().min(1).default(1),
     limit: z.coerce.number().min(1).max(100).default(20),
-    sortBy: z.enum(['createdAt', 'email', 'lastLoginAt']).default('createdAt'),
+    sortBy: z.enum(['createdAt', 'email', 'lastLoginAt', 'tier', 'role', 'status']).default('createdAt'),
     sortOrder: z.enum(['asc', 'desc']).default('desc'),
 })
 

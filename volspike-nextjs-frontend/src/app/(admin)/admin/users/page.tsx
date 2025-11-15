@@ -83,8 +83,19 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 </div>
             </AdminLayout>
         )
-    } catch (error) {
-        console.error('Error fetching users:', error)
+    } catch (error: any) {
+        console.error('[UsersPage] Error fetching users:', error)
+        
+        // Extract error message for better debugging
+        const errorMessage = error?.message || error?.error || 'Unknown error'
+        const errorDetails = error?.response || error?.details || null
+        
+        console.error('[UsersPage] Error details:', {
+            message: errorMessage,
+            details: errorDetails,
+            stack: error?.stack,
+        })
+        
         return (
             <AdminLayout>
                 <div className="space-y-6">
@@ -95,9 +106,19 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                             </svg>
                         </div>
                         <h3 className="text-lg font-semibold text-red-900 dark:text-red-200 mb-2">Error loading users</h3>
-                        <p className="text-sm text-red-700 dark:text-red-300">
+                        <p className="text-sm text-red-700 dark:text-red-300 mb-4">
                             We couldn&apos;t load the users data. Please refresh the page to try again.
                         </p>
+                        {process.env.NODE_ENV === 'development' && (
+                            <details className="mt-4 text-left">
+                                <summary className="text-xs text-red-600 dark:text-red-400 cursor-pointer hover:underline">
+                                    Debug Information
+                                </summary>
+                                <pre className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 rounded text-xs overflow-auto max-h-40">
+                                    {JSON.stringify({ errorMessage, errorDetails }, null, 2)}
+                                </pre>
+                            </details>
+                        )}
                     </div>
                 </div>
             </AdminLayout>

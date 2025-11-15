@@ -164,22 +164,32 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     }
 
     const handleSort = (field: string) => {
-        const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
-        const params = new URLSearchParams()
-        
-        // Preserve existing query params
-        if (currentQuery.search) params.set('search', String(currentQuery.search))
-        if (currentQuery.role) params.set('role', String(currentQuery.role))
-        if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
-        if (currentQuery.status) params.set('status', String(currentQuery.status))
-        if (currentQuery.page) params.set('page', String(currentQuery.page))
-        if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
-        
-        // Set sort params
-        params.set('sortBy', field)
-        params.set('sortOrder', newSortOrder)
-        
-        router.push(`/admin/users?${params.toString()}`)
+        try {
+            console.log('[UsersTable] handleSort called:', { field, currentQuery })
+            
+            const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
+            const params = new URLSearchParams()
+            
+            // Preserve existing query params
+            if (currentQuery.search) params.set('search', String(currentQuery.search))
+            if (currentQuery.role) params.set('role', String(currentQuery.role))
+            if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
+            if (currentQuery.status) params.set('status', String(currentQuery.status))
+            if (currentQuery.page) params.set('page', String(currentQuery.page))
+            if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+            
+            // Set sort params
+            params.set('sortBy', field)
+            params.set('sortOrder', newSortOrder)
+            
+            const newUrl = `/admin/users?${params.toString()}`
+            console.log('[UsersTable] Navigating to:', newUrl)
+            
+            router.push(newUrl)
+        } catch (error) {
+            console.error('[UsersTable] Error in handleSort:', error)
+            toast.error('Failed to sort table. Please try again.')
+        }
     }
 
     const getSortIcon = (field: string) => {
