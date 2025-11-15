@@ -30,6 +30,7 @@ interface CacheShape {
 }
 
 let memoryCache: CacheShape | null = null
+const inflightPrefetches: Record<string, Promise<void>> = {}
 
 type AssetProfileOverride = Partial<AssetProfile> & {
     coingeckoId?: string
@@ -91,6 +92,37 @@ const writeCache = (symbol: string, profile: AssetProfile) => {
     } catch {
         // Ignore cache write errors
     }
+}
+
+export const prefetchAssetProfile = (symbol: string): void => {
+    if (typeof window === 'undefined') return
+    const upper = symbol.toUpperCase()
+    const cache = safeParseCache()
+    const entry = cache[upper]
+    const now = Date.now()
+
+    // Fresh enough: nothing to do
+    if (entry && now - entry.updatedAt < CACHE_TTL_MS) {
+        return
+    }
+
+    // Already fetching: reuse existing promise
+    if (inflightPrefetches[upper]) {
+        return
+    }
+
+    inflightPrefetches[upper] = (async () => {
+        try {
+            const profile = await fetchProfileFromCoinGecko(upper)
+            if (profile) {
+                writeCache(upper, profile)
+            }
+        } catch {
+            // Ignore prefetch errors – UI will fall back to on-demand fetch
+        } finally {
+            delete inflightPrefetches[upper]
+        }
+    })()
 }
 
 const stripHtml = (html: string): string => {

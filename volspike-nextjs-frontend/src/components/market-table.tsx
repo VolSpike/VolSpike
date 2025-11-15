@@ -25,6 +25,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet'
 import { AssetProjectOverview } from '@/components/asset-project-overview'
+import { prefetchAssetProfile } from '@/hooks/use-asset-profile'
 import { WatchlistExportButton } from '@/components/watchlist-export-button'
 import { GuestCTA } from '@/components/guest-cta'
 
@@ -308,6 +309,29 @@ export function MarketTable({
             return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
         })
     }, [data, sortBy, sortOrder])
+
+    // Warm CoinGecko project profiles in the background for the
+    // most likely symbols to be clicked, so the detail drawer
+    // feels instant even on first open.
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        if (!sortedData.length) return
+
+        const baseSymbols = Array.from(
+            new Set(
+                sortedData
+                    .slice(0, 24) // top 24 by current sort
+                    .map((item) => formatSymbol(item.symbol).toUpperCase())
+            )
+        )
+
+        baseSymbols.forEach((sym, index) => {
+            // Stagger requests slightly to be gentle on CoinGecko
+            window.setTimeout(() => {
+                prefetchAssetProfile(sym)
+            }, index * 150)
+        })
+    }, [sortedData])
 
     const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest') => {
         if (guestMode) return // Sorting locked in guest preview

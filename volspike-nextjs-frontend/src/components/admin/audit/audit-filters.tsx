@@ -35,19 +35,30 @@ const actionOptions = [
     { value: 'USER_CREATED', label: 'User Created' },
     { value: 'USER_UPDATED', label: 'User Updated' },
     { value: 'USER_DELETED', label: 'User Deleted' },
+    { value: 'USER_SUSPENDED', label: 'User Suspended' },
+    { value: 'USER_ACTIVATED', label: 'User Activated' },
+    { value: 'USER_BANNED', label: 'User Banned' },
     { value: 'SUBSCRIPTION_CREATED', label: 'Subscription Created' },
     { value: 'SUBSCRIPTION_UPDATED', label: 'Subscription Updated' },
     { value: 'SUBSCRIPTION_CANCELLED', label: 'Subscription Cancelled' },
+    { value: 'SUBSCRIPTION_REFUNDED', label: 'Subscription Refunded' },
+    { value: 'MANUAL_PAYMENT_CREATE', label: 'Manual Payment Created' },
     { value: 'SETTINGS_UPDATED', label: 'Settings Updated' },
     { value: 'SECURITY_EVENT', label: 'Security Event' },
+    { value: 'ADMIN_LOGIN', label: 'Admin Login' },
+    { value: 'ADMIN_LOGOUT', label: 'Admin Logout' },
+    { value: 'BULK_ACTION_EXECUTED', label: 'Bulk Action Executed' },
 ]
 
 const targetTypeOptions = [
     { value: 'all', label: 'All Types' },
     { value: 'USER', label: 'User' },
     { value: 'SUBSCRIPTION', label: 'Subscription' },
+    { value: 'CRYPTO_PAYMENT', label: 'Crypto Payment' },
     { value: 'SETTINGS', label: 'Settings' },
+    { value: 'SECURITY', label: 'Security' },
     { value: 'SYSTEM', label: 'System' },
+    { value: 'ADMIN', label: 'Admin' },
 ]
 
 export function AuditFilters({ currentFilters }: AuditFiltersProps) {

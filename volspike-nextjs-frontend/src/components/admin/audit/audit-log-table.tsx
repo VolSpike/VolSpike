@@ -31,7 +31,8 @@ import {
     CreditCard,
     Settings,
     Shield,
-    FileText
+    FileText,
+    Copy
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'
@@ -53,22 +54,38 @@ const actionIcons = {
     USER_CREATED: User,
     USER_UPDATED: User,
     USER_DELETED: User,
+    USER_SUSPENDED: User,
+    USER_ACTIVATED: User,
+    USER_BANNED: User,
     SUBSCRIPTION_CREATED: CreditCard,
     SUBSCRIPTION_UPDATED: CreditCard,
     SUBSCRIPTION_CANCELLED: CreditCard,
+    SUBSCRIPTION_REFUNDED: CreditCard,
+    MANUAL_PAYMENT_CREATE: CreditCard,
     SETTINGS_UPDATED: Settings,
     SECURITY_EVENT: Shield,
+    ADMIN_LOGIN: Shield,
+    ADMIN_LOGOUT: Shield,
+    BULK_ACTION_EXECUTED: Settings,
 }
 
 const actionColors = {
-    USER_CREATED: 'bg-green-100 text-green-800',
-    USER_UPDATED: 'bg-blue-100 text-blue-800',
-    USER_DELETED: 'bg-red-100 text-red-800',
-    SUBSCRIPTION_CREATED: 'bg-green-100 text-green-800',
-    SUBSCRIPTION_UPDATED: 'bg-blue-100 text-blue-800',
-    SUBSCRIPTION_CANCELLED: 'bg-red-100 text-red-800',
-    SETTINGS_UPDATED: 'bg-yellow-100 text-yellow-800',
-    SECURITY_EVENT: 'bg-red-100 text-red-800',
+    USER_CREATED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    USER_UPDATED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    USER_DELETED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    USER_SUSPENDED: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+    USER_ACTIVATED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    USER_BANNED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    SUBSCRIPTION_CREATED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    SUBSCRIPTION_UPDATED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    SUBSCRIPTION_CANCELLED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    SUBSCRIPTION_REFUNDED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    MANUAL_PAYMENT_CREATE: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
+    SETTINGS_UPDATED: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    SECURITY_EVENT: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    ADMIN_LOGIN: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    ADMIN_LOGOUT: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+    BULK_ACTION_EXECUTED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
 }
 
 export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableProps) {
@@ -150,8 +167,9 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                 </div>
             </div>
 
-            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-                <Table>
+            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden relative">
+                <div className="overflow-x-auto">
+                    <Table>
                     <TableHeader>
                         <TableRow>
                             <TableHead>Action</TableHead>
@@ -229,47 +247,64 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <span className="text-sm font-mono">
-                                            {log.metadata?.ip || 'N/A'}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            {log.metadata?.ip ? (
+                                                <span className="text-sm font-mono text-foreground">
+                                                    {typeof log.metadata.ip === 'string' 
+                                                        ? log.metadata.ip.split(',')[0].trim() 
+                                                        : log.metadata.ip}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground italic">Not captured</span>
+                                            )}
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    disabled={loading === log.id}
+                                    <TableCell className="text-right relative">
+                                        <div className="flex justify-end">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        disabled={loading === log.id}
+                                                        className="h-8 w-8"
+                                                    >
+                                                        {loading === log.id ? (
+                                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                                                        ) : (
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        )}
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent 
+                                                    align="end" 
+                                                    side="bottom"
+                                                    className="z-[100] min-w-[180px]"
                                                 >
-                                                    {loading === log.id ? (
-                                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
-                                                    ) : (
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    )}
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem onClick={() => handleViewDetails(log.id)}>
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    View Details
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => {
-                                                    navigator.clipboard.writeText(log.id)
-                                                    toast.success('Log ID copied to clipboard')
-                                                }}>
-                                                    Copy Log ID
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={() => handleViewDetails(log.id)}>
+                                                        <Eye className="h-4 w-4 mr-2" />
+                                                        View Details
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => {
+                                                        navigator.clipboard.writeText(log.id)
+                                                        toast.success('Log ID copied to clipboard')
+                                                    }}>
+                                                        <Copy className="h-4 w-4 mr-2" />
+                                                        Copy Log ID
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 )
                             })
                         )}
                     </TableBody>
-                </Table>
+                    </Table>
+                </div>
             </div>
 
             {/* Pagination */}
