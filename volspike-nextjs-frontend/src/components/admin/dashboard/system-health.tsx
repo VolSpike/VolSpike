@@ -25,8 +25,8 @@ export function SystemHealth() {
                     </div>
                 </div>
 
-                {/* Divider */}
-                <div className="h-8 w-px bg-border/60" />
+                {/* Divider - hidden on mobile, visible on desktop */}
+                <div className="hidden sm:block h-8 w-px bg-border/60 flex-shrink-0" />
 
                 {/* Response Time */}
                 <div className="flex items-center gap-3 flex-1">
@@ -46,8 +46,8 @@ export function SystemHealth() {
                     </div>
                 </div>
 
-                {/* Divider */}
-                <div className="h-8 w-px bg-border/60" />
+                {/* Divider - hidden on mobile, visible on desktop */}
+                <div className="hidden sm:block h-8 w-px bg-border/60 flex-shrink-0" />
 
                 {/* Database */}
                 <div className="flex items-center gap-3 flex-1">
