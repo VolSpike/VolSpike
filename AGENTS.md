@@ -210,7 +210,8 @@ cd volspike-nextjs-frontend && npm run build && npm start
 ```
 VolSpike/
 ├── AGENTS.md                           # This file
-├── README_NEW_STACK.md                 # Complete documentation
+├── OVERVIEW.md                         # High-level project overview
+├── IMPLEMENTATION_PLAN.md              # Current state and MVP launch path
 ├── docker-compose.yml                  # Development setup (PostgreSQL only)
 │
 ├── volspike-nextjs-frontend/           # Next.js 15+ frontend (main app)
@@ -687,8 +688,7 @@ npm install && npm run dev
 - ✅ **Test Accounts** - Created in both dev and production:
   - `free-test@volspike.com` / Test123456! (Free tier)
   - `pro-test@volspike.com` / Test123456! (Pro tier)
-- ✅ **PRO_TIER_TEST_PLAN.md** - Comprehensive 14-category, 100+ check test plan
-- ✅ **TESTING_STRATEGY.md** - Feature branch workflow with Vercel preview deployments
+- ✅ **Testing Strategy** - Feature branch workflow with Vercel preview deployments
 - ✅ **Debug Mode** - `?debug=true` query parameter enables:
   - Test buttons for alert sounds (3 types)
   - Test buttons for alert animations (3 types)
@@ -704,11 +704,10 @@ npm install && npm run dev
 
 ### Alert Sounds & Animations - IN PROGRESS 🚧
 - ✅ **useAlertSounds Hook** - Web Audio API-based hook with localStorage preferences (placeholder for MP3s)
-- ✅ **SOUND_DESIGN_BRIEF.md** - Comprehensive expert brief for professional sound design:
+- ✅ **Sound Design Requirements** - Professional sound design specifications:
   - 3 distinct sound specifications (Spike Alert, 30m Update, Hourly Update)
   - Technical requirements (MP3, duration, pitch, volume)
   - Professional references (Bloomberg Terminal, TradingView)
-  - Budget guidance and deliverables checklist
 - ✅ **Animation Classes** - Tailwind CSS animations:
   - `animate-slide-in-right` - Spring animation with bounce
   - `animate-scale-in` - Zoom from center
