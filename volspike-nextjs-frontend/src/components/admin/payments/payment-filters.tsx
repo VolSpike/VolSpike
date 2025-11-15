@@ -82,14 +82,16 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                 <div className="space-y-2">
                     <Label htmlFor="paymentStatus">Payment Status</Label>
                     <Select
-                        value={currentFilters.paymentStatus || ''}
-                        onValueChange={(value) => updateFilter('paymentStatus', value || undefined)}
+                        value={currentFilters.paymentStatus || 'all'}
+                        onValueChange={(value) =>
+                            updateFilter('paymentStatus', value === 'all' ? undefined : value)
+                        }
                     >
                         <SelectTrigger id="paymentStatus">
                             <SelectValue placeholder="All statuses" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All statuses</SelectItem>
+                            <SelectItem value="all">All statuses</SelectItem>
                             <SelectItem value="waiting">Waiting</SelectItem>
                             <SelectItem value="confirming">Confirming</SelectItem>
                             <SelectItem value="confirmed">Confirmed</SelectItem>
@@ -107,14 +109,16 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                 <div className="space-y-2">
                     <Label htmlFor="tier">Tier</Label>
                     <Select
-                        value={currentFilters.tier || ''}
-                        onValueChange={(value) => updateFilter('tier', value || undefined)}
+                        value={currentFilters.tier || 'all'}
+                        onValueChange={(value) =>
+                            updateFilter('tier', value === 'all' ? undefined : value)
+                        }
                     >
                         <SelectTrigger id="tier">
                             <SelectValue placeholder="All tiers" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All tiers</SelectItem>
+                            <SelectItem value="all">All tiers</SelectItem>
                             <SelectItem value="pro">Pro</SelectItem>
                             <SelectItem value="elite">Elite</SelectItem>
                         </SelectContent>
@@ -158,4 +162,3 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
         </div>
     )
 }
-

@@ -82,14 +82,16 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
 
                     {/* Role Filter */}
                     <Select
-                        value={filters.role}
-                        onValueChange={(value) => setFilters(prev => ({ ...prev, role: value }))}
+                        value={filters.role || 'all'}
+                        onValueChange={(value) =>
+                            setFilters(prev => ({ ...prev, role: value === 'all' ? '' : value }))
+                        }
                     >
                         <SelectTrigger className="w-32">
                             <SelectValue placeholder="Role" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Roles</SelectItem>
+                            <SelectItem value="all">All Roles</SelectItem>
                             <SelectItem value="USER">User</SelectItem>
                             <SelectItem value="ADMIN">Admin</SelectItem>
                         </SelectContent>
@@ -97,14 +99,16 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
 
                     {/* Tier Filter */}
                     <Select
-                        value={filters.tier}
-                        onValueChange={(value) => setFilters(prev => ({ ...prev, tier: value }))}
+                        value={filters.tier || 'all'}
+                        onValueChange={(value) =>
+                            setFilters(prev => ({ ...prev, tier: value === 'all' ? '' : value }))
+                        }
                     >
                         <SelectTrigger className="w-32">
                             <SelectValue placeholder="Tier" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Tiers</SelectItem>
+                            <SelectItem value="all">All Tiers</SelectItem>
                             <SelectItem value="free">Free</SelectItem>
                             <SelectItem value="pro">Pro</SelectItem>
                             <SelectItem value="elite">Elite</SelectItem>
@@ -113,14 +117,16 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
 
                     {/* Status Filter */}
                     <Select
-                        value={filters.status}
-                        onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+                        value={filters.status || 'all'}
+                        onValueChange={(value) =>
+                            setFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))
+                        }
                     >
                         <SelectTrigger className="w-32">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">All Status</SelectItem>
+                            <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="ACTIVE">Active</SelectItem>
                             <SelectItem value="SUSPENDED">Suspended</SelectItem>
                             <SelectItem value="BANNED">Banned</SelectItem>
