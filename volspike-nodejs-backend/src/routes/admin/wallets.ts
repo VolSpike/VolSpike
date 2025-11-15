@@ -269,10 +269,16 @@ async function fetchWalletBalance(
 
         // Native Ethereum (ETH)
         if (currencyUpper === 'ETH') {
-            const apiKey = process.env.ETHERSCAN_API_KEY || ''
-            const apiUrl = apiKey
-                ? `https://api.etherscan.io/api?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`
-                : `https://api.etherscan.io/api?module=account&action=balance&address=${address}&tag=latest`
+            const apiKey = process.env.ETHERSCAN_API_KEY
+            if (!apiKey) {
+                logger.warn('ETHERSCAN_API_KEY not set - Etherscan V2 requires API key')
+                throw new Error('ETHERSCAN_API_KEY is required for Etherscan API V2')
+            }
+            
+            // Use Etherscan API V2 endpoint
+            const apiUrl = `https://api.etherscan.io/v2/api?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`
+
+            logger.info(`Fetching ETH balance for ${address} using Etherscan V2 API`)
 
             const response = await fetch(apiUrl)
             if (!response.ok) {
@@ -286,16 +292,19 @@ async function fetchWalletBalance(
                 message?: string
             }
 
+            logger.info(`Etherscan V2 response for ETH: status=${data.status}, result=${data.result?.substring(0, 20)}...`)
+
             if (data.status === '1') {
                 // Balance is in Wei, convert to ETH
                 // result can be "0" for zero balance, which is valid
                 const wei = BigInt(data.result || '0')
                 const eth = Number(wei) / 1e18
+                logger.info(`Parsed ETH balance: ${eth}`)
                 return eth
             }
             
             // Status "0" usually means error, but log it
-            logger.warn(`Etherscan API returned status 0 for ETH: ${data.message || 'Unknown error'}`)
+            logger.warn(`Etherscan API returned status 0 for ETH: ${data.message || 'Unknown error'}, result=${data.result}`)
             // Return 0 instead of throwing, so we show $0 instead of "-"
             return 0
         }
@@ -307,12 +316,16 @@ async function fetchWalletBalance(
                 ? TOKEN_CONTRACTS.USDC_ETH 
                 : TOKEN_CONTRACTS.USDT_ETH
             
-            const apiKey = process.env.ETHERSCAN_API_KEY || ''
-            const apiUrl = apiKey
-                ? `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
-                : `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest`
+            const apiKey = process.env.ETHERSCAN_API_KEY
+            if (!apiKey) {
+                logger.warn('ETHERSCAN_API_KEY not set - Etherscan V2 requires API key')
+                throw new Error('ETHERSCAN_API_KEY is required for Etherscan API V2')
+            }
+            
+            // Use Etherscan API V2 endpoint for token balance
+            const apiUrl = `https://api.etherscan.io/v2/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
 
-            logger.info(`Fetching ${currencyUpper} balance for ${address} using contract ${contractAddress}`)
+            logger.info(`Fetching ${currencyUpper} balance for ${address} using contract ${contractAddress} (Etherscan V2)`)
             
             const response = await fetch(apiUrl)
             if (!response.ok) {
@@ -326,14 +339,14 @@ async function fetchWalletBalance(
                 message?: string
             }
 
-            logger.info(`Etherscan response for ${currencyUpper}: status=${data.status}, result=${data.result?.substring(0, 20)}...`)
+            logger.info(`Etherscan V2 response for ${currencyUpper}: status=${data.status}, result=${data.result?.substring(0, 20)}...`)
 
             if (data.status === '1') {
                 // ERC-20 tokens typically have 6 decimals (USDC/USDT)
                 // result can be "0" for zero balance, which is valid
                 const tokenAmount = BigInt(data.result || '0')
                 const balance = Number(tokenAmount) / 1e6
-                logger.info(`Parsed ${currencyUpper} balance: ${balance}`)
+                logger.info(`Parsed ${currencyUpper} balance: ${balance} (raw: ${data.result})`)
                 return balance
             }
             
