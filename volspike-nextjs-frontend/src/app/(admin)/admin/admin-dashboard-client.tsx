@@ -91,10 +91,9 @@ export default function AdminDashboardClient() {
                 <RevenueChart metrics={metrics} />
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-                <DashboardWalletBalances />
-                <SystemHealth />
-            </div>
+            <DashboardWalletBalances />
+            
+            <SystemHealth />
 
             <RecentActivity activities={[]} />
         </div>
