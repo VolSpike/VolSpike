@@ -775,8 +775,20 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                             size="sm"
                             disabled={pagination.page <= 1}
                             onClick={() => {
-                                const params = new URLSearchParams(currentQuery)
+                                const params = new URLSearchParams()
+                                
+                                // Preserve existing query params
+                                if (currentQuery.search) params.set('search', String(currentQuery.search))
+                                if (currentQuery.role) params.set('role', String(currentQuery.role))
+                                if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
+                                if (currentQuery.status) params.set('status', String(currentQuery.status))
+                                if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+                                if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
+                                if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                
+                                // Set new page
                                 params.set('page', String(pagination.page - 1))
+                                
                                 router.push(`/admin/users?${params.toString()}`)
                             }}
                         >
@@ -790,8 +802,20 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                             size="sm"
                             disabled={pagination.page >= pagination.pages}
                             onClick={() => {
-                                const params = new URLSearchParams(currentQuery)
+                                const params = new URLSearchParams()
+                                
+                                // Preserve existing query params
+                                if (currentQuery.search) params.set('search', String(currentQuery.search))
+                                if (currentQuery.role) params.set('role', String(currentQuery.role))
+                                if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
+                                if (currentQuery.status) params.set('status', String(currentQuery.status))
+                                if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+                                if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
+                                if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                
+                                // Set new page
                                 params.set('page', String(pagination.page + 1))
+                                
                                 router.push(`/admin/users?${params.toString()}`)
                             }}
                         >
