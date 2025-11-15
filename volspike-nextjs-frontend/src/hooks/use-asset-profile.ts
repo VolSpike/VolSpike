@@ -107,7 +107,7 @@ export const prefetchAssetProfile = (symbol: string): void => {
     }
 
     // Already fetching: reuse existing promise
-    if (inflightPrefetches[upper]) {
+    if (upper in inflightPrefetches) {
         return
     }
 
