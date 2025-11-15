@@ -58,6 +58,15 @@ const EVM_CHAINS = {
     },
 } as const
 
+// Fallback RPC endpoints if primary fails
+const FALLBACK_RPCS: Record<string, string[]> = {
+    ethereum: ['https://rpc.ankr.com/eth', 'https://eth-mainnet.public.blastapi.io'],
+    polygon: ['https://rpc.ankr.com/polygon', 'https://polygon-rpc.com'],
+    optimism: ['https://rpc.ankr.com/optimism', 'https://mainnet.optimism.io'],
+    arbitrum: ['https://rpc.ankr.com/arbitrum', 'https://arb1.arbitrum.io/rpc'],
+    base: ['https://rpc.ankr.com/base', 'https://mainnet.base.org'],
+}
+
 // GET /api/admin/wallets - List admin wallets
 adminWalletRoutes.get('/', async (c) => {
     try {
@@ -356,49 +365,63 @@ async function fetchETHBalanceFromChain(
     address: string,
     chain: typeof EVM_CHAINS[keyof typeof EVM_CHAINS]
 ): Promise<number> {
-    try {
-        logger.info(`Fetching ETH balance from ${chain.name} (chainId: ${chain.chainId}) for ${address}`)
-        
-        const response = await fetch(chain.rpcUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'eth_getBalance',
-                params: [address, 'latest'],
-            }),
-        })
+    const chainKey = Object.keys(EVM_CHAINS).find(k => EVM_CHAINS[k as keyof typeof EVM_CHAINS] === chain) || 'ethereum'
+    const rpcUrls = [chain.rpcUrl, ...(FALLBACK_RPCS[chainKey] || [])]
+    
+    let lastError: Error | null = null
+    
+    // Try primary RPC, then fallbacks
+    for (const rpcUrl of rpcUrls) {
+        try {
+            logger.info(`Fetching ETH balance from ${chain.name} (chainId: ${chain.chainId}) via ${rpcUrl} for ${address}`)
+            
+            const response = await fetch(rpcUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'eth_getBalance',
+                    params: [address, 'latest'],
+                }),
+            })
 
-        if (!response.ok) {
-            throw new Error(`RPC error: ${response.status}`)
-        }
-
-        const data = await response.json() as {
-            result?: string
-            error?: {
-                code: number
-                message: string
+            if (!response.ok) {
+                throw new Error(`RPC error: ${response.status}`)
             }
-        }
 
-        if (data.error) {
-            throw new Error(`RPC error: ${data.error.message}`)
-        }
+            const data = await response.json() as {
+                result?: string
+                error?: {
+                    code: number
+                    message: string
+                }
+            }
 
-        if (data.result) {
-            // Balance is in Wei, convert to ETH
-            const wei = BigInt(data.result)
-            const eth = Number(wei) / 1e18
-            logger.info(`Fetched ${chain.name} balance: ${eth} ETH`)
-            return eth
-        }
+            if (data.error) {
+                throw new Error(`RPC error: ${data.error.message}`)
+            }
 
-        throw new Error('Invalid RPC response')
-    } catch (error: any) {
-        logger.warn(`Failed to fetch ETH balance from ${chain.name}:`, error?.message || error)
-        throw error
+            if (data.result) {
+                // Balance is in Wei, convert to ETH
+                const wei = BigInt(data.result)
+                const eth = Number(wei) / 1e18
+                logger.info(`Fetched ${chain.name} balance: ${eth} ETH`)
+                return eth
+            }
+
+            throw new Error('Invalid RPC response')
+        } catch (error: any) {
+            lastError = error
+            logger.warn(`Failed to fetch from ${rpcUrl}:`, error?.message || error)
+            // Continue to next RPC
+            continue
+        }
     }
+    
+    // All RPCs failed
+    logger.error(`All RPC endpoints failed for ${chain.name}:`, lastError)
+    throw lastError || new Error(`Failed to fetch balance from ${chain.name}`)
 }
 
 // Helper function to fetch wallet balance from blockchain APIs

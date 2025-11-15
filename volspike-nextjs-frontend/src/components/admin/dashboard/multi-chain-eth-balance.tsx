@@ -65,10 +65,10 @@ export function MultiChainETHBalance({ walletId, address, mainBalance }: MultiCh
     }
 
     useEffect(() => {
-        if (expanded && chainBalances.length === 0 && !loading) {
+        if (expanded && chainBalances.length === 0 && !loading && session?.accessToken) {
             fetchMultiChainBalances()
         }
-    }, [expanded, session])
+    }, [expanded, session?.accessToken])
 
     const totalBalance = chainBalances.reduce((sum, chain) => sum + chain.balance, 0)
     const chainsWithBalance = chainBalances.filter(chain => chain.balance > 0)
