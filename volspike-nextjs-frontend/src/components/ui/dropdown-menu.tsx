@@ -93,11 +93,17 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
 
 interface DropdownMenuContentProps {
     align?: 'start' | 'center' | 'end'
+    side?: 'top' | 'bottom'
     children: React.ReactNode
     className?: string
 }
 
-export function DropdownMenuContent({ align = 'start', children, className }: DropdownMenuContentProps) {
+export function DropdownMenuContent({
+    align = 'start',
+    side = 'bottom',
+    children,
+    className,
+}: DropdownMenuContentProps) {
     const context = useContext(DropdownMenuContext)
     if (!context) throw new Error('DropdownMenuContent must be used within DropdownMenu')
 
@@ -107,7 +113,14 @@ export function DropdownMenuContent({ align = 'start', children, className }: Dr
         <div
             className={cn(
                 'absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
-                align === 'end' ? 'right-0' : align === 'center' ? 'left-1/2 transform -translate-x-1/2' : 'left-0',
+                // Horizontal alignment
+                align === 'end'
+                    ? 'right-0'
+                    : align === 'center'
+                        ? 'left-1/2 transform -translate-x-1/2'
+                        : 'left-0',
+                // Vertical side: open below (default) or above the trigger
+                side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1',
                 className
             )}
             role="menu"
