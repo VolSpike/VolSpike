@@ -92,7 +92,7 @@ export default function AdminDashboardClient() {
 
             <DashboardWalletBalances />
 
-            <RecentActivity activities={[]} />
+            <RecentActivity />
         </div>
     )
 }
