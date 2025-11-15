@@ -289,7 +289,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                 <div className="overflow-x-auto overflow-y-visible">
                     <Table>
                     <TableHeader>
-                        <TableRow>
+                        <TableRow className="bg-muted/30">
                             <TableHead className="w-12">
                                 <Checkbox
                                     checked={selectedUsers.length === users.length && users.length > 0}
