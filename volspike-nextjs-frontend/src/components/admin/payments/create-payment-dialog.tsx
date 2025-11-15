@@ -45,7 +45,9 @@ export function CreatePaymentDialog({ open, onOpenChange, onPaymentCreated }: Cr
         currency: 'usd',
         tier: 'pro' as 'pro' | 'elite',
         actuallyPaid: '',
-        actuallyPaidCurrency: 'USDC',
+        // Default to USDT on Solana, our recommended flow
+        // Value should match NOWPayments pay_currency code
+        actuallyPaidCurrency: 'usdtsol',
     })
 
     useEffect(() => {
@@ -60,7 +62,7 @@ export function CreatePaymentDialog({ open, onOpenChange, onPaymentCreated }: Cr
                 currency: 'usd',
                 tier: 'pro',
                 actuallyPaid: '',
-                actuallyPaidCurrency: 'USDC',
+                actuallyPaidCurrency: 'usdtsol',
             })
             setUserFound(null)
         }
@@ -280,16 +282,21 @@ export function CreatePaymentDialog({ open, onOpenChange, onPaymentCreated }: Cr
                             <Label htmlFor="actuallyPaidCurrency">Crypto Currency</Label>
                             <Select
                                 value={formData.actuallyPaidCurrency}
-                                onValueChange={(value) => setFormData({ ...formData, actuallyPaidCurrency: value })}
+                                onValueChange={(value) =>
+                                    setFormData({ ...formData, actuallyPaidCurrency: value })
+                                }
                             >
                                 <SelectTrigger id="actuallyPaidCurrency">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="USDC">USDC</SelectItem>
-                                    <SelectItem value="USDT">USDT</SelectItem>
-                                    <SelectItem value="BTC">BTC</SelectItem>
-                                    <SelectItem value="ETH">ETH</SelectItem>
+                                    {/* Values should match NOWPayments pay_currency codes */}
+                                    <SelectItem value="usdtsol">USDT · Solana</SelectItem>
+                                    <SelectItem value="usdterc20">USDT · Ethereum</SelectItem>
+                                    <SelectItem value="usdce">USDC · Ethereum</SelectItem>
+                                    <SelectItem value="sol">SOL</SelectItem>
+                                    <SelectItem value="btc">BTC</SelectItem>
+                                    <SelectItem value="eth">ETH</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -319,4 +326,3 @@ export function CreatePaymentDialog({ open, onOpenChange, onPaymentCreated }: Cr
         </Dialog>
     )
 }
-
