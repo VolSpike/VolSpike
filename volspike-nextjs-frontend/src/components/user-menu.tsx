@@ -34,6 +34,7 @@ import {
     FileText,
     Key,
     Sparkles,
+    Shield,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
@@ -292,6 +293,27 @@ export function UserMenu() {
                         <Settings className="h-4 w-4 mr-2.5 text-muted-foreground" />
                         <span className="flex-1">Settings</span>
                     </DropdownMenuItem>
+
+                    {/* Admin Panel - Only visible to admins */}
+                    {identity.role === 'ADMIN' && (
+                        <>
+                            <DropdownMenuSeparator className="my-1 mx-2" />
+                            <DropdownMenuItem 
+                                onClick={() => {
+                                    router.push('/admin')
+                                    setIsOpen(false)
+                                }}
+                                className="mx-2 my-0.5 rounded-lg transition-all duration-150 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border border-blue-500/20 dark:border-blue-400/20 focus:bg-blue-500/20 dark:focus:bg-blue-500/20 group"
+                            >
+                                <Shield className="h-4 w-4 mr-2.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-150" />
+                                <span className="flex-1 font-semibold text-blue-700 dark:text-blue-300">Admin Panel</span>
+                                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] border-blue-500/30 text-blue-600 dark:text-blue-400 dark:border-blue-400/30">
+                                    ADMIN
+                                </Badge>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="my-1 mx-2" />
+                        </>
+                    )}
 
                     {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
                         <DropdownMenuItem 
