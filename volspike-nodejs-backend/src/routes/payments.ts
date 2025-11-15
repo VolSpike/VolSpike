@@ -536,7 +536,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
             const emailService = EmailService.getInstance()
             updatedUsers.forEach(user => {
                 const previousTier = previousTiers.get(user.id)
-                
+
                 // Broadcast tier change via WebSocket
                 if (io) {
                     io.to(`user-${user.id}`).emit('tier-changed', { tier })
@@ -761,7 +761,7 @@ payments.post('/nowpayments/checkout', async (c) => {
         // Create invoice with NowPayments (hosted checkout flow)
         // This is the correct endpoint for getting invoice_id and invoice_url
         const nowpayments = NowPaymentsService.getInstance()
-        
+
         logger.info('Creating NowPayments invoice for hosted checkout', {
             price_amount: priceAmount,
             price_currency: 'usd',
@@ -772,11 +772,11 @@ payments.post('/nowpayments/checkout', async (c) => {
 
         // Map currency code to NowPayments format and validate
         let mappedPayCurrency: string | null = null
-        
+
         if (payCurrency) {
             // Import currency mapper
             const { mapCurrencyToNowPayments, isSupportedCurrency, getCurrencyDisplayName, getCurrencyNetwork } = await import('../services/currency-mapper')
-            
+
             // Validate currency is supported in our system
             if (!isSupportedCurrency(payCurrency)) {
                 logger.error('Unsupported currency code requested', {
@@ -785,17 +785,17 @@ payments.post('/nowpayments/checkout', async (c) => {
                 })
                 throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
             }
-            
+
             // Fetch available currencies from NowPayments to validate and map
             logger.info('Fetching available currencies from NowPayments for validation', {
                 requestedCurrency: payCurrency,
                 displayName: getCurrencyDisplayName(payCurrency),
                 network: getCurrencyNetwork(payCurrency),
             })
-            
+
             try {
                 const availableCurrencies = await nowpayments.getAvailableCurrencies()
-                
+
                 if (!availableCurrencies || availableCurrencies.length === 0) {
                     logger.warn('NowPayments returned empty currency list, using mapped code without validation', {
                         payCurrency,
@@ -805,7 +805,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                 } else {
                     // Map to NowPayments code with validation
                     mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
-                    
+
                     if (!mappedPayCurrency) {
                         logger.error('Failed to map currency code to NowPayments format', {
                             payCurrency,
@@ -816,7 +816,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                         })
                         throw new Error(`Currency ${getCurrencyDisplayName(payCurrency)} on ${getCurrencyNetwork(payCurrency)} is not available. Please select a different currency.`)
                     }
-                    
+
                     logger.info('Currency code mapped successfully', {
                         ourCode: payCurrency,
                         nowpaymentsCode: mappedPayCurrency,
@@ -843,16 +843,16 @@ payments.post('/nowpayments/checkout', async (c) => {
                 mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
             }
         }
-        
+
         // Use mapped currency or default to USDT on Solana (usdt_sol format)
         const finalPayCurrency = mappedPayCurrency || 'usdt_sol'
-        
+
         logger.info('Final currency code determined', {
             originalPayCurrency: payCurrency,
             finalPayCurrency,
             wasMapped: !!mappedPayCurrency,
         })
-        
+
         // Create invoice parameters
         const invoiceParams: any = {
             price_amount: priceAmount,
@@ -864,7 +864,7 @@ payments.post('/nowpayments/checkout', async (c) => {
             cancel_url: cancelUrl,
             pay_currency: finalPayCurrency, // Use validated/mapped currency code
         }
-        
+
         logger.info('Invoice parameters prepared', {
             payCurrency: finalPayCurrency,
             originalPayCurrency: payCurrency,
@@ -949,7 +949,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                     // expiresAt and renewalReminderSent will be set by webhook when payment_status = 'finished'
                 },
             })
-            
+
             logger.info('Crypto payment record created in database', {
                 paymentId: cryptoPayment.id,
                 invoiceId,
@@ -960,7 +960,7 @@ payments.post('/nowpayments/checkout', async (c) => {
             // Enhanced error logging with full context
             const errorMessage = dbError instanceof Error ? dbError.message : String(dbError)
             const errorStack = dbError instanceof Error ? dbError.stack : undefined
-            
+
             logger.error('Failed to create crypto payment record in database - FULL ERROR DETAILS', {
                 error: errorMessage,
                 stack: errorStack,
@@ -975,8 +975,8 @@ payments.post('/nowpayments/checkout', async (c) => {
                 suggestion: errorMessage.includes('expiresAt') || errorMessage.includes('renewalReminderSent')
                     ? 'Database migration may not be applied. Run: npx prisma db push'
                     : errorMessage.includes('Unique constraint')
-                    ? 'Invoice already exists - this is normal for duplicate requests'
-                    : 'Check error details above',
+                        ? 'Invoice already exists - this is normal for duplicate requests'
+                        : 'Check error details above',
             })
 
             // If it's a unique constraint error (duplicate invoice), try to fetch existing payment
@@ -985,7 +985,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                     const existingPayment = await prisma.cryptoPayment.findUnique({
                         where: { invoiceId: String(invoiceId) },
                     })
-                    
+
                     if (existingPayment) {
                         logger.info('Found existing payment for duplicate invoice, returning it', {
                             invoiceId,
@@ -1011,10 +1011,10 @@ payments.post('/nowpayments/checkout', async (c) => {
 
             // For schema errors, try to work around missing fields
             // This handles cases where migration hasn't been applied yet
-            if (errorMessage.includes('expiresAt') || errorMessage.includes('renewalReminderSent') || 
+            if (errorMessage.includes('expiresAt') || errorMessage.includes('renewalReminderSent') ||
                 errorMessage.includes('Unknown column') || (errorMessage.includes('column') && errorMessage.includes('does not exist')) ||
                 errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-                
+
                 // Log the error but don't fail - the migration will be applied on next deployment
                 logger.warn('Database schema mismatch detected - migration may be in progress', {
                     error: errorMessage,
@@ -1023,27 +1023,27 @@ payments.post('/nowpayments/checkout', async (c) => {
                     fullError: dbError,
                     suggestion: 'Migration will be applied automatically on next deployment',
                 })
-                
+
                 // Try to create payment without optional fields by using raw SQL as fallback
                 // This is a temporary workaround until migration completes
                 try {
                     // First, check if table exists and what columns it has
-                    const tableInfo = await prisma.$queryRaw<Array<{column_name: string, data_type: string}>>`
+                    const tableInfo = await prisma.$queryRaw<Array<{ column_name: string, data_type: string }>>`
                         SELECT column_name, data_type 
                         FROM information_schema.columns 
                         WHERE table_name = 'crypto_payments'
                         ORDER BY ordinal_position
                     `.catch(() => [])
-                    
+
                     logger.info('Checking crypto_payments table schema', {
                         columnsFound: tableInfo.length,
                         columns: tableInfo.map(c => c.column_name),
                     })
-                    
+
                     if (tableInfo.length === 0) {
                         throw new Error('Table crypto_payments does not exist - migration required')
                     }
-                    
+
                     // Check which columns exist
                     const hasExpiresAt = tableInfo.some(c => c.column_name === 'expiresAt')
                     const hasRenewalReminderSent = tableInfo.some(c => c.column_name === 'renewalReminderSent')
@@ -1053,26 +1053,26 @@ payments.post('/nowpayments/checkout', async (c) => {
                     const hasPaymentUrl = tableInfo.some(c => c.column_name === 'paymentUrl')
                     const hasTier = tableInfo.some(c => c.column_name === 'tier')
                     const hasPaymentStatus = tableInfo.some(c => c.column_name === 'paymentStatus')
-                    
+
                     if (!hasInvoiceId || !hasUserId || !hasOrderId || !hasPaymentUrl || !hasTier) {
                         throw new Error(`Required columns missing: invoiceId=${hasInvoiceId}, userId=${hasUserId}, orderId=${hasOrderId}, paymentUrl=${hasPaymentUrl}, tier=${hasTier}`)
                     }
-                    
+
                     // Generate a unique ID (using cuid-like format)
                     const paymentId = `crypto_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
-                    
+
                     // Check if invoiceId has unique constraint for ON CONFLICT
-                    const constraints = await prisma.$queryRaw<Array<{constraint_name: string}>>`
+                    const constraints = await prisma.$queryRaw<Array<{ constraint_name: string }>>`
                         SELECT constraint_name
                         FROM information_schema.table_constraints
                         WHERE table_name = 'crypto_payments' 
                         AND constraint_type = 'UNIQUE'
                     `.catch(() => [])
-                    
-                    const hasInvoiceIdUnique = constraints.some(c => 
+
+                    const hasInvoiceIdUnique = constraints.some(c =>
                         c.constraint_name.includes('invoiceId') || c.constraint_name.includes('invoice')
                     )
-                    
+
                     logger.info('Attempting raw SQL insert', {
                         paymentId,
                         invoiceId,
@@ -1080,7 +1080,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                         hasInvoiceIdUnique,
                         constraints: constraints.map(c => c.constraint_name),
                     })
-                    
+
                     // Use Prisma's parameterized query for safety
                     // Insert only required fields that we know exist
                     if (hasInvoiceIdUnique) {
@@ -1103,12 +1103,12 @@ payments.post('/nowpayments/checkout', async (c) => {
                             )
                         `
                     }
-                    
+
                     // Fetch the created payment
                     const createdPayment = await prisma.cryptoPayment.findUnique({
                         where: { invoiceId: String(invoiceId) },
                     })
-                    
+
                     if (createdPayment) {
                         logger.info('Payment created successfully using raw SQL fallback', {
                             invoiceId,
@@ -1116,7 +1116,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                             paymentId: createdPayment.id,
                             method: 'raw_sql_fallback',
                         })
-                        
+
                         return c.json({
                             paymentId: createdPayment.paymentId,
                             invoiceId: createdPayment.invoiceId,
@@ -1133,7 +1133,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                 } catch (rawSqlError) {
                     const rawErrorMsg = rawSqlError instanceof Error ? rawSqlError.message : String(rawSqlError)
                     const rawErrorStack = rawSqlError instanceof Error ? rawSqlError.stack : undefined
-                    
+
                     logger.error('Raw SQL fallback failed - FULL DETAILS', {
                         error: rawErrorMsg,
                         stack: rawErrorStack,
@@ -1143,7 +1143,7 @@ payments.post('/nowpayments/checkout', async (c) => {
                         tier,
                         rawError: rawSqlError,
                     })
-                    
+
                     // If fallback also fails, throw user-friendly error
                     throw new Error('Database migration in progress. Please try again in a few moments.')
                 }
@@ -1172,7 +1172,7 @@ payments.post('/nowpayments/checkout', async (c) => {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
         const errorStack = error instanceof Error ? error.stack : undefined
-        
+
         logger.error('NowPayments checkout error - FULL DETAILS:', {
             message: errorMessage,
             stack: errorStack,
@@ -1185,14 +1185,14 @@ payments.post('/nowpayments/checkout', async (c) => {
 
         // Check for specific error types
         if (errorMessage.includes('User not authenticated') || errorMessage.includes('Authorization')) {
-            return c.json({ 
+            return c.json({
                 error: 'Unauthorized',
                 details: 'Authentication failed. Please sign in again.',
             }, 401)
         }
 
         if (errorMessage.includes('API key')) {
-            return c.json({ 
+            return c.json({
                 error: 'Configuration Error',
                 details: 'NowPayments API key is not configured correctly. Please check your environment variables.',
                 message: errorMessage,
@@ -1200,7 +1200,7 @@ payments.post('/nowpayments/checkout', async (c) => {
         }
 
         if (errorMessage.includes('Cannot connect')) {
-            return c.json({ 
+            return c.json({
                 error: 'Connection Error',
                 details: 'Cannot connect to NowPayments API. Please check your network connection and API URL.',
                 message: errorMessage,
@@ -1208,7 +1208,7 @@ payments.post('/nowpayments/checkout', async (c) => {
         }
 
         // Return detailed error for debugging
-        return c.json({ 
+        return c.json({
             error: 'Failed to create checkout session',
             details: errorMessage,
             message: errorMessage,
@@ -1257,14 +1257,14 @@ payments.post('/nowpayments/webhook', async (c) => {
         // Find payment in database by payment_id, invoice_id, or order_id
         // Try payment_id first (if it exists), then invoice_id, then order_id
         let cryptoPayment = null
-        
+
         if (payment_id) {
             cryptoPayment = await prisma.cryptoPayment.findUnique({
                 where: { paymentId: payment_id },
                 include: { user: true },
             })
         }
-        
+
         if (!cryptoPayment && invoice_id) {
             const found = await prisma.cryptoPayment.findUnique({
                 where: { invoiceId: String(invoice_id) },
@@ -1274,7 +1274,7 @@ payments.post('/nowpayments/webhook', async (c) => {
                 cryptoPayment = found
             }
         }
-        
+
         if (!cryptoPayment && order_id) {
             cryptoPayment = await prisma.cryptoPayment.findFirst({
                 where: { orderId: order_id },
@@ -1283,10 +1283,21 @@ payments.post('/nowpayments/webhook', async (c) => {
         }
 
         if (!cryptoPayment) {
-            logger.warn(`Crypto payment not found in database`, {
+            logger.error(`Crypto payment not found in database - WEBHOOK FAILED`, {
                 paymentId: payment_id,
                 invoiceId: invoice_id,
                 orderId: order_id,
+                webhookData: JSON.stringify(data, null, 2),
+                headers: {
+                    signature: signature,
+                    userAgent: c.req.header('user-agent'),
+                    ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip'),
+                },
+            })
+            // Log full webhook payload for debugging
+            logger.error('Full webhook payload:', {
+                body: body,
+                parsed: data,
             })
             return c.json({ error: 'Payment not found' }, 404)
         }
@@ -1294,12 +1305,12 @@ payments.post('/nowpayments/webhook', async (c) => {
         // Update payment status
         // Use the ID we found (could be paymentId, invoiceId, or orderId)
         // Must use id field for update if paymentId/invoiceId might be null
-        const updateWhere = cryptoPayment.paymentId 
+        const updateWhere = cryptoPayment.paymentId
             ? { paymentId: cryptoPayment.paymentId }
             : cryptoPayment.invoiceId
-            ? { invoiceId: cryptoPayment.invoiceId }
-            : { id: cryptoPayment.id }
-        
+                ? { invoiceId: cryptoPayment.invoiceId }
+                : { id: cryptoPayment.id }
+
         await prisma.cryptoPayment.update({
             where: updateWhere,
             data: {

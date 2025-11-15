@@ -292,3 +292,61 @@ export interface CSRFToken {
     token: string
     expiresAt: Date
 }
+
+// Crypto payment types
+export interface CryptoPaymentSummary {
+    id: string
+    userId: string
+    user: {
+        id: string
+        email: string
+        tier: string
+        createdAt: Date
+    }
+    paymentId: string | null
+    paymentStatus: string | null
+    payAmount: number | null
+    payCurrency: string | null
+    actuallyPaid: number | null
+    actuallyPaidCurrency: string | null
+    tier: string
+    invoiceId: string
+    orderId: string
+    paymentUrl: string
+    payAddress: string | null
+    expiresAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    paidAt: Date | null
+}
+
+export interface PaymentListQuery {
+    userId?: string
+    email?: string
+    paymentStatus?: string
+    tier?: 'free' | 'pro' | 'elite'
+    paymentId?: string
+    invoiceId?: string
+    orderId?: string
+    page?: number
+    limit?: number
+    sortBy?: 'createdAt' | 'updatedAt' | 'paidAt'
+    sortOrder?: 'asc' | 'desc'
+}
+
+export interface PaymentListResponse {
+    payments: CryptoPaymentSummary[]
+    pagination: {
+        total: number
+        page: number
+        limit: number
+        pages: number
+    }
+}
+
+export interface ManualUpgradeRequest {
+    userId: string
+    tier: 'pro' | 'elite'
+    reason?: string
+    expiresAt?: string
+}

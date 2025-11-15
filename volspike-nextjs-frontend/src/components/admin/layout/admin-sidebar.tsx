@@ -38,6 +38,11 @@ const navigation = [
         icon: CreditCard,
     },
     {
+        name: 'Payments',
+        href: '/admin/payments',
+        icon: CreditCard,
+    },
+    {
         name: 'Audit Logs',
         href: '/admin/audit',
         icon: FileText,

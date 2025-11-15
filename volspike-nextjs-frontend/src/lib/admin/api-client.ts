@@ -292,6 +292,51 @@ class AdminAPIClient {
         })
     }
 
+    // Payments API
+    async getPayments(query: any = {}): Promise<any> {
+        const params = new URLSearchParams()
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                params.append(key, String(value))
+            }
+        })
+        return this.request<any>(`/api/admin/payments?${params.toString()}`)
+    }
+
+    async getPaymentById(paymentId: string): Promise<any> {
+        return this.request<any>(`/api/admin/payments/${paymentId}`)
+    }
+
+    async manualUpgrade(data: { userId: string; tier: 'pro' | 'elite'; reason?: string; expiresAt?: string }): Promise<any> {
+        return this.request<any>('/api/admin/payments/manual-upgrade', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async retryWebhook(paymentId: string): Promise<any> {
+        return this.request<any>(`/api/admin/payments/${paymentId}/retry-webhook`, {
+            method: 'POST',
+        })
+    }
+
+    async createPaymentFromNowPayments(data: {
+        userId: string
+        paymentId?: string
+        orderId: string
+        invoiceId?: string
+        amount: number
+        currency?: string
+        tier: 'pro' | 'elite'
+        actuallyPaid?: number
+        actuallyPaidCurrency?: string
+    }): Promise<any> {
+        return this.request<any>('/api/admin/payments/create-from-nowpayments', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        })
+    }
+
     // Health check
     async healthCheck(): Promise<{ status: string; timestamp: string; version: string }> {
         return this.request<{ status: string; timestamp: string; version: string }>('/api/admin/health')

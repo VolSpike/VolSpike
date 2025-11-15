@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { requireAdmin } from '../../middleware/admin-auth'
 import { adminUserRoutes } from './users'
 import { adminSubscriptionRoutes } from './subscriptions'
+import { adminPaymentRoutes } from './payments'
 import { adminAuditRoutes } from './audit'
 import { adminMetricsRoutes } from './metrics'
 import { adminSettingsRoutes } from './settings'
@@ -24,6 +25,7 @@ adminRoutes.use('/*', requireAdmin)
 // Mount sub-routes - IMPORTANT: Use basePath option
 adminRoutes.route('/users', adminUserRoutes)
 adminRoutes.route('/subscriptions', adminSubscriptionRoutes)
+adminRoutes.route('/payments', adminPaymentRoutes)
 adminRoutes.route('/audit', adminAuditRoutes)
 adminRoutes.route('/metrics', adminMetricsRoutes)
 adminRoutes.route('/settings', adminSettingsRoutes)
