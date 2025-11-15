@@ -13,6 +13,7 @@ import {
     ArrowRight,
     Radio,
 } from 'lucide-react'
+import { MultiChainETHBalance } from './multi-chain-eth-balance'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
@@ -395,54 +396,65 @@ export function DashboardWalletBalances() {
                         const isBalanceLoaded = wallet.balance !== null
                         const isStale = isDataStale(wallet.balanceUpdatedAt)
 
+                        const isETH = wallet.currency.toUpperCase() === 'ETH' && !wallet.network
+
                         return (
-                            <div
-                                key={wallet.id}
-                                className={`group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-300 hover:bg-muted/30 hover:border-border ${
-                                    isStale ? 'opacity-75' : ''
-                                }`}
-                            >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${gradientClass} flex-shrink-0 transition-transform duration-200 group-hover:scale-105`}>
-                                        <CurrencyIcon className="h-5 w-5 text-white" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            {wallet.label && (
-                                                <span className="text-sm font-medium text-foreground truncate">
-                                                    {wallet.label}
-                                                </span>
-                                            )}
-                                            <Badge
-                                                variant="outline"
-                                                className={`bg-gradient-to-r ${gradientClass} bg-clip-text text-transparent border-current/20 text-xs font-medium`}
-                                            >
-                                                {currencyDisplayName}
-                                            </Badge>
+                            <div key={wallet.id}>
+                                <div
+                                    className={`group flex items-center justify-between rounded-lg border border-border/60 bg-background/50 p-3 transition-all duration-300 hover:bg-muted/30 hover:border-border ${
+                                        isStale ? 'opacity-75' : ''
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${gradientClass} flex-shrink-0 transition-transform duration-200 group-hover:scale-105`}>
+                                            <CurrencyIcon className="h-5 w-5 text-white" />
                                         </div>
-                                        <p className="text-xs text-muted-foreground font-mono truncate">
-                                            {wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                {wallet.label && (
+                                                    <span className="text-sm font-medium text-foreground truncate">
+                                                        {wallet.label}
+                                                    </span>
+                                                )}
+                                                <Badge
+                                                    variant="outline"
+                                                    className={`bg-gradient-to-r ${gradientClass} bg-clip-text text-transparent border-current/20 text-xs font-medium`}
+                                                >
+                                                    {currencyDisplayName}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground font-mono truncate">
+                                                {wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right ml-4 flex-shrink-0">
+                                        <p
+                                            className={`text-sm font-semibold transition-colors duration-200 ${
+                                                isBalanceLoaded
+                                                    ? isStale
+                                                        ? 'text-muted-foreground'
+                                                        : 'text-foreground'
+                                                    : 'text-muted-foreground'
+                                            }`}
+                                        >
+                                            {formatBalance(wallet.balance, wallet.currency)}
                                         </p>
+                                        {wallet.balanceUpdatedAt && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatTimeAgo(wallet.balanceUpdatedAt)}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="text-right ml-4 flex-shrink-0">
-                                    <p
-                                        className={`text-sm font-semibold transition-colors duration-200 ${
-                                            isBalanceLoaded
-                                                ? isStale
-                                                    ? 'text-muted-foreground'
-                                                    : 'text-foreground'
-                                                : 'text-muted-foreground'
-                                        }`}
-                                    >
-                                        {formatBalance(wallet.balance, wallet.currency)}
-                                    </p>
-                                    {wallet.balanceUpdatedAt && (
-                                        <p className="text-xs text-muted-foreground">
-                                            {formatTimeAgo(wallet.balanceUpdatedAt)}
-                                        </p>
-                                    )}
-                                </div>
+                                {/* Multi-chain balance view for ETH wallets */}
+                                {isETH && (
+                                    <MultiChainETHBalance
+                                        walletId={wallet.id}
+                                        address={wallet.address}
+                                        mainBalance={wallet.balance}
+                                    />
+                                )}
                             </div>
                         )
                     })}

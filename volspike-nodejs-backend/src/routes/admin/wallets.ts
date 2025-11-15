@@ -19,6 +19,45 @@ const updateWalletSchema = z.object({
     label: z.string().optional(),
 })
 
+// EVM Chain configurations
+const EVM_CHAINS = {
+    ethereum: {
+        chainId: 1,
+        name: 'Ethereum',
+        rpcUrl: 'https://eth.llamarpc.com',
+        explorerUrl: 'https://etherscan.io',
+        color: 'from-blue-500 to-blue-600',
+    },
+    polygon: {
+        chainId: 137,
+        name: 'Polygon',
+        rpcUrl: 'https://polygon.llamarpc.com',
+        explorerUrl: 'https://polygonscan.com',
+        color: 'from-purple-500 to-purple-600',
+    },
+    optimism: {
+        chainId: 10,
+        name: 'Optimism',
+        rpcUrl: 'https://optimism.llamarpc.com',
+        explorerUrl: 'https://optimistic.etherscan.io',
+        color: 'from-red-500 to-red-600',
+    },
+    arbitrum: {
+        chainId: 42161,
+        name: 'Arbitrum',
+        rpcUrl: 'https://arbitrum.llamarpc.com',
+        explorerUrl: 'https://arbiscan.io',
+        color: 'from-blue-400 to-blue-500',
+    },
+    base: {
+        chainId: 8453,
+        name: 'Base',
+        rpcUrl: 'https://base.llamarpc.com',
+        explorerUrl: 'https://basescan.org',
+        color: 'from-blue-300 to-blue-400',
+    },
+} as const
+
 // GET /api/admin/wallets - List admin wallets
 adminWalletRoutes.get('/', async (c) => {
     try {
@@ -166,6 +205,76 @@ adminWalletRoutes.post('/:id/refresh-balance', async (c) => {
     }
 })
 
+// GET /api/admin/wallets/:id/multi-chain-balances - Get ETH balances across all EVM chains
+adminWalletRoutes.get('/:id/multi-chain-balances', async (c) => {
+    try {
+        const walletId = c.req.param('id')
+        const wallet = await prisma.adminWallet.findUnique({
+            where: { id: walletId },
+        })
+
+        if (!wallet) {
+            return c.json({ error: 'Wallet not found' }, 404)
+        }
+
+        if (wallet.currency.toUpperCase() !== 'ETH') {
+            return c.json({ error: 'Multi-chain balances only supported for ETH' }, 400)
+        }
+
+        // Fetch balances from all EVM chains
+        const chainBalances = await Promise.allSettled(
+            Object.entries(EVM_CHAINS).map(async ([key, chain]) => {
+                try {
+                    const balance = await fetchETHBalanceFromChain(wallet.address, chain)
+                    return {
+                        chain: key,
+                        chainId: chain.chainId,
+                        name: chain.name,
+                        balance,
+                        explorerUrl: `${chain.explorerUrl}/address/${wallet.address}`,
+                        color: chain.color,
+                    }
+                } catch (error: any) {
+                    logger.warn(`Failed to fetch ${chain.name} balance:`, error?.message || error)
+                    return {
+                        chain: key,
+                        chainId: chain.chainId,
+                        name: chain.name,
+                        balance: 0,
+                        error: error?.message || 'Failed to fetch',
+                        explorerUrl: `${chain.explorerUrl}/address/${wallet.address}`,
+                        color: chain.color,
+                    }
+                }
+            })
+        )
+
+        const balances = chainBalances.map((result) => 
+            result.status === 'fulfilled' ? result.value : {
+                chain: 'unknown',
+                chainId: 0,
+                name: 'Unknown',
+                balance: 0,
+                error: 'Failed to fetch',
+                explorerUrl: '',
+                color: 'from-gray-500 to-gray-600',
+            }
+        )
+
+        const totalBalance = balances.reduce((sum, b) => sum + b.balance, 0)
+
+        return c.json({
+            walletId: wallet.id,
+            address: wallet.address,
+            totalBalance,
+            chains: balances,
+        })
+    } catch (error) {
+        logger.error('Get multi-chain balances error:', error)
+        return c.json({ error: 'Failed to fetch multi-chain balances' }, 500)
+    }
+})
+
 // POST /api/admin/wallets/refresh-all - Refresh all wallet balances
 adminWalletRoutes.post('/refresh-all', async (c) => {
     try {
@@ -242,6 +351,56 @@ const TOKEN_CONTRACTS = {
     USDT_SOL: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT on Solana (SPL token mint)
 }
 
+// Helper function to fetch ETH balance from a specific EVM chain
+async function fetchETHBalanceFromChain(
+    address: string,
+    chain: typeof EVM_CHAINS[keyof typeof EVM_CHAINS]
+): Promise<number> {
+    try {
+        logger.info(`Fetching ETH balance from ${chain.name} (chainId: ${chain.chainId}) for ${address}`)
+        
+        const response = await fetch(chain.rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'eth_getBalance',
+                params: [address, 'latest'],
+            }),
+        })
+
+        if (!response.ok) {
+            throw new Error(`RPC error: ${response.status}`)
+        }
+
+        const data = await response.json() as {
+            result?: string
+            error?: {
+                code: number
+                message: string
+            }
+        }
+
+        if (data.error) {
+            throw new Error(`RPC error: ${data.error.message}`)
+        }
+
+        if (data.result) {
+            // Balance is in Wei, convert to ETH
+            const wei = BigInt(data.result)
+            const eth = Number(wei) / 1e18
+            logger.info(`Fetched ${chain.name} balance: ${eth} ETH`)
+            return eth
+        }
+
+        throw new Error('Invalid RPC response')
+    } catch (error: any) {
+        logger.warn(`Failed to fetch ETH balance from ${chain.name}:`, error?.message || error)
+        throw error
+    }
+}
+
 // Helper function to fetch wallet balance from blockchain APIs
 async function fetchWalletBalance(
     address: string,
@@ -267,7 +426,7 @@ async function fetchWalletBalance(
             return (data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 100000000
         }
 
-        // Native Ethereum (ETH)
+        // Native Ethereum (ETH) - fetch from Ethereum mainnet only
         if (currencyUpper === 'ETH') {
             const apiKey = process.env.ETHERSCAN_API_KEY
             if (!apiKey) {
@@ -466,4 +625,3 @@ async function fetchWalletBalance(
 }
 
 export { adminWalletRoutes }
-
