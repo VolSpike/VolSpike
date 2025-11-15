@@ -38,6 +38,7 @@ import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { AuditLogEntry } from '@/types/admin'
 import { adminAPI } from '@/lib/admin/api-client'
+import { AuditLogDetailsDialog } from './audit-log-details-dialog'
 
 interface AuditLogTableProps {
     logs: AuditLogEntry[]
@@ -91,6 +92,9 @@ const actionColors = {
 export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableProps) {
     const router = useRouter()
     const [loading, setLoading] = useState<string | null>(null)
+    const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null)
+    const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+    const [detailsLoading, setDetailsLoading] = useState(false)
 
     const handleSort = (field: string) => {
         const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
@@ -124,14 +128,17 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
 
     const handleViewDetails = async (logId: string) => {
         setLoading(logId)
+        setDetailsLoading(true)
         try {
             const log = await adminAPI.getAuditLogById(logId)
-            // This would open a modal or navigate to a details page
-            toast.success('Log details functionality coming soon')
-        } catch (error) {
-            toast.error('Failed to load log details')
+            setSelectedLog(log as AuditLogEntry)
+            setDetailsDialogOpen(true)
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to load log details')
+            console.error('Error loading audit log details:', error)
         } finally {
             setLoading(null)
+            setDetailsLoading(false)
         }
     }
 
@@ -373,6 +380,14 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                     </div>
                 </div>
             )}
+
+            {/* Audit Log Details Dialog */}
+            <AuditLogDetailsDialog
+                open={detailsDialogOpen}
+                onOpenChange={setDetailsDialogOpen}
+                log={selectedLog}
+                loading={detailsLoading}
+            />
         </div>
     )
 }
