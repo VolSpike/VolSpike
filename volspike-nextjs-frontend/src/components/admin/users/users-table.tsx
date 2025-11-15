@@ -55,7 +55,7 @@ import {
     CreditCard,
     Zap
 } from 'lucide-react'
-import { format, differenceInDays, isPast } from 'date-fns'
+import { format, differenceInDays, isPast, formatDistanceToNow } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { AdminUser } from '@/types/admin'
 import { adminAPI } from '@/lib/admin/api-client'
@@ -468,11 +468,39 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             </div>
                                         )
                                     })() : (
-                                        <div className="p-2.5 rounded-lg border border-border/40 bg-muted/30">
-                                            <span className="text-xs text-muted-foreground italic">
-                                                {user.tier === 'free' ? 'Free tier' : 'No subscription'}
-                                            </span>
-                                        </div>
+                                        (() => {
+                                            // For free tier users, show account age instead of "Free tier"
+                                            if (user.tier === 'free') {
+                                                const accountAge = formatDistanceToNow(new Date(user.createdAt), { addSuffix: false })
+                                                return (
+                                                    <div className="p-2.5 rounded-lg border border-border/40 bg-muted/30">
+                                                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                            <Calendar className="h-3 w-3" />
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-medium text-foreground">
+                                                                    Account age
+                                                                </span>
+                                                                <span className="text-[10px]">
+                                                                    {accountAge}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            }
+                                            
+                                            // For paid users without subscription, show upgrade prompt
+                                            return (
+                                                <div className="p-2.5 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+                                                    <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                                                        <Clock className="h-3 w-3" />
+                                                        <span className="text-xs font-medium">
+                                                            No active subscription
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })()
                                     )}
                                 </TableCell>
                                 <TableCell>
