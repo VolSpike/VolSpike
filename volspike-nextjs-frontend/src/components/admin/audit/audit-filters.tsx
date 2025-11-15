@@ -91,7 +91,7 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
     const hasActiveFilters = Object.values(filters).some(value => value)
 
     return (
-        <Card>
+        <Card className="border-border/60 bg-card/50 backdrop-blur-sm">
             <CardContent className="p-4">
                 <div className="space-y-4">
                     {/* First Row */}
@@ -99,12 +99,13 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
                         {/* Actor Search */}
                         <div className="flex-1">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                                 <Input
                                     placeholder="Search by actor email..."
                                     value={filters.actorUserId}
                                     onChange={(e) => setFilters(prev => ({ ...prev, actorUserId: e.target.value }))}
-                                    className="pl-10"
+                                    onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                    className="pl-10 h-11 border-border/60 bg-background/50"
                                 />
                             </div>
                         </div>
@@ -114,7 +115,7 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
                             value={filters.action}
                             onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
                         >
-                            <SelectTrigger className="w-48">
+                            <SelectTrigger className="w-48 h-11 border-border/60 bg-background/50">
                                 <SelectValue placeholder="Action" />
                             </SelectTrigger>
                             <SelectContent>
@@ -131,7 +132,7 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
                             value={filters.targetType}
                             onValueChange={(value) => setFilters(prev => ({ ...prev, targetType: value }))}
                         >
-                            <SelectTrigger className="w-32">
+                            <SelectTrigger className="w-32 h-11 border-border/60 bg-background/50">
                                 <SelectValue placeholder="Target" />
                             </SelectTrigger>
                             <SelectContent>
@@ -152,6 +153,8 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
                                 placeholder="Search by target ID..."
                                 value={filters.targetId}
                                 onChange={(e) => setFilters(prev => ({ ...prev, targetId: e.target.value }))}
+                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                className="h-11 border-border/60 bg-background/50"
                             />
                         </div>
 
@@ -162,20 +165,23 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
                                 type="date"
                                 value={filters.startDate}
                                 onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                                className="w-40"
+                                className="w-40 h-11 border-border/60 bg-background/50"
                             />
-                            <span className="text-muted-foreground">to</span>
+                            <span className="text-muted-foreground text-sm">to</span>
                             <Input
                                 type="date"
                                 value={filters.endDate}
                                 onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                                className="w-40"
+                                className="w-40 h-11 border-border/60 bg-background/50"
                             />
                         </div>
 
                         {/* Action Buttons */}
                         <div className="flex space-x-2">
-                            <Button onClick={applyFilters} className="flex items-center space-x-2">
+                            <Button 
+                                onClick={applyFilters} 
+                                className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25"
+                            >
                                 <Filter className="h-4 w-4" />
                                 <span>Apply</span>
                             </Button>
@@ -183,7 +189,7 @@ export function AuditFilters({ currentFilters }: AuditFiltersProps) {
                                 <Button
                                     variant="outline"
                                     onClick={clearFilters}
-                                    className="flex items-center space-x-2"
+                                    className="flex items-center space-x-2 border-border/60"
                                 >
                                     <X className="h-4 w-4" />
                                     <span>Clear</span>

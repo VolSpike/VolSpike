@@ -77,9 +77,22 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
 
     const handleSort = (field: string) => {
         const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
-        const params = new URLSearchParams(currentQuery)
+        const params = new URLSearchParams()
+        
+        // Add existing query params
+        if (currentQuery.actorUserId) params.set('actorUserId', String(currentQuery.actorUserId))
+        if (currentQuery.action) params.set('action', String(currentQuery.action))
+        if (currentQuery.targetType) params.set('targetType', String(currentQuery.targetType))
+        if (currentQuery.targetId) params.set('targetId', String(currentQuery.targetId))
+        if (currentQuery.startDate) params.set('startDate', currentQuery.startDate instanceof Date ? currentQuery.startDate.toISOString() : String(currentQuery.startDate))
+        if (currentQuery.endDate) params.set('endDate', currentQuery.endDate instanceof Date ? currentQuery.endDate.toISOString() : String(currentQuery.endDate))
+        if (currentQuery.page) params.set('page', String(currentQuery.page))
+        if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+        
+        // Set sort params
         params.set('sortBy', field)
         params.set('sortOrder', newSortOrder)
+        
         router.push(`/admin/audit?${params.toString()}`)
     }
 
@@ -160,7 +173,7 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                     <TableBody>
                         {logs.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-64">
+                                <TableCell colSpan={6} className="h-64">
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
                                             <FileText className="h-8 w-8 text-muted-foreground/50" />
@@ -271,8 +284,22 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                             size="sm"
                             disabled={pagination.page <= 1}
                             onClick={() => {
-                                const params = new URLSearchParams(currentQuery)
+                                const params = new URLSearchParams()
+                                
+                                // Add existing query params
+                                if (currentQuery.actorUserId) params.set('actorUserId', String(currentQuery.actorUserId))
+                                if (currentQuery.action) params.set('action', String(currentQuery.action))
+                                if (currentQuery.targetType) params.set('targetType', String(currentQuery.targetType))
+                                if (currentQuery.targetId) params.set('targetId', String(currentQuery.targetId))
+                                if (currentQuery.startDate) params.set('startDate', currentQuery.startDate instanceof Date ? currentQuery.startDate.toISOString() : String(currentQuery.startDate))
+                                if (currentQuery.endDate) params.set('endDate', currentQuery.endDate instanceof Date ? currentQuery.endDate.toISOString() : String(currentQuery.endDate))
+                                if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+                                if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
+                                if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                
+                                // Set page
                                 params.set('page', String(pagination.page - 1))
+                                
                                 router.push(`/admin/audit?${params.toString()}`)
                             }}
                         >
@@ -286,8 +313,22 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                             size="sm"
                             disabled={pagination.page >= pagination.pages}
                             onClick={() => {
-                                const params = new URLSearchParams(currentQuery)
+                                const params = new URLSearchParams()
+                                
+                                // Add existing query params
+                                if (currentQuery.actorUserId) params.set('actorUserId', String(currentQuery.actorUserId))
+                                if (currentQuery.action) params.set('action', String(currentQuery.action))
+                                if (currentQuery.targetType) params.set('targetType', String(currentQuery.targetType))
+                                if (currentQuery.targetId) params.set('targetId', String(currentQuery.targetId))
+                                if (currentQuery.startDate) params.set('startDate', currentQuery.startDate instanceof Date ? currentQuery.startDate.toISOString() : String(currentQuery.startDate))
+                                if (currentQuery.endDate) params.set('endDate', currentQuery.endDate instanceof Date ? currentQuery.endDate.toISOString() : String(currentQuery.endDate))
+                                if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+                                if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
+                                if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                
+                                // Set page
                                 params.set('page', String(pagination.page + 1))
+                                
                                 router.push(`/admin/audit?${params.toString()}`)
                             }}
                         >
