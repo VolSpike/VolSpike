@@ -191,12 +191,19 @@ export function DashboardWalletBalances() {
         if (wallets.length > 0 && !hasCheckedStaleRef.current && session?.accessToken && !isRefreshingRef.current) {
             hasCheckedStaleRef.current = true
             console.log('[WalletBalances] Checking for stale data...')
-            // Check if data is stale and refresh if needed
-            if (needsRefresh()) {
+            
+            // Check if data is stale directly (avoid calling needsRefresh to prevent dependency issues)
+            const hasStaleData = wallets.some(w => {
+                if (!w.balanceUpdatedAt) return true
+                const updated = new Date(w.balanceUpdatedAt).getTime()
+                return (Date.now() - updated) > STALE_THRESHOLD
+            })
+            
+            if (hasStaleData) {
                 console.log('[WalletBalances] Data is stale, scheduling refresh...')
                 // Small delay to avoid race conditions
                 const timer = setTimeout(() => {
-                    if (!isRefreshingRef.current) {
+                    if (!isRefreshingRef.current && session?.accessToken) {
                         refreshBalances(false)
                     }
                 }, 3000) // Increased delay to ensure everything is settled
@@ -205,7 +212,7 @@ export function DashboardWalletBalances() {
                 console.log('[WalletBalances] Data is fresh, no refresh needed')
             }
         }
-    }, [wallets.length, session?.accessToken]) // Removed needsRefresh and refreshBalances to prevent loops
+    }, [wallets.length, session?.accessToken, refreshBalances]) // Include refreshBalances but check refs to prevent loops
 
     // Auto-refresh balances periodically
     useEffect(() => {
