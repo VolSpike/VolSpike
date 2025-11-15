@@ -137,6 +137,55 @@ adminMetricsRoutes.get('/users', async (c) => {
     }
 })
 
+// Helper function to get crypto currency breakdown
+async function getCryptoCurrencyBreakdown(): Promise<Array<{ currency: string; amount: number; usdValue: number; count: number }>> {
+    try {
+        const payments = await prisma.cryptoPayment.findMany({
+            where: {
+                paymentStatus: 'finished',
+                actuallyPaidCurrency: { not: null },
+                payAmount: { not: null },
+            },
+            select: {
+                actuallyPaidCurrency: true,
+                actuallyPaid: true,
+                payAmount: true,
+            },
+        })
+
+        // Group by currency
+        const currencyMap = new Map<string, { amount: number; usdValue: number; count: number }>()
+
+        for (const payment of payments) {
+            const currency = payment.actuallyPaidCurrency || 'unknown'
+            const amount = payment.actuallyPaid || 0
+            const usdValue = payment.payAmount || 0
+
+            if (!currencyMap.has(currency)) {
+                currencyMap.set(currency, { amount: 0, usdValue: 0, count: 0 })
+            }
+
+            const existing = currencyMap.get(currency)!
+            existing.amount += amount
+            existing.usdValue += usdValue
+            existing.count += 1
+        }
+
+        // Convert to array and sort by USD value
+        return Array.from(currencyMap.entries())
+            .map(([currency, data]) => ({
+                currency: currency.toUpperCase(),
+                amount: Math.round(data.amount * 1000000) / 1000000, // Round to 6 decimals for crypto
+                usdValue: Math.round(data.usdValue * 100) / 100,
+                count: data.count,
+            }))
+            .sort((a, b) => b.usdValue - a.usdValue)
+    } catch (error) {
+        logger.error('Get crypto currency breakdown error:', error)
+        return []
+    }
+}
+
 // Helper function to calculate total revenue from all sources
 async function calculateTotalRevenue(): Promise<number> {
     try {
@@ -213,7 +262,7 @@ adminMetricsRoutes.get('/revenue', async (c) => {
         const totalRevenue = await calculateTotalRevenue()
 
         // Get revenue breakdown by tier from crypto payments
-        const revenueByTier = await prisma.cryptoPayment.groupBy({
+        const cryptoRevenueByTier = await prisma.cryptoPayment.groupBy({
             by: ['tier'],
             where: {
                 paymentStatus: 'finished',
@@ -224,21 +273,89 @@ adminMetricsRoutes.get('/revenue', async (c) => {
             },
         })
 
-        // Calculate MRR from active Stripe subscriptions
+        // Calculate MRR and Stripe revenue by tier from active Stripe subscriptions
         let monthlyRecurringRevenue = 0
+        const stripeRevenueByTier: { pro: number; elite: number } = { pro: 0, elite: 0 }
+        
         try {
+            // Get all paid invoices to calculate total Stripe revenue by tier
+            const invoices = await stripe.invoices.list({
+                status: 'paid',
+                limit: 100,
+            })
+
+            // Process invoices to get tier from price metadata
+            for (const invoice of invoices.data) {
+                if (invoice.subscription) {
+                    try {
+                        const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
+                        const priceId = subscription.items.data[0]?.price?.id
+                        if (priceId) {
+                            const price = await stripe.prices.retrieve(priceId)
+                            const tier = price.metadata?.tier || 'pro'
+                            const amount = (invoice.amount_paid || 0) / 100
+                            
+                            if (tier === 'pro') {
+                                stripeRevenueByTier.pro += amount
+                            } else if (tier === 'elite') {
+                                stripeRevenueByTier.elite += amount
+                            }
+                        }
+                    } catch (err) {
+                        logger.warn('Failed to process invoice for tier:', err)
+                    }
+                }
+            }
+
+            // Handle pagination for invoices
+            let hasMoreInvoices = invoices.has_more
+            let startingAfterInvoice = invoices.data[invoices.data.length - 1]?.id
+
+            while (hasMoreInvoices && startingAfterInvoice) {
+                const moreInvoices = await stripe.invoices.list({
+                    status: 'paid',
+                    limit: 100,
+                    starting_after: startingAfterInvoice,
+                })
+
+                for (const invoice of moreInvoices.data) {
+                    if (invoice.subscription) {
+                        try {
+                            const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
+                            const priceId = subscription.items.data[0]?.price?.id
+                            if (priceId) {
+                                const price = await stripe.prices.retrieve(priceId)
+                                const tier = price.metadata?.tier || 'pro'
+                                const amount = (invoice.amount_paid || 0) / 100
+                                
+                                if (tier === 'pro') {
+                                    stripeRevenueByTier.pro += amount
+                                } else if (tier === 'elite') {
+                                    stripeRevenueByTier.elite += amount
+                                }
+                            }
+                        } catch (err) {
+                            logger.warn('Failed to process invoice for tier:', err)
+                        }
+                    }
+                }
+
+                hasMoreInvoices = moreInvoices.has_more
+                startingAfterInvoice = moreInvoices.data[moreInvoices.data.length - 1]?.id
+            }
+
+            // Calculate MRR from active subscriptions
             const subscriptions = await stripe.subscriptions.list({
                 status: 'active',
                 limit: 100,
             })
 
             monthlyRecurringRevenue = subscriptions.data.reduce((sum, sub) => {
-                // Get the price amount (in cents) and convert to dollars
                 const amount = sub.items.data[0]?.price?.unit_amount || 0
                 return sum + amount / 100
             }, 0)
 
-            // Handle pagination
+            // Handle pagination for subscriptions
             let hasMore = subscriptions.has_more
             let startingAfter = subscriptions.data[subscriptions.data.length - 1]?.id
 
@@ -258,17 +375,26 @@ adminMetricsRoutes.get('/revenue', async (c) => {
                 startingAfter = moreSubs.data[moreSubs.data.length - 1]?.id
             }
         } catch (stripeError: any) {
-            logger.warn('Failed to fetch Stripe MRR:', stripeError.message)
+            logger.warn('Failed to fetch Stripe revenue:', stripeError.message)
         }
+
+        // Combine crypto and Stripe revenue by tier
+        const cryptoPro = cryptoRevenueByTier.find(r => r.tier === 'pro')?._sum.payAmount || 0
+        const cryptoElite = cryptoRevenueByTier.find(r => r.tier === 'elite')?._sum.payAmount || 0
 
         return c.json({
             totalRevenue,
             monthlyRecurringRevenue: Math.round(monthlyRecurringRevenue * 100) / 100,
             revenueByTier: {
                 free: 0,
-                pro: revenueByTier.find(r => r.tier === 'pro')?._sum.payAmount || 0,
-                elite: revenueByTier.find(r => r.tier === 'elite')?._sum.payAmount || 0,
+                pro: Math.round((cryptoPro + stripeRevenueByTier.pro) * 100) / 100,
+                elite: Math.round((cryptoElite + stripeRevenueByTier.elite) * 100) / 100,
             },
+            revenueBySource: {
+                crypto: Math.round((cryptoPro + cryptoElite) * 100) / 100,
+                stripe: Math.round((stripeRevenueByTier.pro + stripeRevenueByTier.elite) * 100) / 100,
+            },
+            cryptoCurrencyBreakdown: await getCryptoCurrencyBreakdown(),
             revenueGrowth: [], // TODO: Implement time-series revenue data
             topCustomers: [], // TODO: Implement top customers list
         })

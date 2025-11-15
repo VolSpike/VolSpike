@@ -5,6 +5,7 @@ import { AdminLayout } from '@/components/admin/layout/admin-layout'
 import { SettingsForm } from '@/components/admin/settings/settings-form'
 import { SecuritySettings } from '@/components/admin/settings/security-settings'
 import { TwoFactorSettings } from '@/components/admin/settings/two-factor-settings'
+import { WalletBalances } from '@/components/admin/settings/wallet-balances'
 import { adminAPI } from '@/lib/admin/api-client'
 
 export const metadata: Metadata = {
@@ -42,6 +43,9 @@ export default async function SettingsPage() {
                     <div className="grid gap-6">
                         {/* General Settings */}
                         <SettingsForm settings={settingsData.settings} />
+
+                        {/* Payment Wallets */}
+                        <WalletBalances />
 
                         {/* Security Settings */}
                         <SecuritySettings />
