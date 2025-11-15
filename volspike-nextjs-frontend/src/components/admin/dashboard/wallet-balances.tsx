@@ -435,7 +435,7 @@ export function DashboardWalletBalances() {
                                             className={`text-sm font-semibold transition-colors duration-200 ${
                                                 isBalanceLoaded
                                                     ? isStale
-                                                        ? 'text-muted-foreground'
+                                                        ? 'text-foreground/80'
                                                         : 'text-foreground'
                                                     : 'text-muted-foreground'
                                             }`}
