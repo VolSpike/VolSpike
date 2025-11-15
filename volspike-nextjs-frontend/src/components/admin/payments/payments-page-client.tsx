@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PaymentsTable } from './payments-table'
 import { PaymentFilters } from './payment-filters'
 import { CreatePaymentDialog } from './create-payment-dialog'
@@ -33,7 +33,7 @@ export function PaymentsPageClient({ searchParams, accessToken }: PaymentsPageCl
     const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
     // Parse search params
-    const query = {
+    const query = useMemo(() => ({
         userId: searchParams.userId,
         email: searchParams.email,
         paymentStatus: searchParams.paymentStatus,
@@ -45,7 +45,19 @@ export function PaymentsPageClient({ searchParams, accessToken }: PaymentsPageCl
         limit: searchParams.limit ? parseInt(searchParams.limit) : 20,
         sortBy: (searchParams.sortBy as any) || 'createdAt',
         sortOrder: (searchParams.sortOrder as any) || 'desc',
-    }
+    }), [
+        searchParams.limit,
+        searchParams.page,
+        searchParams.email,
+        searchParams.paymentId,
+        searchParams.invoiceId,
+        searchParams.orderId,
+        searchParams.paymentStatus,
+        searchParams.sortBy,
+        searchParams.sortOrder,
+        searchParams.tier,
+        searchParams.userId,
+    ])
 
     useEffect(() => {
         const fetchPayments = async () => {
@@ -70,7 +82,7 @@ export function PaymentsPageClient({ searchParams, accessToken }: PaymentsPageCl
         }
 
         fetchPayments()
-    }, [accessToken, JSON.stringify(query)])
+    }, [accessToken, query])
 
     if (loading) {
         return (

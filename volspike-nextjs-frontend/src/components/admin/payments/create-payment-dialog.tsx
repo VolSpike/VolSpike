@@ -73,7 +73,7 @@ export function CreatePaymentDialog({ open, onOpenChange }: CreatePaymentDialogP
 
         setSearchingUser(true)
         try {
-            const users = await adminAPI.getUsers({ email: formData.email, limit: 1 })
+            const users = await adminAPI.getUsers({ search: formData.email, limit: 1 })
             if (users.users && users.users.length > 0) {
                 setUserFound(users.users[0])
                 toast.success('User found!')
