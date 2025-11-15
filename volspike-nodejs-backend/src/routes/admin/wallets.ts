@@ -275,8 +275,8 @@ async function fetchWalletBalance(
                 throw new Error('ETHERSCAN_API_KEY is required for Etherscan API V2')
             }
             
-            // Use Etherscan API V2 endpoint
-            const apiUrl = `https://api.etherscan.io/v2/api?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`
+            // Use Etherscan API V2 endpoint with chainid=1 for Ethereum mainnet
+            const apiUrl = `https://api.etherscan.io/v2/api?chainid=1&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`
 
             logger.info(`Fetching ETH balance for ${address} using Etherscan V2 API`)
 
@@ -322,8 +322,8 @@ async function fetchWalletBalance(
                 throw new Error('ETHERSCAN_API_KEY is required for Etherscan API V2')
             }
             
-            // Use Etherscan API V2 endpoint for token balance
-            const apiUrl = `https://api.etherscan.io/v2/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
+            // Use Etherscan API V2 endpoint for token balance with chainid=1 for Ethereum mainnet
+            const apiUrl = `https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
 
             logger.info(`Fetching ${currencyUpper} balance for ${address} using contract ${contractAddress} (Etherscan V2)`)
             

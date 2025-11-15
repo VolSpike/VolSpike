@@ -306,7 +306,8 @@ adminMetricsRoutes.get('/revenue', async (c) => {
                                 } else {
                                     tier = 'free'
                                 }
-                                logger.warn(`Tier not found in metadata for price ${priceId}, inferred as ${tier} from amount ${priceAmount}`)
+                                // Only log as info, not warning - this is expected behavior for prices without metadata
+                                logger.info(`Tier inferred from price amount for ${priceId}: ${tier} (amount: $${priceAmount})`)
                             }
                             
                             // Default to 'pro' only if we couldn't determine tier
