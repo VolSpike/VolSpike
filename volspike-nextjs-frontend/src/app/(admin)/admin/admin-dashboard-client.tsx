@@ -73,14 +73,6 @@ export default function AdminDashboardClient() {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Admin Dashboard
-                </h1>
-                <p className="text-muted-foreground mt-1">
-                    Welcome back, Administrator
-                </p>
-            </div>
 
             <QuickActions />
             <StatsCards stats={stats} />

@@ -54,23 +54,18 @@ export default async function SubscriptionsPage({ searchParams }: SubscriptionsP
         return (
             <AdminLayout>
                 <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                Subscriptions
-                            </h1>
-                            <p className="text-muted-foreground mt-1">
-                                Manage user subscriptions and billing
-                            </p>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                            <BulkSyncButton subscriptions={subscriptionsData.subscriptions} />
+                    {/* Header with count and actions */}
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
                             <div className="rounded-lg border border-border/60 bg-card/50 px-4 py-2 backdrop-blur-sm">
-                                <span className="text-sm font-medium text-foreground">
+                                <span className="text-sm font-semibold text-foreground">
                                     {subscriptionsData.pagination.total.toLocaleString()}
                                 </span>
-                                <span className="text-xs text-muted-foreground ml-1">total subscriptions</span>
+                                <span className="text-xs text-muted-foreground ml-1.5">subscriptions</span>
                             </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <BulkSyncButton subscriptions={subscriptionsData.subscriptions} />
                         </div>
                     </div>
 
@@ -91,14 +86,6 @@ export default async function SubscriptionsPage({ searchParams }: SubscriptionsP
         return (
             <AdminLayout>
                 <div className="space-y-6">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Subscriptions
-                        </h1>
-                        <p className="text-muted-foreground mt-1">
-                            Manage user subscriptions and billing
-                        </p>
-                    </div>
                     <div className="rounded-xl border border-red-200/50 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/20 p-8 text-center backdrop-blur-sm">
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
                             <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

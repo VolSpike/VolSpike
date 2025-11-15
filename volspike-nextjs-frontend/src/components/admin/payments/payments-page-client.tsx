@@ -69,11 +69,6 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
     if (error) {
         return (
             <div className="space-y-6">
-                <AdminPageHeader
-                    title="Crypto Payments"
-                    description="View and manage cryptocurrency payments, troubleshoot issues, and manually upgrade users."
-                    icon={CreditCard}
-                />
                 <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
                     <CardContent className="pt-6">
                         <div className="flex items-start space-x-4">
@@ -103,31 +98,28 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <AdminPageHeader
-                title="Crypto Payments"
-                description="View and manage cryptocurrency payments, troubleshoot issues, and manually upgrade users."
-                icon={CreditCard}
-                meta={paymentsData && (
-                    <div className="text-xs text-muted-foreground sm:text-sm">
-                        <div className="font-medium text-foreground">
-                            {paymentsData.pagination.total.toLocaleString()} total payments
+            {/* Header with count and actions */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                    {paymentsData && (
+                        <div className="rounded-lg border border-border/60 bg-card/50 px-4 py-2 backdrop-blur-sm">
+                            <span className="text-sm font-semibold text-foreground">
+                                {paymentsData.pagination.total.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-1.5">payments</span>
                         </div>
-                        <div>
-                            {paymentsData.payments.length} on this page
-                        </div>
-                    </div>
-                )}
-                actions={
+                    )}
+                </div>
+                <div className="flex items-center gap-2">
                     <Button
                         onClick={() => setCreateDialogOpen(true)}
-                        className="bg-gradient-to-r from-brand-500 via-elite-500 to-sec-500 hover:from-brand-600 hover:via-elite-600 hover:to-sec-600"
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all"
                     >
                         <Plus className="mr-2 h-4 w-4" />
                         Create Payment
                     </Button>
-                }
-            />
+                </div>
+            </div>
 
             {/* Filters */}
             <PaymentFilters currentFilters={query} />

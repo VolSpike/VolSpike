@@ -68,44 +68,37 @@ export function AdminHeader() {
                     {/* Theme toggle */}
                     <ThemeToggle />
 
-                    {/* Logout Button - Prominent */}
-                    <Button
-                        variant="outline"
-                        onClick={handleSignOut}
-                        className="flex items-center space-x-2 border-border/70 text-destructive hover:border-destructive/40 hover:bg-destructive/5"
-                    >
-                        <LogOut className="h-4 w-4" />
-                        <span className="hidden md:inline font-medium">Sign Out</span>
-                    </Button>
-
                     {/* User menu */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="flex items-center space-x-2">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 via-elite-500 to-sec-500">
+                            <Button variant="ghost" className="flex items-center space-x-2 hover:bg-muted/80 transition-colors">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-purple-600 to-purple-700 shadow-sm">
                                     <User className="h-4 w-4 text-white" />
                                 </div>
                                 <div className="hidden md:block text-left">
-                                    <div className="text-sm font-medium">{session?.user?.email}</div>
+                                    <div className="text-sm font-medium text-foreground">{session?.user?.email}</div>
                                     <div className="text-xs text-muted-foreground">Administrator</div>
                                 </div>
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                                <User className="h-4 w-4 mr-2" />
-                                Profile
+                        <DropdownMenuContent align="end" className="w-56 rounded-lg border border-border/60 bg-card/95 backdrop-blur-sm shadow-lg p-1" usePortal={true}>
+                            <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Account
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem
+                                onClick={() => window.location.href = '/admin/settings'}
+                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
+                            >
+                                <Settings className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                                <span>Settings</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <Settings className="h-4 w-4 mr-2" />
-                                Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleSignOut} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
-                                <LogOut className="h-4 w-4 mr-2" />
-                                Sign Out
+                            <DropdownMenuSeparator className="my-1 bg-border/60" />
+                            <DropdownMenuItem 
+                                onClick={handleSignOut} 
+                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors focus:bg-red-50 dark:focus:bg-red-950/20"
+                            >
+                                <LogOut className="h-4 w-4 mr-2.5 text-red-600 dark:text-red-400" />
+                                <span className="text-red-700 dark:text-red-400 font-medium">Sign Out</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

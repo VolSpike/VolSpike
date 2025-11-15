@@ -70,14 +70,6 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         return (
             <AdminLayout>
                 <div className="space-y-6">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Crypto Payments
-                        </h1>
-                        <p className="text-muted-foreground mt-1">
-                            View and manage cryptocurrency payments, troubleshoot issues, and manually upgrade users
-                        </p>
-                    </div>
                     <div className="rounded-xl border border-red-200 bg-red-50/80 dark:border-red-900 dark:bg-red-950/30 p-6">
                         <p className="text-red-700 dark:text-red-200 font-semibold mb-2">Error loading payments</p>
                         <p className="text-sm text-red-600 dark:text-red-300">

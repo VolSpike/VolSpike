@@ -59,22 +59,13 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
         return (
             <AdminLayout>
                 <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                Audit Logs
-                            </h1>
-                            <p className="text-muted-foreground mt-1">
-                                Monitor and track all administrative actions
-                            </p>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                            <div className="rounded-lg border border-border/60 bg-card/50 px-4 py-2 backdrop-blur-sm">
-                                <span className="text-sm font-medium text-foreground">
-                                    {auditData.pagination.total.toLocaleString()}
-                                </span>
-                                <span className="text-xs text-muted-foreground ml-1">total logs</span>
-                            </div>
+                    {/* Header with count */}
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-lg border border-border/60 bg-card/50 px-4 py-2 backdrop-blur-sm">
+                            <span className="text-sm font-semibold text-foreground">
+                                {auditData.pagination.total.toLocaleString()}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-1.5">logs</span>
                         </div>
                     </div>
 
@@ -95,14 +86,6 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
         return (
             <AdminLayout>
                 <div className="space-y-6">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Audit Logs
-                        </h1>
-                        <p className="text-muted-foreground mt-1">
-                            Monitor and track all administrative actions
-                        </p>
-                    </div>
                     <div className="rounded-xl border border-red-200/50 bg-red-50/50 dark:border-red-900/50 dark:bg-red-950/20 p-8 text-center backdrop-blur-sm">
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
                             <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
