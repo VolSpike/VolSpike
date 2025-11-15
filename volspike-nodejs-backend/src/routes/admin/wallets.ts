@@ -298,6 +298,25 @@ adminWalletRoutes.get('/:id/multi-chain-balances', async (c) => {
         )
 
         const totalBalance = balances.reduce((sum, b) => sum + b.balance, 0)
+        
+        // For USDC/USDT on Ethereum, update the main wallet balance with Ethereum chain balance
+        // This ensures the main card shows the correct balance immediately
+        if ((isUSDC || isUSDT) && wallet.network?.toLowerCase().includes('eth')) {
+            const ethereumBalance = balances.find(b => b.chain === 'ethereum')
+            if (ethereumBalance && ethereumBalance.balance > 0) {
+                // Update the wallet balance in the database to reflect Ethereum chain balance
+                await prisma.adminWallet.update({
+                    where: { id: wallet.id },
+                    data: {
+                        balance: ethereumBalance.balance,
+                        balanceUpdatedAt: new Date(),
+                    },
+                }).catch((error) => {
+                    // Log but don't fail the request if update fails
+                    logger.warn('Failed to update wallet balance from multi-chain fetch:', error)
+                })
+            }
+        }
 
         return c.json({
             walletId: wallet.id,
@@ -305,6 +324,8 @@ adminWalletRoutes.get('/:id/multi-chain-balances', async (c) => {
             currency: currencyUpper,
             totalBalance,
             chains: balances,
+            // Include Ethereum balance for main card display
+            ethereumBalance: balances.find(b => b.chain === 'ethereum')?.balance || 0,
         })
     } catch (error) {
         logger.error('Get multi-chain balances error:', error)
@@ -615,49 +636,55 @@ async function fetchWalletBalance(
 
         // ERC-20 tokens on Ethereum (USDC, USDT)
         if (currencyUpper === 'USDC' || (currencyUpper === 'USDT' && network?.toLowerCase().includes('eth'))) {
-            // Fetch ERC-20 token balance
+            // Use RPC method (same as multi-chain) for more reliable balance fetching
             const contractAddress = currencyUpper === 'USDC' 
-                ? TOKEN_CONTRACTS.USDC_ETH 
-                : TOKEN_CONTRACTS.USDT_ETH
+                ? TOKEN_CONTRACTS.USDC.ethereum
+                : TOKEN_CONTRACTS.USDT.ethereum
             
-            const apiKey = process.env.ETHERSCAN_API_KEY
-            if (!apiKey) {
-                logger.warn('ETHERSCAN_API_KEY not set - Etherscan V2 requires API key')
-                throw new Error('ETHERSCAN_API_KEY is required for Etherscan API V2')
+            if (!contractAddress) {
+                logger.warn(`No contract address found for ${currencyUpper} on Ethereum`)
+                return 0
             }
             
-            // Use Etherscan API V2 endpoint for token balance with chainid=1 for Ethereum mainnet
-            const apiUrl = `https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
-
-            logger.info(`Fetching ${currencyUpper} balance for ${address} using contract ${contractAddress} (Etherscan V2)`)
-            
-            const response = await fetch(apiUrl)
-            if (!response.ok) {
-                logger.warn(`Etherscan API HTTP error for ${currencyUpper}: ${response.status}`)
-                throw new Error(`Etherscan API error: ${response.status}`)
-            }
-            
-            const data = await response.json() as {
-                status: string
-                result: string
-                message?: string
-            }
-
-            logger.info(`Etherscan V2 response for ${currencyUpper}: status=${data.status}, result=${data.result?.substring(0, 20)}...`)
-
-            if (data.status === '1') {
-                // ERC-20 tokens typically have 6 decimals (USDC/USDT)
-                // result can be "0" for zero balance, which is valid
-                const tokenAmount = BigInt(data.result || '0')
-                const balance = Number(tokenAmount) / 1e6
-                logger.info(`Parsed ${currencyUpper} balance: ${balance} (raw: ${data.result})`)
+            try {
+                // Use the same RPC method as multi-chain for consistency
+                const balance = await fetchERC20BalanceFromChain(address, contractAddress, EVM_CHAINS.ethereum)
+                logger.info(`Fetched ${currencyUpper} balance via RPC: ${balance}`)
                 return balance
+            } catch (error: any) {
+                logger.warn(`RPC fetch failed for ${currencyUpper}, falling back to Etherscan:`, error?.message || error)
+                
+                // Fallback to Etherscan if RPC fails
+                const apiKey = process.env.ETHERSCAN_API_KEY
+                if (!apiKey) {
+                    logger.warn('ETHERSCAN_API_KEY not set - cannot use fallback')
+                    return 0
+                }
+                
+                const apiUrl = `https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
+                
+                const response = await fetch(apiUrl)
+                if (!response.ok) {
+                    logger.warn(`Etherscan API HTTP error for ${currencyUpper}: ${response.status}`)
+                    return 0
+                }
+                
+                const data = await response.json() as {
+                    status: string
+                    result: string
+                    message?: string
+                }
+
+                if (data.status === '1') {
+                    const tokenAmount = BigInt(data.result || '0')
+                    const balance = Number(tokenAmount) / 1e6
+                    logger.info(`Parsed ${currencyUpper} balance via Etherscan: ${balance}`)
+                    return balance
+                }
+                
+                logger.warn(`Etherscan API returned status 0 for ${currencyUpper}: ${data.message || 'Unknown error'}`)
+                return 0
             }
-            
-            // Status "0" usually means error, but log it
-            logger.warn(`Etherscan API returned status 0 for ${currencyUpper}: ${data.message || 'Unknown error'}, result=${data.result}`)
-            // Return 0 instead of throwing, so we show $0 instead of "-"
-            return 0
         }
 
         // Native Solana (SOL)

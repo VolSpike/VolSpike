@@ -22,6 +22,7 @@ interface MultiChainETHBalanceProps {
     mainBalance: number | null
     currency: string
     network?: string | null
+    onBalanceUpdate?: (balance: number) => void
 }
 
 const CHAIN_INFO: Record<string, { icon: string; color: string; bgColor: string }> = {
@@ -52,7 +53,7 @@ const CHAIN_INFO: Record<string, { icon: string; color: string; bgColor: string 
     },
 }
 
-export function MultiChainETHBalance({ walletId, address, mainBalance, currency, network }: MultiChainETHBalanceProps) {
+export function MultiChainETHBalance({ walletId, address, mainBalance, currency, network, onBalanceUpdate }: MultiChainETHBalanceProps) {
     const { data: session } = useSession()
     const [chainBalances, setChainBalances] = useState<ChainBalance[]>([])
     const [loading, setLoading] = useState(false)
@@ -78,6 +79,11 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
             if (!response.ok) throw new Error('Failed to fetch multi-chain balances')
             const data = await response.json()
             setChainBalances(data.chains || [])
+            
+            // Update main balance if Ethereum balance is available (for USDC/USDT)
+            if (data.ethereumBalance !== undefined && onBalanceUpdate) {
+                onBalanceUpdate(data.ethereumBalance)
+            }
         } catch (error: any) {
             console.error('Failed to fetch multi-chain balances:', error)
             setError(error?.message || 'Failed to load chain balances')
@@ -86,6 +92,19 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         }
     }
 
+    // Auto-fetch Ethereum balance on mount for USDC/USDT wallets to update main card
+    useEffect(() => {
+        const currencyUpper = currency.toUpperCase()
+        const isUSDC = currencyUpper === 'USDC'
+        const isUSDT = currencyUpper === 'USDT' && network?.toLowerCase().includes('eth')
+        
+        // For USDC/USDT on Ethereum, fetch Ethereum balance immediately to update main card
+        if ((isUSDC || isUSDT) && chainBalances.length === 0 && !loading && session?.accessToken) {
+            fetchMultiChainBalances()
+        }
+    }, [currency, network, session?.accessToken])
+    
+    // Fetch all chains when expanded
     useEffect(() => {
         if (expanded && chainBalances.length === 0 && !loading && session?.accessToken) {
             fetchMultiChainBalances()

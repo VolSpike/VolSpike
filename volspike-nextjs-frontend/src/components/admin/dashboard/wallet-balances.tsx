@@ -457,6 +457,14 @@ export function DashboardWalletBalances() {
                                         mainBalance={wallet.balance}
                                         currency={wallet.currency}
                                         network={wallet.network}
+                                        onBalanceUpdate={(newBalance) => {
+                                            // Update the wallet balance in local state when multi-chain fetch completes
+                                            setWallets(prev => prev.map(w => 
+                                                w.id === wallet.id 
+                                                    ? { ...w, balance: newBalance, balanceUpdatedAt: new Date().toISOString() }
+                                                    : w
+                                            ))
+                                        }}
                                     />
                                 )}
                             </div>
