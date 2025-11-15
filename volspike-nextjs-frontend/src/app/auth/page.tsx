@@ -58,6 +58,7 @@ function AuthPageContent() {
     const nextUrl = searchParams?.get('next') || (isAdminMode ? '/admin' : '/dashboard')
 
     // Check if user is already logged in and is admin - redirect immediately
+    // SECURITY: Only redirect if role is explicitly 'ADMIN', not just authenticated
     useEffect(() => {
         if (isAdminMode && status === 'authenticated') {
             // Give session a moment to fully establish after OAuth callback
@@ -70,14 +71,16 @@ function AuthPageContent() {
                 const latestSession = await response.json().catch(() => null)
                 const userRole = latestSession?.user?.role || session?.user?.role
                 
+                // SECURITY: Strict check - only 'ADMIN' role (case-sensitive) allows access
                 if (userRole === 'ADMIN') {
                     console.log('[AuthPage] Admin session confirmed, redirecting to', nextUrl)
                     router.push(nextUrl)
                     router.refresh()
                 } else if (latestSession?.user || session?.user) {
-                    // User is logged in but not admin
-                    console.log('[AuthPage] User logged in but not admin. Role:', userRole)
-                    setInitialAuthError('Your account does not have administrator privileges.')
+                    // User is logged in but NOT admin - show error and stay on auth page
+                    console.log('[AuthPage] ⚠️ SECURITY: User logged in but not admin. Email:', latestSession?.user?.email || session?.user?.email, 'Role:', userRole)
+                    setInitialAuthError('Access denied. Your account does not have administrator privileges. Please contact support if you believe this is an error.')
+                    // Do NOT redirect - keep them on auth page
                 }
             }
             
@@ -280,8 +283,8 @@ function AuthPageContent() {
                             onClick={handleGoogleSignIn}
                             disabled={isBusy}
                             className={`w-full transition-all duration-200 ${isAdminMode
-                                    ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] border-0'
-                                    : 'border border-green-400/60 bg-transparent text-green-300 hover:bg-green-500/15'
+                                ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] border-0'
+                                : 'border border-green-400/60 bg-transparent text-green-300 hover:bg-green-500/15'
                                 }`}
                             variant={isAdminMode ? 'default' : 'outline'}
                         >

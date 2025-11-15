@@ -12,12 +12,19 @@ export const metadata: Metadata = {
 export default async function AdminPage() {
     const session = await auth()
 
-    // Check if user is admin using NextAuth session (works with all auth methods)
-    if (!session?.user || session.user.role !== 'ADMIN') {
-        // always redirect from the server – consistent tree
+    // SECURITY: Strict admin check - only users with role === 'ADMIN' can access
+    // This check happens on the server side and cannot be bypassed
+    if (!session?.user) {
+        // No session - redirect to auth
         redirect('/auth?next=/admin&mode=admin')
     }
 
-    // Render admin as a stable tree; client components are loaded directly
+    // SECURITY: Explicit role check - must be exactly 'ADMIN' (case-sensitive)
+    if (session.user.role !== 'ADMIN') {
+        // User is authenticated but not admin - redirect to auth with error
+        redirect('/auth?next=/admin&mode=admin&error=access_denied')
+    }
+
+    // User is authenticated AND has ADMIN role - allow access
     return <AdminDashboardClient />
 }
