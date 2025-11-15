@@ -29,6 +29,8 @@ interface CacheShape {
     [symbol: string]: CacheEntry
 }
 
+let memoryCache: CacheShape | null = null
+
 type AssetProfileOverride = Partial<AssetProfile> & {
     coingeckoId?: string
 }
@@ -63,12 +65,16 @@ const SYMBOL_OVERRIDES: Record<string, AssetProfileOverride> = {
 }
 
 const safeParseCache = (): CacheShape => {
+    if (memoryCache) return memoryCache
     if (typeof window === 'undefined') return {}
     try {
         const raw = window.localStorage.getItem(CACHE_KEY)
         if (!raw) return {}
         const parsed = JSON.parse(raw) as CacheShape
-        if (parsed && typeof parsed === 'object') return parsed
+        if (parsed && typeof parsed === 'object') {
+            memoryCache = parsed
+            return parsed
+        }
         return {}
     } catch {
         return {}
@@ -80,6 +86,7 @@ const writeCache = (symbol: string, profile: AssetProfile) => {
     try {
         const existing = safeParseCache()
         existing[symbol] = { profile, updatedAt: Date.now() }
+        memoryCache = existing
         window.localStorage.setItem(CACHE_KEY, JSON.stringify(existing))
     } catch {
         // Ignore cache write errors
@@ -290,11 +297,20 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                 const entry = cache[upper]
                 const now = Date.now()
 
-                if (entry && now - entry.updatedAt < CACHE_TTL_MS) {
+                if (entry) {
+                    const isFresh = now - entry.updatedAt < CACHE_TTL_MS
                     if (!cancelled) {
-                        setState({ loading: false, profile: entry.profile, error: null })
+                        // Always show cached data immediately; if it's stale,
+                        // keep loading=true while we revalidate in the background.
+                        setState({
+                            loading: !isFresh,
+                            profile: entry.profile,
+                            error: null,
+                        })
                     }
-                    return
+                    if (isFresh) {
+                        return
+                    }
                 }
 
                 const profile = await fetchProfileFromCoinGecko(upper)
@@ -304,7 +320,11 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                         writeCache(upper, profile)
                         setState({ loading: false, profile, error: null })
                     } else {
-                        setState({ loading: false, profile: undefined, error: null })
+                        setState((prev) => ({
+                            loading: false,
+                            profile: prev.profile,
+                            error: null,
+                        }))
                     }
                 }
             } catch (err) {
