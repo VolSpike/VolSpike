@@ -161,7 +161,8 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
         )
     }
 
-    const hasTierMismatch = (payment: Payment) => {
+    const hasTierMismatch = (payment: Payment | null) => {
+        if (!payment) return false
         return payment.paymentStatus === 'finished' && payment.user.tier !== payment.tier
     }
 
@@ -353,7 +354,7 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                         <DialogTitle>Manual Tier Upgrade</DialogTitle>
                         <DialogDescription>
                             Manually upgrade user to {selectedPayment?.tier.toUpperCase()} tier.
-                            {hasTierMismatch(selectedPayment!) && (
+                            {selectedPayment && hasTierMismatch(selectedPayment) && (
                                 <span className="block mt-2 text-yellow-600 dark:text-yellow-400">
                                     ⚠️ Payment is finished but user tier doesn&apos;t match. This will fix the mismatch.
                                 </span>
@@ -404,4 +405,3 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
         </>
     )
 }
-
