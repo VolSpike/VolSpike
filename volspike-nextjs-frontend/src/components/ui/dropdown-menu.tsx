@@ -1,11 +1,15 @@
 'use client'
 
 import React, { useState, useEffect, useRef, createContext, useContext } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 
 interface DropdownMenuContextType {
     open: boolean
     setOpen: (open: boolean) => void
+    triggerRef: React.MutableRefObject<HTMLElement | null>
+    containerRef: React.MutableRefObject<HTMLDivElement | null>
+    contentRef: React.MutableRefObject<HTMLDivElement | null>
 }
 
 const DropdownMenuContext = createContext<DropdownMenuContextType | null>(null)
@@ -19,6 +23,8 @@ interface DropdownMenuProps {
 export function DropdownMenu({ children, open: controlledOpen, onOpenChange }: DropdownMenuProps) {
     const [internalOpen, setInternalOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
+    const triggerRef = useRef<HTMLElement | null>(null)
+    const contentRef = useRef<HTMLDivElement | null>(null)
 
     const isControlled = controlledOpen !== undefined
     const open = isControlled ? controlledOpen : internalOpen
@@ -33,7 +39,16 @@ export function DropdownMenu({ children, open: controlledOpen, onOpenChange }: D
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+            const target = event.target as Node
+            const container = containerRef.current
+            const content = contentRef.current
+            
+            // Check if click is outside both container and content (for portals)
+            if (container && !container.contains(target) && 
+                content && !content.contains(target)) {
+                setOpen(false)
+            } else if (container && !container.contains(target) && !content) {
+                // Fallback for non-portal dropdowns
                 setOpen(false)
             }
         }
@@ -45,8 +60,11 @@ export function DropdownMenu({ children, open: controlledOpen, onOpenChange }: D
         }
 
         if (open) {
-            document.addEventListener('mousedown', handleClickOutside)
-            document.addEventListener('keydown', handleEscape)
+            // Use a small delay to avoid immediate closure
+            setTimeout(() => {
+                document.addEventListener('mousedown', handleClickOutside)
+                document.addEventListener('keydown', handleEscape)
+            }, 0)
         }
 
         return () => {
@@ -56,7 +74,7 @@ export function DropdownMenu({ children, open: controlledOpen, onOpenChange }: D
     }, [open])
 
     return (
-        <DropdownMenuContext.Provider value={{ open, setOpen }}>
+        <DropdownMenuContext.Provider value={{ open, setOpen, triggerRef, containerRef, contentRef }}>
             <div ref={containerRef} className="relative inline-block text-left">
                 {children}
             </div>
@@ -78,14 +96,30 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
     }
 
     if (asChild) {
-        return React.cloneElement(children as React.ReactElement, {
+        const child = React.cloneElement(children as React.ReactElement, {
             onClick: handleClick,
             'aria-expanded': context.open,
             'aria-haspopup': 'menu',
+            ref: (node: HTMLElement | null) => {
+                context.triggerRef.current = node
+                const originalRef = (children as React.ReactElement).ref
+                if (typeof originalRef === 'function') {
+                    originalRef(node)
+                } else if (originalRef) {
+                    (originalRef as React.MutableRefObject<HTMLElement | null>).current = node
+                }
+            },
         })
+        return child
     }
     return (
-        <div onClick={handleClick} aria-expanded={context.open} aria-haspopup="menu" className="inline-block cursor-pointer">
+        <div 
+            ref={(node) => { context.triggerRef.current = node }}
+            onClick={handleClick} 
+            aria-expanded={context.open} 
+            aria-haspopup="menu" 
+            className="inline-block cursor-pointer"
+        >
             {children}
         </div>
     )
@@ -96,6 +130,7 @@ interface DropdownMenuContentProps {
     side?: 'top' | 'bottom'
     children: React.ReactNode
     className?: string
+    usePortal?: boolean
 }
 
 export function DropdownMenuContent({
@@ -103,31 +138,148 @@ export function DropdownMenuContent({
     side = 'bottom',
     children,
     className,
+    usePortal = false,
 }: DropdownMenuContentProps) {
     const context = useContext(DropdownMenuContext)
     if (!context) throw new Error('DropdownMenuContent must be used within DropdownMenu')
 
+    const [position, setPosition] = useState({ top: 0, left: 0, right: 0, bottom: 0 })
+    const contentRef = useRef<HTMLDivElement>(null)
+    const [mounted, setMounted] = useState(false)
+    
+    // Share contentRef with context for click-outside detection
+    useEffect(() => {
+        if (context.contentRef) {
+            context.contentRef.current = contentRef.current
+        }
+    })
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    useEffect(() => {
+        if (!context.open || !usePortal || !context.triggerRef.current) return
+
+        const updatePosition = () => {
+            const trigger = context.triggerRef.current
+            if (!trigger) return
+
+            const rect = trigger.getBoundingClientRect()
+            const scrollY = window.scrollY
+            const scrollX = window.scrollX
+            const contentHeight = contentRef.current?.offsetHeight || 200
+            const contentWidth = contentRef.current?.offsetWidth || 180
+
+            let top = 0
+            let left = 0
+            let right = 0
+
+            // Smart positioning: prefer bottom, but use top if not enough space
+            const spaceBelow = window.innerHeight - rect.bottom
+            const spaceAbove = rect.top
+            const useTop = side === 'top' || (side === 'bottom' && spaceBelow < contentHeight && spaceAbove > spaceBelow)
+
+            if (useTop) {
+                top = rect.top + scrollY - contentHeight - 4
+                // Ensure it doesn't go off-screen
+                if (top < scrollY) {
+                    top = scrollY + 4
+                }
+            } else {
+                top = rect.bottom + scrollY + 4
+                // Ensure it doesn't go off-screen
+                if (top + contentHeight > scrollY + window.innerHeight) {
+                    top = scrollY + window.innerHeight - contentHeight - 4
+                }
+            }
+
+            if (align === 'end') {
+                right = window.innerWidth - rect.right - scrollX
+                // Ensure it doesn't go off-screen
+                if (right < 0) {
+                    right = 4
+                }
+            } else if (align === 'center') {
+                left = rect.left + scrollX + rect.width / 2 - contentWidth / 2
+                // Ensure it doesn't go off-screen
+                if (left < scrollX) {
+                    left = scrollX + 4
+                } else if (left + contentWidth > scrollX + window.innerWidth) {
+                    left = scrollX + window.innerWidth - contentWidth - 4
+                }
+            } else {
+                left = rect.left + scrollX
+                // Ensure it doesn't go off-screen
+                if (left + contentWidth > scrollX + window.innerWidth) {
+                    left = scrollX + window.innerWidth - contentWidth - 4
+                }
+                if (left < scrollX) {
+                    left = scrollX + 4
+                }
+            }
+
+            setPosition({ top, left: left as number, right: right as number, bottom: 0 })
+        }
+
+        // Initial position
+        updatePosition()
+        
+        // Update on scroll/resize
+        window.addEventListener('scroll', updatePosition, true)
+        window.addEventListener('resize', updatePosition)
+        
+        // Update when content size changes
+        const resizeObserver = new ResizeObserver(updatePosition)
+        if (contentRef.current) {
+            resizeObserver.observe(contentRef.current)
+        }
+
+        return () => {
+            window.removeEventListener('scroll', updatePosition, true)
+            window.removeEventListener('resize', updatePosition)
+            resizeObserver.disconnect()
+        }
+    }, [context.open, usePortal, align, side])
+
     if (!context.open) return null
 
-    return (
+    const content = (
         <div
+            ref={contentRef}
             className={cn(
-                'absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
-                // Horizontal alignment
-                align === 'end'
-                    ? 'right-0'
-                    : align === 'center'
-                        ? 'left-1/2 transform -translate-x-1/2'
-                        : 'left-0',
-                // Vertical side: open below (default) or above the trigger
-                side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1',
+                'fixed z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg',
+                usePortal ? '' : 'absolute',
+                !usePortal && (
+                    // Horizontal alignment (only when not using portal)
+                    align === 'end'
+                        ? 'right-0'
+                        : align === 'center'
+                            ? 'left-1/2 transform -translate-x-1/2'
+                            : 'left-0'
+                ),
+                !usePortal && (
+                    // Vertical side (only when not using portal)
+                    side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'
+                ),
                 className
             )}
+            style={usePortal ? {
+                top: position.top,
+                left: align === 'end' ? undefined : position.left,
+                right: align === 'end' ? position.right : undefined,
+            } : undefined}
             role="menu"
         >
             {children}
         </div>
     )
+
+    if (usePortal && mounted && typeof window !== 'undefined') {
+        return createPortal(content, document.body)
+    }
+
+    return content
 }
 
 interface DropdownMenuItemProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

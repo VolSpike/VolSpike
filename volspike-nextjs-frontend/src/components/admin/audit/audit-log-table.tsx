@@ -167,8 +167,8 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                 </div>
             </div>
 
-            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden relative">
-                <div className="overflow-x-auto">
+            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm relative">
+                <div className="overflow-x-auto overflow-y-visible">
                     <Table>
                     <TableHeader>
                         <TableRow>
@@ -279,7 +279,8 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                                                 <DropdownMenuContent 
                                                     align="end" 
                                                     side="bottom"
-                                                    className="z-[100] min-w-[180px]"
+                                                    usePortal={true}
+                                                    className="min-w-[180px]"
                                                 >
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                     <DropdownMenuItem onClick={() => handleViewDetails(log.id)}>
