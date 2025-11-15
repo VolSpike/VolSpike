@@ -713,6 +713,19 @@ type CryptoPaymentWithUser = Prisma.CryptoPaymentGetPayload<{
     }
 }>
 
+async function notifyAdminPaymentIssue(type: string, details: Record<string, any>): Promise<void> {
+    try {
+        const emailService = EmailService.getInstance()
+        await emailService.sendPaymentIssueAlertEmail({
+            type,
+            details,
+        })
+    } catch (error) {
+        // Never let alert failures break the main payment flow
+        logger.error('Failed to send payment issue alert email:', error)
+    }
+}
+
 // NowPayments Crypto Payment Routes
 // ============================================
 
@@ -1426,6 +1439,15 @@ payments.post('/nowpayments/webhook', async (c) => {
                 body: body,
                 parsed: data,
             })
+
+            await notifyAdminPaymentIssue('CRYPTO_PAYMENT_NOT_FOUND', {
+                paymentId: payment_id,
+                invoiceId: invoice_id,
+                orderId: order_id,
+                paymentStatus: payment_status,
+                webhookPayload: data,
+            })
+
             return c.json({ error: 'Payment not found' }, 404)
         }
 
@@ -1540,6 +1562,13 @@ payments.post('/nowpayments/webhook', async (c) => {
         return c.json({ received: true })
     } catch (error) {
         logger.error('NowPayments webhook error:', error)
+        await notifyAdminPaymentIssue('NOWPAYMENTS_WEBHOOK_ERROR', {
+            error: error instanceof Error ? {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+            } : String(error),
+        })
         return c.json({ error: 'Webhook processing failed' }, 500)
     }
 })
@@ -1592,6 +1621,48 @@ payments.get('/nowpayments/status/:paymentId', async (c) => {
             return c.json({ error: 'Unauthorized' }, 401)
         }
         return c.json({ error: 'Failed to get payment status' }, 500)
+    }
+})
+
+// List recent crypto payments for the authenticated user
+payments.get('/nowpayments/history', async (c) => {
+    try {
+        const user = requireUser(c)
+
+        const paymentsList = await prisma.cryptoPayment.findMany({
+            where: { userId: user.id },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+        })
+
+        const mapped = paymentsList.map((p) => ({
+            id: p.id,
+            paymentId: p.paymentId,
+            invoiceId: p.invoiceId,
+            orderId: p.orderId,
+            status: p.paymentStatus,
+            tier: p.tier,
+            payAmount: p.payAmount,
+            payCurrency: p.payCurrency,
+            actuallyPaid: p.actuallyPaid,
+            actuallyPaidCurrency: p.actuallyPaidCurrency,
+            createdAt: p.createdAt?.toISOString?.() ?? null,
+            paidAt: p.paidAt?.toISOString?.() ?? null,
+            expiresAt: (p as any).expiresAt ? (p as any).expiresAt.toISOString?.() ?? null : null,
+        }))
+
+        logger.info(`Crypto payment history requested by ${user?.email}`, {
+            count: mapped.length,
+        })
+
+        return c.json({ payments: mapped })
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('Get crypto payment history error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+        return c.json({ error: 'Failed to fetch payment history' }, 500)
     }
 })
 

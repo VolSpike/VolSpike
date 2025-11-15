@@ -47,6 +47,22 @@ type Invoice = {
   periodEnd?: number | null
 }
 
+type CryptoPayment = {
+  id: string
+  paymentId?: string | null
+  invoiceId?: string | number | null
+  orderId?: string | null
+  status?: string | null
+  tier?: string | null
+  payAmount?: number | null
+  payCurrency?: string | null
+  actuallyPaid?: number | null
+  actuallyPaidCurrency?: string | null
+  createdAt?: string | null
+  paidAt?: string | null
+  expiresAt?: string | null
+}
+
 function useAuthToken(session: any) {
   return useMemo(() => (session?.accessToken || session?.user?.id || null) as string | null, [session])
 }
@@ -56,6 +72,19 @@ function formatDate(ts?: number) {
   try {
     return new Date(ts * 1000).toLocaleDateString(undefined, {
       year: 'numeric', month: 'short', day: 'numeric'
+    })
+  } catch {
+    return '—'
+  }
+}
+
+function formatISODate(value?: string | null) {
+  if (!value) return '—'
+  try {
+    return new Date(value).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     })
   } catch {
     return '—'
@@ -72,6 +101,35 @@ function TierBadge({ tier }: { tier: string | null | undefined }) {
   return <Badge className={`text-xs ${cls}`}>{label}</Badge>
 }
 
+function CryptoStatusBadge({ status }: { status?: string | null }) {
+  const normalized = (status || '').toLowerCase()
+  let cls =
+    'bg-gray-600 dark:bg-gray-500 text-white border-0 shadow-sm'
+  let label = status || 'Unknown'
+
+  if (normalized === 'finished' || normalized === 'confirmed') {
+    cls = 'bg-emerald-600 dark:bg-emerald-500 text-white border-0 shadow-sm'
+    label = 'Completed'
+  } else if (
+    normalized === 'waiting' ||
+    normalized === 'confirming' ||
+    normalized === 'sending' ||
+    normalized === 'partially_paid'
+  ) {
+    cls = 'bg-amber-500 dark:bg-amber-500 text-white border-0 shadow-sm'
+    label = 'Processing'
+  } else if (
+    normalized === 'failed' ||
+    normalized === 'expired' ||
+    normalized === 'refunded'
+  ) {
+    cls = 'bg-destructive text-destructive-foreground border-0 shadow-sm'
+    label = 'Problem'
+  }
+
+  return <Badge className={`text-[10px] ${cls}`}>{label}</Badge>
+}
+
 function BillingInner() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -83,6 +141,7 @@ function BillingInner() {
   const [portalLoading, setPortalLoading] = useState(false)
   const [upgradeLoading, setUpgradeLoading] = useState(false)
   const [invoices, setInvoices] = useState<Invoice[] | null>(null)
+  const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[] | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -108,6 +167,21 @@ function BillingInner() {
         })
         const invData = await invRes.json().catch(() => ({}))
         if (!cancelled) setInvoices(Array.isArray(invData?.invoices) ? invData.invoices : [])
+
+        // Load crypto payment history (NOWPayments)
+        const cryptoRes = await fetch(`${API_URL}/api/payments/nowpayments/history`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        }).catch(() => null)
+
+        if (cryptoRes && cryptoRes.ok) {
+          const cryptoData = await cryptoRes.json().catch(() => ({}))
+          if (!cancelled) {
+            setCryptoPayments(Array.isArray(cryptoData?.payments) ? cryptoData.payments : [])
+          }
+        } else if (!cancelled) {
+          setCryptoPayments([])
+        }
       } catch (err) {
         console.error('[billing] subscription fetch failed', err)
       } finally {
@@ -326,7 +400,7 @@ function BillingInner() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
+              <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
                 <CardTitle className="text-base">Recent invoices</CardTitle>
@@ -352,6 +426,49 @@ function BillingInner() {
                   ))}
                   <div className="pt-2">
                     <Button variant="outline" onClick={handlePortal} className="w-full">Open Stripe Portal</Button>
+                  </div>
+                </div>
+              )}
+
+              {cryptoPayments && cryptoPayments.length > 0 && (
+                <div className="mt-4 border-t pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Crypto payments
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      Powered by NOWPayments
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {cryptoPayments.slice(0, 5).map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between rounded-lg border p-3 bg-background/40"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-medium">
+                              {p.tier ? `${p.tier.charAt(0).toUpperCase()}${p.tier.slice(1)} tier` : 'Crypto payment'}
+                            </span>
+                            <CryptoStatusBadge status={p.status} />
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatISODate(p.paidAt || p.createdAt)} •{' '}
+                            {p.actuallyPaid ?? p.payAmount ?? 0}{' '}
+                            {(p.actuallyPaidCurrency || p.payCurrency || 'usd').toString().toUpperCase()}
+                          </div>
+                          {p.paymentId && (
+                            <div className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
+                              NOWPayments ID: {p.paymentId}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

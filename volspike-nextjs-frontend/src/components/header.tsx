@@ -59,8 +59,8 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     <Link
                         href="/pricing"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${pathname === '/pricing'
-                                ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                             }`}
                     >
                         {pathname === '/pricing' && (
@@ -71,8 +71,8 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     <Link
                         href="/dashboard"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${(pathname === '/dashboard' || pathname === '/')
-                                ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                             }`}
                     >
                         {(pathname === '/dashboard' || pathname === '/') && (
@@ -83,8 +83,8 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     <Link
                         href="/donate"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${pathname === '/donate'
-                                ? 'text-purple-400 bg-purple-500/10 font-semibold'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            ? 'text-purple-400 bg-purple-500/10 font-semibold'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                             }`}
                         aria-label="Donate to VolSpike"
                     >
@@ -128,8 +128,8 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                     href="/"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/'
-                                            ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
-                                            : 'hover:bg-muted'
+                                        ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
+                                        : 'hover:bg-muted'
                                         }`}
                                 >
                                     <Home className="h-4 w-4" />
@@ -140,8 +140,8 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                     href="/dashboard"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/dashboard'
-                                            ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
-                                            : 'hover:bg-muted'
+                                        ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
+                                        : 'hover:bg-muted'
                                         }`}
                                 >
                                     <LayoutDashboard className="h-4 w-4" />
@@ -152,8 +152,8 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                     href="/pricing"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/pricing'
-                                            ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
-                                            : 'hover:bg-muted'
+                                        ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
+                                        : 'hover:bg-muted'
                                         }`}
                                 >
                                     <Tag className="h-4 w-4" />
@@ -164,8 +164,8 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                     href="/donate"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/donate'
-                                            ? 'bg-purple-500/10 text-purple-400 font-semibold'
-                                            : 'hover:bg-muted'
+                                        ? 'bg-purple-500/10 text-purple-400 font-semibold'
+                                        : 'hover:bg-muted'
                                         }`}
                                 >
                                     <Sparkles className="h-4 w-4" />
