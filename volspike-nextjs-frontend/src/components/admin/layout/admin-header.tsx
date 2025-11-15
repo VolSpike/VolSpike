@@ -12,12 +12,10 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Separator } from '@/components/ui/separator'
 import {
     User,
     Settings,
-    LogOut,
-    Shield
+    LogOut
 } from 'lucide-react'
 
 export function AdminHeader() {
