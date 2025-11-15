@@ -249,6 +249,8 @@ async function fetchWalletBalance(
     network?: string
 ): Promise<number> {
     const currencyUpper = currency.toUpperCase()
+    
+    logger.info(`[fetchWalletBalance] Starting: currency=${currencyUpper}, network=${network || 'none'}, address=${address.substring(0, 10)}...`)
 
     try {
         // Bitcoin
