@@ -1,11 +1,17 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import Stripe from 'stripe'
 import { prisma } from '../../index'
 import { createLogger } from '../../lib/logger'
 import { Role, UserStatus } from '@prisma/client'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
 const logger = createLogger()
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2023-10-16',
+})
 const adminUserRoutes = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
 
 // Validation schemas
@@ -84,11 +90,62 @@ adminUserRoutes.get('/', async (c) => {
             take: params.limit,
         })
 
-        // Transform users to include payment method
-        const usersWithPaymentMethod = users.map(user => {
+        // Transform users to include payment method and subscription expiration
+        const usersWithPaymentMethod = await Promise.all(users.map(async (user) => {
             const hasCryptoPayment = user.cryptoPayments && user.cryptoPayments.length > 0
             const hasStripe = !!user.stripeCustomerId
             let paymentMethod: 'stripe' | 'crypto' | null = null
+            let subscriptionExpiresAt: Date | null = null
+            let subscriptionMethod: 'stripe' | 'crypto' | null = null
+            
+            // Get crypto subscription expiration (most recent active)
+            if (hasCryptoPayment) {
+                const activeCryptoPayment = await prisma.cryptoPayment.findFirst({
+                    where: {
+                        userId: user.id,
+                        paymentStatus: 'finished',
+                        expiresAt: {
+                            not: null,
+                            gte: new Date(), // Not expired yet
+                        },
+                    } as any,
+                    orderBy: {
+                        expiresAt: 'desc',
+                    } as any,
+                    select: {
+                        expiresAt: true,
+                    },
+                })
+                
+                if (activeCryptoPayment?.expiresAt) {
+                    subscriptionExpiresAt = activeCryptoPayment.expiresAt
+                    subscriptionMethod = 'crypto'
+                }
+            }
+            
+            // Get Stripe subscription expiration
+            if (hasStripe && user.stripeCustomerId) {
+                try {
+                    const subscriptions = await stripe.subscriptions.list({
+                        customer: user.stripeCustomerId,
+                        status: 'active',
+                        limit: 1,
+                    })
+                    
+                    if (subscriptions.data.length > 0) {
+                        const subscription = subscriptions.data[0]
+                        const stripeExpiresAt = new Date(subscription.current_period_end * 1000)
+                        
+                        // Use Stripe expiration if it's later than crypto, or if no crypto expiration
+                        if (!subscriptionExpiresAt || stripeExpiresAt > subscriptionExpiresAt) {
+                            subscriptionExpiresAt = stripeExpiresAt
+                            subscriptionMethod = 'stripe'
+                        }
+                    }
+                } catch (error) {
+                    logger.warn(`Error fetching Stripe subscription for user ${user.id}:`, error)
+                }
+            }
             
             if (hasCryptoPayment && hasStripe) {
                 // If user has both, prioritize the most recent payment
@@ -103,9 +160,11 @@ adminUserRoutes.get('/', async (c) => {
             return {
                 ...user,
                 paymentMethod,
+                subscriptionExpiresAt,
+                subscriptionMethod,
                 cryptoPayments: undefined, // Remove from response
             }
-        })
+        }))
 
         return c.json({
             users: usersWithPaymentMethod,

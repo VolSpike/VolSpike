@@ -16,6 +16,8 @@ export interface AdminUser {
     lastLoginAt?: Date | null
     stripeCustomerId?: string | null
     paymentMethod?: 'stripe' | 'crypto' | null
+    subscriptionExpiresAt?: Date | null
+    subscriptionMethod?: 'stripe' | 'crypto' | null
     notes?: string | null
     twoFactorEnabled: boolean
 }

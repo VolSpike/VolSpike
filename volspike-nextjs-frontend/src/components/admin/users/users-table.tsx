@@ -51,7 +51,7 @@ import {
     ChevronsUpDown,
     Users
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, differenceInDays, isPast } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { AdminUser } from '@/types/admin'
 import { adminAPI } from '@/lib/admin/api-client'
@@ -284,6 +284,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                             </TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Subscription</TableHead>
                             <TableHead
                                 className="cursor-pointer hover:bg-muted/50"
                                 onClick={() => handleSort('createdAt')}
