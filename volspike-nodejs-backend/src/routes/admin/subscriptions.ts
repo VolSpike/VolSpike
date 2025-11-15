@@ -1,10 +1,20 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { prisma } from '../../index'
+import Stripe from 'stripe'
+import { prisma, io } from '../../index'
 import { createLogger } from '../../lib/logger'
+import { AuditService } from '../../services/admin/audit-service'
+import { AuditAction, AuditTargetType } from '../../types/audit-consts'
+import { EmailService } from '../../services/email'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
 const logger = createLogger()
+
+// Initialize Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2023-10-16',
+})
+
 const adminSubscriptionRoutes = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
 
 // Validation schemas
@@ -122,28 +132,249 @@ adminSubscriptionRoutes.get('/:id', async (c) => {
 adminSubscriptionRoutes.post('/:userId/sync', async (c) => {
     try {
         const userId = c.req.param('userId')
+        const body = await c.req.json().catch(() => ({}))
+        const forceSync = body.forceSync === true
+
+        const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
 
         const user = await prisma.user.findUnique({
             where: { id: userId },
+            select: {
+                id: true,
+                email: true,
+                tier: true,
+                stripeCustomerId: true,
+                createdAt: true,
+                updatedAt: true,
+            },
         })
 
         if (!user) {
             return c.json({ error: 'User not found' }, 404)
         }
 
-        // For now, just return success
-        // Implement actual Stripe sync later
-        const adminUser = c.get('adminUser')
-        logger.info(`Stripe sync requested for user ${userId} by admin ${adminUser?.email || 'unknown'}`)
-
-        return c.json({
+        const syncResult: any = {
             success: true,
-            message: 'Stripe sync would be performed (not implemented yet)',
-            user,
-        })
-    } catch (error) {
+            userId: user.id,
+            userEmail: user.email,
+            changes: [],
+            errors: [],
+            warnings: [],
+        }
+
+        // If user doesn't have a Stripe customer ID, there's nothing to sync
+        if (!user.stripeCustomerId) {
+            syncResult.warnings.push('User has no Stripe customer ID - nothing to sync')
+            await AuditService.logUserAction(
+                adminUser.id,
+                AuditAction.SUBSCRIPTION_UPDATED,
+                AuditTargetType.SUBSCRIPTION,
+                userId,
+                { tier: user.tier, stripeCustomerId: null },
+                { tier: user.tier, stripeCustomerId: null },
+                {
+                    action: 'sync_stripe',
+                    result: 'skipped',
+                    reason: 'no_stripe_customer_id',
+                }
+            )
+            return c.json(syncResult)
+        }
+
+        try {
+            // Fetch customer from Stripe
+            const customer = await stripe.customers.retrieve(user.stripeCustomerId)
+            if (customer.deleted) {
+                syncResult.errors.push('Stripe customer has been deleted')
+                return c.json(syncResult, 400)
+            }
+
+            // Fetch active subscriptions for this customer
+            const subscriptions = await stripe.subscriptions.list({
+                customer: user.stripeCustomerId,
+                status: 'all',
+                limit: 100,
+            })
+
+            const oldValues = {
+                tier: user.tier,
+                stripeCustomerId: user.stripeCustomerId,
+            }
+
+            // Find the most recent active subscription
+            const activeSubscription = subscriptions.data.find(
+                sub => sub.status === 'active' || sub.status === 'trialing'
+            ) || subscriptions.data[0] // Fallback to most recent
+
+            let newTier = user.tier
+            let subscriptionStatus = 'none'
+            let nextBillingDate: Date | null = null
+            let amount: number | null = null
+
+            if (activeSubscription) {
+                subscriptionStatus = activeSubscription.status
+                const priceId = activeSubscription.items.data[0]?.price?.id
+
+                if (priceId) {
+                    try {
+                        const price = await stripe.prices.retrieve(priceId)
+                        newTier = price.metadata?.tier || 'pro'
+                        amount = price.unit_amount ? price.unit_amount / 100 : null
+                    } catch (error) {
+                        logger.error(`Failed to retrieve price ${priceId}:`, error)
+                        syncResult.warnings.push(`Could not retrieve price details for ${priceId}`)
+                    }
+                }
+
+                // Calculate next billing date
+                if (activeSubscription.current_period_end) {
+                    nextBillingDate = new Date(activeSubscription.current_period_end * 1000)
+                }
+            } else {
+                // No active subscription - user should be on free tier
+                if (user.tier !== 'free') {
+                    newTier = 'free'
+                    syncResult.changes.push({
+                        field: 'tier',
+                        oldValue: user.tier,
+                        newValue: 'free',
+                        reason: 'No active Stripe subscription found',
+                    })
+                }
+            }
+
+            const newValues = {
+                tier: newTier,
+                stripeCustomerId: user.stripeCustomerId,
+            }
+
+            // Update user if tier changed or if force sync
+            if (newTier !== user.tier || forceSync) {
+                await prisma.user.update({
+                    where: { id: userId },
+                    data: { tier: newTier },
+                })
+
+                if (newTier !== user.tier) {
+                    syncResult.changes.push({
+                        field: 'tier',
+                        oldValue: user.tier,
+                        newValue: newTier,
+                        reason: 'Synced from Stripe subscription',
+                    })
+
+                    // Broadcast tier change via WebSocket
+                    if (io) {
+                        io.to(`user-${userId}`).emit('tier-changed', { tier: newTier })
+                    }
+
+                    // Send email notification if tier changed
+                    if (user.email) {
+                        const emailService = EmailService.getInstance()
+                        emailService.sendTierUpgradeEmail({
+                            email: user.email,
+                            name: undefined,
+                            newTier: newTier,
+                            previousTier: user.tier,
+                        }).catch((error) => {
+                            logger.error(`Failed to send tier upgrade email:`, error)
+                        })
+                    }
+                }
+
+                // Log audit entry
+                await AuditService.logUserAction(
+                    adminUser.id,
+                    AuditAction.SUBSCRIPTION_UPDATED,
+                    AuditTargetType.SUBSCRIPTION,
+                    userId,
+                    oldValues,
+                    newValues,
+                    {
+                        action: 'sync_stripe',
+                        subscriptionId: activeSubscription?.id,
+                        subscriptionStatus,
+                        nextBillingDate: nextBillingDate?.toISOString(),
+                        amount,
+                        changes: syncResult.changes,
+                    }
+                )
+            } else {
+                syncResult.changes.push({
+                    field: 'tier',
+                    oldValue: user.tier,
+                    newValue: newTier,
+                    reason: 'No changes needed - already in sync',
+                })
+
+                // Log sync action even if no changes
+                await AuditService.logUserAction(
+                    adminUser.id,
+                    AuditAction.SUBSCRIPTION_UPDATED,
+                    AuditTargetType.SUBSCRIPTION,
+                    userId,
+                    oldValues,
+                    newValues,
+                    {
+                        action: 'sync_stripe',
+                        subscriptionId: activeSubscription?.id,
+                        subscriptionStatus,
+                        nextBillingDate: nextBillingDate?.toISOString(),
+                        amount,
+                        result: 'no_changes',
+                    }
+                )
+            }
+
+            syncResult.subscription = {
+                id: activeSubscription?.id,
+                status: subscriptionStatus,
+                tier: newTier,
+                nextBillingDate: nextBillingDate?.toISOString(),
+                amount,
+            }
+
+            logger.info(`Stripe sync completed for user ${userId}`, {
+                userId,
+                adminEmail: adminUser.email,
+                changes: syncResult.changes.length,
+                newTier,
+            })
+
+            return c.json(syncResult)
+        } catch (stripeError: any) {
+            logger.error('Stripe API error during sync:', stripeError)
+            syncResult.errors.push(
+                stripeError.message || 'Failed to fetch data from Stripe'
+            )
+            syncResult.success = false
+
+            // Log failed sync attempt
+            await AuditService.logUserAction(
+                adminUser.id,
+                AuditAction.SUBSCRIPTION_UPDATED,
+                AuditTargetType.SUBSCRIPTION,
+                userId,
+                { tier: user.tier },
+                { tier: user.tier },
+                {
+                    action: 'sync_stripe',
+                    result: 'failed',
+                    error: stripeError.message,
+                }
+            )
+
+            return c.json(syncResult, 500)
+        }
+    } catch (error: any) {
         logger.error('Sync subscription error:', error)
-        return c.json({ error: 'Failed to sync subscription' }, 500)
+        return c.json({ 
+            success: false,
+            error: error.message || 'Failed to sync subscription' 
+        }, 500)
     }
 })
 

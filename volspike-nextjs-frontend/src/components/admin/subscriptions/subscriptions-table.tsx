@@ -85,13 +85,26 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
             <ChevronDown className="h-4 w-4" />
     }
 
+    const [syncResult, setSyncResult] = useState<any>(null)
+    const [syncDialogOpen, setSyncDialogOpen] = useState(false)
+
     const handleAction = async (action: string, subscriptionId: string) => {
         setLoading(subscriptionId)
         try {
             switch (action) {
                 case 'sync':
-                    await adminAPI.syncStripeSubscription(subscriptionId)
-                    toast.success('Subscription synced')
+                    const result = await adminAPI.syncStripeSubscription(subscriptionId)
+                    setSyncResult(result)
+                    setSyncDialogOpen(true)
+                    if (result.success) {
+                        toast.success(
+                            result.changes.some((c: any) => c.oldValue !== c.newValue)
+                                ? 'Subscription synced successfully'
+                                : 'Subscription already in sync'
+                        )
+                    } else {
+                        toast.error('Sync completed with errors')
+                    }
                     router.refresh()
                     break
                 case 'cancel':
@@ -345,6 +358,13 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                     </div>
                 </div>
             )}
+
+            {/* Sync Result Dialog */}
+            <SyncResultDialog
+                open={syncDialogOpen}
+                onOpenChange={setSyncDialogOpen}
+                result={syncResult}
+            />
         </div>
     )
 }
