@@ -177,71 +177,70 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
                 </div>
             )}
 
-            <div className="space-y-2">
-                {chainBalances.map((chain) => {
-                    const chainInfo = CHAIN_INFO[chain.chain] || { 
-                        icon: '●', 
-                        color: 'from-gray-500 to-gray-600',
-                        bgColor: 'bg-gray-500/10 border-gray-500/20',
-                    }
-                    const hasBalance = chain.balance > 0
+            {chainsWithBalance.length > 0 ? (
+                <div className="space-y-2">
+                    {chainsWithBalance.map((chain) => {
+                        const chainInfo = CHAIN_INFO[chain.chain] || { 
+                            icon: '●', 
+                            color: 'from-gray-500 to-gray-600',
+                            bgColor: 'bg-gray-500/10 border-gray-500/20',
+                        }
 
-                    return (
-                        <div
-                            key={chain.chain}
-                            className={`group flex items-center justify-between rounded-lg border p-3 transition-all duration-200 ${
-                                hasBalance
-                                    ? `${chainInfo.bgColor} hover:shadow-md hover:scale-[1.01]`
-                                    : 'border-border/60 bg-background/30 opacity-60'
-                            }`}
-                        >
-                            <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${chainInfo.color} flex-shrink-0 text-white text-sm font-bold shadow-sm`}>
-                                    {chainInfo.icon}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <span className={`text-sm font-semibold ${hasBalance ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                            {chain.name}
-                                        </span>
-                                        {hasBalance && (
+                        return (
+                            <div
+                                key={chain.chain}
+                                className={`group flex items-center justify-between rounded-lg border p-3 transition-all duration-200 ${chainInfo.bgColor} hover:shadow-md hover:scale-[1.01]`}
+                            >
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${chainInfo.color} flex-shrink-0 text-white text-sm font-bold shadow-sm`}>
+                                        {chainInfo.icon}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="text-sm font-semibold text-foreground">
+                                                {chain.name}
+                                            </span>
                                             <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 text-xs px-1.5 py-0">
                                                 Active
                                             </Badge>
-                                        )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Chain ID: {chain.chainId}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground">Chain ID: {chain.chainId}</p>
+                                </div>
+                                <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                                    <div className="text-right">
+                                        <p
+                                            className={`text-sm font-bold bg-gradient-to-r ${chainInfo.color} bg-clip-text text-transparent`}
+                                        >
+                                            {formatBalance(chain.balance)} {displayName}
+                                        </p>
+                                    </div>
+                                    {chain.explorerUrl && (
+                                        <a
+                                            href={chain.explorerUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted/50"
+                                            onClick={(e) => e.stopPropagation()}
+                                            title={`View on ${chain.name} explorer`}
+                                        >
+                                            <ExternalLink className="h-3.5 w-3.5" />
+                                        </a>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                                <div className="text-right">
-                                    <p
-                                        className={`text-sm font-bold ${
-                                            hasBalance 
-                                                ? 'bg-gradient-to-r ' + chainInfo.color + ' bg-clip-text text-transparent' 
-                                                : 'text-muted-foreground'
-                                        }`}
-                                    >
-                                        {formatBalance(chain.balance)} {displayName}
-                                    </p>
-                                </div>
-                                {chain.explorerUrl && (
-                                    <a
-                                        href={chain.explorerUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-muted/50"
-                                        onClick={(e) => e.stopPropagation()}
-                                        title={`View on ${chain.name} explorer`}
-                                    >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                    </a>
-                                )}
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
+                        )
+                    })}
+                </div>
+            ) : (
+                !loading && (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                            No {displayName} balances found across any EVM chains
+                        </p>
+                    </div>
+                )
+            )}
 
             {chainBalances.length === 0 && !loading && !error && (
                 <div className="text-center py-4 text-sm text-muted-foreground">
