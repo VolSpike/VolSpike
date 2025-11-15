@@ -23,20 +23,20 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
     const tier = session?.user?.tier || 'free'
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+    // Ensure only one active identity at a time
+    useEnforceSingleIdentity()
+
     // Hide global site header on admin routes - admin has its own chrome
     if (pathname?.startsWith('/admin')) {
         return null
     }
 
-    // Ensure only one active identity at a time
-    useEnforceSingleIdentity()
-
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm transition-all duration-200">
             <div className="container flex h-16 items-center justify-between gap-3">
                 {/* Logo with subtle hover effect */}
-                <Link 
-                    href="/" 
+                <Link
+                    href="/"
                     className="flex items-center gap-3 min-w-0 group transition-opacity hover:opacity-80"
                 >
                     <div className="relative">
@@ -58,11 +58,10 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                 <nav className="hidden md:flex items-center gap-1 ml-8">
                     <Link
                         href="/pricing"
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
-                            pathname === '/pricing'
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${pathname === '/pricing'
                                 ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                        }`}
+                            }`}
                     >
                         {pathname === '/pricing' && (
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
@@ -71,11 +70,10 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     </Link>
                     <Link
                         href="/dashboard"
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
-                            (pathname === '/dashboard' || pathname === '/')
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${(pathname === '/dashboard' || pathname === '/')
                                 ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                        }`}
+                            }`}
                     >
                         {(pathname === '/dashboard' || pathname === '/') && (
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
@@ -84,11 +82,10 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     </Link>
                     <Link
                         href="/donate"
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${
-                            pathname === '/donate'
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${pathname === '/donate'
                                 ? 'text-purple-400 bg-purple-500/10 font-semibold'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                        }`}
+                            }`}
                         aria-label="Donate to VolSpike"
                     >
                         {pathname === '/donate' && (
@@ -130,24 +127,22 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 <Link
                                     href="/"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                                        pathname === '/'
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/'
                                             ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
                                             : 'hover:bg-muted'
-                                    }`}
+                                        }`}
                                 >
                                     <Home className="h-4 w-4" />
                                     Home
                                 </Link>
-                                
+
                                 <Link
                                     href="/dashboard"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                                        pathname === '/dashboard'
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/dashboard'
                                             ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
                                             : 'hover:bg-muted'
-                                    }`}
+                                        }`}
                                 >
                                     <LayoutDashboard className="h-4 w-4" />
                                     Dashboard
@@ -156,24 +151,22 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 <Link
                                     href="/pricing"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                                        pathname === '/pricing'
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/pricing'
                                             ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
                                             : 'hover:bg-muted'
-                                    }`}
+                                        }`}
                                 >
                                     <Tag className="h-4 w-4" />
                                     Pricing
                                 </Link>
-                                
+
                                 <Link
                                     href="/donate"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                                        pathname === '/donate'
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/donate'
                                             ? 'bg-purple-500/10 text-purple-400 font-semibold'
                                             : 'hover:bg-muted'
-                                    }`}
+                                        }`}
                                 >
                                     <Sparkles className="h-4 w-4" />
                                     Donate
@@ -187,10 +180,9 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                         <div className="px-3 py-2 mb-2">
                                             <div
                                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg
-                                                    ${
-                                                        tier === 'free'
-                                                            ? 'bg-muted/70 border border-border text-muted-foreground'
-                                                            : tier === 'pro'
+                                                    ${tier === 'free'
+                                                        ? 'bg-muted/70 border border-border text-muted-foreground'
+                                                        : tier === 'pro'
                                                             ? 'bg-sec-500/20 border border-sec-500/40 text-sec-700 dark:text-sec-400'
                                                             : 'bg-elite-500/20 border border-elite-500/40 text-elite-700 dark:text-elite-400'
                                                     }`}
@@ -270,10 +262,9 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 size="sm"
                                 onClick={() => router.push('/settings')}
                                 className={`hidden sm:flex items-center gap-1.5 h-8 px-3 rounded-full transition-all
-                                    ${
-                                        tier === 'free'
-                                            ? 'bg-muted/70 border border-border text-muted-foreground'
-                                            : tier === 'pro'
+                                    ${tier === 'free'
+                                        ? 'bg-muted/70 border border-border text-muted-foreground'
+                                        : tier === 'pro'
                                             ? 'bg-sec-500/20 border border-sec-500/40 text-sec-700 dark:text-sec-400'
                                             : 'bg-elite-500/20 border border-elite-500/40 text-elite-700 dark:text-elite-400'
                                     }`}
@@ -307,7 +298,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                         <div className="flex items-center gap-2">
                             {/* Wallet connection is part of auth flow; hide on public pages */}
                             {pathname?.startsWith('/auth') && !hideWalletConnect && <ConnectButton />}
-                            <Button 
+                            <Button
                                 onClick={() => router.push('/auth?tab=signup')}
                                 className="bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-md shadow-brand-500/20 ring-1 ring-brand-500/20 transition-all duration-200"
                             >
