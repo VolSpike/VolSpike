@@ -115,7 +115,13 @@ adminPaymentRoutes.get('/', async (c) => {
         })
     } catch (error) {
         logger.error('List payments error:', error)
-        return c.json({ error: 'Failed to fetch payments' }, 500)
+        const errorMessage =
+            error instanceof Error
+                ? error.message
+                : typeof error === 'string'
+                    ? error
+                    : 'Unknown error'
+        return c.json({ error: 'Failed to fetch payments', details: errorMessage }, 500)
     }
 })
 
