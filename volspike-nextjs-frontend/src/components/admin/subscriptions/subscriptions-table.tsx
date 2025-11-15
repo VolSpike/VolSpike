@@ -288,13 +288,17 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem
-                                                    onClick={() => handleAction('sync', subscription.id)}
-                                                >
-                                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                                    Sync with Stripe
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
+                                                {subscription.stripeCustomerId && subscription.stripeCustomerId.trim() !== '' && (
+                                                    <>
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleAction('sync', subscription.id)}
+                                                        >
+                                                            <RefreshCw className="h-4 w-4 mr-2" />
+                                                            Sync with Stripe
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                    </>
+                                                )}
                                                 {subscription.status === 'active' && (
                                                     <DropdownMenuItem
                                                         onClick={() => handleAction('cancel', subscription.id)}

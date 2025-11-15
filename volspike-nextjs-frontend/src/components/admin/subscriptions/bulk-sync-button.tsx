@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
+import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Wrench, Info } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import { SubscriptionSummary } from '@/types/admin'
@@ -14,7 +14,21 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface BulkSyncButtonProps {
     subscriptions: SubscriptionSummary[]
@@ -101,26 +115,70 @@ export function BulkSyncButton({ subscriptions }: BulkSyncButtonProps) {
         r.success && r.changes.some((c: any) => c.oldValue !== c.newValue)
     )
 
+    const syncableCount = subscriptions.filter(
+        sub => sub.stripeCustomerId && sub.stripeCustomerId.trim() !== ''
+    ).length
+
     return (
         <>
-            <Button
-                variant="outline"
-                onClick={handleBulkSync}
-                disabled={loading}
-                className="flex items-center gap-2"
-            >
-                {loading ? (
-                    <>
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                        Syncing...
-                    </>
-                ) : (
-                    <>
-                        <RefreshCw className="h-4 w-4" />
-                        Bulk Sync Stripe
-                    </>
-                )}
-            </Button>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={loading || syncableCount === 0}
+                                        className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                                Syncing...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Wrench className="h-4 w-4" />
+                                                <span className="hidden sm:inline">Tools</span>
+                                            </>
+                                        )}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuLabel>Subscription Tools</DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                        onClick={handleBulkSync}
+                                        disabled={loading || syncableCount === 0}
+                                    >
+                                        <RefreshCw className="h-4 w-4 mr-2" />
+                                        Sync All with Stripe
+                                        {syncableCount > 0 && (
+                                            <Badge variant="secondary" className="ml-auto text-xs">
+                                                {syncableCount}
+                                            </Badge>
+                                        )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <div className="px-2 py-1.5">
+                                        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                                            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                                            <span>
+                                                Sync manually updates subscription data from Stripe. 
+                                                Usually handled automatically via webhooks.
+                                            </span>
+                                        </div>
+                                    </div>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Subscription management tools</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
 
             {/* Bulk Sync Results Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

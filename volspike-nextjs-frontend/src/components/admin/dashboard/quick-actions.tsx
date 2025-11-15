@@ -14,7 +14,7 @@ export function QuickActions() {
                 <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="grid gap-3 md:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-3">
                     <Button
                         type="button"
                         variant="outline"
@@ -45,22 +45,6 @@ export function QuickActions() {
                         </span>
                         <span className="text-xs text-muted-foreground">
                             Open the full audit log history
-                        </span>
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="group flex h-auto flex-col items-start gap-2 rounded-xl border-border/60 bg-card/30 px-4 py-4 text-left backdrop-blur-sm transition-all duration-200 hover:border-brand-500/30 hover:bg-brand-500/5 hover:shadow-md"
-                        onClick={() => router.push('/admin/subscriptions')}
-                    >
-                        <span className="inline-flex items-center gap-2 font-medium text-foreground">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500/10 group-hover:bg-brand-500/20 transition-colors">
-                                <RefreshCcw className="h-4 w-4 text-brand-600 dark:text-brand-400" />
-                            </div>
-                            Sync Stripe
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                            Review and sync subscription status
                         </span>
                     </Button>
                     <Button
