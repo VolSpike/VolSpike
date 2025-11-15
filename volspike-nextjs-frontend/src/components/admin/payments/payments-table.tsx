@@ -355,7 +355,7 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                             Manually upgrade user to {selectedPayment?.tier.toUpperCase()} tier.
                             {hasTierMismatch(selectedPayment!) && (
                                 <span className="block mt-2 text-yellow-600 dark:text-yellow-400">
-                                    ⚠️ Payment is finished but user tier doesn't match. This will fix the mismatch.
+                                    ⚠️ Payment is finished but user tier doesn&apos;t match. This will fix the mismatch.
                                 </span>
                             )}
                         </DialogDescription>

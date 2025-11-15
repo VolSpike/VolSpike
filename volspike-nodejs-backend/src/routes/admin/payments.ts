@@ -154,6 +154,9 @@ adminPaymentRoutes.get('/:id', async (c) => {
 adminPaymentRoutes.post('/manual-upgrade', async (c) => {
     try {
         const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
         const body = await c.req.json()
         const { userId, tier, reason, expiresAt } = manualUpgradeSchema.parse(body)
 
@@ -224,6 +227,9 @@ adminPaymentRoutes.post('/:paymentId/retry-webhook', async (c) => {
     try {
         const paymentId = c.req.param('paymentId')
         const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
 
         const payment = await prisma.cryptoPayment.findUnique({
             where: { id: paymentId },
@@ -292,6 +298,9 @@ adminPaymentRoutes.post('/:paymentId/retry-webhook', async (c) => {
 adminPaymentRoutes.post('/create-from-nowpayments', async (c) => {
     try {
         const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
         const body = await c.req.json()
         const { userId, paymentId, orderId, invoiceId, amount, currency, tier, actuallyPaid, actuallyPaidCurrency } = z.object({
             userId: z.string(),
