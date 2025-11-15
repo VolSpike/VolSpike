@@ -6,7 +6,6 @@ import { StatsCards } from '@/components/admin/dashboard/stats-cards'
 import { RecentActivity } from '@/components/admin/dashboard/recent-activity'
 import { UserGrowthChart } from '@/components/admin/dashboard/user-growth-chart'
 import { RevenueChart } from '@/components/admin/dashboard/revenue-chart'
-import { SystemHealth } from '@/components/admin/dashboard/system-health'
 import { QuickActions } from '@/components/admin/dashboard/quick-actions'
 import { DashboardWalletBalances } from '@/components/admin/dashboard/wallet-balances'
 import { adminAPI } from '@/lib/admin/api-client'
@@ -92,8 +91,6 @@ export default function AdminDashboardClient() {
             </div>
 
             <DashboardWalletBalances />
-            
-            <SystemHealth />
 
             <RecentActivity activities={[]} />
         </div>
