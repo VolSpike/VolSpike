@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { AdminLayout } from '@/components/admin/layout/admin-layout'
 import { MetricsCards } from '@/components/admin/metrics/metrics-cards'
 import { RevenueChart } from '@/components/admin/metrics/revenue-chart'
 import { UserGrowthChart } from '@/components/admin/metrics/user-growth-chart'
@@ -150,25 +151,29 @@ export default async function MetricsPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">System Metrics</h1>
-                <p className="text-muted-foreground">
-                    Monitor system performance and user analytics
-                </p>
+        <AdminLayout>
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        System Metrics
+                    </h1>
+                    <p className="text-muted-foreground mt-1">
+                        Monitor system performance and user analytics
+                    </p>
+                </div>
+
+                {/* Metrics Cards */}
+                <MetricsCards metrics={metrics} />
+
+                {/* Charts */}
+                <div className="grid gap-6 md:grid-cols-2">
+                    <RevenueChart />
+                    <UserGrowthChart />
+                </div>
+
+                {/* System Health */}
+                <SystemHealth health={mapHealthResponse(health)} />
             </div>
-
-            {/* Metrics Cards */}
-            <MetricsCards metrics={metrics} />
-
-            {/* Charts */}
-            <div className="grid gap-6 md:grid-cols-2">
-                <RevenueChart />
-                <UserGrowthChart />
-            </div>
-
-            {/* System Health */}
-            <SystemHealth health={mapHealthResponse(health)} />
-        </div>
+        </AdminLayout>
     )
 }

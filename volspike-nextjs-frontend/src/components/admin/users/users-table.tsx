@@ -48,7 +48,8 @@ import {
     DollarSign,
     ChevronUp,
     ChevronDown,
-    ChevronsUpDown
+    ChevronsUpDown,
+    Users
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'
@@ -253,7 +254,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                 </div>
             )}
 
-            <div className="rounded-md border">
+            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -305,10 +306,38 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.map((user) => (
+                        {users.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={8} className="h-64">
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
+                                            <Users className="h-8 w-8 text-muted-foreground/50" />
+                                        </div>
+                                        <h3 className="text-sm font-semibold text-foreground mb-1">No users found</h3>
+                                        <p className="text-xs text-muted-foreground max-w-sm mb-4">
+                                            {currentQuery.search || currentQuery.role || currentQuery.tier || currentQuery.status
+                                                ? 'Try adjusting your filters to see more results'
+                                                : 'Get started by creating your first user'}
+                                        </p>
+                                        {(!currentQuery.search && !currentQuery.role && !currentQuery.tier && !currentQuery.status) && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => router.push('/admin/users/new')}
+                                                className="mt-2"
+                                            >
+                                                <Users className="h-4 w-4 mr-2" />
+                                                Create User
+                                            </Button>
+                                        )}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            users.map((user) => (
                             <TableRow
                                 key={user.id}
-                                className="cursor-pointer hover:bg-muted/50"
+                                className="group cursor-pointer transition-colors hover:bg-muted/50 border-border/60"
                                 onClick={() => router.push(`/admin/users/${user.id}`)}
                             >
                                 <TableCell onClick={(e) => e.stopPropagation()}>
@@ -432,7 +461,8 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     </DropdownMenu>
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        ))
+                        )}
                     </TableBody>
                 </Table>
             </div>

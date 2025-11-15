@@ -62,19 +62,21 @@ export function StatsCards({ stats }: StatsCardsProps) {
             {cards.map((card) => {
                 const Icon = card.icon
                 return (
-                    <Card key={card.title}>
+                    <Card key={card.title} className="border-border/60 bg-card/50 backdrop-blur-sm transition-all duration-200 hover:border-border hover:shadow-md">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">
+                            <CardTitle className="text-sm font-medium text-foreground">
                                 {card.title}
                             </CardTitle>
-                            <Icon className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-transparent">
+                                <Icon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
                                 {card.value}
                             </div>
                             {card.change && card.changeType && (
-                                <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1">
+                                <div className="flex items-center space-x-2 text-xs text-muted-foreground mt-1 mb-2">
                                     {card.changeType === 'positive' ? (
                                         <TrendingUp className="h-3 w-3 text-green-500" />
                                     ) : (

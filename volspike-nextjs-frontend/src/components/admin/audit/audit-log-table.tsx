@@ -136,7 +136,7 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                 </div>
             </div>
 
-            <div className="rounded-md border">
+            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -157,11 +157,28 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {logs.map((log) => {
-                            const Icon = actionIcons[log.action as keyof typeof actionIcons] || User
-                            const colorClass = actionColors[log.action as keyof typeof actionColors] || 'bg-gray-100 text-gray-800'
+                        {logs.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-64">
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
+                                            <FileText className="h-8 w-8 text-muted-foreground/50" />
+                                        </div>
+                                        <h3 className="text-sm font-semibold text-foreground mb-1">No audit logs found</h3>
+                                        <p className="text-xs text-muted-foreground max-w-sm">
+                                            {currentQuery.action || currentQuery.targetType || currentQuery.actorUserId
+                                                ? 'Try adjusting your filters to see more results'
+                                                : 'Audit logs will appear here as administrative actions are performed'}
+                                        </p>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            logs.map((log) => {
+                                const Icon = actionIcons[log.action as keyof typeof actionIcons] || User
+                                const colorClass = actionColors[log.action as keyof typeof actionColors] || 'bg-gray-100 text-gray-800'
 
-                            return (
+                                return (
                                 <TableRow key={log.id}>
                                     <TableCell>
                                         <div className="flex items-center space-x-2">
@@ -234,8 +251,9 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                                         </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            )
-                        })}
+                                )
+                            })
+                        )}
                     </TableBody>
                 </Table>
             </div>

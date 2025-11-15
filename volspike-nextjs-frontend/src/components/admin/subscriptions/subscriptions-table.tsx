@@ -137,7 +137,7 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
 
     return (
         <div className="space-y-4">
-            <div className="rounded-md border">
+            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -175,15 +175,32 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {subscriptions.map((subscription) => {
-                            const StatusIcon = statusIcons[subscription.status as keyof typeof statusIcons] || CheckCircle
-                            const statusColorClass = statusColors[subscription.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
-                            const tier = getTierFromPrice(subscription.stripePriceId || '')
+                        {subscriptions.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={6} className="h-64">
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
+                                            <CreditCard className="h-8 w-8 text-muted-foreground/50" />
+                                        </div>
+                                        <h3 className="text-sm font-semibold text-foreground mb-1">No subscriptions found</h3>
+                                        <p className="text-xs text-muted-foreground max-w-sm">
+                                            {currentQuery.status || currentQuery.tier || currentQuery.userId
+                                                ? 'Try adjusting your filters to see more results'
+                                                : 'No subscriptions have been created yet'}
+                                        </p>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            subscriptions.map((subscription) => {
+                                const StatusIcon = statusIcons[subscription.status as keyof typeof statusIcons] || CheckCircle
+                                const statusColorClass = statusColors[subscription.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
+                                const tier = getTierFromPrice(subscription.stripePriceId || '')
 
-                            return (
+                                return (
                                 <TableRow
                                     key={subscription.id}
-                                    className="cursor-pointer hover:bg-muted/50"
+                                    className="group cursor-pointer transition-colors hover:bg-muted/50 border-border/60"
                                     onClick={() => router.push(`/admin/subscriptions/${subscription.id}`)}
                                 >
                                     <TableCell>
