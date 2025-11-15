@@ -198,7 +198,13 @@ export const authConfig: NextAuthConfig = {
 
             // Always fetch fresh tier data from database when update() is called or periodically
             // This ensures tier changes are reflected immediately
-            if (token.id && (trigger === 'update' || !token.tierLastChecked || Date.now() - (token.tierLastChecked as number) > 30000)) {
+            // Also fetch immediately after OAuth sign-in (when user object is present but token might be stale)
+            const shouldRefresh = trigger === 'update' || 
+                                 !token.tierLastChecked || 
+                                 Date.now() - (token.tierLastChecked as number) > 30000 ||
+                                 (user && account?.provider === 'google') // Force refresh after Google OAuth
+            
+            if (token.id && shouldRefresh) {
                 try {
                     const meUrl = `${BACKEND_API_URL}/api/auth/me`
                     const response = await fetch(meUrl, {

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Loader2, Mail } from 'lucide-react'
 import { SigninForm } from '@/components/signin-form'
 import { SignupForm } from '@/components/signup-form'
+import { AdminAuthRedirect } from '@/components/admin-auth-redirect'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useWalletAuth } from '@/hooks/use-wallet-auth'
@@ -15,6 +16,7 @@ import { useAccount } from 'wagmi'
 import { SolanaProvider } from '@/components/solana-providers'
 import { PhantomSignInSection } from '@/components/phantom-signin-section'
 import { WalletConnectButton } from '@/components/wallet-connect-button'
+import { useSession } from 'next-auth/react'
 
 // Dynamically import ConnectButton to handle hydration safely
 const DynamicConnectButton = dynamic(
@@ -38,6 +40,7 @@ function AuthPageContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const pathname = usePathname()
+    const { data: session, status } = useSession()
 
     // Simple state management - no form hooks in parent
     const [tab, setTab] = useState<'signin' | 'signup'>(
@@ -53,6 +56,34 @@ function AuthPageContent() {
     // Check if this is admin mode
     const isAdminMode = searchParams?.get('mode') === 'admin'
     const nextUrl = searchParams?.get('next') || (isAdminMode ? '/admin' : '/dashboard')
+
+    // Check if user is already logged in and is admin - redirect immediately
+    useEffect(() => {
+        if (isAdminMode && status === 'authenticated') {
+            // Give session a moment to fully establish after OAuth callback
+            const checkAndRedirect = async () => {
+                // Refresh session to get latest role data
+                await new Promise(resolve => setTimeout(resolve, 300))
+                
+                // Check session again after refresh
+                const response = await fetch('/api/auth/session')
+                const latestSession = await response.json().catch(() => null)
+                const userRole = latestSession?.user?.role || session?.user?.role
+                
+                if (userRole === 'ADMIN') {
+                    console.log('[AuthPage] Admin session confirmed, redirecting to', nextUrl)
+                    router.push(nextUrl)
+                    router.refresh()
+                } else if (latestSession?.user || session?.user) {
+                    // User is logged in but not admin
+                    console.log('[AuthPage] User logged in but not admin. Role:', userRole)
+                    setInitialAuthError('Your account does not have administrator privileges.')
+                }
+            }
+            
+            checkAndRedirect()
+        }
+    }, [isAdminMode, status, session, router, nextUrl])
 
     // Wallet authentication hooks
     const { isSigning, isAuthenticating, error: walletError, signInWithWallet } = useWalletAuth()
@@ -98,7 +129,7 @@ function AuthPageContent() {
         try {
             const callbackUrl = isAdminMode ? '/admin' : '/'
             // Force account selection by adding prompt parameter
-            await signIn('google', { 
+            await signIn('google', {
                 callbackUrl,
                 // NextAuth will use the authorization params from provider config
             })
@@ -248,11 +279,10 @@ function AuthPageContent() {
                             type="button"
                             onClick={handleGoogleSignIn}
                             disabled={isBusy}
-                            className={`w-full transition-all duration-200 ${
-                                isAdminMode
+                            className={`w-full transition-all duration-200 ${isAdminMode
                                     ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-700 hover:via-purple-700 hover:to-blue-700 text-white shadow-[0_0_30px_rgba(99,102,241,0.4)] border-0'
                                     : 'border border-green-400/60 bg-transparent text-green-300 hover:bg-green-500/15'
-                            }`}
+                                }`}
                             variant={isAdminMode ? 'default' : 'outline'}
                         >
                             {isGoogleLoading ? (
@@ -290,7 +320,7 @@ function AuthPageContent() {
 
                                 <div className="space-y-3">
                                     <WalletConnectButton />
-                                    
+
                                     {/* Show authenticate button after wallet connects */}
                                     {isConnected && (
                                         <Button
@@ -313,7 +343,7 @@ function AuthPageContent() {
                                             )}
                                         </Button>
                                     )}
-                                    
+
                                     {/* Show wallet error if any */}
                                     {walletError && (
                                         <p className="text-xs text-red-400 text-center">{walletError}</p>
@@ -342,7 +372,7 @@ function AuthPageContent() {
                                 </p>
                             )}
                         </div>
-                        
+
                         {/* Subtle donation link (unobtrusive) */}
                         {!isAdminMode && (
                             <div className="mt-2 text-center">

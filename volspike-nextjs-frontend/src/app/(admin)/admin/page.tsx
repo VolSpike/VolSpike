@@ -1,7 +1,7 @@
 // SERVER COMPONENT – no "use client" here
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { verifyAccessTokenAndRole, getServerAuthToken } from '@/lib/auth-server'
+import { auth } from '@/lib/auth'
 import AdminDashboardClient from './admin-dashboard-client'
 
 export const metadata: Metadata = {
@@ -10,10 +10,10 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminPage() {
-    const token = await getServerAuthToken()
-    const { ok, role } = await verifyAccessTokenAndRole(token)
+    const session = await auth()
 
-    if (!ok || role !== 'admin') {
+    // Check if user is admin using NextAuth session (works with all auth methods)
+    if (!session?.user || session.user.role !== 'ADMIN') {
         // always redirect from the server – consistent tree
         redirect('/auth?next=/admin&mode=admin')
     }
