@@ -5,7 +5,7 @@ import { PaymentsTable } from './payments-table'
 import { PaymentFilters } from './payment-filters'
 import { CreatePaymentDialog } from './create-payment-dialog'
 import { adminAPI } from '@/lib/admin/api-client'
-import { Loader2, AlertCircle, Plus } from 'lucide-react'
+import { Loader2, AlertCircle, Plus, CreditCard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
