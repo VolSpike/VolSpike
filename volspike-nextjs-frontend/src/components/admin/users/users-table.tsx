@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
     Table,
@@ -67,6 +68,7 @@ interface UsersTableProps {
 
 export function UsersTable({ users, pagination, currentQuery }: UsersTableProps) {
     const router = useRouter()
+    const { data: session } = useSession()
     const [selectedUsers, setSelectedUsers] = useState<string[]>([])
     const [loading, setLoading] = useState<string | null>(null)
     const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
@@ -74,6 +76,14 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     const [editRole, setEditRole] = useState<'USER' | 'ADMIN'>('USER')
     const [editStatus, setEditStatus] = useState<'ACTIVE' | 'SUSPENDED' | 'BANNED'>('ACTIVE')
     const [savingEdit, setSavingEdit] = useState(false)
+
+    // Ensure admin API has the current access token on the client
+    useEffect(() => {
+        const token = (session as any)?.accessToken as string | undefined
+        if (token) {
+            adminAPI.setAccessToken(token)
+        }
+    }, [session])
 
     const handleSelectAll = (checked: boolean) => {
         if (checked) {
