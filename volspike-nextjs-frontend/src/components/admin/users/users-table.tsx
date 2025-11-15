@@ -49,7 +49,11 @@ import {
     ChevronUp,
     ChevronDown,
     ChevronsUpDown,
-    Users
+    Users,
+    Calendar,
+    Clock,
+    CreditCard,
+    Zap
 } from 'lucide-react'
 import { format, differenceInDays, isPast } from 'date-fns'
 import { toast } from 'react-hot-toast'
@@ -400,44 +404,75 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         const isExpired = isPast(expiresAt)
                                         const daysRemaining = differenceInDays(expiresAt, new Date())
                                         
-                                        let badgeColor = 'bg-emerald-600/90 text-white dark:bg-emerald-600/80'
-                                        let badgeText = `${Math.abs(daysRemaining)}d left`
+                                        // Determine status and colors
+                                        let statusColor = 'text-emerald-600 dark:text-emerald-400'
+                                        let statusBg = 'bg-emerald-50 dark:bg-emerald-950/20'
+                                        let borderColor = 'border-emerald-200 dark:border-emerald-800'
+                                        let statusText = `${daysRemaining} days remaining`
+                                        let statusIcon = <Zap className="h-3.5 w-3.5" />
                                         
                                         if (isExpired) {
-                                            badgeColor = 'bg-red-600/90 text-white dark:bg-red-600/80'
-                                            badgeText = 'Expired'
+                                            statusColor = 'text-red-600 dark:text-red-400'
+                                            statusBg = 'bg-red-50 dark:bg-red-950/20'
+                                            borderColor = 'border-red-200 dark:border-red-800'
+                                            statusText = 'Expired'
+                                            statusIcon = <Clock className="h-3.5 w-3.5" />
                                         } else if (daysRemaining <= 7) {
-                                            badgeColor = 'bg-red-500/90 text-white dark:bg-red-500/70'
+                                            statusColor = 'text-red-600 dark:text-red-400'
+                                            statusBg = 'bg-red-50 dark:bg-red-950/20'
+                                            borderColor = 'border-red-200 dark:border-red-800'
+                                            statusIcon = <Clock className="h-3.5 w-3.5" />
                                         } else if (daysRemaining <= 30) {
-                                            badgeColor = 'bg-amber-500/90 text-white dark:bg-amber-500/70'
+                                            statusColor = 'text-amber-600 dark:text-amber-400'
+                                            statusBg = 'bg-amber-50 dark:bg-amber-950/20'
+                                            borderColor = 'border-amber-200 dark:border-amber-800'
+                                            statusIcon = <Clock className="h-3.5 w-3.5" />
                                         }
                                         
                                         return (
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <Badge className={badgeColor} variant="default">
-                                                        {badgeText}
-                                                    </Badge>
-                                                    {user.subscriptionMethod && (
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {user.subscriptionMethod === 'stripe' ? 'Stripe' : 'Crypto'}
+                                            <div className={`flex flex-col gap-2 p-2.5 rounded-lg border ${borderColor} ${statusBg} transition-colors`}>
+                                                {/* Status Row */}
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div className={`flex items-center gap-1.5 ${statusColor}`}>
+                                                        {statusIcon}
+                                                        <span className="text-xs font-semibold">
+                                                            {statusText}
                                                         </span>
+                                                    </div>
+                                                    {user.subscriptionMethod && (
+                                                        <div className="flex items-center gap-1">
+                                                            {user.subscriptionMethod === 'stripe' ? (
+                                                                <CreditCard className="h-3 w-3 text-blue-500 dark:text-blue-400" />
+                                                            ) : (
+                                                                <Zap className="h-3 w-3 text-purple-500 dark:text-purple-400" />
+                                                            )}
+                                                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                                                {user.subscriptionMethod === 'stripe' ? 'Stripe' : 'Crypto'}
+                                                            </span>
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-medium text-foreground">
-                                                        {format(expiresAt, 'MMM d, yyyy')}
-                                                    </span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {format(expiresAt, 'h:mm a')}
-                                                    </span>
+                                                
+                                                {/* Date Row */}
+                                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                    <Calendar className="h-3 w-3" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-xs font-medium text-foreground">
+                                                            {format(expiresAt, 'MMM d, yyyy')}
+                                                        </span>
+                                                        <span className="text-[10px]">
+                                                            {format(expiresAt, 'h:mm a')}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )
                                     })() : (
-                                        <span className="text-sm text-muted-foreground italic">
-                                            {user.tier === 'free' ? 'Free tier' : 'No subscription'}
-                                        </span>
+                                        <div className="p-2.5 rounded-lg border border-border/40 bg-muted/30">
+                                            <span className="text-xs text-muted-foreground italic">
+                                                {user.tier === 'free' ? 'Free tier' : 'No subscription'}
+                                            </span>
+                                        </div>
                                     )}
                                 </TableCell>
                                 <TableCell>
