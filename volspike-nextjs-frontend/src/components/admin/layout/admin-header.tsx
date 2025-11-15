@@ -27,11 +27,9 @@ import { useTheme } from 'next-themes'
 export function AdminHeader() {
     const { data: session } = useSession()
     const { theme, setTheme } = useTheme()
-    const [notifications] = useState([
-        { id: 1, message: 'New user registered', time: '2 minutes ago' },
-        { id: 2, message: 'Subscription payment failed', time: '5 minutes ago' },
-        { id: 3, message: 'System backup completed', time: '1 hour ago' },
-    ])
+    // Real notifications will be fetched from audit logs in the future
+    // For now, show empty state
+    const [notifications] = useState<Array<{ id: string; message: string; time: string }>>([])
 
     const handleSignOut = () => {
         // This would be handled by the signOut function from next-auth
@@ -102,16 +100,26 @@ export function AdminHeader() {
                             <DropdownMenuLabel>Notifications</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {notifications.length === 0 ? (
-                                <div className="p-4 text-center text-sm text-muted-foreground">
-                                    No new notifications
+                                <div className="p-6 text-center">
+                                    <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                                    <p className="text-sm font-medium text-muted-foreground mb-1">No notifications</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Important events will appear here
+                                    </p>
                                 </div>
                             ) : (
-                                notifications.map((notification) => (
-                                    <DropdownMenuItem key={notification.id} className="flex flex-col items-start p-3">
-                                        <div className="font-medium">{notification.message}</div>
-                                        <div className="text-xs text-muted-foreground">{notification.time}</div>
+                                <>
+                                    {notifications.map((notification) => (
+                                        <DropdownMenuItem key={notification.id} className="flex flex-col items-start p-3">
+                                            <div className="font-medium">{notification.message}</div>
+                                            <div className="text-xs text-muted-foreground">{notification.time}</div>
+                                        </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="text-center justify-center text-xs text-muted-foreground">
+                                        View all in Audit Logs
                                     </DropdownMenuItem>
-                                ))
+                                </>
                             )}
                         </DropdownMenuContent>
                     </DropdownMenu>
