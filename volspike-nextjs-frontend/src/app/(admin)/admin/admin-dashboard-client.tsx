@@ -8,6 +8,7 @@ import { UserGrowthChart } from '@/components/admin/dashboard/user-growth-chart'
 import { RevenueChart } from '@/components/admin/dashboard/revenue-chart'
 import { SystemHealth } from '@/components/admin/dashboard/system-health'
 import { QuickActions } from '@/components/admin/dashboard/quick-actions'
+import { DashboardWalletBalances } from '@/components/admin/dashboard/wallet-balances'
 import { adminAPI } from '@/lib/admin/api-client'
 import type { SystemMetrics } from '@/types/admin'
 import { Loader2 } from 'lucide-react'
@@ -90,7 +91,11 @@ export default function AdminDashboardClient() {
                 <RevenueChart metrics={metrics} />
             </div>
 
-            <SystemHealth />
+            <div className="grid gap-6 md:grid-cols-2">
+                <DashboardWalletBalances />
+                <SystemHealth />
+            </div>
+
             <RecentActivity activities={[]} />
         </div>
     )
