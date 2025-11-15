@@ -85,7 +85,7 @@ export function UserActions() {
             <div className="flex items-center space-x-2">
                 <Dialog open={createUserOpen} onOpenChange={setCreateUserOpen}>
                     <DialogTrigger asChild>
-                        <Button className="flex items-center space-x-2">
+                        <Button className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all">
                             <UserPlus className="h-4 w-4" />
                             <span>Create User</span>
                         </Button>

@@ -65,14 +65,50 @@ adminUserRoutes.get('/', async (c) => {
                 createdAt: true,
                 lastLoginAt: true,
                 stripeCustomerId: true,
+                cryptoPayments: {
+                    where: {
+                        paymentStatus: 'finished',
+                    },
+                    select: {
+                        id: true,
+                        actuallyPaidCurrency: true,
+                    },
+                    take: 1,
+                    orderBy: {
+                        paidAt: 'desc',
+                    },
+                },
             },
             orderBy: { [params.sortBy]: params.sortOrder },
             skip: (params.page - 1) * params.limit,
             take: params.limit,
         })
 
+        // Transform users to include payment method
+        const usersWithPaymentMethod = users.map(user => {
+            const hasCryptoPayment = user.cryptoPayments && user.cryptoPayments.length > 0
+            const hasStripe = !!user.stripeCustomerId
+            let paymentMethod: 'stripe' | 'crypto' | null = null
+            
+            if (hasCryptoPayment && hasStripe) {
+                // If user has both, prioritize the most recent payment
+                // For now, show crypto if they have a finished crypto payment
+                paymentMethod = 'crypto'
+            } else if (hasCryptoPayment) {
+                paymentMethod = 'crypto'
+            } else if (hasStripe) {
+                paymentMethod = 'stripe'
+            }
+
+            return {
+                ...user,
+                paymentMethod,
+                cryptoPayments: undefined, // Remove from response
+            }
+        })
+
         return c.json({
-            users,
+            users: usersWithPaymentMethod,
             pagination: {
                 total,
                 page: params.page,

@@ -358,15 +358,21 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         )}
                                         <div className="flex gap-1 mt-1">
                                             {user.emailVerified && (
-                                                <Badge variant="outline" className="text-xs">
+                                                <Badge variant="outline" className="text-xs border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
                                                     <Mail className="h-3 w-3 mr-1" />
                                                     Verified
                                                 </Badge>
                                             )}
-                                            {user.stripeCustomerId && (
-                                                <Badge variant="outline" className="text-xs">
+                                            {user.paymentMethod === 'stripe' && (
+                                                <Badge variant="outline" className="text-xs border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400">
                                                     <DollarSign className="h-3 w-3 mr-1" />
                                                     Stripe
+                                                </Badge>
+                                            )}
+                                            {user.paymentMethod === 'crypto' && (
+                                                <Badge variant="outline" className="text-xs border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400">
+                                                    <DollarSign className="h-3 w-3 mr-1" />
+                                                    Crypto
                                                 </Badge>
                                             )}
                                         </div>
@@ -388,13 +394,28 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    {format(new Date(user.createdAt), 'MMM d, yyyy')}
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium">
+                                            {format(new Date(user.createdAt), 'MMM d, yyyy')}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {format(new Date(user.createdAt), 'h:mm a')}
+                                        </span>
+                                    </div>
                                 </TableCell>
                                 <TableCell>
-                                    {user.lastLoginAt
-                                        ? format(new Date(user.lastLoginAt), 'MMM d, yyyy')
-                                        : 'Never'
-                                    }
+                                    {user.lastLoginAt ? (
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium">
+                                                {format(new Date(user.lastLoginAt), 'MMM d, yyyy')}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                                {format(new Date(user.lastLoginAt), 'h:mm a')}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-sm text-muted-foreground italic">No login yet</span>
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                     <DropdownMenu>
@@ -403,59 +424,65 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                 variant="ghost"
                                                 size="icon"
                                                 disabled={loading === user.id}
+                                                className="h-8 w-8 rounded-md hover:bg-muted/80 transition-colors"
                                             >
                                                 {loading === user.id ? (
-                                                    <RefreshCw className="h-4 w-4 animate-spin" />
+                                                    <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
                                                 ) : (
-                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <MoreHorizontal className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                                 )}
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuContent align="end" className="w-56 rounded-lg border border-border/60 bg-card/95 backdrop-blur-sm shadow-lg p-1">
+                                            <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                Actions
+                                            </DropdownMenuLabel>
                                             <DropdownMenuItem
                                                 onClick={() => handleAction('edit', user)}
+                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
                                             >
-                                                <Edit className="h-4 w-4 mr-2" />
-                                                Edit User
+                                                <Edit className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                                                <span>Edit User</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 onClick={() => handleAction('view-subscription', user)}
+                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
                                             >
-                                                <DollarSign className="h-4 w-4 mr-2" />
-                                                View Subscription
+                                                <DollarSign className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                                                <span>View Subscription</span>
                                             </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
+                                            <DropdownMenuSeparator className="my-1 bg-border/60" />
                                             {user.status === 'ACTIVE' ? (
                                                 <DropdownMenuItem
                                                     onClick={() => handleAction('suspend', user)}
-                                                    className="text-yellow-600"
+                                                    className="px-3 py-2 cursor-pointer rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors focus:bg-amber-50 dark:focus:bg-amber-950/20"
                                                 >
-                                                    <Ban className="h-4 w-4 mr-2" />
-                                                    Suspend User
+                                                    <Ban className="h-4 w-4 mr-2.5 text-amber-600 dark:text-amber-500" />
+                                                    <span className="text-amber-700 dark:text-amber-400">Suspend User</span>
                                                 </DropdownMenuItem>
                                             ) : (
                                                 <DropdownMenuItem
                                                     onClick={() => handleAction('activate', user)}
-                                                    className="text-emerald-600 dark:text-emerald-400"
+                                                    className="px-3 py-2 cursor-pointer rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
                                                 >
-                                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                                    Activate User
+                                                    <RefreshCw className="h-4 w-4 mr-2.5 text-emerald-600 dark:text-emerald-400" />
+                                                    <span className="text-emerald-700 dark:text-emerald-400">Activate User</span>
                                                 </DropdownMenuItem>
                                             )}
                                             <DropdownMenuItem
                                                 onClick={() => handleAction('reset-password', user)}
+                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
                                             >
-                                                <Mail className="h-4 w-4 mr-2" />
-                                                Reset Password
+                                                <Mail className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                                                <span>Reset Password</span>
                                             </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
+                                            <DropdownMenuSeparator className="my-1 bg-border/60" />
                                             <DropdownMenuItem
                                                 onClick={() => handleAction('delete', user)}
-                                                className="text-red-600"
+                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors focus:bg-red-50 dark:focus:bg-red-950/20"
                                             >
-                                                <Trash className="h-4 w-4 mr-2" />
-                                                Delete User
+                                                <Trash className="h-4 w-4 mr-2.5 text-red-600 dark:text-red-400" />
+                                                <span className="text-red-700 dark:text-red-400">Delete User</span>
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
