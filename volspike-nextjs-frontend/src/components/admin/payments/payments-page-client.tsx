@@ -29,6 +29,12 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
 
     const queryKey = useMemo(() => JSON.stringify(query), [query])
 
+    // Keep local state in sync when server-side filters change (e.g. email, status, tier)
+    useEffect(() => {
+        setPaymentsData(initialData)
+        setError(null)
+    }, [initialData, queryKey])
+
     const fetchPayments = async () => {
         if (!accessToken) {
             setError('Authentication required')
@@ -160,4 +166,3 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
         </div>
     )
 }
-
