@@ -204,6 +204,15 @@ adminWalletRoutes.post('/refresh-all', async (c) => {
     }
 })
 
+// Token contract addresses
+const TOKEN_CONTRACTS = {
+    // Ethereum ERC-20 tokens
+    USDC_ETH: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC on Ethereum
+    USDT_ETH: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT on Ethereum
+    // Solana SPL tokens
+    USDT_SOL: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT on Solana (SPL token mint)
+}
+
 // Helper function to fetch wallet balance from blockchain APIs
 async function fetchWalletBalance(
     address: string,
@@ -227,8 +236,8 @@ async function fetchWalletBalance(
             return (data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum) / 100000000
         }
 
-        // Ethereum and ERC-20 tokens
-        if (currencyUpper === 'ETH' || currencyUpper === 'USDT' || currencyUpper === 'USDC') {
+        // Native Ethereum (ETH)
+        if (currencyUpper === 'ETH') {
             const apiKey = process.env.ETHERSCAN_API_KEY || ''
             const apiUrl = apiKey
                 ? `https://api.etherscan.io/api?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`
@@ -250,7 +259,34 @@ async function fetchWalletBalance(
             throw new Error('Invalid Etherscan response')
         }
 
-        // Solana
+        // ERC-20 tokens on Ethereum (USDC, USDT)
+        if (currencyUpper === 'USDC' || (currencyUpper === 'USDT' && network?.toLowerCase().includes('eth'))) {
+            // Fetch ERC-20 token balance
+            const contractAddress = currencyUpper === 'USDC' 
+                ? TOKEN_CONTRACTS.USDC_ETH 
+                : TOKEN_CONTRACTS.USDT_ETH
+            
+            const apiKey = process.env.ETHERSCAN_API_KEY || ''
+            const apiUrl = apiKey
+                ? `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
+                : `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest`
+
+            const response = await fetch(apiUrl)
+            if (!response.ok) throw new Error('Etherscan API error')
+            const data = await response.json() as {
+                status: string
+                result: string
+            }
+
+            if (data.status === '1' && data.result) {
+                // ERC-20 tokens typically have 6 decimals (USDC/USDT)
+                const tokenAmount = BigInt(data.result)
+                return Number(tokenAmount) / 1e6
+            }
+            throw new Error('Invalid Etherscan token balance response')
+        }
+
+        // Native Solana (SOL)
         if (currencyUpper === 'SOL') {
             const response = await fetch(`https://api.mainnet-beta.solana.com`, {
                 method: 'POST',
@@ -274,6 +310,59 @@ async function fetchWalletBalance(
                 return data.result.value / 1e9
             }
             throw new Error('Invalid Solana response')
+        }
+
+        // SPL tokens on Solana (USDT on Solana)
+        if (currencyUpper === 'USDT' && (network?.toLowerCase().includes('sol') || network?.toLowerCase().includes('solana'))) {
+            // Fetch SPL token balance using getTokenAccountsByOwner
+            const response = await fetch(`https://api.mainnet-beta.solana.com`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'getTokenAccountsByOwner',
+                    params: [
+                        address,
+                        {
+                            mint: TOKEN_CONTRACTS.USDT_SOL,
+                        },
+                        {
+                            encoding: 'jsonParsed',
+                        },
+                    ],
+                }),
+            })
+            
+            if (!response.ok) throw new Error('Solana API error')
+            const data = await response.json() as {
+                result: {
+                    value: Array<{
+                        account: {
+                            data: {
+                                parsed: {
+                                    info: {
+                                        tokenAmount: {
+                                            amount: string
+                                            decimals: number
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }>
+                } | null
+            }
+
+            if (data.result && data.result.value.length > 0) {
+                // Get the first token account (should only be one for a specific mint)
+                const tokenAccount = data.result.value[0]
+                const tokenAmount = tokenAccount.account.data.parsed.info.tokenAmount
+                const decimals = tokenAmount.decimals || 6 // USDT typically has 6 decimals
+                return Number(tokenAmount.amount) / Math.pow(10, decimals)
+            }
+            // No token account found, return 0
+            return 0
         }
 
         // Default: return 0 if currency not supported

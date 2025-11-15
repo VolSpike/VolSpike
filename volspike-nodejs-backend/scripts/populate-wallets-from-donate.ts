@@ -19,13 +19,31 @@ const wallets = [
         address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
         currency: 'ETH',
         network: null,
-        label: 'Ethereum Donation Wallet (ETH/USDC/USDT)',
+        label: 'Ethereum Donation Wallet',
+    },
+    {
+        address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
+        currency: 'USDC',
+        network: 'Ethereum',
+        label: 'USDC on Ethereum',
+    },
+    {
+        address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
+        currency: 'USDT',
+        network: 'Ethereum',
+        label: 'USDT on Ethereum',
     },
     {
         address: 'DWDTRqQ2zJn6becjTypRwSAVBqoGEh7v7PoAjvwiJ2PS',
         currency: 'SOL',
         network: null,
-        label: 'Solana Donation Wallet (SOL/USDT)',
+        label: 'Solana Donation Wallet',
+    },
+    {
+        address: 'DWDTRqQ2zJn6becjTypRwSAVBqoGEh7v7PoAjvwiJ2PS',
+        currency: 'USDT',
+        network: 'Solana',
+        label: 'USDT on Solana',
     },
 ]
 
