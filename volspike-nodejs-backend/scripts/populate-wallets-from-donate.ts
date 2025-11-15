@@ -13,13 +13,13 @@ const wallets = [
         address: 'bc1q69rs0qplxwzq0v4rtycn3lklzddz9g29g3n0lv',
         currency: 'BTC',
         network: null,
-        label: 'Bitcoin Donation Wallet',
+        label: 'Bitcoin Wallet',
     },
     {
         address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
         currency: 'ETH',
         network: null,
-        label: 'Ethereum Donation Wallet',
+        label: 'Ethereum Wallet',
     },
     {
         address: '0xE66b0a890c3DB2b1E864E5D3367d38Bd9AC014E9',
@@ -37,7 +37,7 @@ const wallets = [
         address: 'DWDTRqQ2zJn6becjTypRwSAVBqoGEh7v7PoAjvwiJ2PS',
         currency: 'SOL',
         network: null,
-        label: 'Solana Donation Wallet',
+        label: 'Solana Wallet',
     },
     {
         address: 'DWDTRqQ2zJn6becjTypRwSAVBqoGEh7v7PoAjvwiJ2PS',

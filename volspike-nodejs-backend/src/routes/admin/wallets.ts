@@ -303,6 +303,8 @@ async function fetchWalletBalance(
                 ? `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest&apikey=${apiKey}`
                 : `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest`
 
+            logger.info(`Fetching ${currencyUpper} balance for ${address} using contract ${contractAddress}`)
+            
             const response = await fetch(apiUrl)
             if (!response.ok) {
                 logger.warn(`Etherscan API HTTP error for ${currencyUpper}: ${response.status}`)
@@ -315,15 +317,19 @@ async function fetchWalletBalance(
                 message?: string
             }
 
+            logger.info(`Etherscan response for ${currencyUpper}: status=${data.status}, result=${data.result?.substring(0, 20)}...`)
+
             if (data.status === '1') {
                 // ERC-20 tokens typically have 6 decimals (USDC/USDT)
                 // result can be "0" for zero balance, which is valid
                 const tokenAmount = BigInt(data.result || '0')
-                return Number(tokenAmount) / 1e6
+                const balance = Number(tokenAmount) / 1e6
+                logger.info(`Parsed ${currencyUpper} balance: ${balance}`)
+                return balance
             }
             
             // Status "0" usually means error, but log it
-            logger.warn(`Etherscan API returned status 0 for ${currencyUpper}: ${data.message || 'Unknown error'}`)
+            logger.warn(`Etherscan API returned status 0 for ${currencyUpper}: ${data.message || 'Unknown error'}, result=${data.result}`)
             // Return 0 instead of throwing, so we show $0 instead of "-"
             return 0
         }
