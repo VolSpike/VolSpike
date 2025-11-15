@@ -1,6 +1,6 @@
 # VolSpike — Overview (December 2025)
 
-VolSpike is a production‑ready Binance Perpetual Futures dashboard featuring real‑time market data, volume spike alerts, authentication with email/OAuth/Web3 wallets, and Stripe‑based subscriptions. The app is designed for a fast, low‑ops footprint: the frontend connects directly to Binance from the browser, while the backend focuses on auth, subscriptions, and alert broadcasting.
+VolSpike is a production‑ready Binance Perpetual Futures dashboard featuring real‑time market data, volume spike alerts, authentication with email/OAuth/Web3 wallets, and both Stripe‑based subscriptions and cryptocurrency payments via NowPayments. The app is designed for a fast, low‑ops footprint: the frontend connects directly to Binance from the browser, while the backend focuses on auth, subscriptions, crypto/fiat payments, and alert broadcasting.
 
 ## Key Characteristics
 - Client‑only market data: Direct Binance WebSocket in the browser (no Redis, no ingestion workers)
@@ -45,6 +45,13 @@ VolSpike is a production‑ready Binance Perpetual Futures dashboard featuring r
 - Header: no wallet connect clutter for signed‑in users; wallet actions live in Linked Accounts and the user menu
 - Docs/Support/Status pages: consistent spacing; no extra gap before ad/footer
 
+## Admin Panel
+- Dedicated admin experience at `/admin` with a grid layout (sidebar + content) that matches the main VolSpike visual system.
+- Sidebar groups: **Overview**, **Users & Billing** (Users, Subscriptions, Payments), and **Monitoring & Settings** (Audit Logs, Metrics, Settings).
+- Admin header includes theme toggle, notifications, primary Sign Out, and a compact user menu; all admin routes are server‑protected with `role === 'ADMIN'`.
+- Dashboard provides quick actions (Create User, View Logs, Sync Stripe, Export/metrics), stats cards, user growth and revenue summaries, system health, and recent activity linking into the Audit Log view.
+- Users/Subscriptions/Payments/Audit/Metrics/Settings pages share the same admin shell and typography for a consistent, app‑like feel.
+
 ## Code Map (High Level)
 - `volspike-nextjs-frontend/` — Next.js (App Router, TS, Tailwind, shadcn/ui)
   - `src/components/market-table.tsx` — Market table, guest gating, export
@@ -58,6 +65,12 @@ VolSpike is a production‑ready Binance Perpetual Futures dashboard featuring r
   - `src/routes/volume-alerts.ts` — Ingest + query endpoints
   - `src/websocket/handlers.ts` — Socket auth (guest token, id method) + tier rooms
   - `src/services/alert-broadcaster.ts` — Wall‑clock batching to tier rooms
+
+## Payments
+- Stripe: primary recurring subscription system with customer portal, proration, and webhooks for automatic tier upgrades/downgrades.
+- NowPayments: optional crypto checkout (USDT/USDC/SOL/BTC/ETH and networks) using hosted invoices, IPN webhooks, and a `CryptoPayment` table; surfaced in the pricing flow via a payment‑method selector and reflected in unified subscription status.
+- Admin payments tooling: `/admin/payments` includes filtering, tier-mismatch repair, and a “Create Payment from NOWPayments” dialog. Webhook fallback now auto-creates missing `CryptoPayment` rows by parsing the `order_id`.
+- Ops reminder: if `/api/admin/payments` returns `Failed to fetch payments`, check Railway logs for Prisma errors (usually missing migrations). Run `npx prisma migrate deploy` against the production DB to sync schema (Neon already has `expiresAt` and related columns).
 
 ## Deployment
 - Frontend: Vercel (main branch)
@@ -86,4 +99,3 @@ npm i && npm run dev
 ## Status
 Production Ready ✅  
 Last updated: December 2025
-

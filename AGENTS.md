@@ -4,6 +4,14 @@
 
 VolSpike is a comprehensive Binance Perpetual Futures trading dashboard featuring real-time market data, volume spike alerts, user authentication, payment processing via Stripe, Web3 wallet integration, and modern Next.js frontend. This production-ready application provides tiered access (Free/Pro/Elite) with advanced features including email notifications, SMS alerts, and **client-side WebSocket data streaming**.
 
+## Status Snapshot (December 2025)
+
+- ✅ **Admin payments workflow refreshed** – dedicated `/admin/payments` page with Create‑Payment dialog, tier mismatch repair, and manual upgrade hooks.
+- ✅ **NowPayments webhook fallback** – if an invoice webhook arrives without a local `CryptoPayment` row we now auto-create it (parsing the `order_id`) and continue the upgrade flow.
+- ⚠️ **Known issue** – the Railway deployment is currently returning `Failed to fetch payments` because migrations were not applied. Resolve by running `npx prisma migrate deploy` on the backend service (Neon schema has `expiresAt`; production DB must match).
+- ✅ **Detailed logging** – `/api/admin/payments` now returns `details` in error responses, making remote debugging easier.
+- ✅ **Admin chrome** – public header auto-hides on `/admin/*`; sidebar/header files are synced so burger overlays are gone.
+
 ## 🚀 Client-Only Architecture (No Redis Dependency)
 
 ### Core Technology Stack
@@ -393,6 +401,13 @@ TWILIO_PHONE_NUMBER=+1234567890
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
 
+# NowPayments (crypto payments)
+NOWPAYMENTS_API_KEY=your-nowpayments-api-key
+NOWPAYMENTS_IPN_SECRET=your-ipn-secret
+NOWPAYMENTS_SANDBOX_MODE=true  # false in production
+NOWPAYMENTS_API_URL=https://api.nowpayments.io/v1
+# BACKEND_URL is used to build IPN callback URLs (e.g. https://backend.volspike.com)
+
 # Market Data Polling (set to true to disable backend market polling in production)
 DISABLE_SERVER_MARKET_POLL=false
 
@@ -500,6 +515,7 @@ NODE_ENV=production
 - Webhook handling for payment events
 - Tier-based feature access
 - Billing portal integration
+- Crypto payments via NowPayments (hosted invoices + IPN webhooks) for Pro/Elite tiers, tracked in the `CryptoPayment` table and merged with Stripe into unified subscription status.
 
 ### Real-time Data (Client-Side WebSocket)
 - **Direct Binance WebSocket** from user's browser
@@ -518,6 +534,13 @@ NODE_ENV=production
 - Telegram notifications
 - Discord webhooks
 - In-app notifications
+
+### Admin Panel
+- Dedicated admin shell at `/admin` with a responsive grid layout (sidebar + content column).
+- Sidebar groups navigation into **Overview**, **Users & Billing** (Users, Subscriptions, Payments), and **Monitoring & Settings** (Audit Logs, Metrics, Settings).
+- Top header includes theme toggle, notifications, primary Sign Out, and user menu with role/tier context.
+- Admin dashboard surfaces quick actions, stats cards, user growth, revenue summary, system health, and recent activity with deep links into Audit Logs.
+- All admin routes are server‑protected (`role === 'ADMIN'`), with redirects for unauthenticated or non‑admin users.
 
 ### Admin Dashboard (Role-Based Access Control)
 - **Admin Authentication**: Role-based access with ADMIN/USER roles
