@@ -36,6 +36,7 @@ import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { SubscriptionSummary } from '@/types/admin'
 import { adminAPI } from '@/lib/admin/api-client'
+import { SyncResultDialog } from './sync-result-dialog'
 
 interface SubscriptionsTableProps {
     subscriptions: SubscriptionSummary[]
