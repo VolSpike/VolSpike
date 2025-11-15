@@ -358,10 +358,13 @@ export const authConfig: NextAuthConfig = {
                             }
                             token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
                             token.emailVerified = dbUser.emailVerified
-                            token.role = dbUser.role || 'USER' // Default to 'USER' if undefined
+                            token.role = dbUser.role || 'USER' // Default to 'USER' if undefined - CRITICAL for admin access
                             token.status = dbUser.status
                             token.twoFactorEnabled = dbUser.twoFactorEnabled
                             token.accessToken = dbToken
+                            token.tierLastChecked = Date.now() // Mark as checked so refresh happens
+                            
+                            console.log(`[NextAuth] ✅ OAuth account created/linked: ${dbUser.email}, role: ${token.role}, tier: ${token.tier}`)
                             // CRITICAL: Preserve Google profile image - backend doesn't return it
                             // Always use user.image if available (it's the fresh Google profile photo)
                             if (user.image) {
