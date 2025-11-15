@@ -47,6 +47,8 @@ export function DashboardWalletBalances() {
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const isVisibleRef = useRef(true)
     const hasCheckedStaleRef = useRef(false)
+    const isFetchingRef = useRef(false)
+    const isRefreshingRef = useRef(false)
 
     // Check if data is stale
     const isDataStale = useCallback((updatedAt: string | null): boolean => {
@@ -100,10 +102,22 @@ export function DashboardWalletBalances() {
     }, [session])
 
     const refreshBalances = useCallback(async (showToast = true) => {
-        if (!session?.accessToken) return
+        if (!session?.accessToken) {
+            console.log('[WalletBalances] No session token, skipping refresh')
+            return
+        }
 
+        // Prevent duplicate calls
+        if (isRefreshingRef.current) {
+            console.log('[WalletBalances] Already refreshing, skipping duplicate call')
+            return
+        }
+
+        isRefreshingRef.current = true
         setRefreshing(true)
+        
         try {
+            console.log('[WalletBalances] Refreshing balances...', { showToast })
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets/refresh-all`,
                 {
@@ -114,46 +128,63 @@ export function DashboardWalletBalances() {
                 }
             )
 
-            if (!response.ok) throw new Error('Failed to refresh balances')
-            const data = await response.json()
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error('[WalletBalances] Refresh API error:', response.status, errorText)
+                throw new Error(`Failed to refresh balances: ${response.status}`)
+            }
             
-            if (showToast) {
+            const data = await response.json()
+            console.log('[WalletBalances] Refresh result:', { successful: data.successful, total: data.total })
+            
+            if (showToast && data.successful > 0) {
                 toast.success(`Refreshed ${data.successful} of ${data.total} wallets`)
             }
             
-            // Fetch updated wallet data
+            // Fetch updated wallet data silently
             await fetchWallets(true)
-        } catch (error) {
-            console.error('Failed to refresh balances:', error)
+        } catch (error: any) {
+            console.error('[WalletBalances] Failed to refresh balances:', error)
+            // Only show error toast if explicitly requested
             if (showToast) {
                 toast.error('Failed to refresh balances')
             }
         } finally {
+            isRefreshingRef.current = false
             setRefreshing(false)
         }
     }, [session, fetchWallets])
 
-    // Auto-refresh on mount
+    // Auto-refresh on mount (only once)
+    const hasFetchedRef = useRef(false)
     useEffect(() => {
-        if (session?.accessToken) {
+        if (session?.accessToken && !hasFetchedRef.current) {
+            hasFetchedRef.current = true
+            console.log('[WalletBalances] Initial fetch on mount')
             fetchWallets()
         }
-    }, [session, fetchWallets])
+    }, [session?.accessToken, fetchWallets])
     
-    // Check and refresh stale data after wallets are loaded (only once after initial load)
+    // Check and refresh stale data after wallets are loaded (only once)
     useEffect(() => {
-        if (wallets.length > 0 && !hasCheckedStaleRef.current && session?.accessToken) {
+        if (wallets.length > 0 && !hasCheckedStaleRef.current && session?.accessToken && !isRefreshingRef.current) {
             hasCheckedStaleRef.current = true
+            console.log('[WalletBalances] Checking for stale data...')
             // Check if data is stale and refresh if needed
             if (needsRefresh()) {
+                console.log('[WalletBalances] Data is stale, scheduling refresh...')
                 // Small delay to avoid race conditions
                 const timer = setTimeout(() => {
-                    refreshBalances(false)
-                }, 2000)
+                    if (!isRefreshingRef.current) {
+                        refreshBalances(false)
+                    }
+                }, 3000) // Increased delay to ensure everything is settled
                 return () => clearTimeout(timer)
+            } else {
+                console.log('[WalletBalances] Data is fresh, no refresh needed')
             }
         }
-    }, [wallets.length, session?.accessToken, needsRefresh, refreshBalances])
+    }, [wallets.length, session?.accessToken]) // Removed needsRefresh and refreshBalances to prevent loops
 
     // Auto-refresh balances periodically
     useEffect(() => {
