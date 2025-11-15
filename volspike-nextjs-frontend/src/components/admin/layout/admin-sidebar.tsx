@@ -193,7 +193,7 @@ export function AdminSidebar() {
                                     )
                                 })}
                             </div>
-                        </div>
+                        </nav>
                     </ScrollArea>
 
                     {/* User info and logout */}
