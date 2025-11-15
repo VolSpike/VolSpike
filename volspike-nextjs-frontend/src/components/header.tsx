@@ -23,6 +23,11 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
     const tier = session?.user?.tier || 'free'
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+    // Hide global site header on admin routes - admin has its own chrome
+    if (pathname?.startsWith('/admin')) {
+        return null
+    }
+
     // Ensure only one active identity at a time
     useEnforceSingleIdentity()
 
