@@ -196,9 +196,32 @@ adminUserRoutes.get('/', async (c) => {
                 pages: Math.ceil(total / params.limit),
             },
         })
-    } catch (error) {
-        logger.error('List users error:', error)
-        return c.json({ error: 'Failed to fetch users' }, 500)
+    } catch (error: any) {
+        logger.error('List users error:', {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+            issues: error?.issues, // Zod validation errors
+        })
+        
+        // Return more detailed error information
+        if (error?.issues && Array.isArray(error.issues)) {
+            // Zod validation error
+            const validationErrors = error.issues.map((issue: any) => ({
+                path: issue.path?.join('.'),
+                message: issue.message,
+            }))
+            logger.error('Validation errors:', validationErrors)
+            return c.json({ 
+                error: 'Invalid request parameters',
+                details: validationErrors,
+            }, 400)
+        }
+        
+        return c.json({ 
+            error: 'Failed to fetch users',
+            message: error?.message || 'Unknown error',
+        }, 500)
     }
 })
 
