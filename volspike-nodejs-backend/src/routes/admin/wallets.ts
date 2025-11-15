@@ -140,8 +140,14 @@ adminWalletRoutes.post('/:id/refresh-balance', async (c) => {
         let balance: number | null = null
         try {
             balance = await fetchWalletBalance(wallet.address, wallet.currency, wallet.network || undefined)
-        } catch (error) {
-            logger.warn('Failed to fetch wallet balance:', error)
+            // Ensure we store 0 instead of null for zero balances
+            if (balance === null || isNaN(balance)) {
+                balance = 0
+            }
+        } catch (error: any) {
+            logger.warn(`Failed to fetch wallet balance for ${wallet.currency} (${wallet.address}):`, error?.message || error)
+            // Set to 0 instead of null so UI shows $0 instead of "-"
+            balance = 0
         }
 
         // Update wallet with new balance
@@ -168,11 +174,15 @@ adminWalletRoutes.post('/refresh-all', async (c) => {
         const results = await Promise.allSettled(
             wallets.map(async (wallet) => {
                 try {
-                    const balance = await fetchWalletBalance(
+                    let balance = await fetchWalletBalance(
                         wallet.address,
                         wallet.currency,
                         wallet.network || undefined
                     )
+                    // Ensure we store 0 instead of null for zero balances
+                    if (balance === null || isNaN(balance)) {
+                        balance = 0
+                    }
                     await prisma.adminWallet.update({
                         where: { id: wallet.id },
                         data: {
@@ -181,9 +191,21 @@ adminWalletRoutes.post('/refresh-all', async (c) => {
                         },
                     })
                     return { walletId: wallet.id, success: true, balance }
-                } catch (error) {
-                    logger.warn(`Failed to refresh balance for wallet ${wallet.id}:`, error)
-                    return { walletId: wallet.id, success: false, error: String(error) }
+                } catch (error: any) {
+                    logger.warn(`Failed to refresh balance for wallet ${wallet.id} (${wallet.currency}):`, error?.message || error)
+                    // Set balance to 0 on error so UI shows $0 instead of "-"
+                    try {
+                        await prisma.adminWallet.update({
+                            where: { id: wallet.id },
+                            data: {
+                                balance: 0,
+                                balanceUpdatedAt: new Date(),
+                            },
+                        })
+                    } catch (updateError) {
+                        logger.error(`Failed to update wallet ${wallet.id} with zero balance:`, updateError)
+                    }
+                    return { walletId: wallet.id, success: false, error: String(error?.message || error), balance: 0 }
                 }
             })
         )
@@ -244,19 +266,29 @@ async function fetchWalletBalance(
                 : `https://api.etherscan.io/api?module=account&action=balance&address=${address}&tag=latest`
 
             const response = await fetch(apiUrl)
-            if (!response.ok) throw new Error('Etherscan API error')
+            if (!response.ok) {
+                logger.warn(`Etherscan API HTTP error for ETH: ${response.status}`)
+                throw new Error(`Etherscan API error: ${response.status}`)
+            }
+            
             const data = await response.json() as {
                 status: string
                 result: string
+                message?: string
             }
 
-            if (data.status === '1' && data.result) {
+            if (data.status === '1') {
                 // Balance is in Wei, convert to ETH
-                const wei = BigInt(data.result)
+                // result can be "0" for zero balance, which is valid
+                const wei = BigInt(data.result || '0')
                 const eth = Number(wei) / 1e18
                 return eth
             }
-            throw new Error('Invalid Etherscan response')
+            
+            // Status "0" usually means error, but log it
+            logger.warn(`Etherscan API returned status 0 for ETH: ${data.message || 'Unknown error'}`)
+            // Return 0 instead of throwing, so we show $0 instead of "-"
+            return 0
         }
 
         // ERC-20 tokens on Ethereum (USDC, USDT)
@@ -272,18 +304,28 @@ async function fetchWalletBalance(
                 : `https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=${contractAddress}&address=${address}&tag=latest`
 
             const response = await fetch(apiUrl)
-            if (!response.ok) throw new Error('Etherscan API error')
+            if (!response.ok) {
+                logger.warn(`Etherscan API HTTP error for ${currencyUpper}: ${response.status}`)
+                throw new Error(`Etherscan API error: ${response.status}`)
+            }
+            
             const data = await response.json() as {
                 status: string
                 result: string
+                message?: string
             }
 
-            if (data.status === '1' && data.result) {
+            if (data.status === '1') {
                 // ERC-20 tokens typically have 6 decimals (USDC/USDT)
-                const tokenAmount = BigInt(data.result)
+                // result can be "0" for zero balance, which is valid
+                const tokenAmount = BigInt(data.result || '0')
                 return Number(tokenAmount) / 1e6
             }
-            throw new Error('Invalid Etherscan token balance response')
+            
+            // Status "0" usually means error, but log it
+            logger.warn(`Etherscan API returned status 0 for ${currencyUpper}: ${data.message || 'Unknown error'}`)
+            // Return 0 instead of throwing, so we show $0 instead of "-"
+            return 0
         }
 
         // Native Solana (SOL)
