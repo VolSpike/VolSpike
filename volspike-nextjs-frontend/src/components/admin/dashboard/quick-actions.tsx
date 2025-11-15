@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowRightCircle, FileText, RefreshCcw, Users as UsersIcon } from 'lucide-react'
+import { FileText, Users as UsersIcon, BarChart3 } from 'lucide-react'
 
 export function QuickActions() {
     const router = useRouter()
@@ -50,17 +50,17 @@ export function QuickActions() {
                     <Button
                         type="button"
                         variant="outline"
-                        className="group flex h-auto flex-col items-start gap-2 rounded-xl border-border/60 bg-card/30 px-4 py-4 text-left backdrop-blur-sm transition-all duration-200 hover:border-elite-500/30 hover:bg-elite-500/5 hover:shadow-md"
+                        className="group flex h-auto flex-col items-start gap-2 rounded-xl border-border/60 bg-card/30 px-4 py-4 text-left backdrop-blur-sm transition-all duration-200 hover:border-purple-500/30 hover:bg-purple-500/5 hover:shadow-md"
                         onClick={() => router.push('/admin/metrics')}
                     >
                         <span className="inline-flex items-center gap-2 font-medium text-foreground">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-elite-500/10 group-hover:bg-elite-500/20 transition-colors">
-                                <ArrowRightCircle className="h-4 w-4 text-elite-600 dark:text-elite-400" />
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+                                <BarChart3 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                             </div>
-                            Export Data
+                            View Metrics
                         </span>
                         <span className="text-xs text-muted-foreground">
-                            Jump to analytics and reporting
+                            System analytics and performance data
                         </span>
                     </Button>
                 </div>
