@@ -16,10 +16,9 @@ import {
     Menu,
     X,
     Shield,
-    LogOut,
     User
 } from 'lucide-react'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
 
 const navigation = [
@@ -64,10 +63,6 @@ export function AdminSidebar() {
     const pathname = usePathname()
     const { data: session } = useSession()
     const [isOpen, setIsOpen] = useState(false)
-
-    const handleSignOut = () => {
-        signOut({ callbackUrl: '/' })
-    }
 
     return (
         <>
@@ -196,9 +191,9 @@ export function AdminSidebar() {
                         </nav>
                     </ScrollArea>
 
-                    {/* User info and logout */}
+                    {/* User info summary */}
                     <div className="border-t border-border/60 p-4">
-                        <div className="flex items-center space-x-3 mb-4">
+                        <div className="flex items-center space-x-3">
                             <div className="flex-shrink-0">
                                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500/10 via-elite-500/10 to-sec-500/10">
                                     <User className="h-4 w-4 text-brand-600 dark:text-brand-300" />
@@ -213,15 +208,6 @@ export function AdminSidebar() {
                                 </p>
                             </div>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSignOut}
-                            className="w-full justify-start border-border/70 hover:border-destructive/40 hover:bg-destructive/5 text-destructive"
-                        >
-                            <LogOut className="h-4 w-4 mr-2" />
-                            Sign Out
-                        </Button>
                     </div>
                 </div>
             </div>
