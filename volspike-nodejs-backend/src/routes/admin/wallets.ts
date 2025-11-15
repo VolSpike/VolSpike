@@ -785,19 +785,30 @@ async function fetchWalletBalance(
 
                     logger.info(`Solana response for USDT from ${rpcUrl}: found ${data.result?.value?.length || 0} token accounts`)
 
-            if (data.result && data.result.value.length > 0) {
-                // Get the first token account (should only be one for a specific mint)
-                const tokenAccount = data.result.value[0]
-                const tokenAmount = tokenAccount.account.data.parsed.info.tokenAmount
-                const decimals = tokenAmount.decimals || 6 // USDT typically has 6 decimals
-                const balance = Number(tokenAmount.amount) / Math.pow(10, decimals)
-                logger.info(`Parsed USDT (Solana) balance: ${balance} (raw: ${tokenAmount.amount}, decimals: ${decimals})`)
-                return balance
+                    if (data.result && data.result.value && data.result.value.length > 0) {
+                        // Get the first token account (should only be one for a specific mint)
+                        const tokenAccount = data.result.value[0]
+                        const tokenAmount = tokenAccount.account.data.parsed.info.tokenAmount
+                        const decimals = tokenAmount.decimals || 6 // USDT typically has 6 decimals
+                        const balance = Number(tokenAmount.amount) / Math.pow(10, decimals)
+                        logger.info(`Parsed USDT (Solana) balance from ${rpcUrl}: ${balance} (raw: ${tokenAmount.amount}, decimals: ${decimals})`)
+                        return balance
+                    }
+                    
+                    // No token account found - this is valid (zero balance)
+                    logger.info(`No USDT token account found for ${address} on Solana via ${rpcUrl}`)
+                    return 0
+                } catch (error: any) {
+                    lastError = error
+                    logger.warn(`Failed to fetch from ${rpcUrl}:`, error?.message || error)
+                    // Continue to next RPC
+                    continue
+                }
             }
             
-            // No token account found, return 0
-            logger.info(`No USDT token account found for ${address}`)
-            return 0
+            // All RPCs failed
+            logger.error(`All Solana RPC endpoints failed for USDT:`, lastError)
+            throw lastError || new Error('Failed to fetch USDT balance from Solana')
         }
 
         // Default: return 0 if currency not supported
