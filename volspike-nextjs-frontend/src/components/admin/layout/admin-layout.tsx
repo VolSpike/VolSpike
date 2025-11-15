@@ -13,7 +13,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <BackgroundPattern />
             <div className="relative z-10 flex flex-1 min-h-0">
                 {/* Sidebar column - sticky on desktop, fixed overlay on mobile */}
-                <div className="hidden lg:block lg:sticky lg:top-0 lg:self-start lg:h-screen">
+                <div className="hidden lg:block lg:sticky lg:top-0 lg:self-start lg:h-screen lg:z-30">
                     <AdminSidebar />
                 </div>
                 
