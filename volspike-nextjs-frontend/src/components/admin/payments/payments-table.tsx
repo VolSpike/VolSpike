@@ -166,18 +166,31 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
         return payment.paymentStatus === 'finished' && payment.user.tier !== payment.tier
     }
 
+    const getDisplayDate = (payment: Payment) => {
+        return payment.paidAt || payment.createdAt
+    }
+
+    const getExpiryLabel = (payment: Payment) => {
+        if (!payment.expiresAt) return '—'
+        const expires = new Date(payment.expiresAt as any)
+        const now = new Date()
+        const ms = expires.getTime() - now.getTime()
+        const days = Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)))
+        return `${format(expires, 'MMM d, yyyy')} (${days} day${days === 1 ? '' : 's'} left)`
+    }
+
     return (
         <>
             <div className="bg-card border rounded-lg shadow-sm">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[100px]">
+                            <TableHead className="w-[120px]">
                                 <button
                                     onClick={() => handleSort('createdAt')}
                                     className="flex items-center gap-1 hover:text-primary"
                                 >
-                                    Date
+                                    Paid at
                                     {currentQuery.sortBy === 'createdAt' && (
                                         currentQuery.sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                                     )}
@@ -185,6 +198,7 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                                 </button>
                             </TableHead>
                             <TableHead>User</TableHead>
+                            <TableHead>Expires</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Tier</TableHead>
                             <TableHead>Amount</TableHead>
@@ -210,16 +224,21 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                                     >
                                         <TableCell>
                                             <div className="text-sm">
-                                                {format(new Date(payment.createdAt), 'MMM d, yyyy')}
+                                                {format(new Date(getDisplayDate(payment)), 'MMM d, yyyy')}
                                             </div>
                                             <div className="text-xs text-muted-foreground">
-                                                {format(new Date(payment.createdAt), 'HH:mm:ss')}
+                                                {format(new Date(getDisplayDate(payment)), 'HH:mm:ss')}
                                             </div>
                                         </TableCell>
                                         <TableCell>
                                             <div className="font-medium">{payment.user.email}</div>
                                             <div className="text-xs text-muted-foreground">
                                                 Current: {payment.user.tier}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="text-sm text-muted-foreground">
+                                                {getExpiryLabel(payment)}
                                             </div>
                                         </TableCell>
                                         <TableCell>
