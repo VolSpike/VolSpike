@@ -100,10 +100,18 @@ export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerPr
         const originalRef = (childElement as any).ref
         
         return React.cloneElement(childElement, {
-            onClick: handleClick,
+            onClick: (e: React.MouseEvent) => {
+                e.stopPropagation()
+                handleClick()
+            },
             'aria-expanded': context.open,
             'aria-haspopup': 'menu',
             ref: (node: HTMLElement | null) => {
+                console.log('[DropdownMenuTrigger] Setting trigger ref:', {
+                    node,
+                    tagName: node?.tagName,
+                    className: node?.className,
+                })
                 context.triggerRef.current = node
                 // Call original ref if it exists
                 if (typeof originalRef === 'function') {
