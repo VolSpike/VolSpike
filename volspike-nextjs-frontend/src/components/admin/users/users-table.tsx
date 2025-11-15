@@ -605,6 +605,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         )}
                     </TableBody>
                 </Table>
+                </div>
             </div>
 
             {/* Edit user dialog */}
