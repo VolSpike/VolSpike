@@ -41,7 +41,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
         },
         {
             title: 'Total Revenue',
-            value: `$${stats.totalRevenue.toLocaleString()}`,
+            value: `$${stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             icon: DollarSign,
             change: null,
             changeType: null as any,
