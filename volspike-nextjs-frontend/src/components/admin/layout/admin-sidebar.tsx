@@ -80,7 +80,7 @@ export function AdminSidebar() {
 
             {/* Sidebar */}
             <div className={cn(
-                "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/90 shadow-lg transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:inset-0",
+                "fixed inset-y-0 left-0 z-40 w-64 border-r border-border bg-background/95 backdrop-blur-xl supports-[backdrop-filter]:bg-background/90 shadow-lg transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:relative lg:inset-0 lg:shadow-none",
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <div className="flex flex-col h-full">
