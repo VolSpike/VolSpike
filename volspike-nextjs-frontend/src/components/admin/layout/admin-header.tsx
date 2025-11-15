@@ -47,7 +47,7 @@ export function AdminHeader() {
 
     return (
         <header className="sticky top-0 z-30 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80">
-            <div className="flex h-16 items-center justify-between px-4 md:px-8">
+            <div className="flex h-16 items-center justify-between pl-3 pr-4 md:pl-4 md:pr-8">
                 {/* Left side - brand + section context */}
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
