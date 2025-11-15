@@ -174,15 +174,22 @@ adminWalletRoutes.post('/refresh-all', async (c) => {
         const results = await Promise.allSettled(
             wallets.map(async (wallet) => {
                 try {
+                    logger.info(`Refreshing balance for wallet ${wallet.id}: ${wallet.currency} (${wallet.network || 'native'}) at ${wallet.address}`)
+                    
                     let balance = await fetchWalletBalance(
                         wallet.address,
                         wallet.currency,
                         wallet.network || undefined
                     )
+                    
                     // Ensure we store 0 instead of null for zero balances
                     if (balance === null || isNaN(balance)) {
+                        logger.warn(`Invalid balance returned for wallet ${wallet.id}: ${balance}, setting to 0`)
                         balance = 0
                     }
+                    
+                    logger.info(`Successfully fetched balance for wallet ${wallet.id}: ${balance} ${wallet.currency}`)
+                    
                     await prisma.adminWallet.update({
                         where: { id: wallet.id },
                         data: {
@@ -190,22 +197,22 @@ adminWalletRoutes.post('/refresh-all', async (c) => {
                             balanceUpdatedAt: new Date(),
                         },
                     })
-                    return { walletId: wallet.id, success: true, balance }
+                    return { walletId: wallet.id, success: true, balance, currency: wallet.currency }
                 } catch (error: any) {
-                    logger.warn(`Failed to refresh balance for wallet ${wallet.id} (${wallet.currency}):`, error?.message || error)
-                    // Set balance to 0 on error so UI shows $0 instead of "-"
-                    try {
-                        await prisma.adminWallet.update({
-                            where: { id: wallet.id },
-                            data: {
-                                balance: 0,
-                                balanceUpdatedAt: new Date(),
-                            },
-                        })
-                    } catch (updateError) {
-                        logger.error(`Failed to update wallet ${wallet.id} with zero balance:`, updateError)
+                    logger.error(`Failed to refresh balance for wallet ${wallet.id} (${wallet.currency} on ${wallet.network || 'native'}):`, {
+                        error: error?.message || error,
+                        stack: error?.stack,
+                        address: wallet.address,
+                    })
+                    // Don't set balance to 0 on error - keep the last known balance
+                    // This way if there's a temporary API issue, we don't lose the actual balance
+                    return { 
+                        walletId: wallet.id, 
+                        success: false, 
+                        error: String(error?.message || error), 
+                        currency: wallet.currency,
+                        // Don't update balance on error - keep existing value
                     }
-                    return { walletId: wallet.id, success: false, error: String(error?.message || error), balance: 0 }
                 }
             })
         )
@@ -362,6 +369,8 @@ async function fetchWalletBalance(
 
         // SPL tokens on Solana (USDT on Solana)
         if (currencyUpper === 'USDT' && (network?.toLowerCase().includes('sol') || network?.toLowerCase().includes('solana'))) {
+            logger.info(`Fetching USDT (Solana) balance for ${address} using mint ${TOKEN_CONTRACTS.USDT_SOL}`)
+            
             // Fetch SPL token balance using getTokenAccountsByOwner
             const response = await fetch(`https://api.mainnet-beta.solana.com`, {
                 method: 'POST',
@@ -382,7 +391,11 @@ async function fetchWalletBalance(
                 }),
             })
             
-            if (!response.ok) throw new Error('Solana API error')
+            if (!response.ok) {
+                logger.warn(`Solana API HTTP error for USDT: ${response.status}`)
+                throw new Error(`Solana API error: ${response.status}`)
+            }
+            
             const data = await response.json() as {
                 result: {
                     value: Array<{
@@ -400,16 +413,31 @@ async function fetchWalletBalance(
                         }
                     }>
                 } | null
+                error?: {
+                    code: number
+                    message: string
+                }
             }
+
+            if (data.error) {
+                logger.warn(`Solana API error for USDT: ${data.error.message} (code: ${data.error.code})`)
+                throw new Error(`Solana API error: ${data.error.message}`)
+            }
+
+            logger.info(`Solana response for USDT: found ${data.result?.value?.length || 0} token accounts`)
 
             if (data.result && data.result.value.length > 0) {
                 // Get the first token account (should only be one for a specific mint)
                 const tokenAccount = data.result.value[0]
                 const tokenAmount = tokenAccount.account.data.parsed.info.tokenAmount
                 const decimals = tokenAmount.decimals || 6 // USDT typically has 6 decimals
-                return Number(tokenAmount.amount) / Math.pow(10, decimals)
+                const balance = Number(tokenAmount.amount) / Math.pow(10, decimals)
+                logger.info(`Parsed USDT (Solana) balance: ${balance} (raw: ${tokenAmount.amount}, decimals: ${decimals})`)
+                return balance
             }
+            
             // No token account found, return 0
+            logger.info(`No USDT token account found for ${address}`)
             return 0
         }
 
