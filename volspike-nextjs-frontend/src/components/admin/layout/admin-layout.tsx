@@ -9,16 +9,17 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
     return (
-        <div className="relative min-h-screen bg-background">
+        <div className="relative min-h-screen bg-background flex flex-col">
             <BackgroundPattern />
-            <div className="relative z-10 grid min-h-screen grid-cols-1 lg:grid-cols-[16rem_minmax(0,1fr)]">
-                {/* Sidebar column */}
+            <div className="relative z-10 flex flex-1 min-h-0">
+                {/* Sidebar column - full height, no footer interference */}
+                {/* AdminSidebar handles both mobile (fixed overlay) and desktop (static) internally */}
                 <AdminSidebar />
 
-                {/* Content column */}
-                <div className="flex flex-col bg-background/95 lg:border-l lg:border-border/60">
+                {/* Content column - flex-1 to fill remaining space */}
+                <div className="flex flex-col flex-1 min-w-0 bg-background/95 lg:border-l lg:border-border/60">
                     <AdminHeader />
-                    <main className="flex-1 px-4 py-6 md:px-6 lg:px-8">
+                    <main className="flex-1 overflow-y-auto px-4 py-6 md:px-6 lg:px-8">
                         <div className="w-full max-w-7xl mx-auto space-y-6">
                             {children}
                         </div>

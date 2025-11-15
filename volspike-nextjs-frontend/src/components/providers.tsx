@@ -53,8 +53,11 @@ function ConditionalAdPlaceholder() {
 function ConditionalFooter() {
     const pathname = usePathname()
     const isAuthPage = pathname?.startsWith('/auth')
+    const isAdminPage = pathname?.startsWith('/admin')
     
-    if (isAuthPage) {
+    // Don't show footer on auth pages or admin pages
+    // Admin panels are internal tools and don't need marketing footers
+    if (isAuthPage || isAdminPage) {
         return null
     }
     
