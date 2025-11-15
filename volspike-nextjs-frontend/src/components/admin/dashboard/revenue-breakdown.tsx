@@ -244,8 +244,14 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                         <div className="space-y-2">
                                             {cryptoCurrencyBreakdown.map((item) => {
                                                 const displayName = formatCurrencyDisplayName(item.currency)
-                                                // Extract base currency for amount display (e.g., "USDCE" -> "USDC")
-                                                const baseCurrency = item.currency.replace(/[^A-Z]/gi, '').replace(/E$/, '').replace(/S$/, '') || item.currency
+                                                // Extract base currency for amount display (e.g., "USDCE" -> "USDC", "USDTE" -> "USDT")
+                                                const upper = item.currency.toUpperCase()
+                                                let baseCurrency = upper
+                                                if (upper.endsWith('E') || upper.endsWith('-E')) {
+                                                    baseCurrency = upper.replace(/E$/, '').replace(/-E$/, '')
+                                                } else if (upper.endsWith('S') || upper.endsWith('-S')) {
+                                                    baseCurrency = upper.replace(/S$/, '').replace(/-S$/, '')
+                                                }
                                                 
                                                 return (
                                                     <div key={item.currency} className="space-y-1.5">
