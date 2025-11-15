@@ -27,9 +27,10 @@ import { Loader2, Search, User } from 'lucide-react'
 interface CreatePaymentDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
+    onPaymentCreated?: () => void
 }
 
-export function CreatePaymentDialog({ open, onOpenChange }: CreatePaymentDialogProps) {
+export function CreatePaymentDialog({ open, onOpenChange, onPaymentCreated }: CreatePaymentDialogProps) {
     const router = useRouter()
     const [isProcessing, setIsProcessing] = useState(false)
     const [searchingUser, setSearchingUser] = useState(false)
@@ -117,6 +118,7 @@ export function CreatePaymentDialog({ open, onOpenChange }: CreatePaymentDialogP
             toast.success(`Payment created and user upgraded to ${formData.tier.toUpperCase()}!`)
             onOpenChange(false)
             router.refresh()
+            onPaymentCreated?.()
         } catch (error: any) {
             toast.error(error.message || 'Failed to create payment')
         } finally {

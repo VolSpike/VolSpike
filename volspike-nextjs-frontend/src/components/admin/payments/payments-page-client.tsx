@@ -10,79 +10,43 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
 interface PaymentsPageClientProps {
-    searchParams: {
-        userId?: string
-        email?: string
-        paymentStatus?: string
-        tier?: string
-        paymentId?: string
-        invoiceId?: string
-        orderId?: string
-        page?: string
-        limit?: string
-        sortBy?: string
-        sortOrder?: string
-    }
+    initialData: any
+    query: Record<string, any>
     accessToken: string | null
 }
 
-export function PaymentsPageClient({ searchParams, accessToken }: PaymentsPageClientProps) {
-    const [paymentsData, setPaymentsData] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
+export function PaymentsPageClient({ initialData, query, accessToken }: PaymentsPageClientProps) {
+    const [paymentsData, setPaymentsData] = useState<any>(initialData)
+    const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
-    // Parse search params
-    const query = useMemo(() => ({
-        userId: searchParams.userId,
-        email: searchParams.email,
-        paymentStatus: searchParams.paymentStatus,
-        tier: searchParams.tier as any,
-        paymentId: searchParams.paymentId,
-        invoiceId: searchParams.invoiceId,
-        orderId: searchParams.orderId,
-        page: searchParams.page ? parseInt(searchParams.page) : 1,
-        limit: searchParams.limit ? parseInt(searchParams.limit) : 20,
-        sortBy: (searchParams.sortBy as any) || 'createdAt',
-        sortOrder: (searchParams.sortOrder as any) || 'desc',
-    }), [
-        searchParams.limit,
-        searchParams.page,
-        searchParams.email,
-        searchParams.paymentId,
-        searchParams.invoiceId,
-        searchParams.orderId,
-        searchParams.paymentStatus,
-        searchParams.sortBy,
-        searchParams.sortOrder,
-        searchParams.tier,
-        searchParams.userId,
-    ])
-
     useEffect(() => {
-        const fetchPayments = async () => {
-            if (!accessToken) {
-                setError('Authentication required')
-                setLoading(false)
-                return
-            }
-
-            try {
-                setLoading(true)
-                setError(null)
-                adminAPI.setAccessToken(accessToken)
-                const data = await adminAPI.getPayments(query)
-                setPaymentsData(data)
-            } catch (err: any) {
-                console.error('Error fetching payments:', err)
-                setError(err.message || 'Failed to load payments. Please check your connection and try again.')
-            } finally {
-                setLoading(false)
-            }
+        if (accessToken) {
+            adminAPI.setAccessToken(accessToken)
         }
+    }, [accessToken])
 
-        fetchPayments()
-    }, [accessToken, query])
+    const queryKey = useMemo(() => JSON.stringify(query), [query])
+
+    const fetchPayments = async () => {
+        if (!accessToken) {
+            setError('Authentication required')
+            return
+        }
+        try {
+            setLoading(true)
+            setError(null)
+            adminAPI.setAccessToken(accessToken)
+            const data = await adminAPI.getPayments(JSON.parse(queryKey))
+            setPaymentsData(data)
+        } catch (err: any) {
+            console.error('Error fetching payments:', err)
+            setError(err.message || 'Failed to load payments. Please try again.')
+        } finally {
+            setLoading(false)
+        }
+    }
 
     if (loading) {
         return (
@@ -118,7 +82,7 @@ export function PaymentsPageClient({ searchParams, accessToken }: PaymentsPageCl
                                     {error}
                                 </p>
                                 <Button
-                                    onClick={() => window.location.reload()}
+                        onClick={fetchPayments}
                                     variant="outline"
                                     className="border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900"
                                 >
@@ -188,7 +152,11 @@ export function PaymentsPageClient({ searchParams, accessToken }: PaymentsPageCl
             )}
 
             {/* Create Payment Dialog */}
-            <CreatePaymentDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+            <CreatePaymentDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                onPaymentCreated={fetchPayments}
+            />
         </div>
     )
 }

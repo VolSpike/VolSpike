@@ -702,6 +702,98 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
 // NowPayments Crypto Payment Routes
 // ============================================
 
+function extractUserIdFromOrderId(orderId?: string | null) {
+    if (!orderId || !orderId.startsWith('volspike-')) return null
+    const parts = orderId.split('-')
+    if (parts.length < 3) return null
+    return parts[1] || null
+}
+
+function inferTierFromWebhook(data: any): 'pro' | 'elite' {
+    const description = (data?.order_description || '').toLowerCase()
+    if (description.includes('elite')) {
+        return 'elite'
+    }
+    if (description.includes('pro')) {
+        return 'pro'
+    }
+
+    // Fall back to price amount if description missing
+    const amount = Number(data?.price_amount)
+    if (!Number.isNaN(amount) && amount >= 49) {
+        return 'elite'
+    }
+
+    return 'pro'
+}
+
+async function createCryptoPaymentFallbackFromWebhook(data: any) {
+    const orderId = data?.order_id
+    const paymentStatus = data?.payment_status
+    const userId = extractUserIdFromOrderId(orderId)
+
+    if (!orderId || !paymentStatus || !userId) {
+        return null
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+    })
+
+    if (!user) {
+        logger.error('Fallback payment creation failed: user not found', {
+            userId,
+            orderId,
+            paymentId: data?.payment_id,
+        })
+        return null
+    }
+
+    const tier = inferTierFromWebhook(data)
+    const amount = Number(data?.price_amount) || null
+    const payCurrency = (data?.price_currency || 'usd').toLowerCase()
+    const invoiceId = data?.invoice_id ? String(data.invoice_id) : null
+
+    try {
+        const payment = await prisma.cryptoPayment.create({
+            data: {
+                userId: user.id,
+                paymentId: data?.payment_id || null,
+                paymentStatus,
+                payAmount: amount,
+                payCurrency,
+                actuallyPaid: data?.actually_paid ? Number(data.actually_paid) : null,
+                actuallyPaidCurrency: data?.pay_currency || data?.actually_paid_currency || null,
+                tier,
+                invoiceId,
+                orderId,
+                paymentUrl: invoiceId ? `https://nowpayments.io/payment/?iid=${invoiceId}` : '',
+                payAddress: data?.pay_address || null,
+                purchaseId: data?.purchase_id ? String(data.purchase_id) : null,
+                paidAt: paymentStatus === 'finished' ? new Date() : null,
+            },
+            include: { user: true },
+        })
+
+        logger.warn('Fallback crypto payment created from webhook payload', {
+            paymentId: payment.id,
+            userId: user.id,
+            tier,
+            paymentStatus,
+        })
+
+        return payment
+    } catch (error) {
+        logger.error('Failed to create fallback crypto payment from webhook', {
+            error,
+            orderId,
+            userId,
+            paymentId: data?.payment_id,
+        })
+        return null
+    }
+}
+
 // Create NowPayments checkout
 payments.post('/nowpayments/checkout', async (c) => {
     try {
@@ -1280,6 +1372,10 @@ payments.post('/nowpayments/webhook', async (c) => {
                 where: { orderId: order_id },
                 include: { user: true },
             })
+        }
+
+        if (!cryptoPayment) {
+            cryptoPayment = await createCryptoPaymentFallbackFromWebhook(data)
         }
 
         if (!cryptoPayment) {
