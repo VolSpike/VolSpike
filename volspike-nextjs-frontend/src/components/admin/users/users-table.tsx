@@ -458,6 +458,16 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                     style={{ 
                         scrollbarWidth: 'thin'
                     }}
+                    onScroll={(e) => {
+                        // Debug: log scroll position
+                        const target = e.currentTarget
+                        console.log('[UsersTable] Scroll event:', {
+                            scrollLeft: target.scrollLeft,
+                            scrollWidth: target.scrollWidth,
+                            clientWidth: target.clientWidth,
+                            actionsColumn: document.querySelector('[data-actions-column="cell"]')?.getBoundingClientRect()
+                        })
+                    }}
                 >
                     {/* Scroll indicator - shows when content is scrollable */}
                     <div 
