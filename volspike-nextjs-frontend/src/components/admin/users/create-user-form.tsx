@@ -343,10 +343,7 @@ export function CreateUserForm() {
                                     onValueChange={(value: any) => setFormData(prev => ({ ...prev, tier: value }))}
                                 >
                                     <SelectTrigger className={`h-11 border-border/60 bg-background/50 ${getTierColor(formData.tier)}`}>
-                                        <div className="flex items-center gap-2">
-                                            {getTierIcon(formData.tier)}
-                                            <SelectValue />
-                                        </div>
+                                        <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="free">
