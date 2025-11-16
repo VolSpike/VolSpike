@@ -126,6 +126,67 @@ adminUserRoutes.get('/', async (c) => {
             }
         }
 
+        // Batch fetch crypto payment expirations for all users
+        const userIds = users.map(u => u.id)
+        const cryptoPaymentsMap = new Map<string, Date>()
+        if (userIds.length > 0) {
+            const activeCryptoPayments = await prisma.cryptoPayment.findMany({
+                where: {
+                    userId: { in: userIds },
+                    paymentStatus: 'finished',
+                    expiresAt: {
+                        not: null,
+                        gte: new Date(),
+                    },
+                } as any,
+                select: {
+                    userId: true,
+                    expiresAt: true,
+                },
+                orderBy: {
+                    expiresAt: 'desc',
+                } as any,
+            })
+            
+            // Group by userId, keeping only the most recent expiration
+            activeCryptoPayments.forEach(payment => {
+                if (payment.expiresAt) {
+                    const existing = cryptoPaymentsMap.get(payment.userId)
+                    if (!existing || payment.expiresAt > existing) {
+                        cryptoPaymentsMap.set(payment.userId, payment.expiresAt)
+                    }
+                }
+            })
+        }
+
+        // Batch fetch Stripe checkout sessions for users with Stripe customer IDs
+        const stripeCheckoutSessionsMap = new Map<string, any>()
+        if (stripeCustomerIds.length > 0) {
+            try {
+                const checkoutPromises = stripeCustomerIds.map(async (customerId) => {
+                    try {
+                        const sessions = await stripe.checkout.sessions.list({
+                            customer: customerId,
+                            limit: 10,
+                        })
+                        return { customerId, sessions: sessions.data }
+                    } catch (error) {
+                        logger.warn(`Error fetching checkout sessions for customer ${customerId}:`, error)
+                        return { customerId, sessions: [] }
+                    }
+                })
+                
+                const checkoutResults = await Promise.all(checkoutPromises)
+                checkoutResults.forEach(({ customerId, sessions }) => {
+                    if (sessions.length > 0) {
+                        stripeCheckoutSessionsMap.set(customerId, sessions)
+                    }
+                })
+            } catch (error) {
+                logger.warn('Error batch fetching checkout sessions:', error)
+            }
+        }
+
         const usersWithPaymentMethod = users.map((user) => {
             const hasCryptoPayment = user.cryptoPayments && user.cryptoPayments.length > 0
             const hasStripe = !!user.stripeCustomerId
@@ -133,72 +194,38 @@ adminUserRoutes.get('/', async (c) => {
             let subscriptionExpiresAt: Date | null = null
             let subscriptionMethod: 'stripe' | 'crypto' | null = null
             
-            // Get crypto subscription expiration (most recent active)
-            if (hasCryptoPayment) {
-                const activeCryptoPayment = await prisma.cryptoPayment.findFirst({
-                    where: {
-                        userId: user.id,
-                        paymentStatus: 'finished',
-                        expiresAt: {
-                            not: null,
-                            gte: new Date(), // Not expired yet
-                        },
-                    } as any,
-                    orderBy: {
-                        expiresAt: 'desc',
-                    } as any,
-                    select: {
-                        expiresAt: true,
-                    },
-                })
-                
-                if (activeCryptoPayment?.expiresAt) {
-                    subscriptionExpiresAt = activeCryptoPayment.expiresAt
-                    subscriptionMethod = 'crypto'
-                }
+            // Get crypto subscription expiration (from batched fetch)
+            const cryptoExpiration = cryptoPaymentsMap.get(user.id)
+            if (cryptoExpiration) {
+                subscriptionExpiresAt = cryptoExpiration
+                subscriptionMethod = 'crypto'
             }
             
-            // Get Stripe subscription expiration and check for actual payments
+            // Get Stripe subscription expiration (from batched fetch)
             let hasActiveStripeSubscription = false
             if (hasStripe && user.stripeCustomerId) {
-                try {
-                    const subscriptions = await stripe.subscriptions.list({
-                        customer: user.stripeCustomerId,
-                        status: 'all', // Check all statuses to see if they ever had a subscription
-                        limit: 100,
-                    })
+                const subscription = stripeSubscriptionsMap.get(user.stripeCustomerId)
+                if (subscription) {
+                    hasActiveStripeSubscription = true
+                    const stripeExpiresAt = new Date(subscription.current_period_end * 1000)
                     
-                    // Check for active or past_due subscriptions (user actually paid)
-                    const activeSubscription = subscriptions.data.find(
-                        sub => sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due'
-                    )
-                    
-                    if (activeSubscription) {
-                        hasActiveStripeSubscription = true
-                        const stripeExpiresAt = new Date(activeSubscription.current_period_end * 1000)
-                        
-                        // Use Stripe expiration if it's later than crypto, or if no crypto expiration
-                        if (!subscriptionExpiresAt || stripeExpiresAt > subscriptionExpiresAt) {
-                            subscriptionExpiresAt = stripeExpiresAt
-                            subscriptionMethod = 'stripe'
-                        }
-                    } else {
-                        // Check for completed checkout sessions (one-time payments)
-                        const checkoutSessions = await stripe.checkout.sessions.list({
-                            customer: user.stripeCustomerId,
-                            limit: 10,
-                        })
-                        
-                        const completedSession = checkoutSessions.data.find(
-                            session => session.payment_status === 'paid' && session.status === 'complete'
+                    // Use Stripe expiration if it's later than crypto, or if no crypto expiration
+                    if (!subscriptionExpiresAt || stripeExpiresAt > subscriptionExpiresAt) {
+                        subscriptionExpiresAt = stripeExpiresAt
+                        subscriptionMethod = 'stripe'
+                    }
+                } else {
+                    // Check for completed checkout sessions (one-time payments)
+                    const checkoutSessions = stripeCheckoutSessionsMap.get(user.stripeCustomerId)
+                    if (checkoutSessions) {
+                        const completedSession = checkoutSessions.find(
+                            (session: any) => session.payment_status === 'paid' && session.status === 'complete'
                         )
                         
                         if (completedSession) {
                             hasActiveStripeSubscription = true
                         }
                     }
-                } catch (error) {
-                    logger.warn(`Error fetching Stripe subscription for user ${user.id}:`, error)
                 }
             }
             
