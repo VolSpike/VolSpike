@@ -162,11 +162,18 @@ adminUserRoutes.get('/', async (c) => {
 
         if (params.role) where.role = params.role
         if (params.tier) where.tier = params.tier
-        if (params.status) {
-            where.status = params.status
+        
+        // Handle status filter
+        const statusParam = params.status
+        if (statusParam === 'all' || statusParam === '') {
+            // Explicit "All Status" request - show all users including BANNED
+            // Don't filter by status
+        } else if (statusParam) {
+            // Specific status filter - show only that status
+            where.status = statusParam as UserStatus
         } else {
-            // By default, exclude BANNED users unless explicitly requested
-            // This prevents deleted users from showing up in the list
+            // No status param at all - default behavior: exclude BANNED
+            // This prevents deleted users from showing up in the list by default
             where.status = { not: UserStatus.BANNED }
         }
 

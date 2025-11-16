@@ -47,6 +47,9 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         Object.entries(filters).forEach(([key, value]) => {
             if (value && value !== 'all') {
                 params.set(key, value)
+            } else if (key === 'status' && value === '') {
+                // Explicit "All Status" - send 'all' to backend
+                params.set(key, 'all')
             }
         })
 
@@ -69,7 +72,12 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             if (filters.search) params.set('search', filters.search)
             if (filters.role && filters.role !== 'all') params.set('role', filters.role)
             if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-            if (filters.status && filters.status !== 'all') params.set('status', filters.status)
+            if (filters.status && filters.status !== 'all') {
+                params.set('status', filters.status)
+            } else if (filters.status === '') {
+                // Explicit "All Status" - send 'all' to backend
+                params.set('status', 'all')
+            }
             
             params.set('page', '1')
             router.push(`/admin/users?${params.toString()}`)
@@ -195,7 +203,12 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                                     const params = new URLSearchParams()
                                     if (filters.role && filters.role !== 'all') params.set('role', filters.role)
                                     if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-                                    if (filters.status && filters.status !== 'all') params.set('status', filters.status)
+                                    if (filters.status && filters.status !== 'all') {
+                                        params.set('status', filters.status)
+                                    } else if (filters.status === '') {
+                                        // Explicit "All Status" - send 'all' to backend
+                                        params.set('status', 'all')
+                                    }
                                     params.set('page', '1')
                                     router.push(`/admin/users?${params.toString()}`)
                                 }, 0)
