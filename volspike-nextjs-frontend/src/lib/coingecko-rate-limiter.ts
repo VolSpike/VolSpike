@@ -33,6 +33,7 @@ class CoinGeckoRateLimiter {
   private rateLimitUntil = 0
   private inflightRequests = new Map<string, Promise<any>>()
   private requestCounts = new Map<string, number>() // Track requests per minute
+  private listeners = new Set<() => void>() // Listeners for rate limit changes
 
   /**
    * Add a request to the queue
@@ -231,6 +232,7 @@ class CoinGeckoRateLimiter {
       processing: this.processing,
       rateLimitedUntil: this.rateLimitUntil,
       inflightCount: this.inflightRequests.size,
+      isRateLimited: this.rateLimitUntil > Date.now(),
     }
   }
 }
