@@ -110,10 +110,18 @@ class AdminAPIClient {
         })
     }
 
-    async resetUserPassword(userId: string): Promise<{ success: boolean; message: string }> {
-        return this.request<{ success: boolean; message: string }>(`/api/admin/users/${userId}/reset-password`, {
-            method: 'POST',
-        })
+    async resetUserPassword(userId: string): Promise<{ success: boolean; message: string; email?: string; oauthOnly?: boolean }> {
+        try {
+            return await this.request<{ success: boolean; message: string; email?: string; oauthOnly?: boolean }>(`/api/admin/users/${userId}/reset-password`, {
+                method: 'POST',
+            })
+        } catch (error: any) {
+            // Handle OAuth-only user error
+            if (error.response?.oauthOnly) {
+                return { success: false, message: error.message, oauthOnly: true }
+            }
+            throw error
+        }
     }
 
     async executeBulkAction(data: BulkActionRequest): Promise<{ results: any[] }> {

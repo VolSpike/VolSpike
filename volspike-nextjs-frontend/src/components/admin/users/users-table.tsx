@@ -149,8 +149,20 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                     }
                     break
                 case 'reset-password':
-                    await adminAPI.resetUserPassword(user.id)
-                    toast.success('Password reset email sent')
+                    try {
+                        const result = await adminAPI.resetUserPassword(user.id)
+                        if (result.oauthOnly) {
+                            toast.error('This user uses OAuth (Google) login only. They don\'t have a password to reset.')
+                        } else {
+                            toast.success(`Password reset email sent to ${result.email || user.email}`)
+                        }
+                    } catch (error: any) {
+                        if (error?.response?.oauthOnly) {
+                            toast.error('This user uses OAuth (Google) login only. They don\'t have a password to reset.')
+                        } else {
+                            toast.error(error?.message || 'Failed to send password reset email')
+                        }
+                    }
                     break
                 case 'view-subscription':
                     router.push(`/admin/subscriptions?userId=${user.id}`)
@@ -222,6 +234,32 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                 return 'bg-red-600/90 text-white dark:bg-red-600/80'
             default:
                 return 'bg-gray-500/80 text-white'
+        }
+    }
+
+    const getStatusTooltip = (status: string) => {
+        switch (status) {
+            case 'ACTIVE':
+                return 'User can sign in and access all features based on their tier. This is the normal state for active accounts.'
+            case 'SUSPENDED':
+                return 'Account is temporarily disabled. User cannot sign in. Can be reactivated by an admin. Use for temporary restrictions or investigations.'
+            case 'BANNED':
+                return 'Account is permanently disabled. User cannot sign in. Typically used for soft deletion or permanent bans. Usually not reversible.'
+            default:
+                return 'Unknown status'
+        }
+    }
+
+    const getTierTooltip = (tier: string) => {
+        switch (tier) {
+            case 'free':
+                return 'Free tier: 15-minute data refresh, basic features, limited symbols'
+            case 'pro':
+                return 'Pro tier: 5-minute data refresh, email alerts, all symbols, Open Interest visible'
+            case 'elite':
+                return 'Elite tier: Real-time updates, SMS alerts, unlimited access, all features'
+            default:
+                return 'Unknown tier'
         }
     }
 
@@ -436,21 +474,45 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         </div>
                                     </TooltipProvider>
                                 </TableCell>
-                                <TableCell>
-                                    <Badge className={getTierColor(user.tier)}>
-                                        {user.tier.toUpperCase()}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="outline">
-                                        {user.role}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge className={getStatusColor(user.status)}>
-                                        {user.status}
-                                    </Badge>
-                                </TableCell>
+                                       <TableCell>
+                                           <TooltipProvider>
+                                               <Tooltip>
+                                                   <TooltipTrigger asChild>
+                                                       <div>
+                                                           <Badge className={getTierColor(user.tier)}>
+                                                               {user.tier.toUpperCase()}
+                                                           </Badge>
+                                                       </div>
+                                                   </TooltipTrigger>
+                                                   <TooltipContent side="top" className="max-w-xs">
+                                                       <p className="font-semibold mb-1">{user.tier.toUpperCase()} Tier</p>
+                                                       <p className="text-xs">{getTierTooltip(user.tier)}</p>
+                                                   </TooltipContent>
+                                               </Tooltip>
+                                           </TooltipProvider>
+                                       </TableCell>
+                                       <TableCell>
+                                           <Badge variant="outline">
+                                               {user.role}
+                                           </Badge>
+                                       </TableCell>
+                                       <TableCell>
+                                           <TooltipProvider>
+                                               <Tooltip>
+                                                   <TooltipTrigger asChild>
+                                                       <div>
+                                                           <Badge className={getStatusColor(user.status)}>
+                                                               {user.status}
+                                                           </Badge>
+                                                       </div>
+                                                   </TooltipTrigger>
+                                                   <TooltipContent side="top" className="max-w-xs">
+                                                       <p className="font-semibold mb-1">{user.status}</p>
+                                                       <p className="text-xs">{getStatusTooltip(user.status)}</p>
+                                                   </TooltipContent>
+                                               </Tooltip>
+                                           </TooltipProvider>
+                                       </TableCell>
                                 <TableCell>
                                     {user.subscriptionExpiresAt ? (() => {
                                         const expiresAt = new Date(user.subscriptionExpiresAt)
@@ -612,23 +674,36 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                 className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
                                             >
                                                 <Edit className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                                                <span>Edit User</span>
+                                                <div className="flex flex-col">
+                                                    <span>Edit User</span>
+                                                    <span className="text-xs text-muted-foreground">Change tier, role, or status</span>
+                                                </div>
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 onClick={() => handleAction('view-subscription', user)}
                                                 className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
                                             >
                                                 <DollarSign className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                                                <span>View Subscription</span>
+                                                <div className="flex flex-col">
+                                                    <span>View Subscription</span>
+                                                    <span className="text-xs text-muted-foreground">See payment and billing details</span>
+                                                </div>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator className="my-1 bg-border/60" />
                                             {user.status === 'ACTIVE' ? (
                                                 <DropdownMenuItem
-                                                    onClick={() => handleAction('suspend', user)}
+                                                    onClick={() => {
+                                                        if (confirm(`Suspend ${user.email || user.walletAddress}?\n\nThis will temporarily disable their account. They will not be able to sign in until reactivated.`)) {
+                                                            handleAction('suspend', user)
+                                                        }
+                                                    }}
                                                     className="px-3 py-2 cursor-pointer rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors focus:bg-amber-50 dark:focus:bg-amber-950/20"
                                                 >
                                                     <Ban className="h-4 w-4 mr-2.5 text-amber-600 dark:text-amber-500" />
-                                                    <span className="text-amber-700 dark:text-amber-400">Suspend User</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-amber-700 dark:text-amber-400">Suspend User</span>
+                                                        <span className="text-xs text-amber-600/80 dark:text-amber-400/80">Temporarily disable account</span>
+                                                    </div>
                                                 </DropdownMenuItem>
                                             ) : (
                                                 <DropdownMenuItem
@@ -636,7 +711,10 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                     className="px-3 py-2 cursor-pointer rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
                                                 >
                                                     <RefreshCw className="h-4 w-4 mr-2.5 text-emerald-600 dark:text-emerald-400" />
-                                                    <span className="text-emerald-700 dark:text-emerald-400">Activate User</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-emerald-700 dark:text-emerald-400">Activate User</span>
+                                                        <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80">Restore account access</span>
+                                                    </div>
                                                 </DropdownMenuItem>
                                             )}
                                             <DropdownMenuItem
@@ -644,15 +722,25 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                 className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
                                             >
                                                 <Mail className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                                                <span>Reset Password</span>
+                                                <div className="flex flex-col">
+                                                    <span>Reset Password</span>
+                                                    <span className="text-xs text-muted-foreground">Send password reset email</span>
+                                                </div>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator className="my-1 bg-border/60" />
                                             <DropdownMenuItem
-                                                onClick={() => handleAction('delete', user)}
+                                                onClick={() => {
+                                                    if (confirm(`Delete ${user.email || user.walletAddress}?\n\nThis will permanently disable their account (soft delete). This action cannot be undone.`)) {
+                                                        handleAction('delete', user)
+                                                    }
+                                                }}
                                                 className="px-3 py-2 cursor-pointer rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors focus:bg-red-50 dark:focus:bg-red-950/20"
                                             >
                                                 <Trash className="h-4 w-4 mr-2.5 text-red-600 dark:text-red-400" />
-                                                <span className="text-red-700 dark:text-red-400">Delete User</span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-red-700 dark:text-red-400">Delete User</span>
+                                                    <span className="text-xs text-red-600/80 dark:text-red-400/80">Permanently disable account</span>
+                                                </div>
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>

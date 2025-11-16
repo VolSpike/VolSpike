@@ -186,7 +186,26 @@ auth.post('/signin', async (c) => {
             return c.json({ error: 'Invalid credentials' }, 401)
         }
 
-        logger.info(`[AUTH] User found: ${user.email}, hasPassword: ${!!user.passwordHash}, emailVerified: ${!!user.emailVerified}, walletAddress: ${!!user.walletAddress}`)
+        logger.info(`[AUTH] User found: ${user.email}, hasPassword: ${!!user.passwordHash}, emailVerified: ${!!user.emailVerified}, walletAddress: ${!!user.walletAddress}, status: ${user.status}`)
+
+        // Check user status - block SUSPENDED and BANNED users
+        if (user.status === 'SUSPENDED') {
+            logger.warn(`Sign-in blocked for ${email}: account is suspended`)
+            return c.json({
+                error: 'Your account has been suspended. Please contact support for assistance.',
+                accountSuspended: true,
+                email: user.email
+            }, 403)
+        }
+
+        if (user.status === 'BANNED') {
+            logger.warn(`Sign-in blocked for ${email}: account is banned`)
+            return c.json({
+                error: 'Your account has been banned. Please contact support if you believe this is an error.',
+                accountBanned: true,
+                email: user.email
+            }, 403)
+        }
 
         // Check if email is verified (allow wallet users to bypass)
         if (!user.emailVerified && !user.walletAddress) {

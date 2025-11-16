@@ -341,15 +341,78 @@ adminUserRoutes.post('/:id/suspend', async (c) => {
 adminUserRoutes.post('/:id/reset-password', async (c) => {
     try {
         const userId = c.req.param('id')
-
-        // For now, just return success
-        // Implement actual password reset logic later
         const adminUser = c.get('adminUser')
-        logger.info(`Password reset requested for user ${userId} by admin ${adminUser?.email || 'unknown'}`)
+
+        // Get user details
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true, passwordHash: true },
+        })
+
+        if (!user) {
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        // Check if user has a password (not OAuth-only)
+        if (!user.passwordHash) {
+            return c.json({
+                error: 'This user does not have a password. They use OAuth (Google) login only.',
+                oauthOnly: true
+            }, 400)
+        }
+
+        // Generate password reset token
+        const { emailService } = await import('../../services/email')
+        const token = emailService.generateVerificationToken()
+        const identifier = `${user.email}|pwreset`
+
+        // Delete any existing reset tokens for this user
+        await prisma.verificationToken.deleteMany({ where: { identifier } })
+
+        // Create new reset token (expires in 60 minutes)
+        await prisma.verificationToken.create({
+            data: {
+                identifier,
+                token,
+                expires: new Date(Date.now() + 60 * 60 * 1000), // 60 minutes
+                userId: user.id,
+            },
+        })
+
+        // Generate reset URL
+        const base = process.env.FRONTEND_URL || 'http://localhost:3000'
+        const resetUrl = `${base}/auth/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`
+
+        // Send password reset email
+        const emailSent = await emailService.sendPasswordResetEmail({
+            email: user.email,
+            resetUrl,
+        })
+
+        if (!emailSent) {
+            logger.error(`Failed to send password reset email to ${user.email}`)
+            return c.json({ error: 'Failed to send password reset email' }, 500)
+        }
+
+        logger.info(`Password reset email sent to ${user.email} by admin ${adminUser?.email || 'unknown'}`)
+
+        // Log audit event
+        const { AuditService } = await import('../../services/admin/audit-service')
+        await AuditService.logUserAction({
+            actorUserId: adminUser?.id || '',
+            action: 'RESET_PASSWORD',
+            targetType: 'USER',
+            targetId: userId,
+            metadata: {
+                userEmail: user.email,
+                emailSent: true,
+            },
+        })
 
         return c.json({
             success: true,
-            message: 'Password reset email would be sent (not implemented yet)'
+            message: 'Password reset email sent successfully',
+            email: user.email,
         })
     } catch (error) {
         logger.error('Reset password error:', error)
