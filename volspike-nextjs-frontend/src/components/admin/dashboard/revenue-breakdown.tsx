@@ -128,8 +128,8 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-elite-500/10 via-elite-400/10 to-transparent">
-                            <DollarSign className="h-5 w-5 text-elite-600 dark:text-elite-400" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted/50">
+                            <DollarSign className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div>
                             <CardTitle className="text-lg font-semibold">Revenue</CardTitle>
@@ -145,14 +145,14 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                 <div className="flex items-baseline justify-between pb-4 border-b border-border/60">
                     <div>
                         <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
-                        <p className="text-3xl font-bold bg-gradient-to-r from-elite-500 to-elite-600 bg-clip-text text-transparent">
+                        <p className="text-3xl font-bold text-foreground">
                             {formatCurrency(totalRevenue)}
                         </p>
                     </div>
                     {mrr > 0 && (
                         <div className="text-right">
                             <p className="text-xs text-muted-foreground mb-1">MRR</p>
-                            <p className="text-sm font-semibold text-elite-600 dark:text-elite-400">
+                            <p className="text-sm font-semibold text-foreground">
                                 {formatCurrency(mrr)}/mo
                             </p>
                         </div>
@@ -168,47 +168,47 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                             </div>
                         ) : (
                             <>
-                                {/* Payment Source Breakdown - Elegant Side-by-Side */}
+                                {/* Payment Source Breakdown - Professional Minimal Design */}
                                 <div className="space-y-3">
                                     <h4 className="text-sm font-semibold text-foreground">
                                         By Payment Source
                                     </h4>
                                     
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-2">
                                         {/* Crypto Payments */}
-                                        <div className="p-3 rounded-xl border border-brand-500/20 bg-gradient-to-br from-brand-500/5 to-brand-600/5">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-500/10">
-                                                    <Coins className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
-                                                </div>
-                                                <span className="text-xs font-medium text-foreground/80">Crypto</span>
+                                        <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
+                                            <div className="flex items-center gap-3">
+                                                <Coins className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm font-medium text-foreground">Crypto Payments</span>
                                             </div>
-                                            <p className="text-lg font-bold text-brand-600 dark:text-brand-400 mb-0.5">
-                                                {formatCurrency(cryptoRevenue)}
-                                            </p>
-                                            {cryptoRevenue > 0 && stripeRevenue > 0 && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {getPercentage(cryptoRevenue, totalRevenue)}% of total
+                                            <div className="text-right">
+                                                <p className="text-base font-semibold text-foreground">
+                                                    {formatCurrency(cryptoRevenue)}
                                                 </p>
-                                            )}
+                                                {cryptoRevenue > 0 && stripeRevenue > 0 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {getPercentage(cryptoRevenue, totalRevenue)}%
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Stripe Payments */}
-                                        <div className="p-3 rounded-xl border border-sec-500/20 bg-gradient-to-br from-sec-500/5 to-sec-600/5">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sec-500/10">
-                                                    <CreditCard className="h-3.5 w-3.5 text-sec-600 dark:text-sec-400" />
-                                                </div>
-                                                <span className="text-xs font-medium text-foreground/80">Stripe</span>
+                                        <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
+                                            <div className="flex items-center gap-3">
+                                                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm font-medium text-foreground">Stripe Payments</span>
                                             </div>
-                                            <p className="text-lg font-bold text-sec-600 dark:text-sec-400 mb-0.5">
-                                                {formatCurrency(stripeRevenue)}
-                                            </p>
-                                            {cryptoRevenue > 0 && stripeRevenue > 0 && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {getPercentage(stripeRevenue, totalRevenue)}% of total
+                                            <div className="text-right">
+                                                <p className="text-base font-semibold text-foreground">
+                                                    {formatCurrency(stripeRevenue)}
                                                 </p>
-                                            )}
+                                                {cryptoRevenue > 0 && stripeRevenue > 0 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {getPercentage(stripeRevenue, totalRevenue)}%
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -219,7 +219,7 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                         <h4 className="text-sm font-semibold text-foreground">
                                             Crypto Payments by Currency
                                         </h4>
-                                        <div className="grid grid-cols-1 gap-2">
+                                        <div className="space-y-2">
                                             {cryptoCurrencyBreakdown.map((item) => {
                                                 const displayName = formatCurrencyDisplayName(item.currency)
                                                 // Extract base currency for amount display
@@ -232,24 +232,20 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                                 }
                                                 
                                                 return (
-                                                    <div key={item.currency} className="p-2.5 rounded-lg border border-brand-500/15 bg-brand-500/5">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                                <Badge variant="outline" className="bg-brand-500/10 text-brand-600 dark:text-brand-400 border-brand-500/20 text-xs font-medium">
-                                                                    {displayName}
-                                                                </Badge>
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    {item.count} payment{item.count !== 1 ? 's' : ''}
-                                                                </span>
-                                                            </div>
-                                                            <div className="text-right">
-                                                                <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">
-                                                                    {formatCurrency(item.usdValue)}
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {formatCrypto(item.amount)} {baseCurrency}
-                                                                </p>
-                                                            </div>
+                                                    <div key={item.currency} className="flex items-center justify-between py-2 px-3 rounded-lg border border-border/40 bg-muted/20">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-xs font-medium text-foreground/90">{displayName}</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {item.count} payment{item.count !== 1 ? 's' : ''}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-sm font-semibold text-foreground">
+                                                                {formatCurrency(item.usdValue)}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {formatCrypto(item.amount)} {baseCurrency}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                 )
@@ -258,47 +254,47 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                     </div>
                                 )}
 
-                                {/* Tier Breakdown - Elegant Grid */}
+                                {/* Tier Breakdown - Professional Minimal Design */}
                                 {(proRevenue > 0 || eliteRevenue > 0) && (
                                     <div className="space-y-3 pt-2 border-t border-border/60">
                                         <h4 className="text-sm font-semibold text-foreground">
                                             By Tier
                                         </h4>
                                         
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-2">
                                             {/* Pro Tier */}
                                             {proRevenue > 0 && (
-                                                <div className="p-3 rounded-xl border border-sec-500/20 bg-gradient-to-br from-sec-500/5 to-sec-600/5">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sec-500/10">
-                                                            <Sparkles className="h-3.5 w-3.5 text-sec-600 dark:text-sec-400" />
-                                                        </div>
-                                                        <span className="text-xs font-medium text-foreground/80">Pro</span>
+                                                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
+                                                    <div className="flex items-center gap-3">
+                                                        <Sparkles className="h-4 w-4 text-muted-foreground" />
+                                                        <span className="text-sm font-medium text-foreground">Pro Tier</span>
                                                     </div>
-                                                    <p className="text-lg font-bold text-sec-600 dark:text-sec-400 mb-0.5">
-                                                        {formatCurrency(proRevenue)}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {getPercentage(proRevenue, totalRevenue)}% of total
-                                                    </p>
+                                                    <div className="text-right">
+                                                        <p className="text-base font-semibold text-foreground">
+                                                            {formatCurrency(proRevenue)}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {getPercentage(proRevenue, totalRevenue)}%
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
 
                                             {/* Elite Tier */}
                                             {eliteRevenue > 0 && (
-                                                <div className="p-3 rounded-xl border border-elite-500/20 bg-gradient-to-br from-elite-500/5 to-elite-600/5">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-elite-500/10">
-                                                            <Crown className="h-3.5 w-3.5 text-elite-600 dark:text-elite-400" />
-                                                        </div>
-                                                        <span className="text-xs font-medium text-foreground/80">Elite</span>
+                                                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
+                                                    <div className="flex items-center gap-3">
+                                                        <Crown className="h-4 w-4 text-muted-foreground" />
+                                                        <span className="text-sm font-medium text-foreground">Elite Tier</span>
                                                     </div>
-                                                    <p className="text-lg font-bold text-elite-600 dark:text-elite-400 mb-0.5">
-                                                        {formatCurrency(eliteRevenue)}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {getPercentage(eliteRevenue, totalRevenue)}% of total
-                                                    </p>
+                                                    <div className="text-right">
+                                                        <p className="text-base font-semibold text-foreground">
+                                                            {formatCurrency(eliteRevenue)}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {getPercentage(eliteRevenue, totalRevenue)}%
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
