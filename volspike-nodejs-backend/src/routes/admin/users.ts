@@ -47,6 +47,15 @@ const updateUserSchema = z.object({
     emailVerified: z.union([z.boolean(), z.string().datetime()]).optional(),
 })
 
+const bulkActionSchema = z.object({
+    action: z.enum(['suspend', 'activate', 'delete', 'changeTier']),
+    userIds: z.array(z.string()).min(1),
+    params: z.object({
+        tier: z.enum(['free', 'pro', 'elite']).optional(),
+        status: z.enum(['ACTIVE', 'SUSPENDED', 'BANNED']).optional(),
+    }).optional(),
+})
+
 // POST /api/admin/users - Create new user
 adminUserRoutes.post('/', async (c) => {
     try {

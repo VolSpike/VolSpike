@@ -364,18 +364,41 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         size="sm"
                         variant="destructive"
                         onClick={async () => {
-                            if (confirm('Are you sure you want to delete all selected users?')) {
+                            const confirmMessage = `Are you sure you want to PERMANENTLY DELETE ${selectedUsers.length} ${selectedUsers.length === 1 ? 'user' : 'users'}?\n\n⚠️ WARNING: This will permanently remove ${selectedUsers.length === 1 ? 'this user' : 'these users'} from the database. This action CANNOT be undone.\n\nType "DELETE" to confirm:`
+                            const userConfirmation = prompt(confirmMessage)
+                            
+                            if (userConfirmation === 'DELETE') {
                                 try {
-                                    await adminAPI.executeBulkAction({
+                                    console.log('🗑️ [UsersTable] Bulk delete initiated', {
+                                        userIds: selectedUsers,
+                                        count: selectedUsers.length,
+                                    })
+                                    
+                                    const result = await adminAPI.executeBulkAction({
                                         action: 'delete',
                                         userIds: selectedUsers,
                                     })
-                                    toast.success('Users deleted')
+                                    
+                                    console.log('✅ [UsersTable] Bulk delete result', result)
+                                    
+                                    const successCount = result.results?.filter((r: any) => r.success).length || 0
+                                    const failureCount = result.results?.filter((r: any) => !r.success).length || 0
+                                    
+                                    if (failureCount > 0) {
+                                        toast.error(`${successCount} deleted, ${failureCount} failed`)
+                                    } else {
+                                        toast.success(`${successCount} ${successCount === 1 ? 'user' : 'users'} permanently deleted`)
+                                    }
+                                    
                                     setSelectedUsers([])
                                     router.refresh()
-                                } catch (error) {
-                                    toast.error('Bulk action failed')
+                                } catch (error: any) {
+                                    console.error('❌ [UsersTable] Bulk delete error', error)
+                                    const errorMessage = error?.message || error?.error || 'Bulk action failed'
+                                    toast.error(`Bulk delete failed: ${errorMessage}`)
                                 }
+                            } else if (userConfirmation !== null) {
+                                toast.error('Deletion cancelled - confirmation text did not match')
                             }
                         }}
                     >

@@ -315,10 +315,22 @@ export class UserManagementService {
     // Execute bulk actions
     static async executeBulkAction(data: BulkActionRequest, adminUserId: string) {
         try {
+            logger.info('🚀 Starting bulk action execution', {
+                action: data.action,
+                userIdsCount: data.userIds.length,
+                userIds: data.userIds,
+                adminUserId,
+            })
+
             const results = []
 
             for (const userId of data.userIds) {
                 try {
+                    logger.debug('🔄 Processing user in bulk action', {
+                        userId,
+                        action: data.action,
+                    })
+                    
                     switch (data.action) {
                         case 'suspend':
                             await prisma.user.update({
@@ -337,10 +349,34 @@ export class UserManagementService {
                             break
 
                         case 'delete':
-                            await prisma.user.update({
-                                where: { id: userId },
-                                data: { status: UserStatus.BANNED },
+                            // Hard delete - permanently remove user (consistent with individual delete)
+                            logger.info('🗑️ Bulk deleting user (hard delete)', {
+                                userId,
+                                adminUserId,
                             })
+                            
+                            // Check if user exists first
+                            const userToDelete = await prisma.user.findUnique({
+                                where: { id: userId },
+                                select: { id: true, email: true },
+                            })
+                            
+                            if (!userToDelete) {
+                                logger.warn('User not found for bulk delete', { userId })
+                                results.push({ userId, success: false, error: 'User not found' })
+                                break
+                            }
+                            
+                            // Hard delete - permanently remove
+                            await prisma.user.delete({
+                                where: { id: userId },
+                            })
+                            
+                            logger.info('✅ User bulk deleted (hard delete)', {
+                                userId,
+                                email: userToDelete.email,
+                            })
+                            
                             results.push({ userId, success: true, action: 'deleted' })
                             break
 
@@ -355,15 +391,36 @@ export class UserManagementService {
                             break
                     }
                 } catch (error) {
-                    results.push({ userId, success: false, error: error instanceof Error ? error.message : 'Unknown error' })
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+                    logger.error('❌ Error processing user in bulk action', {
+                        userId,
+                        action: data.action,
+                        error: errorMessage,
+                        errorStack: error instanceof Error ? error.stack : undefined,
+                    })
+                    results.push({ userId, success: false, error: errorMessage })
                 }
             }
 
-            logger.info(`Bulk action ${data.action} executed by admin ${adminUserId} on ${data.userIds.length} users`)
+            const successCount = results.filter(r => r.success).length
+            const failureCount = results.filter(r => !r.success).length
+
+            logger.info(`✅ Bulk action ${data.action} completed`, {
+                action: data.action,
+                totalUsers: data.userIds.length,
+                successCount,
+                failureCount,
+                adminUserId,
+            })
 
             return { results }
         } catch (error) {
-            logger.error('Bulk action error:', error)
+            logger.error('❌ Bulk action execution failed:', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+                action: data.action,
+                userIdsCount: data.userIds.length,
+            })
             throw error
         }
     }
