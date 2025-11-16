@@ -258,17 +258,6 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
             <ChevronDown className="h-4 w-4" />
     }
 
-    const getTierColor = (tier: string) => {
-        switch (tier) {
-            case 'elite':
-                return 'bg-purple-500'
-            case 'pro':
-                return 'bg-blue-500'
-            default:
-                return 'bg-gray-500'
-        }
-    }
-
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'ACTIVE':
@@ -292,19 +281,6 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                 return 'Account is permanently disabled. User cannot sign in. Typically used for soft deletion or permanent bans. Usually not reversible.'
             default:
                 return 'Unknown status'
-        }
-    }
-
-    const getTierTooltip = (tier: string) => {
-        switch (tier) {
-            case 'free':
-                return 'Free tier: 15-minute data refresh, basic features, limited symbols'
-            case 'pro':
-                return 'Pro tier: 5-minute data refresh, email alerts, all symbols, Open Interest visible'
-            case 'elite':
-                return 'Elite tier: Real-time updates, SMS alerts, unlimited access, all features'
-            default:
-                return 'Unknown tier'
         }
     }
 
@@ -520,21 +496,9 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     </TooltipProvider>
                                 </TableCell>
                                        <TableCell>
-                                           <TooltipProvider>
-                                               <Tooltip>
-                                                   <TooltipTrigger asChild>
-                                                       <div>
-                                                           <Badge className={getTierColor(user.tier)}>
-                                                               {user.tier.toUpperCase()}
-                                                           </Badge>
-                                                       </div>
-                                                   </TooltipTrigger>
-                                                   <TooltipContent side="top" className="max-w-xs">
-                                                       <p className="font-semibold mb-1">{user.tier.toUpperCase()} Tier</p>
-                                                       <p className="text-xs">{getTierTooltip(user.tier)}</p>
-                                                   </TooltipContent>
-                                               </Tooltip>
-                                           </TooltipProvider>
+                                           <span className="text-sm font-medium text-foreground capitalize">
+                                               {user.tier}
+                                           </span>
                                        </TableCell>
                                        <TableCell>
                                            <Badge variant="outline">
@@ -828,21 +792,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         <div className="space-y-6 py-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2.5">
-                                    <div className="flex items-center gap-2">
-                                        <Label htmlFor="edit-tier" className="text-sm font-semibold text-foreground">Tier</Label>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 cursor-help hover:bg-blue-500/20 transition-colors">
-                                                        <span className="text-[10px] text-blue-600 dark:text-blue-400">ℹ️</span>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top" className="max-w-xs bg-popover border border-border shadow-lg">
-                                                    <p className="text-xs">{getTierTooltip(editTier)}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </div>
+                                    <Label htmlFor="edit-tier" className="text-sm font-semibold text-foreground">Tier</Label>
                                     <Select
                                         value={editTier}
                                         onValueChange={(value) =>
