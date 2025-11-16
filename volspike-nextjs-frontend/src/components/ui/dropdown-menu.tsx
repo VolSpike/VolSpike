@@ -141,6 +141,7 @@ interface DropdownMenuContentProps {
     children: React.ReactNode
     className?: string
     usePortal?: boolean
+    style?: React.CSSProperties
 }
 
 export function DropdownMenuContent({
@@ -149,6 +150,7 @@ export function DropdownMenuContent({
     children,
     className,
     usePortal = false,
+    style,
 }: DropdownMenuContentProps) {
     const context = useContext(DropdownMenuContext)
     if (!context) throw new Error('DropdownMenuContent must be used within DropdownMenu')
@@ -336,7 +338,8 @@ export function DropdownMenuContent({
                 top: position.top,
                 left: align === 'end' ? undefined : position.left,
                 right: align === 'end' ? position.right : undefined,
-            } : undefined}
+                ...style,
+            } : style}
             role="menu"
         >
             {children}
