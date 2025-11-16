@@ -100,6 +100,14 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         const tierChanged = filters.tier !== (currentFilters.tier || '')
         const statusChanged = filters.status !== (currentFilters.status || '')
         
+        console.log('[UserFilters] Auto-apply effect triggered', {
+            roleChanged,
+            tierChanged,
+            statusChanged,
+            filters,
+            currentFilters,
+        })
+        
         // Only apply if something actually changed
         if (roleChanged || tierChanged || statusChanged) {
             const params = new URLSearchParams()
@@ -107,15 +115,26 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             if (filters.search) params.set('search', filters.search)
             if (filters.role && filters.role !== 'all') params.set('role', filters.role)
             if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-            if (filters.status && filters.status !== 'all') {
+            
+            // Handle status filter: only add if it has a value, don't add 'all' or empty
+            if (filters.status && filters.status !== 'all' && filters.status !== '') {
                 params.set('status', filters.status)
-            } else if (filters.status === '') {
-                // Explicit "All Status" - send 'all' to backend
-                params.set('status', 'all')
+                console.log('[UserFilters] Adding status filter to URL', filters.status)
+            } else {
+                // Don't add status param at all - let backend default to excluding BANNED
+                console.log('[UserFilters] Not adding status filter (will default to exclude BANNED)')
             }
             
             params.set('page', '1')
-            router.push(`/admin/users?${params.toString()}`)
+            
+            const finalUrl = `/admin/users?${params.toString()}`
+            console.log('[UserFilters] Auto-apply navigating to', {
+                finalUrl,
+                params: Object.fromEntries(params),
+                hasStatusParam: params.has('status'),
+            })
+            
+            router.push(finalUrl)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.role, filters.tier, filters.status, router])
