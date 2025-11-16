@@ -954,39 +954,20 @@ payments.post('/nowpayments/test-checkout', async (c) => {
 
             // Map to NowPayments format
             // For invoice API, we need alphanumeric codes only (no underscores/dashes)
-            // Try to fetch available currencies first to get the correct format
+            // Use direct alphanumeric mapping (simpler and faster - no API call needed)
             try {
-                const availableCurrencies = await nowpayments.getAvailableCurrencies()
-                mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
+                // Our codes are already alphanumeric: usdtsol, usdterc20, usdce, sol, btc, eth
+                // NowPayments invoice API accepts these directly
+                mappedPayCurrency = payCurrency.toLowerCase()
                 
-                // If mapping failed, try alphanumeric fallback formats
-                if (!mappedPayCurrency) {
-                    const { getCurrencyDisplayName } = await import('../services/currency-mapper')
-                    const displayName = getCurrencyDisplayName(payCurrency).toLowerCase()
-                    
-                    // Try alphanumeric formats that NowPayments invoice API accepts
-                    const alphanumericFormats = [
-                        payCurrency.toLowerCase(), // usdtsol, usdterc20, etc.
-                        `${displayName}sol`,      // usdtsol
-                        `${displayName}erc20`,   // usdterc20, usdcerc20
-                        displayName,              // usdt, usdc, sol, btc, eth
-                    ]
-                    
-                    // Check which format exists in available currencies
-                    for (const format of alphanumericFormats) {
-                        if (availableCurrencies.some(c => c.toLowerCase() === format)) {
-                            mappedPayCurrency = format
-                            logger.info('Using alphanumeric currency format for invoice API', {
-                                ourCode: payCurrency,
-                                nowpaymentsCode: mappedPayCurrency,
-                            })
-                            break
-                        }
-                    }
-                }
-            } catch (currencyFetchError) {
-                logger.warn('Failed to fetch available currencies, using alphanumeric fallback', {
-                    error: currencyFetchError,
+                logger.info('Using alphanumeric currency code for invoice API', {
+                    ourCode: payCurrency,
+                    nowpaymentsCode: mappedPayCurrency,
+                })
+            } catch (currencyMappingError) {
+                logger.error('Currency mapping error, using direct fallback', {
+                    error: currencyMappingError instanceof Error ? currencyMappingError.message : String(currencyMappingError),
+                    payCurrency,
                 })
                 // Fallback: use alphanumeric version of our code
                 mappedPayCurrency = payCurrency.toLowerCase()
