@@ -147,7 +147,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
         }
     }, [isPending])
 
-    // Detect horizontal scroll and show indicator
+    // Detect horizontal scroll and show indicator + debug Actions column visibility
     useEffect(() => {
         const checkScroll = () => {
             if (scrollContainerRef.current) {
@@ -157,17 +157,17 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                 const isNotAtEnd = scrollLeft < scrollWidth - clientWidth - 10
                 setShowScrollIndicator(isScrollable && isNotAtEnd)
                 
-                // Debug logging (can be removed in production)
-                if (process.env.NODE_ENV === 'development') {
-                    console.log('[UsersTable] Scroll check:', {
-                        scrollLeft,
-                        scrollWidth,
-                        clientWidth,
-                        isScrollable,
-                        isNotAtEnd,
-                        showIndicator: isScrollable && isNotAtEnd
-                    })
-                }
+                // Debug logging - always log for troubleshooting
+                console.log('[UsersTable] Scroll check:', {
+                    scrollLeft,
+                    scrollWidth,
+                    clientWidth,
+                    isScrollable,
+                    isNotAtEnd,
+                    showIndicator: isScrollable && isNotAtEnd,
+                    containerRect: scrollContainerRef.current.getBoundingClientRect(),
+                    actionsColumn: document.querySelector('[data-actions-column]')?.getBoundingClientRect()
+                })
             }
         }
 
@@ -455,7 +455,9 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                 <div 
                     ref={scrollContainerRef}
                     className="overflow-x-auto overflow-y-visible max-h-[calc(100vh-20rem)] overflow-y-auto relative"
-                    style={{ scrollbarWidth: 'thin' }}
+                    style={{ 
+                        scrollbarWidth: 'thin'
+                    }}
                 >
                     {/* Scroll indicator - shows when content is scrollable */}
                     <div 
@@ -464,7 +466,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         }`}
                         style={{ right: '100px' }} // Position before Actions column
                     />
-                    <Table className="min-w-[1000px] w-full">
+                    <Table className="min-w-[1000px] w-full" style={{ tableLayout: 'auto' }}>
                     <TableHeader className="sticky top-0 z-30 bg-background shadow-sm border-b border-border/60">
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead className="w-12">
@@ -512,7 +514,16 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     {getSortIcon('lastLoginAt')}
                                 </div>
                             </TableHead>
-                            <TableHead className="text-right sticky right-0 z-40 min-w-[100px] w-[100px] relative p-0">
+                            <TableHead 
+                                data-actions-column="header"
+                                className="text-right sticky right-0 z-50 min-w-[100px] w-[100px] relative p-0"
+                                style={{ 
+                                    position: 'sticky',
+                                    right: 0,
+                                    backgroundColor: 'hsl(var(--background))',
+                                    zIndex: 50
+                                }}
+                            >
                                 <div className="absolute inset-0 !bg-background border-l-2 border-border/80 shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]" style={{ opacity: 1 }} />
                                 <div className="relative z-10 p-4">Actions</div>
                             </TableHead>
@@ -771,8 +782,15 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     )}
                                 </TableCell>
                                 <TableCell 
-                                    className="text-right sticky right-0 z-40 min-w-[100px] w-[100px] relative p-0" 
+                                    data-actions-column="cell"
+                                    className="text-right sticky right-0 z-50 min-w-[100px] w-[100px] relative p-0" 
                                     onClick={(e) => e.stopPropagation()}
+                                    style={{ 
+                                        position: 'sticky',
+                                        right: 0,
+                                        backgroundColor: 'hsl(var(--background))',
+                                        zIndex: 50
+                                    }}
                                 >
                                     {/* Solid background layer - ensures full opacity */}
                                     <div className="absolute inset-0 !bg-background border-l-2 border-border/80 shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)] group-hover:bg-muted/20 transition-colors" style={{ opacity: 1 }} />
