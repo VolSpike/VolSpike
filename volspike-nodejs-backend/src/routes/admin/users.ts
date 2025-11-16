@@ -247,7 +247,7 @@ adminUserRoutes.get('/', async (c) => {
                 subscriptionMethod,
                 cryptoPayments: undefined, // Remove from response
             }
-        }))
+        })
 
         return c.json({
             users: usersWithPaymentMethod,
