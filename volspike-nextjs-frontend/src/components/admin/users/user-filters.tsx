@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,12 @@ interface UserFiltersProps {
 
 export function UserFilters({ currentFilters }: UserFiltersProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    
+    // Ref to track programmatic updates and prevent state sync loops
+    const isProgrammaticUpdate = useRef(false)
+    const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    
     const [filters, setFilters] = useState({
         search: currentFilters.search || '',
         role: currentFilters.role || '',
@@ -37,25 +43,50 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         status: currentFilters.status || '',
     })
 
-    // Sync filters with currentFilters when they change (but not when we're clearing)
+    // Debug: Log render state
     useEffect(() => {
-        // Only sync if the URL params actually changed (not from our own navigation)
-        const urlHasStatus = currentFilters.status !== undefined && currentFilters.status !== ''
-        const stateHasStatus = filters.status !== undefined && filters.status !== ''
-        
-        // If URL has status but state doesn't, sync from URL
-        // If URL doesn't have status but state does, keep state (we're clearing)
-        if (urlHasStatus && !stateHasStatus) {
-            console.log('[UserFilters] Syncing status from URL', {
-                urlStatus: currentFilters.status,
-                stateStatus: filters.status,
-            })
-            setFilters(prev => ({
-                ...prev,
-                status: currentFilters.status || '',
-            }))
+        console.log('[UserFilters] Render:', {
+            localState: filters,
+            urlParams: {
+                search: currentFilters.search,
+                role: currentFilters.role,
+                tier: currentFilters.tier,
+                status: currentFilters.status,
+            },
+            searchParamsString: searchParams.toString(),
+            isProgrammatic: isProgrammaticUpdate.current,
+        })
+    })
+
+    // FIX: Sync filters with currentFilters when they change (but not during programmatic updates)
+    useEffect(() => {
+        // Skip sync if this is a programmatic update we initiated
+        if (isProgrammaticUpdate.current) {
+            console.log('[UserFilters] Skipping state sync - programmatic update in progress')
+            isProgrammaticUpdate.current = false
+            return
         }
-    }, [currentFilters.status]) // Only depend on URL status, not state
+
+        // Only sync if URL params actually changed from external source
+        const hasChanges = 
+            filters.search !== (currentFilters.search || '') ||
+            filters.role !== (currentFilters.role || '') ||
+            filters.tier !== (currentFilters.tier || '') ||
+            filters.status !== (currentFilters.status || '')
+
+        if (hasChanges) {
+            console.log('[UserFilters] Syncing state from URL (external change)', {
+                currentFilters,
+                currentState: filters,
+            })
+            setFilters({
+                search: currentFilters.search || '',
+                role: currentFilters.role || '',
+                tier: currentFilters.tier || '',
+                status: currentFilters.status || '',
+            })
+        }
+    }, [currentFilters.search, currentFilters.role, currentFilters.tier, currentFilters.status])
 
     // Debounce search input to avoid too many requests
     const debouncedSearch = useDebounce(filters.search, 500)
@@ -309,10 +340,21 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                                 console.log('[UserFilters] Clearing status filter - START', {
                                     currentStatus: filters.status,
                                     currentUrl: window.location.search,
+                                    searchParamsString: searchParams.toString(),
                                     before: filters,
+                                    isProgrammatic: isProgrammaticUpdate.current,
                                 })
                                 
-                                // Immediately update state to prevent re-render issues
+                                // Set flag to prevent state sync loop
+                                isProgrammaticUpdate.current = true
+                                
+                                // Clear any pending auto-apply timeout
+                                if (updateTimeoutRef.current) {
+                                    clearTimeout(updateTimeoutRef.current)
+                                    updateTimeoutRef.current = null
+                                }
+                                
+                                // Update local state first
                                 setFilters(prev => {
                                     const updated = { ...prev, status: '' }
                                     console.log('[UserFilters] Status filter cleared in state', {
@@ -321,20 +363,31 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                                     return updated
                                 })
                                 
-                                // Remove status param from URL completely (no 'all', no empty string)
-                                const params = new URLSearchParams(window.location.search)
+                                // Build new URL without status param
+                                const params = new URLSearchParams(searchParams.toString())
                                 params.delete('status') // Remove status param completely
                                 params.set('page', '1')
                                 
-                                const finalUrl = `/admin/users?${params.toString()}`
+                                const finalUrl = params.toString() 
+                                    ? `/admin/users?${params.toString()}` 
+                                    : '/admin/users'
+                                
                                 console.log('[UserFilters] Navigating to URL without status param', {
                                     finalUrl,
                                     params: Object.fromEntries(params),
                                     hasStatusParam: params.has('status'),
+                                    isProgrammatic: isProgrammaticUpdate.current,
                                 })
                                 
-                                // Use router.push with replace to avoid adding to history
-                                router.push(finalUrl)
+                                // Use replace instead of push to avoid history entries
+                                // scroll: false prevents scroll to top
+                                router.replace(finalUrl, { scroll: false })
+                                
+                                // Reset flag after a short delay to allow navigation to complete
+                                setTimeout(() => {
+                                    isProgrammaticUpdate.current = false
+                                    console.log('[UserFilters] Programmatic update flag reset')
+                                }, 100)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors border border-amber-300/50 dark:border-amber-700/50"
                         >
