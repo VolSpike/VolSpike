@@ -43,26 +43,27 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         status: currentFilters.status || '',
     })
 
-    // Debug: Log render state
+    // Debug: Log render state (only in development)
     useEffect(() => {
-        console.log('[UserFilters] Render:', {
-            localState: filters,
-            urlParams: {
-                search: currentFilters.search,
-                role: currentFilters.role,
-                tier: currentFilters.tier,
-                status: currentFilters.status,
-            },
-            searchParamsString: searchParams.toString(),
-            isProgrammatic: isProgrammaticUpdate.current,
-        })
+        if (process.env.NODE_ENV === 'development') {
+            console.log('[UserFilters] Render:', {
+                localState: filters,
+                urlParams: {
+                    search: currentFilters.search,
+                    role: currentFilters.role,
+                    tier: currentFilters.tier,
+                    status: currentFilters.status,
+                },
+                searchParamsString: searchParams.toString(),
+                isProgrammatic: isProgrammaticUpdate.current,
+            })
+        }
     })
 
     // FIX: Sync filters with currentFilters when they change (but not during programmatic updates)
     useEffect(() => {
         // Skip sync if this is a programmatic update we initiated
         if (isProgrammaticUpdate.current) {
-            console.log('[UserFilters] Skipping state sync - programmatic update in progress')
             isProgrammaticUpdate.current = false
             return
         }
@@ -75,10 +76,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             filters.status !== (currentFilters.status || '')
 
         if (hasChanges) {
-            console.log('[UserFilters] Syncing state from URL (external change)', {
-                currentFilters,
-                currentState: filters,
-            })
             setFilters({
                 search: currentFilters.search || '',
                 role: currentFilters.role || '',
@@ -95,24 +92,14 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
     const applyFilters = useCallback(() => {
         // Skip if this is a programmatic update
         if (isProgrammaticUpdate.current) {
-            console.log('[UserFilters] Skipping applyFilters - programmatic update')
             return
         }
 
         const params = new URLSearchParams()
 
-        console.log('[UserFilters] applyFilters called', {
-            filters,
-            currentUrl: window.location.search,
-            isProgrammatic: isProgrammaticUpdate.current,
-        })
-
         Object.entries(filters).forEach(([key, value]) => {
             if (value && value !== 'all') {
                 params.set(key, value)
-                console.log(`[UserFilters] Added filter: ${key}=${value}`)
-            } else {
-                console.log(`[UserFilters] Skipped filter: ${key}=${value}`)
             }
         })
 
@@ -122,12 +109,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         const finalUrl = params.toString() 
             ? `/admin/users?${params.toString()}` 
             : '/admin/users'
-            
-        console.log('[UserFilters] Navigating to', {
-            finalUrl,
-            params: Object.fromEntries(params),
-            hasStatusParam: params.has('status'),
-        })
 
         // Use replace to avoid adding history entries
         router.replace(finalUrl, { scroll: false })
@@ -137,22 +118,12 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
     useEffect(() => {
         // Skip if this is a programmatic update
         if (isProgrammaticUpdate.current) {
-            console.log('[UserFilters] Skipping auto-apply - programmatic update')
             return
         }
 
         const roleChanged = filters.role !== (currentFilters.role || '')
         const tierChanged = filters.tier !== (currentFilters.tier || '')
         const statusChanged = filters.status !== (currentFilters.status || '')
-        
-        console.log('[UserFilters] Auto-apply effect triggered', {
-            roleChanged,
-            tierChanged,
-            statusChanged,
-            filters,
-            currentFilters,
-            isProgrammatic: isProgrammaticUpdate.current,
-        })
         
         // Only apply if something actually changed
         if (roleChanged || tierChanged || statusChanged) {
@@ -172,10 +143,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                 // Handle status filter: only add if it has a value, don't add 'all' or empty
                 if (filters.status && filters.status !== 'all' && filters.status !== '') {
                     params.set('status', filters.status)
-                    console.log('[UserFilters] Adding status filter to URL', filters.status)
-                } else {
-                    // Don't add status param at all - let backend default to excluding BANNED
-                    console.log('[UserFilters] Not adding status filter (will default to exclude BANNED)')
                 }
                 
                 params.set('page', '1')
@@ -183,12 +150,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                 const finalUrl = params.toString() 
                     ? `/admin/users?${params.toString()}` 
                     : '/admin/users'
-                    
-                console.log('[UserFilters] Auto-apply navigating to', {
-                    finalUrl,
-                    params: Object.fromEntries(params),
-                    hasStatusParam: params.has('status'),
-                })
                 
                 // Use replace to avoid adding history entries
                 router.replace(finalUrl, { scroll: false })
@@ -207,7 +168,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
     useEffect(() => {
         // Skip if this is a programmatic update
         if (isProgrammaticUpdate.current) {
-            console.log('[UserFilters] Skipping search debounce - programmatic update')
             return
         }
 
@@ -222,7 +182,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             if (filters.status && filters.status !== 'all' && filters.status !== '') {
                 params.set('status', filters.status)
             }
-            // Don't add status param if empty - let backend default to excluding BANNED
             
             params.set('page', '1')
             
@@ -236,8 +195,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
     }, [debouncedSearch, router])
 
     const clearFilters = () => {
-        console.log('[UserFilters] Clearing all filters')
-        
         // Set flag to prevent state sync loop
         isProgrammaticUpdate.current = true
         
@@ -415,14 +372,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                     {filters.status && filters.status !== 'all' && (
                         <button
                             onClick={() => {
-                                console.log('[UserFilters] Clearing status filter - START', {
-                                    currentStatus: filters.status,
-                                    currentUrl: window.location.search,
-                                    searchParamsString: searchParams.toString(),
-                                    before: filters,
-                                    isProgrammatic: isProgrammaticUpdate.current,
-                                })
-                                
                                 // Set flag to prevent state sync loop
                                 isProgrammaticUpdate.current = true
                                 
@@ -433,13 +382,7 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                                 }
                                 
                                 // Update local state first
-                                setFilters(prev => {
-                                    const updated = { ...prev, status: '' }
-                                    console.log('[UserFilters] Status filter cleared in state', {
-                                        after: updated,
-                                    })
-                                    return updated
-                                })
+                                setFilters(prev => ({ ...prev, status: '' }))
                                 
                                 // Build new URL without status param
                                 const params = new URLSearchParams(searchParams.toString())
@@ -450,13 +393,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                                     ? `/admin/users?${params.toString()}` 
                                     : '/admin/users'
                                 
-                                console.log('[UserFilters] Navigating to URL without status param', {
-                                    finalUrl,
-                                    params: Object.fromEntries(params),
-                                    hasStatusParam: params.has('status'),
-                                    isProgrammatic: isProgrammaticUpdate.current,
-                                })
-                                
                                 // Use replace instead of push to avoid history entries
                                 // scroll: false prevents scroll to top
                                 router.replace(finalUrl, { scroll: false })
@@ -464,7 +400,6 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                                 // Reset flag after a short delay to allow navigation to complete
                                 setTimeout(() => {
                                     isProgrammaticUpdate.current = false
-                                    console.log('[UserFilters] Programmatic update flag reset')
                                 }, 100)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors border border-amber-300/50 dark:border-amber-700/50"
