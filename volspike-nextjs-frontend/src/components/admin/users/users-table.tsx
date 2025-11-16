@@ -65,6 +65,7 @@ import { format, differenceInDays, isPast, formatDistanceToNow } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { AdminUser } from '@/types/admin'
 import { adminAPI } from '@/lib/admin/api-client'
+import { Pagination, PaginationInfo } from '@/components/ui/pagination'
 
 interface UsersTableProps {
     users: AdminUser[]
@@ -979,105 +980,48 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
 
             {/* Pagination */}
             {pagination.pages > 1 && (
-                <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                        Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} users
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={pagination.page <= 1 || isPending}
-                            onClick={() => {
-                                // Clear any existing timeout
-                                if (loadingTimeoutRef.current) {
-                                    clearTimeout(loadingTimeoutRef.current)
-                                }
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border/60">
+                    <PaginationInfo
+                        currentPage={pagination.page}
+                        totalPages={pagination.pages}
+                        totalItems={pagination.total}
+                        itemsPerPage={pagination.limit}
+                    />
+                    <Pagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.pages}
+                        onPageChange={(page) => {
+                            // Clear any existing timeout
+                            if (loadingTimeoutRef.current) {
+                                clearTimeout(loadingTimeoutRef.current)
+                            }
+                            
+                            // Only show loading if transition takes more than 150ms
+                            loadingTimeoutRef.current = setTimeout(() => {
+                                setShowLoading(true)
+                            }, 150)
+                            
+                            startTransition(() => {
+                                const params = new URLSearchParams()
                                 
-                                // Only show loading if transition takes more than 150ms
-                                loadingTimeoutRef.current = setTimeout(() => {
-                                    setShowLoading(true)
-                                }, 150)
+                                // Preserve existing query params
+                                if (currentQuery.search) params.set('search', String(currentQuery.search))
+                                if (currentQuery.role) params.set('role', String(currentQuery.role))
+                                if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
+                                if (currentQuery.status) params.set('status', String(currentQuery.status))
+                                if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+                                if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
+                                if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
                                 
-                                startTransition(() => {
-                                    const params = new URLSearchParams()
-                                    
-                                    // Preserve existing query params
-                                    if (currentQuery.search) params.set('search', String(currentQuery.search))
-                                    if (currentQuery.role) params.set('role', String(currentQuery.role))
-                                    if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
-                                    if (currentQuery.status) params.set('status', String(currentQuery.status))
-                                    if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
-                                    if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
-                                    if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
-                                    
-                                    // Set new page
-                                    params.set('page', String(pagination.page - 1))
-                                    
-                                    router.push(`/admin/users?${params.toString()}`)
-                                })
-                            }}
-                            className="min-w-[80px] transition-all duration-200 relative"
-                        >
-                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
-                                Previous
-                            </span>
-                            {showLoading && isPending && (
-                                <span className="absolute flex items-center inset-0 justify-center">
-                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                    Loading...
-                                </span>
-                            )}
-                        </Button>
-                        <span className="text-sm min-w-[100px] text-center">
-                            Page {pagination.page} of {pagination.pages}
-                        </span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={pagination.page >= pagination.pages || isPending}
-                            onClick={() => {
-                                // Clear any existing timeout
-                                if (loadingTimeoutRef.current) {
-                                    clearTimeout(loadingTimeoutRef.current)
-                                }
+                                // Set new page
+                                params.set('page', String(page))
                                 
-                                // Only show loading if transition takes more than 150ms
-                                loadingTimeoutRef.current = setTimeout(() => {
-                                    setShowLoading(true)
-                                }, 150)
-                                
-                                startTransition(() => {
-                                    const params = new URLSearchParams()
-                                    
-                                    // Preserve existing query params
-                                    if (currentQuery.search) params.set('search', String(currentQuery.search))
-                                    if (currentQuery.role) params.set('role', String(currentQuery.role))
-                                    if (currentQuery.tier) params.set('tier', String(currentQuery.tier))
-                                    if (currentQuery.status) params.set('status', String(currentQuery.status))
-                                    if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
-                                    if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
-                                    if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
-                                    
-                                    // Set new page
-                                    params.set('page', String(pagination.page + 1))
-                                    
-                                    router.push(`/admin/users?${params.toString()}`)
-                                })
-                            }}
-                            className="min-w-[80px] transition-all duration-200 relative"
-                        >
-                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
-                                Next
-                            </span>
-                            {showLoading && isPending && (
-                                <span className="absolute flex items-center inset-0 justify-center">
-                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                    Loading...
-                                </span>
-                            )}
-                        </Button>
-                    </div>
+                                router.push(`/admin/users?${params.toString()}`)
+                            })
+                        }}
+                        isLoading={isPending}
+                        maxVisiblePages={7}
+                    />
                 </div>
             )}
         </div>
