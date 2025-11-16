@@ -17,8 +17,7 @@ export function RateLimitNotification() {
   const [retryAfter, setRetryAfter] = useState<number | null>(null)
 
   useEffect(() => {
-    // Check rate limit status periodically
-    const interval = setInterval(() => {
+    const updateStatus = () => {
       const status = coingeckoRateLimiter.getStatus()
       const now = Date.now()
       
@@ -30,9 +29,21 @@ export function RateLimitNotification() {
         setIsRateLimited(false)
         setRetryAfter(null)
       }
-    }, 1000) // Check every second
+    }
 
-    return () => clearInterval(interval)
+    // Subscribe to rate limit changes
+    const unsubscribe = coingeckoRateLimiter.subscribe(updateStatus)
+
+    // Initial check
+    updateStatus()
+
+    // Also check periodically for countdown updates
+    const interval = setInterval(updateStatus, 1000)
+
+    return () => {
+      unsubscribe()
+      clearInterval(interval)
+    }
   }, [])
 
   if (!isRateLimited) return null
