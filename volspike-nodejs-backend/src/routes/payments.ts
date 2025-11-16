@@ -933,6 +933,9 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         const backendUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(':3000', ':3001') || 'http://localhost:3001'
         const ipnCallbackUrl = `${backendUrl}/api/payments/nowpayments/webhook`
 
+        // Initialize NowPayments service (needed for currency fetching)
+        const nowpayments = NowPaymentsService.getInstance()
+
         // Map currency code to NowPayments format and validate (same logic as regular checkout)
         let mappedPayCurrency: string | null = null
 
@@ -950,12 +953,49 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             }
 
             // Map to NowPayments format
-            mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
+            // For invoice API, we need alphanumeric codes only (no underscores/dashes)
+            // Try to fetch available currencies first to get the correct format
+            try {
+                const availableCurrencies = await nowpayments.getAvailableCurrencies()
+                mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
+                
+                // If mapping failed, try alphanumeric fallback formats
+                if (!mappedPayCurrency) {
+                    const { getCurrencyDisplayName } = await import('../services/currency-mapper')
+                    const displayName = getCurrencyDisplayName(payCurrency).toLowerCase()
+                    
+                    // Try alphanumeric formats that NowPayments invoice API accepts
+                    const alphanumericFormats = [
+                        payCurrency.toLowerCase(), // usdtsol, usdterc20, etc.
+                        `${displayName}sol`,      // usdtsol
+                        `${displayName}erc20`,   // usdterc20, usdcerc20
+                        displayName,              // usdt, usdc, sol, btc, eth
+                    ]
+                    
+                    // Check which format exists in available currencies
+                    for (const format of alphanumericFormats) {
+                        if (availableCurrencies.some(c => c.toLowerCase() === format)) {
+                            mappedPayCurrency = format
+                            logger.info('Using alphanumeric currency format for invoice API', {
+                                ourCode: payCurrency,
+                                nowpaymentsCode: mappedPayCurrency,
+                            })
+                            break
+                        }
+                    }
+                }
+            } catch (currencyFetchError) {
+                logger.warn('Failed to fetch available currencies, using alphanumeric fallback', {
+                    error: currencyFetchError,
+                })
+                // Fallback: use alphanumeric version of our code
+                mappedPayCurrency = payCurrency.toLowerCase()
+            }
         }
 
-        // Use mapped currency or default to USDT on Solana (usdt_sol format)
+        // Use mapped currency or default to USDT on Solana (alphanumeric format for invoice API)
         // This ensures we only show supported currencies, not all 300+ NowPayments currencies
-        const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
+        const finalPayCurrency: string = mappedPayCurrency || 'usdtsol'
 
         logger.info('Test checkout currency determined', {
             originalPayCurrency: payCurrency,
@@ -964,11 +1004,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         })
 
         // Create invoice with NowPayments (hosted checkout flow)
-        const nowpayments = NowPaymentsService.getInstance()
         const invoice = await nowpayments.createInvoice({
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: finalPayCurrency, // Use validated/mapped currency code (defaults to usdt_sol)
+            pay_currency: finalPayCurrency, // Use validated/mapped currency code (alphanumeric only for invoice API)
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
             ipn_callback_url: ipnCallbackUrl,
