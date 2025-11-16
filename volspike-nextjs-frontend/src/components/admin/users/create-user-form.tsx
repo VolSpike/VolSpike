@@ -233,8 +233,8 @@ export function CreateUserForm() {
                                             </div>
                                         </AlertDescription>
                                     </div>
-                                </Alert>
-                            </div>
+                                </div>
+                            </Alert>
                         </div>
                     )}
                     
