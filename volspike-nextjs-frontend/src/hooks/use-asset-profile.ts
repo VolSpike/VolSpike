@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { STATIC_ASSET_MANIFEST } from '@/lib/asset-manifest'
+import { rateLimitedFetch } from '@/lib/coingecko-rate-limiter'
 
 export interface AssetProfile {
     id: string
@@ -143,12 +144,78 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
     let coingeckoId: string | undefined = override?.coingeckoId
 
     if (!coingeckoId) {
-        // First, search by symbol to get a CoinGecko id
-        const searchRes = await fetch(
-            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(upper)}`
-        )
+        try {
+            // First, search by symbol to get a CoinGecko id (rate-limited)
+            const searchRes = await rateLimitedFetch(
+                `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(upper)}`,
+                undefined,
+                'normal'
+            )
 
-        if (!searchRes.ok) {
+            const searchJson = (await searchRes.json()) as any
+            let coins: any[] = Array.isArray(searchJson?.coins) ? searchJson.coins : []
+
+            // If nothing comes back for the raw perp symbol (e.g. 1000PEPE),
+            // try a de-multiplied variant like PEPE as a second pass.
+            if (!coins.length) {
+                const multiplierMatch = /^(10|100|1000|10000)([A-Z0-9]+)$/.exec(upper)
+                const stripped = multiplierMatch?.[2]
+
+                if (stripped && stripped !== upper) {
+                    try {
+                        const altRes = await rateLimitedFetch(
+                            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(stripped)}`,
+                            undefined,
+                            'low' // Lower priority for fallback search
+                        )
+                        if (altRes.ok) {
+                            const altJson = (await altRes.json()) as any
+                            const altCoins: any[] = Array.isArray(altJson?.coins) ? altJson.coins : []
+                            if (altCoins.length) {
+                                coins = altCoins
+                            }
+                        }
+                    } catch (altError) {
+                        // Ignore fallback search errors
+                        console.debug(`[use-asset-profile] Fallback search failed for ${stripped}:`, altError)
+                    }
+                }
+            }
+
+            if (!coins.length) {
+                // No coins found - use override if available
+                if (override) {
+                    return {
+                        id: override.id ?? upper,
+                        symbol: upper,
+                        name: override.name ?? upper,
+                        logoUrl: override.logoUrl,
+                        websiteUrl: override.websiteUrl,
+                        twitterUrl: override.twitterUrl,
+                        description: override.description,
+                        categories: override.categories,
+                    }
+                }
+                return undefined
+            }
+
+            // Prefer exact symbol matches and highest market cap rank / score
+            const candidates = coins.filter((c) => (c?.symbol || '').toUpperCase() === upper)
+            const ranked = (candidates.length ? candidates : coins).slice().sort((a: any, b: any) => {
+                const rankA = typeof a.market_cap_rank === 'number' ? a.market_cap_rank : Number.MAX_SAFE_INTEGER
+                const rankB = typeof b.market_cap_rank === 'number' ? b.market_cap_rank : Number.MAX_SAFE_INTEGER
+                if (rankA !== rankB) return rankA - rankB
+                const scoreA = typeof a.coingecko_score === 'number' ? -a.coingecko_score : 0
+                const scoreB = typeof b.coingecko_score === 'number' ? -b.coingecko_score : 0
+                return scoreA - scoreB
+            })
+
+            const chosen = ranked[0]
+            coingeckoId = chosen?.id
+        } catch (searchError: any) {
+            // Handle rate limit or other errors gracefully
+            console.warn(`[use-asset-profile] CoinGecko search failed for ${upper}:`, searchError)
+            
             // Fallback to static override if we have one
             if (override) {
                 return {
@@ -164,59 +231,6 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
             }
             return undefined
         }
-
-        const searchJson = (await searchRes.json()) as any
-        let coins: any[] = Array.isArray(searchJson?.coins) ? searchJson.coins : []
-
-        // If nothing comes back for the raw perp symbol (e.g. 1000PEPE),
-        // try a de-multiplied variant like PEPE as a second pass.
-        if (!coins.length) {
-            const multiplierMatch = /^(10|100|1000|10000)([A-Z0-9]+)$/.exec(upper)
-            const stripped = multiplierMatch?.[2]
-
-            if (stripped && stripped !== upper) {
-                const altRes = await fetch(
-                    `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(stripped)}`
-                )
-                if (altRes.ok) {
-                    const altJson = (await altRes.json()) as any
-                    const altCoins: any[] = Array.isArray(altJson?.coins) ? altJson.coins : []
-                    if (altCoins.length) {
-                        coins = altCoins
-                    }
-                }
-            }
-        }
-
-        if (!coins.length) {
-            if (override) {
-                return {
-                    id: override.id ?? upper,
-                    symbol: upper,
-                    name: override.name ?? upper,
-                    logoUrl: override.logoUrl,
-                    websiteUrl: override.websiteUrl,
-                    twitterUrl: override.twitterUrl,
-                    description: override.description,
-                    categories: override.categories,
-                }
-            }
-            return undefined
-        }
-
-        // Prefer exact symbol matches and highest market cap rank / score
-        const candidates = coins.filter((c) => (c?.symbol || '').toUpperCase() === upper)
-        const ranked = (candidates.length ? candidates : coins).slice().sort((a: any, b: any) => {
-            const rankA = typeof a.market_cap_rank === 'number' ? a.market_cap_rank : Number.MAX_SAFE_INTEGER
-            const rankB = typeof b.market_cap_rank === 'number' ? b.market_cap_rank : Number.MAX_SAFE_INTEGER
-            if (rankA !== rankB) return rankA - rankB
-            const scoreA = typeof a.coingecko_score === 'number' ? -a.coingecko_score : 0
-            const scoreB = typeof b.coingecko_score === 'number' ? -b.coingecko_score : 0
-            return scoreA - scoreB
-        })
-
-        const chosen = ranked[0]
-        coingeckoId = chosen?.id
     }
 
     if (!coingeckoId) {
@@ -235,11 +249,62 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
         return undefined
     }
 
-    const coinRes = await fetch(
-        `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coingeckoId)}?localization=false&tickers=false&market_data=false&community_data=true&developer_data=false&sparkline=false`
-    )
+    try {
+        // Fetch coin details (rate-limited)
+        const coinRes = await rateLimitedFetch(
+            `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coingeckoId)}?localization=false&tickers=false&market_data=false&community_data=true&developer_data=false&sparkline=false`,
+            undefined,
+            'normal'
+        )
 
-    if (!coinRes.ok) {
+        const coin = (await coinRes.json()) as any
+
+        const descriptionRaw = typeof coin?.description?.en === 'string' ? coin.description.en : ''
+        const descriptionText = stripHtml(descriptionRaw)
+
+        const homepage: string | undefined = Array.isArray(coin?.links?.homepage)
+            ? coin.links.homepage.find((url: string | null | undefined) => !!url?.trim())
+            : undefined
+
+        const twitterName: string | undefined = coin?.links?.twitter_screen_name
+            ? String(coin.links.twitter_screen_name).trim()
+            : undefined
+
+        const twitterUrl = twitterName ? `https://x.com/${twitterName}` : undefined
+
+        const logoUrl: string | undefined =
+            coin?.image?.small || coin?.image?.thumb || coin?.image?.large || undefined
+
+        const categories: string[] | undefined = Array.isArray(coin?.categories)
+            ? coin.categories.filter((c: unknown) => typeof c === 'string' && c.trim().length > 0)
+            : undefined
+
+        const baseProfile: AssetProfile = {
+            id: String(coin.id || coingeckoId),
+            symbol: upper,
+            name: String(coin.name || upper),
+            logoUrl,
+            websiteUrl: homepage,
+            twitterUrl,
+            description: descriptionText || undefined,
+            categories,
+        }
+
+        const merged: AssetProfile = {
+            ...baseProfile,
+            ...override,
+            id: override?.id ?? baseProfile.id,
+            symbol: upper,
+            name: override?.name ?? baseProfile.name,
+            description: override?.description ?? baseProfile.description,
+        }
+
+        return merged
+    } catch (coinError: any) {
+        // Handle rate limit or other errors gracefully
+        console.warn(`[use-asset-profile] CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
+        
+        // Fallback to override if available
         if (override) {
             return {
                 id: override.id ?? upper,
@@ -254,50 +319,6 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
         }
         return undefined
     }
-
-    const coin = (await coinRes.json()) as any
-
-    const descriptionRaw = typeof coin?.description?.en === 'string' ? coin.description.en : ''
-    const descriptionText = stripHtml(descriptionRaw)
-
-    const homepage: string | undefined = Array.isArray(coin?.links?.homepage)
-        ? coin.links.homepage.find((url: string | null | undefined) => !!url?.trim())
-        : undefined
-
-    const twitterName: string | undefined = coin?.links?.twitter_screen_name
-        ? String(coin.links.twitter_screen_name).trim()
-        : undefined
-
-    const twitterUrl = twitterName ? `https://x.com/${twitterName}` : undefined
-
-    const logoUrl: string | undefined =
-        coin?.image?.small || coin?.image?.thumb || coin?.image?.large || undefined
-
-    const categories: string[] | undefined = Array.isArray(coin?.categories)
-        ? coin.categories.filter((c: unknown) => typeof c === 'string' && c.trim().length > 0)
-        : undefined
-
-    const baseProfile: AssetProfile = {
-        id: String(coin.id || coingeckoId),
-        symbol: upper,
-        name: String(coin.name || upper),
-        logoUrl,
-        websiteUrl: homepage,
-        twitterUrl,
-        description: descriptionText || undefined,
-        categories,
-    }
-
-    const merged: AssetProfile = {
-        ...baseProfile,
-        ...override,
-        id: override?.id ?? baseProfile.id,
-        symbol: upper,
-        name: override?.name ?? baseProfile.name,
-        description: override?.description ?? baseProfile.description,
-    }
-
-    return merged
 }
 
 export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {

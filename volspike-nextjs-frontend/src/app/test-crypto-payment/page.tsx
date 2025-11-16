@@ -23,9 +23,9 @@ export default function TestCryptoPaymentPage() {
     const [tier, setTier] = useState<'pro' | 'elite'>('pro')
     const [selectedCurrency, setSelectedCurrency] = useState<string>('usdtsol') // Default to USDT on Solana
 
-    const isTestUser = session?.user?.email?.endsWith('-test@volspike.com') || 
-                      session?.user?.email === 'test@volspike.com' ||
-                      session?.user?.email?.includes('test@')
+    const isTestUser = session?.user?.email?.endsWith('-test@volspike.com') ||
+        session?.user?.email === 'test@volspike.com' ||
+        session?.user?.email?.includes('test@')
 
     const handleTestPayment = async () => {
         if (!session?.user) {
@@ -61,13 +61,13 @@ export default function TestCryptoPaymentPage() {
             })
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ 
-                    error: `HTTP ${response.status}: ${response.statusText || 'Unknown error'}` 
+                const errorData = await response.json().catch(() => ({
+                    error: `HTTP ${response.status}: ${response.statusText || 'Unknown error'}`
                 }))
-                
+
                 // Extract detailed error message
                 const errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}`
-                
+
                 // Log full error details for debugging
                 console.error('Payment API Error:', {
                     status: response.status,
@@ -75,7 +75,7 @@ export default function TestCryptoPaymentPage() {
                     errorData,
                     url: `${API_URL}/api/payments/nowpayments/test-checkout`,
                 })
-                
+
                 throw new Error(errorMessage)
             }
 
@@ -206,8 +206,8 @@ export default function TestCryptoPaymentPage() {
 
                         {/* Error Display */}
                         {error && (
-                            <PaymentErrorDisplay 
-                                error={error} 
+                            <PaymentErrorDisplay
+                                error={error}
                                 onRetry={() => {
                                     setError(null)
                                     handleTestPayment()

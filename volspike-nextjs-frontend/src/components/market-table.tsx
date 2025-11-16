@@ -313,6 +313,7 @@ export function MarketTable({
     // Warm CoinGecko project profiles in the background for the
     // most likely symbols to be clicked, so the detail drawer
     // feels instant even on first open.
+    // Reduced from 24 to 5 to avoid rate limiting (CoinGecko free tier: 10-50 calls/minute)
     useEffect(() => {
         if (typeof window === 'undefined') return
         if (!sortedData.length) return
@@ -320,16 +321,17 @@ export function MarketTable({
         const baseSymbols = Array.from(
             new Set(
                 sortedData
-                    .slice(0, 24) // top 24 by current sort
+                    .slice(0, 5) // Reduced to top 5 to avoid rate limits
                     .map((item) => formatSymbol(item.symbol).toUpperCase())
             )
         )
 
+        // Stagger requests more aggressively to respect rate limits
+        // Rate limiter handles timing, but we still stagger initial queueing
         baseSymbols.forEach((sym, index) => {
-            // Stagger requests slightly to be gentle on CoinGecko
             window.setTimeout(() => {
                 prefetchAssetProfile(sym)
-            }, index * 150)
+            }, index * 1000) // 1 second between queue additions
         })
     }, [sortedData])
 

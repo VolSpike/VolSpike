@@ -59,10 +59,10 @@ export interface InvoiceResponse {
   is_fixed_rate?: boolean
   is_fee_paid_by_user?: boolean
   created_at?: string
-  
+
   // Normalized aliases that the rest of your code expects
   invoice_id?: string | number  // Normalized from 'id'
-  
+
   // Keep it open-ended so we don't fight their schema
   [key: string]: any
 }
@@ -112,11 +112,11 @@ export class NowPaymentsService {
         paymentStatus: responseData.payment_status,
         payUrl: responseData.pay_url,
         payAddress: responseData.pay_address,
-        
+
         // All response keys
         responseKeys: Object.keys(responseData),
         responseKeysCount: Object.keys(responseData).length,
-        
+
         // Check for common field variations
         hasPaymentId: !!responseData.payment_id,
         hasInvoiceId: !!responseData.invoice_id,
@@ -125,14 +125,14 @@ export class NowPaymentsService {
         hasPaymentUrl: !!responseData.payment_url,
         hasInvoiceUrl: !!responseData.invoice_url,
         hasUrl: !!responseData.url,
-        
+
         // Check for nested objects
         hasInvoice: !!responseData.invoice,
         hasPayment: !!responseData.payment,
-        
+
         // Full response (stringified for complete visibility)
         fullResponse: JSON.stringify(responseData, null, 2),
-        
+
         // Response status
         status: response.status,
         statusText: response.statusText,
@@ -316,14 +316,14 @@ export class NowPaymentsService {
           'x-api-key': API_KEY,
         },
       })
-      
+
       const currencies = response.data.currencies || []
-      
+
       // Find USDC-related currencies for better debugging
-      const usdcRelated = currencies.filter((c: string) => 
+      const usdcRelated = currencies.filter((c: string) =>
         c.toUpperCase().includes('USDC')
       )
-      
+
       logger.info('NowPayments currencies fetched', {
         count: currencies.length,
         currencies: currencies.slice(0, 50), // Log first 50 for debugging
@@ -335,7 +335,7 @@ export class NowPaymentsService {
         hasBTC: currencies.some((c: string) => c.toUpperCase() === 'BTC'),
         hasETH: currencies.some((c: string) => c.toUpperCase() === 'ETH'),
       })
-      
+
       return currencies
     } catch (error: any) {
       logger.error('NowPayments get currencies error:', {
@@ -382,7 +382,7 @@ export class NowPaymentsService {
       })
 
       const minAmount = response.data?.min_amount
-      
+
       if (minAmount && typeof minAmount === 'number') {
         logger.info('NowPayments minimum amount fetched', {
           currencyFrom,
