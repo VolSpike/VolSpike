@@ -280,7 +280,15 @@ export function CreateUserForm() {
                                 <Checkbox
                                     id="sendInvite"
                                     checked={formData.sendInvite}
-                                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, sendInvite: checked as boolean }))}
+                                    onCheckedChange={(checked) => {
+                                        const newValue = checked === true
+                                        console.log('[CreateUser] Checkbox changed', { checked, newValue, type: typeof checked })
+                                        setFormData(prev => {
+                                            const updated = { ...prev, sendInvite: newValue }
+                                            console.log('[CreateUser] Form data updated', updated)
+                                            return updated
+                                        })
+                                    }}
                                     className="mt-0.5"
                                 />
                                 <div className="flex-1">
