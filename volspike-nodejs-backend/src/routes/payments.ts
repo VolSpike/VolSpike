@@ -747,26 +747,32 @@ function extractUserIdFromOrderId(orderId?: string | null): string | null {
         return null
     }
     
-    // Order ID format: volspike-{userId}-{timestamp}
-    // We need to extract userId which is everything between 'volspike-' and the last '-{timestamp}'
-    // Split by '-' and take everything except first ('volspike') and last (timestamp)
+    // Order ID formats:
+    // - Normal: volspike-{userId}-{timestamp}
+    // - Test: volspike-test-{userId}-{timestamp}
+    // We need to extract userId which is everything between 'volspike-' (or 'volspike-test-') and the last '-{timestamp}'
     const parts = orderId.split('-')
     if (parts.length < 3) {
         logger.warn('Order ID has insufficient parts', { orderId, partsCount: parts.length })
         return null
     }
     
-    // Remove 'volspike' (first part) and timestamp (last part)
+    // Remove 'volspike' (first part), optionally 'test' (second part if present), and timestamp (last part)
     // Everything in between is the userId
-    const userIdParts = parts.slice(1, -1)
+    let startIndex = 1 // Skip 'volspike'
+    if (parts.length > 3 && parts[1] === 'test') {
+        startIndex = 2 // Skip 'volspike' and 'test'
+    }
+    
+    const userIdParts = parts.slice(startIndex, -1) // Everything except first part(s) and last (timestamp)
     const userId = userIdParts.join('-')
     
     if (!userId) {
-        logger.warn('Failed to extract userId from order ID', { orderId, parts })
+        logger.warn('Failed to extract userId from order ID', { orderId, parts, startIndex })
         return null
     }
     
-    logger.debug('Extracted userId from order ID', { orderId, userId })
+    logger.debug('Extracted userId from order ID', { orderId, userId, isTest: parts[1] === 'test' })
     return userId
 }
 
@@ -871,6 +877,138 @@ async function createCryptoPaymentFallbackFromWebhook(data: any): Promise<Crypto
         return null
     }
 }
+
+// Create NowPayments test checkout (for testing with custom amount)
+// Only available for test users (email ends with -test@volspike.com or test@volspike.com)
+payments.post('/nowpayments/test-checkout', async (c) => {
+    try {
+        logger.info('NowPayments TEST checkout request received', {
+            method: c.req.method,
+            url: c.req.url,
+            hasAuth: !!c.req.header('authorization'),
+        })
+
+        const user = requireUser(c)
+        
+        // Only allow test users
+        const isTestUser = user.email?.endsWith('-test@volspike.com') || 
+                          user.email === 'test@volspike.com' ||
+                          user.email?.includes('test@') ||
+                          process.env.NODE_ENV === 'development'
+        
+        if (!isTestUser) {
+            logger.warn('Non-test user attempted to use test checkout', {
+                email: user.email,
+            })
+            return c.json({ error: 'Test checkout is only available for test accounts' }, 403)
+        }
+
+        logger.info('Test user authenticated for NowPayments test checkout', {
+            userId: user.id,
+            email: user.email,
+        })
+
+        const body = await c.req.json()
+        const { tier, successUrl, cancelUrl, payCurrency, testAmount } = z.object({
+            tier: z.enum(['pro', 'elite']),
+            successUrl: z.string().url(),
+            cancelUrl: z.string().url(),
+            payCurrency: z.string().optional(),
+            testAmount: z.number().min(0.01).max(10).optional().default(1.0), // Default $1, max $10 for safety
+        }).parse(body)
+
+        const priceAmount = testAmount || 1.0 // Use test amount (default $1)
+
+        logger.info('Test checkout parameters', {
+            tier,
+            testAmount: priceAmount,
+            payCurrency,
+            userId: user.id,
+        })
+
+        // Generate unique order ID with TEST prefix
+        const orderId = `volspike-test-${user.id}-${Date.now()}`
+
+        // Check environment variables
+        const backendUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(':3000', ':3001') || 'http://localhost:3001'
+        const ipnCallbackUrl = `${backendUrl}/api/payments/nowpayments/webhook`
+
+        // Create invoice with NowPayments (hosted checkout flow)
+        const nowpayments = NowPaymentsService.getInstance()
+        const invoice = await nowpayments.createInvoice({
+            price_amount: priceAmount,
+            price_currency: 'usd',
+            pay_currency: payCurrency,
+            order_id: orderId,
+            order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
+            ipn_callback_url: ipnCallbackUrl,
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+        })
+
+        const invoiceId = invoice.invoice_id || invoice.id
+        const invoiceUrl = invoice.invoice_url
+
+        if (!invoiceUrl) {
+            logger.error('NowPayments test invoice created but no invoice_url returned', {
+                invoiceId,
+                invoiceResponse: invoice,
+            })
+            throw new Error('NowPayments API did not return invoice_url')
+        }
+
+        // Store invoice in database with TEST flag
+        try {
+            const cryptoPayment = await prisma.cryptoPayment.create({
+                data: {
+                    userId: user.id,
+                    paymentStatus: 'waiting',
+                    tier: tier,
+                    invoiceId: String(invoiceId),
+                    orderId: orderId,
+                    paymentUrl: invoiceUrl,
+                    payAmount: priceAmount, // Store test amount
+                    payCurrency: 'usd',
+                },
+            })
+
+            logger.info('TEST crypto payment record created in database', {
+                paymentId: cryptoPayment.id,
+                invoiceId,
+                orderId,
+                userId: user.id,
+                testAmount: priceAmount,
+            })
+        } catch (dbError) {
+            logger.error('Failed to create TEST crypto payment record', {
+                error: dbError,
+                invoiceId,
+                orderId,
+            })
+            throw dbError
+        }
+
+        return c.json({
+            paymentId: null, // Will be set by webhook
+            invoiceId: String(invoiceId),
+            paymentUrl: invoiceUrl,
+            payAddress: null, // Will be set by webhook
+            payAmount: null, // Will be set by webhook
+            payCurrency: payCurrency || null,
+            priceAmount: priceAmount,
+            priceCurrency: 'usd',
+            isTestPayment: true,
+            testAmount: priceAmount,
+        })
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('Create TEST checkout error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+        return c.json({ error: `Failed to create test checkout: ${message}` }, 500)
+    }
+})
 
 // Create NowPayments checkout
 payments.post('/nowpayments/checkout', async (c) => {
