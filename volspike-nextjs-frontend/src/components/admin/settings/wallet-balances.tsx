@@ -38,67 +38,84 @@ export function WalletBalances() {
         try {
             adminAPI.setAccessToken(session.accessToken as string)
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const url = `${apiUrl}/api/admin/payments?limit=1000`
             
-            console.log('[WalletBalances] Fetching payments from:', url)
+            // Fetch all payments with pagination (max limit is 100 per API)
+            const allPayments: any[] = []
+            let page = 1
+            const limit = 100 // API maximum
+            let hasMore = true
             
-            // Fetch payments to extract wallet addresses
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${session.accessToken}`,
-                    'Content-Type': 'application/json',
-                },
-            })
+            console.log('[WalletBalances] Starting to fetch payments with pagination...')
             
-            console.log('[WalletBalances] Response status:', response.status)
-            
-            if (!response.ok) {
-                const errorText = await response.text()
-                console.error('[WalletBalances] API error:', response.status, errorText)
-                throw new Error(`Failed to fetch payments: ${response.status} ${errorText}`)
-            }
-            
-            const data = await response.json()
-            console.log('[WalletBalances] Received data:', { 
-                paymentsCount: data.payments?.length || 0,
-                hasPagination: !!data.pagination 
-            })
-            
-            if (data.payments && Array.isArray(data.payments)) {
-                // Group by payAddress and currency
-                const walletMap = new Map<string, WalletAddress>()
+            while (hasMore) {
+                const url = `${apiUrl}/api/admin/payments?limit=${limit}&page=${page}&paymentStatus=finished`
+                console.log('[WalletBalances] Fetching page', page, 'from:', url)
                 
-                data.payments.forEach((payment: any) => {
-                    if (payment.payAddress && payment.paymentStatus === 'finished') {
-                        const key = `${payment.payAddress}-${payment.actuallyPaidCurrency || 'unknown'}`
-                        
-                        if (!walletMap.has(key)) {
-                            walletMap.set(key, {
-                                address: payment.payAddress,
-                                currency: payment.actuallyPaidCurrency?.toUpperCase() || 'UNKNOWN',
-                                totalReceived: 0,
-                                paymentCount: 0,
-                                lastPayment: null,
-                            })
-                        }
-                        
-                        const wallet = walletMap.get(key)!
-                        wallet.totalReceived += payment.payAmount || 0
-                        wallet.paymentCount += 1
-                        
-                        if (payment.paidAt && (!wallet.lastPayment || payment.paidAt > wallet.lastPayment)) {
-                            wallet.lastPayment = payment.paidAt
-                        }
-                    }
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${session.accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
                 })
                 
-                const walletsArray = Array.from(walletMap.values()).sort((a, b) => b.totalReceived - a.totalReceived)
-                console.log('[WalletBalances] Processed wallets:', walletsArray.length)
-                setWallets(walletsArray)
-            } else {
-                console.log('[WalletBalances] No payments data or invalid format')
-                setWallets([])
+                console.log('[WalletBalances] Response status:', response.status)
+                
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    console.error('[WalletBalances] API error:', response.status, errorText)
+                    throw new Error(`Failed to fetch payments: ${response.status} ${errorText}`)
+                }
+                
+                const data = await response.json()
+                console.log('[WalletBalances] Page', page, 'received:', { 
+                    paymentsCount: data.payments?.length || 0,
+                    total: data.pagination?.total || 0,
+                    pages: data.pagination?.pages || 0
+                })
+                
+                if (data.payments && Array.isArray(data.payments)) {
+                    allPayments.push(...data.payments)
+                    
+                    // Check if there are more pages
+                    hasMore = page < (data.pagination?.pages || 0)
+                    page++
+                } else {
+                    hasMore = false
+                }
             }
+            
+            console.log('[WalletBalances] Total payments fetched:', allPayments.length)
+            
+            // Group by payAddress and currency
+            const walletMap = new Map<string, WalletAddress>()
+            
+            allPayments.forEach((payment: any) => {
+                if (payment.payAddress && payment.paymentStatus === 'finished') {
+                    const key = `${payment.payAddress}-${payment.actuallyPaidCurrency || 'unknown'}`
+                    
+                    if (!walletMap.has(key)) {
+                        walletMap.set(key, {
+                            address: payment.payAddress,
+                            currency: payment.actuallyPaidCurrency?.toUpperCase() || 'UNKNOWN',
+                            totalReceived: 0,
+                            paymentCount: 0,
+                            lastPayment: null,
+                        })
+                    }
+                    
+                    const wallet = walletMap.get(key)!
+                    wallet.totalReceived += payment.payAmount || 0
+                    wallet.paymentCount += 1
+                    
+                    if (payment.paidAt && (!wallet.lastPayment || payment.paidAt > wallet.lastPayment)) {
+                        wallet.lastPayment = payment.paidAt
+                    }
+                }
+            })
+            
+            const walletsArray = Array.from(walletMap.values()).sort((a, b) => b.totalReceived - a.totalReceived)
+            console.log('[WalletBalances] Processed wallets:', walletsArray.length)
+            setWallets(walletsArray)
         } catch (error: any) {
             console.error('[WalletBalances] Failed to fetch wallet addresses:', error)
             const errorMessage = error?.message || 'Failed to load wallet addresses'
