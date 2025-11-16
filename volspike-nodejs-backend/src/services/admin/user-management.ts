@@ -168,7 +168,8 @@ export class UserManagementService {
             }
 
             const shouldReturnPassword = !data.sendInvite
-            const passwordToReturn = shouldReturnPassword ? tempPassword : undefined
+            // FIX: Use null instead of undefined - JSON.stringify omits undefined but preserves null
+            const passwordToReturn = shouldReturnPassword ? tempPassword : null
 
             logger.info('🎯 Password return logic check', {
                 sendInvite: data.sendInvite,
@@ -176,7 +177,8 @@ export class UserManagementService {
                 shouldReturnPassword,
                 tempPasswordExists: !!tempPassword,
                 tempPasswordLength: tempPassword.length,
-                passwordToReturn: passwordToReturn ? '[REDACTED - length: ' + passwordToReturn.length + ']' : undefined,
+                passwordToReturn: passwordToReturn ? '[REDACTED - length: ' + passwordToReturn.length + ']' : null,
+                passwordToReturnType: typeof passwordToReturn,
             })
 
             logger.info(`User ${data.email} created by admin ${adminUserId}`, {
@@ -187,7 +189,8 @@ export class UserManagementService {
 
             return {
                 user,
-                temporaryPassword: passwordToReturn,
+                // FIX: Ensure null instead of undefined for JSON serialization
+                temporaryPassword: passwordToReturn ?? null,
             }
         } catch (error) {
             logger.error('Create user error:', error)

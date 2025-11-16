@@ -83,8 +83,10 @@ class AdminAPIClient {
         return this.request<{ user: AdminUser; subscription?: any }>(`/api/admin/users/${userId}`)
     }
 
-    async createUser(data: CreateUserRequest): Promise<{ user: AdminUser; temporaryPassword?: string }> {
-        return this.request<{ user: AdminUser; temporaryPassword?: string }>('/api/admin/users', {
+    // FIX: Change from optional to explicit null union - ensures field is always present in JSON
+    // JSON.stringify omits undefined but preserves null, so we need explicit null type
+    async createUser(data: CreateUserRequest): Promise<{ user: AdminUser; temporaryPassword: string | null }> {
+        return this.request<{ user: AdminUser; temporaryPassword: string | null }>('/api/admin/users', {
             method: 'POST',
             body: JSON.stringify(data),
         })

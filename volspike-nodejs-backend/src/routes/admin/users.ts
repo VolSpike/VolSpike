@@ -125,13 +125,16 @@ adminUserRoutes.post('/', async (c) => {
                 emailVerified: result.user.emailVerified,
                 createdAt: result.user.createdAt,
             },
-            temporaryPassword: result.temporaryPassword,
+            // FIX: Ensure null instead of undefined for JSON serialization
+            // JSON.stringify omits undefined but preserves null
+            temporaryPassword: result.temporaryPassword ?? null,
         }
 
         logger.info('📤 Returning response payload', {
-            hasTemporaryPassword: !!responsePayload.temporaryPassword,
+            hasTemporaryPassword: responsePayload.temporaryPassword != null,
             temporaryPasswordLength: responsePayload.temporaryPassword?.length,
             temporaryPasswordType: typeof responsePayload.temporaryPassword,
+            temporaryPasswordValue: responsePayload.temporaryPassword ? '[REDACTED]' : null,
             sendInvite: data.sendInvite,
         })
 

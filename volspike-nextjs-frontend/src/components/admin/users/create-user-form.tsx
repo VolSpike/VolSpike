@@ -84,16 +84,30 @@ export function CreateUserForm() {
             })
 
             // FIX: Only reset form AFTER password is handled
-            if (result.temporaryPassword && result.temporaryPassword.length > 0) {
+            // FIX: Use != null to catch both null and undefined, and check length defensively
+            if (result.temporaryPassword != null && result.temporaryPassword.length > 0) {
                 // Password exists - show it first, DON'T reset form yet
+                // FIX: Defensive password extraction with validation
+                const password = result.temporaryPassword.trim()
+                const email = result.user?.email || formData.email
+
+                if (!password || password.length === 0) {
+                    console.error('⚠️ [CreateUser] Empty or invalid password received after trim', {
+                        originalLength: result.temporaryPassword.length,
+                        trimmedLength: password.length,
+                    })
+                    toast.error('Password received but was empty. Please check backend logs.')
+                    return
+                }
+
                 // FIX: Single atomic state update to avoid React batching race condition
                 console.log('✅ [CreateUser] Password found - setting atomic state', {
-                    passwordLength: result.temporaryPassword.length,
-                    email: result.user?.email || formData.email,
+                    passwordLength: password.length,
+                    email,
                 })
                 setPasswordAlert({
-                    password: result.temporaryPassword,
-                    email: result.user?.email || formData.email,
+                    password,
+                    email,
                 })
                 console.log('✅ [CreateUser] Password alert state set - Alert should render in next render cycle')
                 toast.success('User created successfully! Please copy the temporary password.', {
