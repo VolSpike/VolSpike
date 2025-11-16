@@ -39,11 +39,13 @@ export default function CryptoPaymentPage() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [polling, setPolling] = useState(false)
 
-  // Generate Solana URI scheme for QR code
+  // Generate Solana Pay URI and Phantom-specific deep links
   // Solana Pay spec: solana:<address>?amount=<lamports>&spl-token=<mint>&reference=<reference>&label=<label>&message=<message>
-  // Phantom wallet recognizes this format and opens automatically
-  const solanaUri = useMemo(() => {
-    if (!paymentDetails?.payAddress || !paymentDetails?.payAmount) return null
+  // Phantom also supports this format, but we'll provide multiple options for better compatibility
+  const { solanaUri, phantomDeepLink, phantomUniversalLink } = useMemo(() => {
+    if (!paymentDetails?.payAddress || !paymentDetails?.payAmount) {
+      return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null }
+    }
 
     try {
       const currency = paymentDetails.payCurrency?.toLowerCase() || ''
@@ -82,7 +84,7 @@ export default function CryptoPaymentPage() {
         amountInSmallestUnit = paymentDetails.payAmount.toString()
       }
 
-      // Build Solana Pay URI
+      // Build Solana Pay URI (standard format)
       const params = new URLSearchParams()
       
       // Amount is required
@@ -99,14 +101,25 @@ export default function CryptoPaymentPage() {
       
       // Reference for tracking (base58 encoded order ID)
       if (paymentDetails.orderId) {
-        // Note: reference should be base58 encoded, but URLSearchParams will handle encoding
         params.set('reference', paymentDetails.orderId)
       }
 
-      const uri = `solana:${paymentDetails.payAddress}?${params.toString()}`
+      const solanaPayUri = `solana:${paymentDetails.payAddress}?${params.toString()}`
+      
+      // Phantom-specific deep links (for better mobile compatibility)
+      // Format: phantom://v1/transfer?recipient=<address>&amount=<amount>&token=<mint>
+      const phantomParams = new URLSearchParams()
+      phantomParams.set('recipient', paymentDetails.payAddress)
+      phantomParams.set('amount', amountInSmallestUnit)
+      if (splTokenMint && !isSOL) {
+        phantomParams.set('token', splTokenMint)
+      }
+      
+      const phantomDeepLinkUri = `phantom://v1/transfer?${phantomParams.toString()}`
+      const phantomUniversalLinkUri = `https://phantom.app/ul/v1/transfer?${phantomParams.toString()}`
       
       // Debug logging
-      console.log('[CryptoPaymentPage] Generated Solana Pay URI:', {
+      console.log('[CryptoPaymentPage] Generated payment URIs:', {
         payAddress: paymentDetails.payAddress,
         payAmount: paymentDetails.payAmount,
         payCurrency: paymentDetails.payCurrency,
@@ -115,28 +128,42 @@ export default function CryptoPaymentPage() {
         isUSDC,
         amountInSmallestUnit,
         splTokenMint,
-        uri,
+        solanaPayUri,
+        phantomDeepLinkUri,
+        phantomUniversalLinkUri,
         decodedParams: Object.fromEntries(params),
-        fullUri: uri,
       })
 
-      return uri
+      return {
+        solanaUri: solanaPayUri,
+        phantomDeepLink: phantomDeepLinkUri,
+        phantomUniversalLink: phantomUniversalLinkUri,
+      }
     } catch (error) {
-      console.error('[CryptoPaymentPage] Error generating Solana URI:', error)
-      return null
+      console.error('[CryptoPaymentPage] Error generating payment URIs:', error)
+      return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null }
     }
   }, [paymentDetails])
 
-  // Generate QR code
+  // Generate QR code - prefer Phantom deep link for better mobile compatibility
+  // If Phantom deep link is available, use it; otherwise fall back to Solana Pay URI
   useEffect(() => {
-    if (!solanaUri) {
-      console.warn('[CryptoPaymentPage] No Solana URI available for QR code generation')
+    // Prefer Phantom deep link for QR code (better mobile compatibility)
+    const uriForQR = phantomDeepLink || solanaUri
+    
+    if (!uriForQR) {
+      console.warn('[CryptoPaymentPage] No URI available for QR code generation')
       return
     }
 
-    console.log('[CryptoPaymentPage] Generating QR code for Solana URI:', solanaUri)
+    console.log('[CryptoPaymentPage] Generating QR code', {
+      usingPhantomDeepLink: !!phantomDeepLink,
+      usingSolanaPay: !phantomDeepLink && !!solanaUri,
+      uri: uriForQR,
+      uriLength: uriForQR.length,
+    })
 
-    QRCode.toDataURL(solanaUri, {
+    QRCode.toDataURL(uriForQR, {
       width: 300,
       margin: 2,
       color: {
@@ -147,20 +174,21 @@ export default function CryptoPaymentPage() {
     })
       .then((url) => {
         console.log('[CryptoPaymentPage] QR code generated successfully', {
-          uriLength: solanaUri.length,
+          uriLength: uriForQR.length,
           qrCodeSize: url.length,
+          uriType: phantomDeepLink ? 'phantom-deep-link' : 'solana-pay',
         })
         setQrCodeDataUrl(url)
       })
       .catch((err) => {
         console.error('[CryptoPaymentPage] QR code generation error:', {
           error: err,
-          uri: solanaUri,
-          uriLength: solanaUri.length,
+          uri: uriForQR,
+          uriLength: uriForQR.length,
         })
         toast.error('Failed to generate QR code')
       })
-  }, [solanaUri])
+  }, [solanaUri, phantomDeepLink])
 
   // Fetch payment details
   useEffect(() => {
@@ -414,16 +442,29 @@ export default function CryptoPaymentPage() {
                     className="w-64 h-64"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground text-center max-w-sm">
-                  Scan with Phantom wallet app on your phone. The QR code uses Solana Pay URI scheme to automatically open your wallet.
-                </p>
+                <div className="text-center space-y-2 max-w-sm">
+                  <p className="text-xs text-muted-foreground">
+                    Scan with <strong className="text-foreground">Phantom wallet</strong> app on your phone.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    If it opens Trust Wallet instead, tap the button below to open Phantom directly.
+                  </p>
+                </div>
                 {/* Debug info (development only) */}
-                {process.env.NODE_ENV === 'development' && solanaUri && (
-                  <div className="w-full p-3 bg-muted/50 rounded-lg border border-border/50">
-                    <p className="text-xs font-mono text-muted-foreground break-all">
-                      <strong className="block mb-1">Solana Pay URI:</strong>
-                      {solanaUri}
-                    </p>
+                {process.env.NODE_ENV === 'development' && (solanaUri || phantomDeepLink) && (
+                  <div className="w-full p-3 bg-muted/50 rounded-lg border border-border/50 space-y-2">
+                    {phantomDeepLink && (
+                      <p className="text-xs font-mono text-muted-foreground break-all">
+                        <strong className="block mb-1">Phantom Deep Link:</strong>
+                        {phantomDeepLink}
+                      </p>
+                    )}
+                    {solanaUri && (
+                      <p className="text-xs font-mono text-muted-foreground break-all">
+                        <strong className="block mb-1">Solana Pay URI:</strong>
+                        {solanaUri}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -473,26 +514,80 @@ export default function CryptoPaymentPage() {
 
             {/* Actions */}
             <div className="flex flex-col gap-3">
+              {/* Primary: Open in Phantom (tries multiple methods) */}
               <Button
                 onClick={() => {
-                  if (solanaUri) {
+                  // Try Phantom deep link first (best for mobile)
+                  if (phantomDeepLink) {
+                    console.log('[CryptoPaymentPage] Attempting to open Phantom deep link:', phantomDeepLink)
+                    // Try deep link first
+                    window.location.href = phantomDeepLink
+                    
+                    // Fallback to universal link after a short delay (if deep link fails)
+                    setTimeout(() => {
+                      if (phantomUniversalLink) {
+                        console.log('[CryptoPaymentPage] Fallback to Phantom universal link:', phantomUniversalLink)
+                        window.open(phantomUniversalLink, '_blank')
+                      } else if (solanaUri) {
+                        console.log('[CryptoPaymentPage] Fallback to Solana Pay URI:', solanaUri)
+                        window.open(solanaUri, '_blank')
+                      }
+                    }, 500)
+                  } else if (solanaUri) {
+                    console.log('[CryptoPaymentPage] Opening Solana Pay URI:', solanaUri)
                     window.open(solanaUri, '_blank')
+                  } else {
+                    toast.error('Payment details not available')
                   }
                 }}
+                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white"
+                size="lg"
+                disabled={!solanaUri && !phantomDeepLink}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  Open in Phantom Wallet
+                  <ExternalLink className="h-4 w-4" />
+                </span>
+              </Button>
+              
+              {/* Secondary: Copy address for manual entry */}
+              <Button
+                onClick={() => {
+                  if (paymentDetails.payAddress) {
+                    copyToClipboard(paymentDetails.payAddress, 'address')
+                    toast.success('Address copied! Paste it in Phantom wallet manually.')
+                  }
+                }}
+                variant="outline"
                 className="w-full"
                 size="lg"
-                disabled={!solanaUri}
               >
-                Open in Phantom Wallet
-                <ExternalLink className="h-4 w-4 ml-2" />
+                <span className="flex items-center justify-center gap-2">
+                  <Copy className="h-4 w-4" />
+                  Copy Address (Manual Entry)
+                </span>
               </Button>
+              
               <Button
                 onClick={() => router.push('/pricing')}
-                variant="outline"
+                variant="ghost"
                 className="w-full"
               >
                 Cancel Payment
               </Button>
+            </div>
+            
+            {/* Helpful Instructions */}
+            <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <p className="text-sm font-semibold text-purple-700 dark:text-purple-300 mb-2">
+                💡 Having trouble opening Phantom?
+              </p>
+              <ol className="text-xs text-purple-600 dark:text-purple-400 space-y-1 list-decimal list-inside">
+                <li>Make sure Phantom wallet is installed on your phone</li>
+                <li>If Trust Wallet opens instead, tap "Open in Phantom Wallet" button above</li>
+                <li>Or copy the address and paste it manually in Phantom</li>
+                <li>On iOS, you may need to allow Phantom to open from browser</li>
+              </ol>
             </div>
 
             {/* Status */}
