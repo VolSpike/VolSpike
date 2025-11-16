@@ -29,7 +29,7 @@ export function CreateUserForm() {
         email: '',
         tier: 'free',
         role: 'USER',
-        sendInvite: true,
+        sendInvite: false, // CRITICAL FIX: Default to false to show password by default
     })
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -46,11 +46,9 @@ export function CreateUserForm() {
             role: formData.role,
             sendInvite: formData.sendInvite,
             sendInviteType: typeof formData.sendInvite,
-            formDataStringified: JSON.stringify(formData),
         })
 
         try {
-            console.log('[CreateUser] Calling adminAPI.createUser with:', formData)
             const result = await adminAPI.createUser(formData)
             
             console.log('[CreateUser] API response received', {
@@ -58,49 +56,57 @@ export function CreateUserForm() {
                 hasTemporaryPassword: !!result.temporaryPassword,
                 temporaryPasswordLength: result.temporaryPassword?.length,
                 sendInvite: formData.sendInvite,
-                result,
+                userEmail: result.user?.email,
             })
 
-            // Always show password if it exists, regardless of sendInvite
+            // FIX: Only reset form AFTER password is handled
             if (result.temporaryPassword) {
+                // Password exists - show it first, DON'T reset form yet
                 console.log('[CreateUser] Password received, displaying alert')
                 setCreatedPassword(result.temporaryPassword)
-                setCreatedEmail(formData.email)
-                toast.success('User created successfully! Password shown below.', {
+                setCreatedEmail(result.user?.email || formData.email)
+                toast.success('User created successfully! Please copy the temporary password.', {
                     duration: 5000,
                 })
-                // Don't redirect immediately - let user see the password
+                // Form will reset when user dismisses password or creates another user
             } else {
-                console.log('[CreateUser] No password in response', {
+                // Email was sent - safe to reset form
+                console.log('[CreateUser] No password in response (email sent)', {
                     sendInvite: formData.sendInvite,
-                    resultKeys: Object.keys(result),
                 })
                 
                 if (formData.sendInvite) {
-                    toast.success('User created successfully. Invitation email sent.', {
+                    toast.success('User created successfully! Invitation email sent.', {
                         duration: 3000,
                     })
+                    // Reset form and redirect after email sent
+                    setFormData({
+                        email: '',
+                        tier: 'free',
+                        role: 'USER',
+                        sendInvite: false, // Reset to false for next user
+                    })
+                    setTimeout(() => {
+                        router.push('/admin/users')
+                    }, 2000)
                 } else {
                     // This shouldn't happen, but handle it gracefully
-                    toast.success('User created successfully, but password was not returned.', {
+                    toast.error('User created but password was not returned. Please check backend logs.', {
                         duration: 5000,
                     })
-                    console.warn('[CreateUser] WARNING: sendInvite is false but no password returned', result)
+                    console.error('[CreateUser] ERROR: sendInvite is false but no password returned', {
+                        result,
+                        formData,
+                    })
                 }
-                
-                // Only redirect if password is not shown
-                setTimeout(() => {
-                    router.push('/admin/users')
-                }, formData.sendInvite ? 2000 : 3000)
             }
         } catch (error: any) {
             console.error('[CreateUser] Error occurred', {
                 error,
                 message: error?.message,
                 response: error?.response,
-                stack: error?.stack,
             })
-            // Enhanced error handling with detailed messages
+            
             let errorMessage = 'Failed to create user'
             
             if (error?.message) {
@@ -112,12 +118,6 @@ export function CreateUserForm() {
                     errorMessage += ` (${details})`
                 }
             }
-            
-            console.error('Create user error:', {
-                error,
-                message: errorMessage,
-                response: error?.response,
-            })
             
             toast.error(errorMessage, {
                 duration: 5000,
@@ -141,9 +141,20 @@ export function CreateUserForm() {
         }
     }
 
-    const handleContinue = () => {
+    const handleDismissPassword = () => {
+        // Clear password display and reset form for next user
         setCreatedPassword(null)
         setCreatedEmail(null)
+        setFormData({
+            email: '',
+            tier: 'free',
+            role: 'USER',
+            sendInvite: false, // Keep false for next user
+        })
+    }
+
+    const handleContinue = () => {
+        handleDismissPassword()
         router.push('/admin/users')
     }
 
@@ -296,9 +307,17 @@ export function CreateUserForm() {
                                         Send invitation email
                                     </Label>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        {formData.sendInvite 
-                                            ? '✓ User will receive an email with account setup instructions. Password will NOT be shown.'
-                                            : '✗ Password will be displayed below after creation. No email will be sent.'}
+                                        {formData.sendInvite ? (
+                                            <span className="flex items-center gap-1.5">
+                                                <span className="text-green-500">✓</span>
+                                                <span>User will receive an email with account setup instructions. Password will NOT be shown.</span>
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1.5">
+                                                <span className="text-orange-500 font-semibold">✗</span>
+                                                <span className="font-medium text-orange-600 dark:text-orange-400">Temporary password will be displayed below after creation.</span>
+                                            </span>
+                                        )}
                                     </p>
                                 </div>
                             </div>
@@ -323,66 +342,6 @@ export function CreateUserForm() {
                                 </div>
                             )}
                         </div>
-
-                        {/* Password Display (shown after user creation) - PROMINENT */}
-                        {createdPassword && createdEmail && (
-                            <div className="mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                <Alert className="border-green-500 bg-green-500/20 shadow-lg shadow-green-500/20 ring-2 ring-green-500/30">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1 space-y-4">
-                                            <AlertTitle className="text-lg font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
-                                                <span className="text-2xl">✅</span>
-                                                User Created Successfully!
-                                            </AlertTitle>
-                                            <AlertDescription className="space-y-4">
-                                                <div className="bg-background/80 p-3 rounded-lg border border-green-500/30">
-                                                    <p className="text-sm font-semibold mb-2 text-foreground">Email Address:</p>
-                                                    <code className="text-base font-mono bg-background px-3 py-2 rounded border-2 border-green-500/50 text-green-600 dark:text-green-400 block">
-                                                        {createdEmail}
-                                                    </code>
-                                                </div>
-                                                <div className="bg-background/80 p-3 rounded-lg border-2 border-green-500/50">
-                                                    <p className="text-sm font-semibold mb-2 text-foreground flex items-center gap-2">
-                                                        <span className="text-yellow-500">🔑</span>
-                                                        Temporary Password:
-                                                    </p>
-                                                    <div className="flex items-center gap-3">
-                                                        <code className="flex-1 text-lg font-mono font-bold bg-background px-4 py-3 rounded border-2 border-green-500 text-green-600 dark:text-green-400 break-all">
-                                                            {createdPassword}
-                                                        </code>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="lg"
-                                                            onClick={handleCopyPassword}
-                                                            className="shrink-0 h-12 px-4 border-green-500/50 hover:bg-green-500/10"
-                                                        >
-                                                            {copied ? (
-                                                                <>
-                                                                    <Check className="h-5 w-5 text-green-500 mr-2" />
-                                                                    Copied!
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Copy className="h-5 w-5 mr-2" />
-                                                                    Copy
-                                                                </>
-                                                            )}
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                                <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3">
-                                                    <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
-                                                        <span className="text-lg">⚠️</span>
-                                                        Save this password now - you won&apos;t be able to see it again!
-                                                    </p>
-                                                </div>
-                                            </AlertDescription>
-                                        </div>
-                                    </div>
-                                </Alert>
-                            </div>
-                        )}
 
                         {/* Action Buttons */}
                         <div className="flex items-center justify-between pt-4 border-t border-border/60">
