@@ -269,19 +269,38 @@ export class NowPaymentsService {
       const errorMessage = errorDetails.message || error.message || 'Unknown error'
       const errorCode = errorDetails.error_code || error.response?.status
 
-      logger.error('NowPayments create invoice error:', {
+      logger.error('NowPayments create invoice error - FULL DETAILS:', {
         message: errorMessage,
         code: errorCode,
         status: error.response?.status,
+        statusText: error.response?.statusText,
         data: errorDetails,
         fullError: error.message,
+        requestParams: {
+          price_amount: params.price_amount,
+          price_currency: params.price_currency,
+          pay_currency: params.pay_currency,
+          order_id: params.order_id,
+        },
+        responseHeaders: error.response?.headers,
+        responseData: JSON.stringify(errorDetails, null, 2),
       })
 
-      // Provide more helpful error messages
+      // Provide more helpful error messages with specific handling
       if (error.response?.status === 401) {
         throw new Error('NowPayments API authentication failed. Please check your API key.')
       } else if (error.response?.status === 400) {
-        throw new Error(`Invalid invoice request: ${errorMessage}`)
+        // Parse common 400 errors
+        const lowerMessage = errorMessage.toLowerCase()
+        if (lowerMessage.includes('less than minimal') || lowerMessage.includes('minimum')) {
+          const amountMatch = errorMessage.match(/(\d+\.?\d*)/)
+          const minAmount = amountMatch ? amountMatch[1] : 'unknown'
+          throw new Error(`Payment amount is below minimum. NowPayments requires at least $${minAmount} for this currency. Please increase the test amount.`)
+        } else if (lowerMessage.includes('currency') || lowerMessage.includes('pay_currency')) {
+          throw new Error(`Invalid currency: ${errorMessage}. Please select a different payment currency.`)
+        } else {
+          throw new Error(`Invalid invoice request: ${errorMessage}`)
+        }
       } else if (!error.response) {
         throw new Error(`Cannot connect to NowPayments API. Please check your network connection and API URL.`)
       }

@@ -914,10 +914,11 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             successUrl: z.string().url(),
             cancelUrl: z.string().url(),
             payCurrency: z.string().optional(),
-            testAmount: z.number().min(0.01).max(10).optional().default(1.0), // Default $1, max $10 for safety
+            // NowPayments minimums: USDT Solana ~$2, others vary. Use $5 as safe default
+            testAmount: z.number().min(2.0).max(10).optional().default(5.0), // Default $5 to exceed minimums
         }).parse(body)
 
-        const priceAmount = testAmount || 1.0 // Use test amount (default $1)
+        const priceAmount = testAmount || 5.0 // Use test amount (default $5 to exceed NowPayments minimums)
 
         logger.info('Test checkout parameters', {
             tier,
@@ -959,7 +960,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 // Our codes are already alphanumeric: usdtsol, usdterc20, usdce, sol, btc, eth
                 // NowPayments invoice API accepts these directly
                 mappedPayCurrency = payCurrency.toLowerCase()
-                
+
                 logger.info('Using alphanumeric currency code for invoice API', {
                     ourCode: payCurrency,
                     nowpaymentsCode: mappedPayCurrency,

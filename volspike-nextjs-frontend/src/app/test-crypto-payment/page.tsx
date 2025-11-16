@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, CheckCircle2, XCircle, Coins, AlertTriangle, Sparkles } from 'lucide-react'
 import { HeaderWithBanner } from '@/components/header-with-banner'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
+import { PaymentErrorDisplay } from '@/components/payment-error-display'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -52,7 +53,7 @@ export default function TestCryptoPaymentPage() {
                 },
                 body: JSON.stringify({
                     tier,
-                    testAmount: 1.0, // $1 for testing
+                    testAmount: 5.0, // $5 for testing (exceeds NowPayments minimums)
                     successUrl: `${window.location.origin}/checkout/success?test=true`,
                     cancelUrl: `${window.location.origin}/test-crypto-payment?canceled=true`,
                     payCurrency: selectedCurrency, // Use selected currency from our 6 supported options
@@ -60,8 +61,22 @@ export default function TestCryptoPaymentPage() {
             })
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-                throw new Error(errorData.error || `HTTP ${response.status}`)
+                const errorData = await response.json().catch(() => ({ 
+                    error: `HTTP ${response.status}: ${response.statusText || 'Unknown error'}` 
+                }))
+                
+                // Extract detailed error message
+                const errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}`
+                
+                // Log full error details for debugging
+                console.error('Payment API Error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData,
+                    url: `${API_URL}/api/payments/nowpayments/test-checkout`,
+                })
+                
+                throw new Error(errorMessage)
             }
 
             const data = await response.json()
@@ -124,13 +139,13 @@ export default function TestCryptoPaymentPage() {
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <Coins className="h-5 w-5 text-brand-500" />
-                            <CardTitle>Test Crypto Payment ($1)</CardTitle>
+                            <CardTitle>Test Crypto Payment ($5)</CardTitle>
                             <Badge variant="outline" className="ml-auto">
                                 TEST MODE
                             </Badge>
                         </div>
                         <CardDescription>
-                            Test the NowPayments crypto payment integration. This will charge $1.00 and upgrade you to {tier === 'pro' ? 'Pro' : 'Elite'} tier.
+                            Test the NowPayments crypto payment integration. This will charge $5.00 (test amount - exceeds minimum transaction requirements) and upgrade you to {tier === 'pro' ? 'Pro' : 'Elite'} tier.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -167,7 +182,7 @@ export default function TestCryptoPaymentPage() {
                                     className="flex-1"
                                 >
                                     <Sparkles className="h-4 w-4 mr-2" />
-                                    Pro ($1 test)
+                                    Pro ($5 test)
                                 </Button>
                                 <Button
                                     variant={tier === 'elite' ? 'default' : 'outline'}
@@ -175,7 +190,7 @@ export default function TestCryptoPaymentPage() {
                                     className="flex-1"
                                 >
                                     <Sparkles className="h-4 w-4 mr-2" />
-                                    Elite ($1 test)
+                                    Elite ($5 test)
                                 </Button>
                             </div>
                         </div>
@@ -189,12 +204,15 @@ export default function TestCryptoPaymentPage() {
                             />
                         </div>
 
-                        {/* Error Alert */}
+                        {/* Error Display */}
                         {error && (
-                            <Alert variant="destructive">
-                                <XCircle className="h-4 w-4" />
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
+                            <PaymentErrorDisplay 
+                                error={error} 
+                                onRetry={() => {
+                                    setError(null)
+                                    handleTestPayment()
+                                }}
+                            />
                         )}
 
                         {/* Success Alert */}
@@ -222,7 +240,7 @@ export default function TestCryptoPaymentPage() {
                             ) : (
                                 <>
                                     <Coins className="mr-2 h-4 w-4" />
-                                    Test $1 Crypto Payment ({tier === 'pro' ? 'Pro' : 'Elite'})
+                                    Test $5 Crypto Payment ({tier === 'pro' ? 'Pro' : 'Elite'})
                                 </>
                             )}
                         </Button>
@@ -233,7 +251,7 @@ export default function TestCryptoPaymentPage() {
                             <AlertDescription className="text-blue-700 dark:text-blue-400">
                                 <strong>Test Payment Details:</strong>
                                 <ul className="mt-2 space-y-1 list-disc list-inside text-sm">
-                                    <li>Amount: $1.00 USD (test amount)</li>
+                                    <li>Amount: $5.00 USD (test amount - exceeds NowPayments minimums)</li>
                                     <li>You can pay with any supported crypto currency</li>
                                     <li>Payment will upgrade you to {tier === 'pro' ? 'Pro' : 'Elite'} tier</li>
                                     <li>Subscription expires 30 days from payment</li>
@@ -248,9 +266,9 @@ export default function TestCryptoPaymentPage() {
                             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                                 <li>Select Pro or Elite tier above</li>
                                 <li>Select your preferred payment currency from the 6 supported options</li>
-                                <li>Click &quot;Test $1 Crypto Payment&quot; button</li>
+                                <li>Click &quot;Test $5 Crypto Payment&quot; button</li>
                                 <li>You&apos;ll be redirected to NowPayments checkout (showing only your selected currency)</li>
-                                <li>Complete the payment (you&apos;ll pay ~$1 worth of crypto)</li>
+                                <li>Complete the payment (you&apos;ll pay ~$5 worth of crypto)</li>
                                 <li>You&apos;ll be redirected back to success page</li>
                                 <li>Check your Settings → Subscription to see {tier === 'pro' ? 'Pro' : 'Elite'} Tier</li>
                                 <li>Check Admin → Payments to verify payment record</li>
