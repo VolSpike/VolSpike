@@ -90,16 +90,19 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     // Sync selectedUsers with current users list - remove deleted users from selection
     useEffect(() => {
         const currentUserIds = new Set(users.map(u => u.id))
-        const validSelectedUsers = selectedUsers.filter(id => currentUserIds.has(id))
-        if (validSelectedUsers.length !== selectedUsers.length) {
-            console.log('[UsersTable] Filtering out deleted users from selection', {
-                before: selectedUsers.length,
-                after: validSelectedUsers.length,
-                removed: selectedUsers.filter(id => !currentUserIds.has(id)),
-            })
-            setSelectedUsers(validSelectedUsers)
-        }
-    }, [users, selectedUsers])
+        setSelectedUsers(prev => {
+            const validSelectedUsers = prev.filter(id => currentUserIds.has(id))
+            if (validSelectedUsers.length !== prev.length) {
+                console.log('[UsersTable] Filtering out deleted users from selection', {
+                    before: prev.length,
+                    after: validSelectedUsers.length,
+                    removed: prev.filter(id => !currentUserIds.has(id)),
+                })
+                return validSelectedUsers
+            }
+            return prev
+        })
+    }, [users]) // Only depend on users, not selectedUsers to avoid infinite loops
 
     // Prefetch next and previous pages for instant navigation
     useEffect(() => {
