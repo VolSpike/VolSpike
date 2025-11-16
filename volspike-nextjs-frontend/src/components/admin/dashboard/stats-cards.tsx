@@ -66,10 +66,10 @@ export function StatsCards({ stats }: StatsCardsProps) {
             change: null,
             changeType: null as any,
             description: 'New users in last 30 days',
-            // Gradient combining brand colors - represents growth and momentum
-            iconBg: 'bg-gradient-to-br from-brand-500/15 via-sec-500/15 to-elite-500/15',
-            iconColor: 'text-brand-600 dark:text-brand-400',
-            valueGradient: 'from-brand-500 via-sec-500 to-elite-500',
+            // Amber/orange - represents "new", "fresh", "growth" - distinct from other cards
+            iconBg: 'bg-gradient-to-br from-warning-500/20 via-warning-400/15 to-warning-600/20',
+            iconColor: 'text-warning-600 dark:text-warning-400',
+            valueGradient: 'from-warning-500 to-warning-600',
         },
     ]
 
