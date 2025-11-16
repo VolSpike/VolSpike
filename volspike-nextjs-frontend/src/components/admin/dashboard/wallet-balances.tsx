@@ -13,6 +13,8 @@ import {
     Radio,
     ChevronDown,
     ChevronUp,
+    Copy,
+    Check,
 } from 'lucide-react'
 import { MultiChainETHBalance } from './multi-chain-eth-balance'
 import { useRouter } from 'next/navigation'
@@ -44,6 +46,7 @@ export function DashboardWalletBalances() {
     const [refreshing, setRefreshing] = useState(false)
     const [lastRefresh, setLastRefresh] = useState<number | null>(null)
     const [isLive, setIsLive] = useState(false)
+    const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
     
     const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const isVisibleRef = useRef(true)
@@ -291,6 +294,22 @@ export function DashboardWalletBalances() {
         return `${diffDays}d ago`
     }
 
+    const copyToClipboard = async (address: string) => {
+        try {
+            await navigator.clipboard.writeText(address)
+            setCopiedAddress(address)
+            toast.success('Address copied to clipboard')
+            
+            // Reset the copied state after 2 seconds
+            setTimeout(() => {
+                setCopiedAddress(null)
+            }, 2000)
+        } catch (error) {
+            console.error('[WalletBalances] Failed to copy address:', error)
+            toast.error('Failed to copy address')
+        }
+    }
+
     // Calculate total balance in USD (simplified - would need price API for real conversion)
     const totalBalance = wallets.reduce((sum, wallet) => {
         if (wallet.balance === null) return sum
@@ -533,9 +552,23 @@ export function DashboardWalletBalances() {
                                                     {currencyDisplayName}
                                                 </Badge>
                                             </div>
-                                            <p className="text-xs text-muted-foreground font-mono truncate">
-                                                {wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}
-                                            </p>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation() // Prevent row expansion when clicking address
+                                                    copyToClipboard(wallet.address)
+                                                }}
+                                                className="group/address flex items-center gap-1.5 text-xs text-muted-foreground font-mono hover:text-foreground transition-colors duration-200"
+                                                title="Click to copy full address"
+                                            >
+                                                <span className="truncate">
+                                                    {wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}
+                                                </span>
+                                                {copiedAddress === wallet.address ? (
+                                                    <Check className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                                ) : (
+                                                    <Copy className="h-3 w-3 opacity-0 group-hover/address:opacity-100 transition-opacity duration-200 flex-shrink-0" />
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 ml-4 flex-shrink-0">
