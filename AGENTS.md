@@ -8,7 +8,11 @@ VolSpike is a comprehensive Binance Perpetual Futures trading dashboard featurin
 
 - ✅ **Admin payments workflow refreshed** – dedicated `/admin/payments` page with Create‑Payment dialog, tier mismatch repair, and manual upgrade hooks.
 - ✅ **NowPayments webhook fallback** – if an invoice webhook arrives without a local `CryptoPayment` row we now auto-create it (parsing the `order_id`) and continue the upgrade flow.
-- ⚠️ **Known issue** – the Railway deployment is currently returning `Failed to fetch payments` because migrations were not applied. Resolve by running `npx prisma migrate deploy` on the backend service (Neon schema has `expiresAt`; production DB must match).
+- ✅ **Revenue Analytics** – comprehensive `/admin/revenue` page with daily/monthly charts, period selectors, and growth indicators using Recharts.
+- ✅ **Pagination improvements** – Users table now has clickable page numbers with smart ellipsis placement (up to 7 pages visible).
+- ✅ **UI cleanup** – Removed distracting tier badges and tooltips from Users table; replaced with clean text display.
+- ✅ **Test payment system** – `/test-crypto-payment` page allows test accounts to pay $1 for testing crypto upgrade flows.
+- ✅ **Payment webhook fixes** – Improved order ID parsing, partial matching, transaction-based upgrades, and recovery mechanisms.
 - ✅ **Detailed logging** – `/api/admin/payments` now returns `details` in error responses, making remote debugging easier.
 - ✅ **Admin chrome** – public header auto-hides on `/admin/*`; sidebar/header files are synced so burger overlays are gone.
 
