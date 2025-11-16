@@ -40,29 +40,12 @@ export function CreateUserForm() {
         setCreatedPassword(null)
         setCreatedEmail(null)
 
-        console.log('[CreateUser] Form submission started', {
-            email: formData.email,
-            tier: formData.tier,
-            role: formData.role,
-            sendInvite: formData.sendInvite,
-            sendInviteType: typeof formData.sendInvite,
-        })
-
         try {
             const result = await adminAPI.createUser(formData)
-            
-            console.log('[CreateUser] API response received', {
-                hasUser: !!result.user,
-                hasTemporaryPassword: !!result.temporaryPassword,
-                temporaryPasswordLength: result.temporaryPassword?.length,
-                sendInvite: formData.sendInvite,
-                userEmail: result.user?.email,
-            })
 
             // FIX: Only reset form AFTER password is handled
             if (result.temporaryPassword) {
                 // Password exists - show it first, DON'T reset form yet
-                console.log('[CreateUser] Password received, displaying alert')
                 setCreatedPassword(result.temporaryPassword)
                 setCreatedEmail(result.user?.email || formData.email)
                 toast.success('User created successfully! Please copy the temporary password.', {
@@ -71,9 +54,6 @@ export function CreateUserForm() {
                 // Form will reset when user dismisses password or creates another user
             } else {
                 // Email was sent - safe to reset form
-                console.log('[CreateUser] No password in response (email sent)', {
-                    sendInvite: formData.sendInvite,
-                })
                 
                 if (formData.sendInvite) {
                     toast.success('User created successfully! Invitation email sent.', {
@@ -94,19 +74,9 @@ export function CreateUserForm() {
                     toast.error('User created but password was not returned. Please check backend logs.', {
                         duration: 5000,
                     })
-                    console.error('[CreateUser] ERROR: sendInvite is false but no password returned', {
-                        result,
-                        formData,
-                    })
                 }
             }
         } catch (error: any) {
-            console.error('[CreateUser] Error occurred', {
-                error,
-                message: error?.message,
-                response: error?.response,
-            })
-            
             let errorMessage = 'Failed to create user'
             
             if (error?.message) {
@@ -364,12 +334,7 @@ export function CreateUserForm() {
                                     checked={formData.sendInvite}
                                     onCheckedChange={(checked) => {
                                         const newValue = checked === true
-                                        console.log('[CreateUser] Checkbox changed', { checked, newValue, type: typeof checked })
-                                        setFormData(prev => {
-                                            const updated = { ...prev, sendInvite: newValue }
-                                            console.log('[CreateUser] Form data updated', updated)
-                                            return updated
-                                        })
+                                        setFormData(prev => ({ ...prev, sendInvite: newValue }))
                                     }}
                                     className="mt-0.5"
                                 />
