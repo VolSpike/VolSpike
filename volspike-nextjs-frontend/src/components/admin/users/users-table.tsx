@@ -770,7 +770,19 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-tier">Tier</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="edit-tier">Tier</Label>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="text-xs text-muted-foreground cursor-help">ℹ️</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="max-w-xs">
+                                                    <p className="text-xs">{getTierTooltip(editTier)}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                     <Select
                                         value={editTier}
                                         onValueChange={(value) =>
@@ -781,9 +793,9 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="free">Free</SelectItem>
-                                            <SelectItem value="pro">Pro</SelectItem>
-                                            <SelectItem value="elite">Elite</SelectItem>
+                                            <SelectItem value="free">Free - Basic features, 15min refresh</SelectItem>
+                                            <SelectItem value="pro">Pro - Email alerts, 5min refresh</SelectItem>
+                                            <SelectItem value="elite">Elite - Real-time, SMS alerts</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -799,13 +811,25 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="USER">User</SelectItem>
-                                            <SelectItem value="ADMIN">Admin</SelectItem>
+                                            <SelectItem value="USER">User - Standard access</SelectItem>
+                                            <SelectItem value="ADMIN">Admin - Full system access</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-status">Status</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="edit-status">Status</Label>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="text-xs text-muted-foreground cursor-help">ℹ️</span>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top" className="max-w-xs">
+                                                    <p className="text-xs">{getStatusTooltip(editStatus)}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
                                     <Select
                                         value={editStatus}
                                         onValueChange={(value) =>
@@ -818,17 +842,19 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="ACTIVE">Active</SelectItem>
-                                            <SelectItem value="SUSPENDED">Suspended</SelectItem>
-                                            <SelectItem value="BANNED">Banned</SelectItem>
+                                            <SelectItem value="ACTIVE">Active - Can sign in</SelectItem>
+                                            <SelectItem value="SUSPENDED">Suspended - Temporarily disabled</SelectItem>
+                                            <SelectItem value="BANNED">Banned - Permanently disabled</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                Changes take effect immediately. For crypto payments, access length
-                                is controlled by the payment&apos;s expiration date.
-                            </p>
+                            <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-3">
+                                <p className="text-xs text-blue-900 dark:text-blue-100 font-medium mb-1">⚠️ Important</p>
+                                <p className="text-xs text-blue-800 dark:text-blue-200">
+                                    Changes take effect immediately. Users with SUSPENDED or BANNED status cannot sign in. For crypto payments, access length is controlled by the payment&apos;s expiration date.
+                                </p>
+                            </div>
                         </div>
                     )}
                     <DialogFooter>
