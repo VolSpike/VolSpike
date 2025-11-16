@@ -87,6 +87,20 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     const [showLoading, setShowLoading] = useState(false)
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+    // Sync selectedUsers with current users list - remove deleted users from selection
+    useEffect(() => {
+        const currentUserIds = new Set(users.map(u => u.id))
+        const validSelectedUsers = selectedUsers.filter(id => currentUserIds.has(id))
+        if (validSelectedUsers.length !== selectedUsers.length) {
+            console.log('[UsersTable] Filtering out deleted users from selection', {
+                before: selectedUsers.length,
+                after: validSelectedUsers.length,
+                removed: selectedUsers.filter(id => !currentUserIds.has(id)),
+            })
+            setSelectedUsers(validSelectedUsers)
+        }
+    }, [users, selectedUsers])
+
     // Prefetch next and previous pages for instant navigation
     useEffect(() => {
         const prefetchPages = () => {
@@ -194,6 +208,18 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                             console.log('[UsersTable] Deleting user', { userId: user.id, email: user.email })
                             const result = await adminAPI.deleteUser(user.id)
                             console.log('[UsersTable] Delete result', result)
+                            
+                            // Remove deleted user from selection immediately
+                            setSelectedUsers(prev => {
+                                const updated = prev.filter(id => id !== user.id)
+                                console.log('[UsersTable] Removed deleted user from selection', {
+                                    userId: user.id,
+                                    before: prev.length,
+                                    after: updated.length,
+                                })
+                                return updated
+                            })
+                            
                             toast.success('User permanently deleted')
                             router.refresh()
                         } catch (error: any) {
@@ -300,7 +326,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
             {selectedUsers.length > 0 && (
                 <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
                     <span className="text-sm font-medium">
-                        {selectedUsers.length} users selected
+                        {selectedUsers.length} {selectedUsers.length === 1 ? 'user' : 'users'} selected
                     </span>
                     <Button
                         size="sm"
