@@ -16,9 +16,10 @@ export function AnalyticsProvider() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // Suppress non-critical analytics errors (Coinbase, browser extensions, etc.)
+  // Suppress non-critical errors (Analytics SDK, CORS image loading, etc.)
   useEffect(() => {
     const originalError = console.error
+    const originalWarn = console.warn
     
     // Suppress Analytics SDK errors from third-party services
     const errorHandler = (...args: any[]) => {
@@ -33,10 +34,36 @@ export function AnalyticsProvider() {
       originalError.apply(console, args)
     }
     
+    // Suppress expected CORS errors from crypto logo CDNs (handled gracefully with fallbacks)
+    const warnHandler = (...args: any[]) => {
+      const message = args.join(' ')
+      // Suppress CORS errors from crypto logo CDNs - these are expected and handled with fallbacks
+      if (message.includes('CORS policy') && 
+          (message.includes('assets.coingecko.com') ||
+           message.includes('cryptologos.cc') ||
+           message.includes('cryptoicons.org') ||
+           message.includes('spothq/cryptocurrency-icons'))) {
+        // Silently ignore - CryptoLogo component handles these with fallback gradient initials
+        return
+      }
+      // Suppress network errors for crypto logo CDNs (403, 404, etc.) - handled gracefully
+      if ((message.includes('403') || message.includes('404') || message.includes('ERR_FAILED')) &&
+          (message.includes('assets.coingecko.com') ||
+           message.includes('cryptologos.cc') ||
+           message.includes('cryptoicons.org') ||
+           message.includes('spothq/cryptocurrency-icons'))) {
+        // Silently ignore - CryptoLogo component handles these with fallback gradient initials
+        return
+      }
+      originalWarn.apply(console, args)
+    }
+    
     console.error = errorHandler
+    console.warn = warnHandler
     
     return () => {
       console.error = originalError
+      console.warn = originalWarn
     }
   }, [])
 

@@ -185,9 +185,14 @@ function CryptoLogo({
         src={currentUrl}
         alt={`${name} logo`}
         className="h-full w-full object-cover"
-        onError={handleImageError}
-        loading="eager"
-        crossOrigin="anonymous"
+        onError={(e) => {
+          // Prevent error from bubbling to console
+          e.stopPropagation()
+          handleImageError()
+        }}
+        loading="lazy"
+        // Removed crossOrigin="anonymous" - many CDNs don't support CORS for images
+        // Fallback mechanism handles failures gracefully
         onLoad={() => {
           // Image loaded successfully - reset error state if it was set
           if (imageError) {
