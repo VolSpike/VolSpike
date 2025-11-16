@@ -85,7 +85,13 @@ export function MarketTable({
     const lastFlashTsRef = useRef<Map<string, number>>(new Map())
     const lastDirRef = useRef<Map<string, 'up' | 'down'>>(new Map())
     const persistentRef = useRef<Map<string, { dir: 'up' | 'down', suffixIndex: number }>>(new Map())
+    const [canScroll, setCanScroll] = useState(false)
+    const [atTop, setAtTop] = useState(true)
+    const [atBottom, setAtBottom] = useState(false)
     const FLASH_ENABLED = (process.env.NEXT_PUBLIC_PRICE_FLASH ?? '').toString().toLowerCase() === 'true' || process.env.NEXT_PUBLIC_PRICE_FLASH === '1'
+    const SCROLL_DEBUG_ENABLED =
+        (process.env.NEXT_PUBLIC_DEBUG_SCROLL ?? '').toString().toLowerCase() === 'true' ||
+        process.env.NEXT_PUBLIC_DEBUG_SCROLL === '1'
     const WHOLE_MS = 900
     const SUFFIX_MS = 1400
     const MIN_INTERVAL_MS = 150
@@ -191,6 +197,65 @@ export function MarketTable({
             el.removeEventListener('touchcancel', onTouchEnd as any)
         }
     }, [])
+
+    // Vertical scroll state + optional debug logging for Market Data table
+    useEffect(() => {
+        if (guestMode) {
+            // In guest preview we intentionally lock vertical scrolling,
+            // so we hide scroll hints to avoid confusing users.
+            setCanScroll(false)
+            setAtTop(true)
+            setAtBottom(true)
+            return
+        }
+
+        if (typeof window === 'undefined') return
+
+        const el = scrollContainerRef.current
+        if (!el) return
+
+        const update = () => {
+            const node = scrollContainerRef.current
+            if (!node) return
+
+            const scrollSize = node.scrollHeight
+            const clientSize = node.clientHeight
+            const scrollPos = node.scrollTop
+
+            const can = scrollSize > clientSize + 1
+            const atStart = scrollPos <= 1
+            const atEnd = scrollPos + clientSize >= scrollSize - 1
+
+            setCanScroll(can)
+            setAtTop(atStart)
+            setAtBottom(atEnd)
+
+            if (SCROLL_DEBUG_ENABLED && can) {
+                // Helps debug "is this actually scrollable?" issues in the wild
+                // without spamming production logs unless explicitly enabled.
+                // eslint-disable-next-line no-console
+                console.debug('[MarketTable] scroll state', {
+                    canScroll: can,
+                    atTop: atStart,
+                    atBottom: atEnd,
+                    scrollHeight: scrollSize,
+                    clientHeight: clientSize,
+                    scrollTop: scrollPos,
+                })
+            }
+        }
+
+        update()
+        el.addEventListener('scroll', update, { passive: true })
+        window.addEventListener('resize', update)
+        const id = window.setTimeout(update, 0)
+
+        return () => {
+            window.clearTimeout(id)
+            el.removeEventListener('scroll', update)
+            window.removeEventListener('resize', update)
+        }
+    }, [guestMode, SCROLL_DEBUG_ENABLED])
 
     const formatVolume = useMemo(() => (value: number) => {
         const abs = Math.abs(value)
@@ -746,6 +811,21 @@ export function MarketTable({
                     </table>
                 </div>
 
+                {/* Vertical scroll affordances, mirroring Volume Alerts behavior */}
+                {canScroll && !atTop && (
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-background/95 via-background/60 to-transparent" />
+                )}
+                {canScroll && !atBottom && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background/95 via-background/60 to-transparent" />
+                )}
+
+                {canScroll && !atBottom && (
+                    <div className="pointer-events-none absolute bottom-2 right-3 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">
+                        <span className="hidden sm:inline">Scroll for full market list</span>
+                        <span className="sm:hidden">Scroll markets</span>
+                        <ArrowDown className="h-3 w-3" />
+                    </div>
+                )}
             </div>
 
             {/* Guest overlays anchored to wrapper (not affected by horizontal scroll) */}
