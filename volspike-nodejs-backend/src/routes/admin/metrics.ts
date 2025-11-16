@@ -535,7 +535,7 @@ adminMetricsRoutes.get('/revenue-analytics', async (c) => {
             let startingAfter: string | undefined = undefined
             
             while (hasMore) {
-                const invoices = await stripe.invoices.list({
+                const invoices: Stripe.Response<Stripe.ApiList<Stripe.Invoice>> = await stripe.invoices.list({
                     status: 'paid',
                     limit: 100,
                     starting_after: startingAfter,
