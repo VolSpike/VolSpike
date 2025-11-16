@@ -235,7 +235,7 @@ export function CreateUserForm() {
                                             <div className="bg-background/80 p-3 rounded-lg border border-green-500/30">
                                                 <p className="text-sm font-semibold mb-2 text-foreground">Email Address:</p>
                                                 <code className="text-base font-mono bg-background px-3 py-2 rounded border-2 border-green-500/50 text-green-600 dark:text-green-400 block">
-                                                    {createdEmail}
+                                                    {passwordAlert.email}
                                                 </code>
                                             </div>
                                             <div className="bg-background/80 p-3 rounded-lg border-2 border-green-500/50">
@@ -245,7 +245,7 @@ export function CreateUserForm() {
                                                 </p>
                                                 <div className="flex items-center gap-3">
                                                     <code className="flex-1 text-lg font-mono font-bold bg-background px-4 py-3 rounded border-2 border-green-500 text-green-600 dark:text-green-400 break-all">
-                                                        {createdPassword}
+                                                        {passwordAlert.password}
                                                     </code>
                                                     <Button
                                                         type="button"
