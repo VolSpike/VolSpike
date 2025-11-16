@@ -66,10 +66,10 @@ export function StatsCards({ stats }: StatsCardsProps) {
             change: null,
             changeType: null as any,
             description: 'New users in last 30 days',
-            // Amber/orange - represents "new", "fresh", "growth" - distinct from other cards
-            iconBg: 'bg-gradient-to-br from-warning-500/20 via-warning-400/15 to-warning-600/20',
-            iconColor: 'text-warning-600 dark:text-warning-400',
-            valueGradient: 'from-warning-500 to-warning-600',
+            // Rose/pink gradient - energetic, represents excitement and new beginnings - distinct and sophisticated
+            iconBg: 'bg-gradient-to-br from-rose-500/20 via-pink-500/15 to-fuchsia-500/20',
+            iconColor: 'text-rose-500 dark:text-rose-400',
+            valueGradient: 'from-rose-500 via-pink-500 to-fuchsia-500',
         },
     ]
 
