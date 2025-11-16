@@ -32,6 +32,7 @@ import {
     CheckCircle,
     XCircle
 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { SubscriptionSummary } from '@/types/admin'
@@ -152,9 +153,10 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
     return (
         <div className="space-y-4">
             <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border/60">
+                            <TableRow className="bg-muted/30">
                             <TableHead>Customer</TableHead>
                             <TableHead
                                 className="cursor-pointer hover:bg-muted/50"
@@ -209,13 +211,14 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                             subscriptions.map((subscription) => {
                                 const StatusIcon = statusIcons[subscription.status as keyof typeof statusIcons] || CheckCircle
                                 const statusColorClass = statusColors[subscription.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
-                                const tier = getTierFromPrice(subscription.stripePriceId || '')
+                                // Use tier from subscription data (from backend) instead of deriving from stripePriceId
+                                const tier = subscription.tier || 'free'
 
                                 return (
                                 <TableRow
                                     key={subscription.id}
                                     className="group cursor-pointer transition-colors hover:bg-muted/50 border-border/60"
-                                    onClick={() => router.push(`/admin/subscriptions/${subscription.id}`)}
+                                    onClick={() => router.push(`/admin/users/${subscription.userId}`)}
                                 >
                                     <TableCell>
                                         <div className="flex items-center space-x-2">
@@ -229,10 +232,34 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge className={statusColorClass}>
-                                            <StatusIcon className="h-3 w-3 mr-1" />
-                                            {subscription.status}
-                                        </Badge>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Badge className={statusColorClass}>
+                                                        <StatusIcon className="h-3 w-3 mr-1" />
+                                                        {subscription.status}
+                                                    </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p className="text-xs">
+                                                        {subscription.status === 'active' 
+                                                            ? 'Subscription is active and billing normally'
+                                                            : subscription.status === 'none'
+                                                            ? 'No active subscription found'
+                                                            : subscription.status === 'trialing'
+                                                            ? 'Subscription is in trial period'
+                                                            : subscription.status === 'past_due'
+                                                            ? 'Payment failed - subscription is past due'
+                                                            : subscription.status === 'canceled'
+                                                            ? 'Subscription has been canceled'
+                                                            : subscription.status === 'unpaid'
+                                                            ? 'Payment failed - subscription is unpaid'
+                                                            : `Subscription status: ${subscription.status}`
+                                                        }
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </TableCell>
                                     <TableCell>
                                         <Badge className={getTierColor(tier)}>
@@ -324,6 +351,7 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                         )}
                     </TableBody>
                 </Table>
+                </div>
             </div>
 
             {/* Pagination */}

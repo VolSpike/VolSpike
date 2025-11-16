@@ -64,14 +64,19 @@ adminSubscriptionRoutes.get('/', async (c) => {
             take: params.limit,
         })
 
-        // For now, return basic subscription data
+        // Return subscription data with tier from user
         const subscriptions = users.map(user => ({
             id: user.id,
             userId: user.id,
-            userEmail: user.email,
+            userEmail: user.email || '',
             stripeCustomerId: user.stripeCustomerId || '',
+            stripeSubscriptionId: null,
+            stripePriceId: null,
             status: user.stripeCustomerId ? 'active' : 'none',
-            tier: user.tier,
+            tier: user.tier || 'free',
+            currentPeriodStart: null,
+            currentPeriodEnd: null,
+            cancelAtPeriodEnd: false,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
         }))
