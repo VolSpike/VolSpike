@@ -35,7 +35,7 @@ const createUserSchema = z.object({
     email: z.string().email(),
     tier: z.enum(['free', 'pro', 'elite']).default('free'),
     role: z.enum(['USER', 'ADMIN']).default('USER'),
-    sendInvite: z.boolean().default(true),
+    sendInvite: z.boolean(), // FIX: Removed default - let frontend control this value
     temporaryPassword: z.string().min(12).optional(),
 })
 
@@ -56,24 +56,26 @@ adminUserRoutes.post('/', async (c) => {
         }
 
         const body = await c.req.json()
-        logger.info('Create user request received (RAW)', {
+        logger.info('📨 Create user request received (RAW)', {
             email: body.email,
             tier: body.tier,
             role: body.role,
             sendInvite: body.sendInvite,
             sendInviteType: typeof body.sendInvite,
+            sendInviteValue: body.sendInvite,
             adminEmail: adminUser.email,
             fullBody: body,
         })
 
         const data = createUserSchema.parse(body)
         
-        logger.info('Create user request parsed', {
+        logger.info('🔍 Create user request parsed (after Zod)', {
             email: data.email,
             tier: data.tier,
             role: data.role,
             sendInvite: data.sendInvite,
             sendInviteType: typeof data.sendInvite,
+            sendInviteValue: data.sendInvite,
             hasTemporaryPassword: !!data.temporaryPassword,
         })
 

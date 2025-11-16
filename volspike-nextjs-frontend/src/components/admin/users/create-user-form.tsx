@@ -41,18 +41,55 @@ export function CreateUserForm() {
         setCreatedEmail(null)
 
         try {
+            console.log('📤 [CreateUser] Submitting form data:', {
+                email: formData.email,
+                tier: formData.tier,
+                role: formData.role,
+                sendInvite: formData.sendInvite,
+                sendInviteType: typeof formData.sendInvite,
+                fullFormData: formData,
+            })
+
             const result = await adminAPI.createUser(formData)
 
+            console.log('📥 [CreateUser] API Response received:', {
+                hasUser: !!result.user,
+                hasTemporaryPassword: !!result.temporaryPassword,
+                temporaryPasswordValue: result.temporaryPassword,
+                temporaryPasswordType: typeof result.temporaryPassword,
+                temporaryPasswordLength: result.temporaryPassword?.length,
+                fullResult: result,
+            })
+
+            console.log('🔑 [CreateUser] Temporary Password check:', {
+                'result.temporaryPassword': result.temporaryPassword,
+                'typeof result.temporaryPassword': typeof result.temporaryPassword,
+                'result.temporaryPassword?.length': result.temporaryPassword?.length,
+                'Boolean(result.temporaryPassword)': Boolean(result.temporaryPassword),
+                "'temporaryPassword' in result": 'temporaryPassword' in result,
+            })
+
             // FIX: Only reset form AFTER password is handled
-            if (result.temporaryPassword) {
+            if (result.temporaryPassword && result.temporaryPassword.length > 0) {
                 // Password exists - show it first, DON'T reset form yet
+                console.log('✅ [CreateUser] Password found - setting state', {
+                    passwordLength: result.temporaryPassword.length,
+                    email: result.user?.email || formData.email,
+                })
                 setCreatedPassword(result.temporaryPassword)
                 setCreatedEmail(result.user?.email || formData.email)
+                console.log('✅ [CreateUser] Password state set - Alert should render')
                 toast.success('User created successfully! Please copy the temporary password.', {
                     duration: 5000,
                 })
                 // Form will reset when user dismisses password or creates another user
             } else {
+                console.warn('⚠️ [CreateUser] No temporary password in response', {
+                    sendInvite: formData.sendInvite,
+                    hasTemporaryPassword: !!result.temporaryPassword,
+                    temporaryPasswordValue: result.temporaryPassword,
+                    resultKeys: Object.keys(result),
+                })
                 // Email was sent - safe to reset form
                 
                 if (formData.sendInvite) {
@@ -333,8 +370,22 @@ export function CreateUserForm() {
                                     id="sendInvite"
                                     checked={formData.sendInvite}
                                     onCheckedChange={(checked) => {
-                                        const newValue = checked === true
-                                        setFormData(prev => ({ ...prev, sendInvite: newValue }))
+                                        const newValue = Boolean(checked) // Ensure boolean type
+                                        console.log('✅ [CreateUser] Checkbox changed:', {
+                                            checked,
+                                            checkedType: typeof checked,
+                                            newValue,
+                                            newValueType: typeof newValue,
+                                        })
+                                        setFormData(prev => {
+                                            const updated = { ...prev, sendInvite: newValue }
+                                            console.log('✅ [CreateUser] Form data updated:', {
+                                                ...updated,
+                                                sendInvite: updated.sendInvite,
+                                                sendInviteType: typeof updated.sendInvite,
+                                            })
+                                            return updated
+                                        })
                                     }}
                                     className="mt-0.5"
                                 />

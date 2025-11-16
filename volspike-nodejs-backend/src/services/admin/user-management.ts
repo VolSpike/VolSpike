@@ -170,6 +170,15 @@ export class UserManagementService {
             const shouldReturnPassword = !data.sendInvite
             const passwordToReturn = shouldReturnPassword ? tempPassword : undefined
 
+            logger.info('🎯 Password return logic check', {
+                sendInvite: data.sendInvite,
+                sendInviteType: typeof data.sendInvite,
+                shouldReturnPassword,
+                tempPasswordExists: !!tempPassword,
+                tempPasswordLength: tempPassword.length,
+                passwordToReturn: passwordToReturn ? '[REDACTED - length: ' + passwordToReturn.length + ']' : undefined,
+            })
+
             logger.info(`User ${data.email} created by admin ${adminUserId}`, {
                 sendInvite: data.sendInvite,
                 willReturnPassword: shouldReturnPassword,
