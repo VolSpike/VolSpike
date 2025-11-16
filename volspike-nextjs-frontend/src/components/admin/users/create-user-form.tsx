@@ -205,7 +205,19 @@ export function CreateUserForm() {
                 </CardHeader>
                 <CardContent>
                     {/* Password Display - ABOVE form so it's always visible */}
-                    {createdPassword && createdEmail && (
+                    {(() => {
+                        const shouldShowAlert = createdPassword && createdEmail
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log('🎨 [CreateUser] Alert render check:', {
+                                createdPassword: !!createdPassword,
+                                createdPasswordValue: createdPassword,
+                                createdEmail: !!createdEmail,
+                                createdEmailValue: createdEmail,
+                                shouldShowAlert,
+                            })
+                        }
+                        return shouldShowAlert
+                    })() && (
                         <div className="mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <Alert className="border-green-500 bg-green-500/20 shadow-lg shadow-green-500/20 ring-2 ring-green-500/30">
                                 <div className="flex items-start justify-between">
