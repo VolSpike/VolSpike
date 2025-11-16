@@ -16,6 +16,30 @@ export function AnalyticsProvider() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  // Suppress non-critical analytics errors (Coinbase, browser extensions, etc.)
+  useEffect(() => {
+    const originalError = console.error
+    
+    // Suppress Analytics SDK errors from third-party services
+    const errorHandler = (...args: any[]) => {
+      const message = args.join(' ')
+      // Suppress Coinbase Analytics SDK errors (non-critical - from browser extensions)
+      if (message.includes('Analytics SDK') || 
+          message.includes('cca-lite.coinbase.com') ||
+          (message.includes('Failed to fetch') && message.includes('coinbase'))) {
+        // Silently ignore - these are from browser extensions or third-party scripts
+        return
+      }
+      originalError.apply(console, args)
+    }
+    
+    console.error = errorHandler
+    
+    return () => {
+      console.error = originalError
+    }
+  }, [])
+
   // Initialize GA4 on mount
   useEffect(() => {
     initGA()
