@@ -74,7 +74,8 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             params.set('page', '1')
             router.push(`/admin/users?${params.toString()}`)
         }
-    }, [filters.role, filters.tier, filters.status])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters.role, filters.tier, filters.status, router])
 
     // Auto-apply when debounced search changes
     useEffect(() => {
@@ -89,7 +90,8 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             params.set('page', '1')
             router.push(`/admin/users?${params.toString()}`)
         }
-    }, [debouncedSearch])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearch, router])
 
     const clearFilters = () => {
         setFilters({
