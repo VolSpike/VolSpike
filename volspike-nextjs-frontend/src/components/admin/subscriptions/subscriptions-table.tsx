@@ -153,10 +153,11 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
     return (
         <div className="space-y-4">
             <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                {/* Scrollable container with max height */}
+                <div className="relative max-h-[calc(100vh-20rem)] overflow-auto">
                     <Table>
-                        <TableHeader className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border/60">
-                            <TableRow className="bg-muted/30">
+                        <TableHeader className="sticky top-0 z-30 bg-background shadow-sm border-b border-border/60">
+                            <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead>Customer</TableHead>
                             <TableHead
                                 className="cursor-pointer hover:bg-muted/50"
@@ -350,7 +351,7 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                             })
                         )}
                     </TableBody>
-                </Table>
+                    </Table>
                 </div>
             </div>
 
