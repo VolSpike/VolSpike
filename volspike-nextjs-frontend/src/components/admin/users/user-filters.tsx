@@ -93,7 +93,12 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             if (debouncedSearch) params.set('search', debouncedSearch)
             if (filters.role && filters.role !== 'all') params.set('role', filters.role)
             if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-            if (filters.status && filters.status !== 'all') params.set('status', filters.status)
+            if (filters.status && filters.status !== 'all') {
+                params.set('status', filters.status)
+            } else if (filters.status === '') {
+                // Explicit "All Status" - send 'all' to backend
+                params.set('status', 'all')
+            }
             
             params.set('page', '1')
             router.push(`/admin/users?${params.toString()}`)
