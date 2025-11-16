@@ -109,17 +109,19 @@ export default function CryptoPaymentPage() {
 
       const solanaPayUri = `solana:${paymentDetails.payAddress}?${params.toString()}`
       
-      // Phantom universal link (fallback for button clicks)
-      // Note: Phantom universal links might use decimal amounts, but Solana Pay spec uses smallest units
+      // Phantom universal link (for QR code - ensures Phantom opens, not Trust Wallet)
+      // Format: https://phantom.app/ul/v1/transfer?recipient=<address>&amount=<decimal>&token=<mint>
+      // Use decimal amounts for Phantom universal links (Phantom handles conversion)
       const phantomParams = new URLSearchParams()
       phantomParams.set('recipient', paymentDetails.payAddress)
-      // Use decimal for Phantom universal links (they might handle conversion)
       phantomParams.set('amount', paymentDetails.payAmount.toString())
       if (splTokenMint && !isSOL) {
         phantomParams.set('token', splTokenMint)
       }
       
+      // Universal link (works best for QR codes - opens Phantom app)
       const phantomUniversalLinkUri = `https://phantom.app/ul/v1/transfer?${phantomParams.toString()}`
+      // Deep link (fallback for direct button clicks)
       const phantomDeepLinkUri = phantomUniversalLinkUri.replace('https://phantom.app/ul/', 'phantom://ul/')
       
       // Comprehensive debug logging
@@ -159,22 +161,30 @@ export default function CryptoPaymentPage() {
     }
   }, [paymentDetails])
 
-  // Generate QR code using standard Solana Pay URI format
-  // Phantom recognizes solana: URIs and will pre-fill payment details
+  // Generate QR code using Phantom universal link (ensures Phantom opens, not Trust Wallet)
+  // Universal links are better for QR codes because they're handled by the app that registered them
   useEffect(() => {
-    // Use standard Solana Pay URI for QR code (Phantom recognizes this format)
-    const uriForQR = solanaUri
+    // Use Phantom universal link for QR code (ensures Phantom opens when scanned with camera)
+    // Fallback to Solana Pay URI if Phantom link not available
+    const uriForQR = phantomUniversalLink || solanaUri
     
     if (!uriForQR) {
-      console.warn('[CryptoPaymentPage] No Solana Pay URI available for QR code generation')
+      console.warn('[CryptoPaymentPage] No URI available for QR code generation')
       return
     }
 
-    console.log('[CryptoPaymentPage] Generating QR code with Solana Pay URI', {
+    const usingPhantomLink = !!phantomUniversalLink
+    console.log('[CryptoPaymentPage] Generating QR code', {
+      usingPhantomUniversalLink: usingPhantomLink,
+      usingSolanaPayUri: !usingPhantomLink,
       uri: uriForQR,
       uriLength: uriForQR.length,
       uriPreview: uriForQR.substring(0, 100) + '...',
       fullUri: uriForQR,
+      // Show what will happen when scanned
+      expectedBehavior: usingPhantomLink 
+        ? 'Will open Phantom app directly (bypasses Trust Wallet)' 
+        : 'Will use device default handler for solana: scheme (may open Trust Wallet)',
     })
 
     QRCode.toDataURL(uriForQR, {
@@ -190,8 +200,9 @@ export default function CryptoPaymentPage() {
         console.log('[CryptoPaymentPage] QR code generated successfully', {
           uriLength: uriForQR.length,
           qrCodeSize: url.length,
-          uriType: 'solana-pay',
+          uriType: phantomUniversalLink ? 'phantom-universal-link' : 'solana-pay',
           encodedUri: uriForQR,
+          willOpenPhantom: !!phantomUniversalLink,
         })
         setQrCodeDataUrl(url)
       })
@@ -204,7 +215,7 @@ export default function CryptoPaymentPage() {
         })
         toast.error('Failed to generate QR code')
       })
-  }, [solanaUri])
+  }, [phantomUniversalLink, solanaUri])
 
   // Fetch payment details
   useEffect(() => {
@@ -448,7 +459,7 @@ export default function CryptoPaymentPage() {
                   Complete Your Payment
                 </CardTitle>
                 <CardDescription className="mt-2">
-                  Scan the QR code with your Phantom wallet to complete payment
+                  Scan the QR code with your phone&apos;s camera to complete payment
                 </CardDescription>
               </div>
               {timeRemaining !== null && (
@@ -518,17 +529,17 @@ export default function CryptoPaymentPage() {
                 </div>
                 <div className="text-center space-y-2 max-w-sm">
                   <p className="text-xs text-muted-foreground">
-                    Scan with <strong className="text-foreground">Phantom wallet</strong> app on your phone.
+                    Scan this QR code with your <strong className="text-foreground">phone&apos;s camera</strong> app.
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    The QR code uses Solana Pay format - Phantom will automatically pre-fill the payment details.
+                    It will automatically open <strong className="text-foreground">Phantom wallet</strong> with payment details pre-filled.
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    If it opens Trust Wallet instead, tap &quot;Open in Phantom Wallet&quot; below.
+                    If it opens a different wallet, tap &quot;Open in Phantom Wallet&quot; below.
                   </p>
                 </div>
                 {/* Debug info (always show in dev, optional in prod via query param) */}
-                {debugMode && solanaUri && (
+                {debugMode && (phantomUniversalLink || solanaUri) && (
                   <div className="w-full p-4 bg-gradient-to-br from-purple-500/10 to-blue-500/10 rounded-lg border-2 border-purple-500/20 space-y-3">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">🔍</span>
@@ -539,13 +550,23 @@ export default function CryptoPaymentPage() {
                     <div className="space-y-2">
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">
-                          Solana Pay URI (encoded in QR code):
+                          QR Code Contents ({phantomUniversalLink ? 'Phantom Universal Link' : 'Solana Pay URI'}):
                         </p>
                         <div className="p-3 bg-background/80 rounded border border-border/50">
                           <code className="text-xs font-mono text-foreground break-all">
-                            {solanaUri}
+                            {phantomUniversalLink || solanaUri}
                           </code>
                         </div>
+                        {phantomUniversalLink && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            ✓ Using Phantom universal link - will open Phantom app directly
+                          </p>
+                        )}
+                        {!phantomUniversalLink && solanaUri && (
+                          <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                            ⚠ Using Solana Pay URI - device default handler will be used (may open Trust Wallet)
+                          </p>
+                        )}
                       </div>
                       <details className="text-xs">
                         <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium">
