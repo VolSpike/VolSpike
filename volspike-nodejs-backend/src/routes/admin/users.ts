@@ -106,7 +106,7 @@ adminUserRoutes.post('/', async (c) => {
             })
         }
 
-        return c.json({
+        const responsePayload = {
             user: {
                 id: result.user.id,
                 email: result.user.email,
@@ -117,7 +117,16 @@ adminUserRoutes.post('/', async (c) => {
                 createdAt: result.user.createdAt,
             },
             temporaryPassword: result.temporaryPassword,
+        }
+
+        logger.info('📤 Returning response payload', {
+            hasTemporaryPassword: !!responsePayload.temporaryPassword,
+            temporaryPasswordLength: responsePayload.temporaryPassword?.length,
+            temporaryPasswordType: typeof responsePayload.temporaryPassword,
+            sendInvite: data.sendInvite,
         })
+
+        return c.json(responsePayload)
     } catch (error: any) {
         logger.error('Create user error:', {
             message: error?.message,
