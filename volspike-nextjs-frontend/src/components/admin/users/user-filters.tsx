@@ -37,6 +37,26 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         status: currentFilters.status || '',
     })
 
+    // Sync filters with currentFilters when they change (but not when we're clearing)
+    useEffect(() => {
+        // Only sync if the URL params actually changed (not from our own navigation)
+        const urlHasStatus = currentFilters.status !== undefined && currentFilters.status !== ''
+        const stateHasStatus = filters.status !== undefined && filters.status !== ''
+        
+        // If URL has status but state doesn't, sync from URL
+        // If URL doesn't have status but state does, keep state (we're clearing)
+        if (urlHasStatus && !stateHasStatus) {
+            console.log('[UserFilters] Syncing status from URL', {
+                urlStatus: currentFilters.status,
+                stateStatus: filters.status,
+            })
+            setFilters(prev => ({
+                ...prev,
+                status: currentFilters.status || '',
+            }))
+        }
+    }, [currentFilters.status]) // Only depend on URL status, not state
+
     // Debounce search input to avoid too many requests
     const debouncedSearch = useDebounce(filters.search, 500)
 
@@ -267,28 +287,35 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                     {filters.status && filters.status !== 'all' && (
                         <button
                             onClick={() => {
-                                console.log('[UserFilters] Clearing status filter', {
+                                console.log('[UserFilters] Clearing status filter - START', {
                                     currentStatus: filters.status,
+                                    currentUrl: window.location.search,
                                     before: filters,
                                 })
+                                
+                                // Immediately update state to prevent re-render issues
                                 setFilters(prev => {
                                     const updated = { ...prev, status: '' }
-                                    console.log('[UserFilters] Status filter cleared', {
+                                    console.log('[UserFilters] Status filter cleared in state', {
                                         after: updated,
                                     })
                                     return updated
                                 })
-                                // Use router.push directly to ensure status param is removed
-                                setTimeout(() => {
-                                    const params = new URLSearchParams(window.location.search)
-                                    params.delete('status') // Remove status param completely
-                                    params.set('page', '1')
-                                    console.log('[UserFilters] Navigating to URL without status param', {
-                                        url: `/admin/users?${params.toString()}`,
-                                        params: Object.fromEntries(params),
-                                    })
-                                    router.push(`/admin/users?${params.toString()}`)
-                                }, 0)
+                                
+                                // Remove status param from URL completely (no 'all', no empty string)
+                                const params = new URLSearchParams(window.location.search)
+                                params.delete('status') // Remove status param completely
+                                params.set('page', '1')
+                                
+                                const finalUrl = `/admin/users?${params.toString()}`
+                                console.log('[UserFilters] Navigating to URL without status param', {
+                                    finalUrl,
+                                    params: Object.fromEntries(params),
+                                    hasStatusParam: params.has('status'),
+                                })
+                                
+                                // Use router.push with replace to avoid adding to history
+                                router.push(finalUrl)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors border border-amber-300/50 dark:border-amber-700/50"
                         >
