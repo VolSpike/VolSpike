@@ -385,57 +385,99 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page <= 1}
+                            disabled={pagination.page <= 1 || isPending}
                             onClick={() => {
-                                const params = new URLSearchParams()
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
                                 
-                                // Add existing query params
-                                if (currentQuery.actorUserId) params.set('actorUserId', String(currentQuery.actorUserId))
-                                if (currentQuery.action) params.set('action', String(currentQuery.action))
-                                if (currentQuery.targetType) params.set('targetType', String(currentQuery.targetType))
-                                if (currentQuery.targetId) params.set('targetId', String(currentQuery.targetId))
-                                if (currentQuery.startDate) params.set('startDate', currentQuery.startDate instanceof Date ? currentQuery.startDate.toISOString() : String(currentQuery.startDate))
-                                if (currentQuery.endDate) params.set('endDate', currentQuery.endDate instanceof Date ? currentQuery.endDate.toISOString() : String(currentQuery.endDate))
-                                if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
-                                if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
-                                if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
                                 
-                                // Set page
-                                params.set('page', String(pagination.page - 1))
-                                
-                                router.push(`/admin/audit?${params.toString()}`)
+                                startTransition(() => {
+                                    const params = new URLSearchParams()
+                                    
+                                    // Add existing query params
+                                    if (currentQuery.actorUserId) params.set('actorUserId', String(currentQuery.actorUserId))
+                                    if (currentQuery.action) params.set('action', String(currentQuery.action))
+                                    if (currentQuery.targetType) params.set('targetType', String(currentQuery.targetType))
+                                    if (currentQuery.targetId) params.set('targetId', String(currentQuery.targetId))
+                                    if (currentQuery.startDate) params.set('startDate', currentQuery.startDate instanceof Date ? currentQuery.startDate.toISOString() : String(currentQuery.startDate))
+                                    if (currentQuery.endDate) params.set('endDate', currentQuery.endDate instanceof Date ? currentQuery.endDate.toISOString() : String(currentQuery.endDate))
+                                    if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+                                    if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
+                                    if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                    
+                                    // Set page
+                                    params.set('page', String(pagination.page - 1))
+                                    
+                                    router.push(`/admin/audit?${params.toString()}`)
+                                })
                             }}
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            Previous
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Previous
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Loading...
+                                </span>
+                            )}
                         </Button>
-                        <span className="text-sm">
+                        <span className="text-sm min-w-[100px] text-center">
                             Page {pagination.page} of {pagination.pages}
                         </span>
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page >= pagination.pages}
+                            disabled={pagination.page >= pagination.pages || isPending}
                             onClick={() => {
-                                const params = new URLSearchParams()
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
                                 
-                                // Add existing query params
-                                if (currentQuery.actorUserId) params.set('actorUserId', String(currentQuery.actorUserId))
-                                if (currentQuery.action) params.set('action', String(currentQuery.action))
-                                if (currentQuery.targetType) params.set('targetType', String(currentQuery.targetType))
-                                if (currentQuery.targetId) params.set('targetId', String(currentQuery.targetId))
-                                if (currentQuery.startDate) params.set('startDate', currentQuery.startDate instanceof Date ? currentQuery.startDate.toISOString() : String(currentQuery.startDate))
-                                if (currentQuery.endDate) params.set('endDate', currentQuery.endDate instanceof Date ? currentQuery.endDate.toISOString() : String(currentQuery.endDate))
-                                if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
-                                if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
-                                if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
                                 
-                                // Set page
-                                params.set('page', String(pagination.page + 1))
-                                
-                                router.push(`/admin/audit?${params.toString()}`)
+                                startTransition(() => {
+                                    const params = new URLSearchParams()
+                                    
+                                    // Add existing query params
+                                    if (currentQuery.actorUserId) params.set('actorUserId', String(currentQuery.actorUserId))
+                                    if (currentQuery.action) params.set('action', String(currentQuery.action))
+                                    if (currentQuery.targetType) params.set('targetType', String(currentQuery.targetType))
+                                    if (currentQuery.targetId) params.set('targetId', String(currentQuery.targetId))
+                                    if (currentQuery.startDate) params.set('startDate', currentQuery.startDate instanceof Date ? currentQuery.startDate.toISOString() : String(currentQuery.startDate))
+                                    if (currentQuery.endDate) params.set('endDate', currentQuery.endDate instanceof Date ? currentQuery.endDate.toISOString() : String(currentQuery.endDate))
+                                    if (currentQuery.limit) params.set('limit', String(currentQuery.limit))
+                                    if (currentQuery.sortBy) params.set('sortBy', String(currentQuery.sortBy))
+                                    if (currentQuery.sortOrder) params.set('sortOrder', String(currentQuery.sortOrder))
+                                    
+                                    // Set page
+                                    params.set('page', String(pagination.page + 1))
+                                    
+                                    router.push(`/admin/audit?${params.toString()}`)
+                                })
                             }}
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            Next
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Next
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Loading...
+                                </span>
+                            )}
                         </Button>
                     </div>
                 </div>
