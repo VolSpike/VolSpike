@@ -45,9 +45,12 @@ export function CreateUserForm() {
             tier: formData.tier,
             role: formData.role,
             sendInvite: formData.sendInvite,
+            sendInviteType: typeof formData.sendInvite,
+            formDataStringified: JSON.stringify(formData),
         })
 
         try {
+            console.log('[CreateUser] Calling adminAPI.createUser with:', formData)
             const result = await adminAPI.createUser(formData)
             
             console.log('[CreateUser] API response received', {

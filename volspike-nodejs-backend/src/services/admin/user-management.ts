@@ -116,6 +116,13 @@ export class UserManagementService {
     // Create new user
     static async createUser(data: CreateUserRequest, adminUserId: string) {
         try {
+            logger.info('UserManagementService.createUser called', {
+                email: data.email,
+                sendInvite: data.sendInvite,
+                sendInviteType: typeof data.sendInvite,
+                hasTemporaryPassword: !!data.temporaryPassword,
+            })
+            
             // Check if user already exists
             const existing = await prisma.user.findUnique({
                 where: { email: data.email },
@@ -127,6 +134,11 @@ export class UserManagementService {
 
             // Generate temporary password if not provided
             const tempPassword = data.temporaryPassword || this.generateTempPassword()
+            
+            logger.info('Temporary password generated', {
+                passwordLength: tempPassword.length,
+                wasProvided: !!data.temporaryPassword,
+            })
 
             // Hash the password for storage
             const passwordHash = await bcrypt.hash(tempPassword, 12)
@@ -144,19 +156,29 @@ export class UserManagementService {
 
             // Send invite email
             if (data.sendInvite) {
+                logger.info('Sending invite email (password will NOT be returned)')
                 await this.sendInviteEmail({
                     email: data.email,
                     temporaryPassword: tempPassword,
                     invitedBy: adminUserId,
                     tier: data.tier,
                 })
+            } else {
+                logger.info('NOT sending invite email (password WILL be returned)')
             }
 
-            logger.info(`User ${data.email} created by admin ${adminUserId}`)
+            const shouldReturnPassword = !data.sendInvite
+            const passwordToReturn = shouldReturnPassword ? tempPassword : undefined
+
+            logger.info(`User ${data.email} created by admin ${adminUserId}`, {
+                sendInvite: data.sendInvite,
+                willReturnPassword: shouldReturnPassword,
+                passwordLength: passwordToReturn?.length,
+            })
 
             return {
                 user,
-                temporaryPassword: data.sendInvite ? undefined : tempPassword,
+                temporaryPassword: passwordToReturn,
             }
         } catch (error) {
             logger.error('Create user error:', error)

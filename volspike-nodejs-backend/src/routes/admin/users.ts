@@ -52,15 +52,26 @@ adminUserRoutes.post('/', async (c) => {
         }
 
         const body = await c.req.json()
-        logger.info('Create user request received', {
+        logger.info('Create user request received (RAW)', {
             email: body.email,
             tier: body.tier,
             role: body.role,
             sendInvite: body.sendInvite,
+            sendInviteType: typeof body.sendInvite,
             adminEmail: adminUser.email,
+            fullBody: body,
         })
 
         const data = createUserSchema.parse(body)
+        
+        logger.info('Create user request parsed', {
+            email: data.email,
+            tier: data.tier,
+            role: data.role,
+            sendInvite: data.sendInvite,
+            sendInviteType: typeof data.sendInvite,
+            hasTemporaryPassword: !!data.temporaryPassword,
+        })
 
         // Normalize email to lowercase
         const normalizedEmail = data.email.toLowerCase().trim()
