@@ -23,8 +23,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 export function CreateUserForm() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
-    const [createdPassword, setCreatedPassword] = useState<string | null>(null)
-    const [createdEmail, setCreatedEmail] = useState<string | null>(null)
+    // FIX: Single atomic state instead of two separate states to avoid React batching race condition
+    const [passwordAlert, setPasswordAlert] = useState<{
+        password: string
+        email: string
+    } | null>(null)
     const [formData, setFormData] = useState<CreateUserRequest>({
         email: '',
         tier: 'free',
@@ -32,13 +35,24 @@ export function CreateUserForm() {
         sendInvite: false, // CRITICAL FIX: Default to false to show password by default
     })
 
+    // FIX: Track state changes for debugging
+    useEffect(() => {
+        if (passwordAlert) {
+            console.log('✅ [CreateUser] passwordAlert state updated:', {
+                email: passwordAlert.email,
+                hasPassword: passwordAlert.password.length > 0,
+                passwordLength: passwordAlert.password.length,
+                timestamp: new Date().toISOString(),
+            })
+        }
+    }, [passwordAlert])
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         
         // Reset previous password display
-        setCreatedPassword(null)
-        setCreatedEmail(null)
+        setPasswordAlert(null)
 
         try {
             console.log('📤 [CreateUser] Submitting form data:', {
@@ -72,13 +86,16 @@ export function CreateUserForm() {
             // FIX: Only reset form AFTER password is handled
             if (result.temporaryPassword && result.temporaryPassword.length > 0) {
                 // Password exists - show it first, DON'T reset form yet
-                console.log('✅ [CreateUser] Password found - setting state', {
+                // FIX: Single atomic state update to avoid React batching race condition
+                console.log('✅ [CreateUser] Password found - setting atomic state', {
                     passwordLength: result.temporaryPassword.length,
                     email: result.user?.email || formData.email,
                 })
-                setCreatedPassword(result.temporaryPassword)
-                setCreatedEmail(result.user?.email || formData.email)
-                console.log('✅ [CreateUser] Password state set - Alert should render')
+                setPasswordAlert({
+                    password: result.temporaryPassword,
+                    email: result.user?.email || formData.email,
+                })
+                console.log('✅ [CreateUser] Password alert state set - Alert should render in next render cycle')
                 toast.success('User created successfully! Please copy the temporary password.', {
                     duration: 5000,
                 })
@@ -140,8 +157,8 @@ export function CreateUserForm() {
 
     const [copied, setCopied] = useState(false)
     const handleCopyPassword = () => {
-        if (createdPassword) {
-            navigator.clipboard.writeText(createdPassword)
+        if (passwordAlert?.password) {
+            navigator.clipboard.writeText(passwordAlert.password)
             setCopied(true)
             toast.success('Password copied to clipboard!')
             setTimeout(() => setCopied(false), 2000)
@@ -150,8 +167,7 @@ export function CreateUserForm() {
 
     const handleDismissPassword = () => {
         // Clear password display and reset form for next user
-        setCreatedPassword(null)
-        setCreatedEmail(null)
+        setPasswordAlert(null)
         setFormData({
             email: '',
             tier: 'free',
@@ -205,19 +221,8 @@ export function CreateUserForm() {
                 </CardHeader>
                 <CardContent>
                     {/* Password Display - ABOVE form so it's always visible */}
-                    {(() => {
-                        const shouldShowAlert = createdPassword && createdEmail
-                        if (process.env.NODE_ENV === 'development') {
-                            console.log('🎨 [CreateUser] Alert render check:', {
-                                createdPassword: !!createdPassword,
-                                createdPasswordValue: createdPassword,
-                                createdEmail: !!createdEmail,
-                                createdEmailValue: createdEmail,
-                                shouldShowAlert,
-                            })
-                        }
-                        return shouldShowAlert
-                    })() && (
+                    {/* FIX: Removed IIFE pattern - simplified conditional rendering */}
+                    {passwordAlert && (
                         <div className="mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <Alert className="border-green-500 bg-green-500/20 shadow-lg shadow-green-500/20 ring-2 ring-green-500/30">
                                 <div className="flex items-start justify-between">
@@ -462,7 +467,7 @@ export function CreateUserForm() {
                                 >
                                     Cancel
                                 </Button>
-                                {createdPassword ? (
+                                {passwordAlert ? (
                                     <Button 
                                         type="button"
                                         onClick={handleContinue}
