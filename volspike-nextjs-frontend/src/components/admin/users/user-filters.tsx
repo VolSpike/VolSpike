@@ -147,12 +147,12 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             if (debouncedSearch) params.set('search', debouncedSearch)
             if (filters.role && filters.role !== 'all') params.set('role', filters.role)
             if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-            if (filters.status && filters.status !== 'all') {
+            
+            // Handle status filter: only add if it has a value, don't add 'all' or empty
+            if (filters.status && filters.status !== 'all' && filters.status !== '') {
                 params.set('status', filters.status)
-            } else if (filters.status === '') {
-                // Explicit "All Status" - send 'all' to backend
-                params.set('status', 'all')
             }
+            // Don't add status param if empty - let backend default to excluding BANNED
             
             params.set('page', '1')
             router.push(`/admin/users?${params.toString()}`)
