@@ -866,7 +866,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     </Select>
                                 </div>
                             </div>
-                            <div className="relative rounded-xl border-2 border-gradient-to-r from-blue-500/30 via-purple-500/30 to-purple-600/30 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-purple-50/50 dark:from-blue-950/30 dark:via-purple-950/20 dark:to-purple-950/30 p-4 backdrop-blur-sm overflow-hidden">
+                            <div className="relative rounded-xl border-2 border-blue-500/30 dark:border-purple-500/30 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-purple-50/50 dark:from-blue-950/30 dark:via-purple-950/20 dark:to-purple-950/30 p-4 backdrop-blur-sm overflow-hidden ring-1 ring-blue-500/20 dark:ring-purple-500/20">
                                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-purple-600/5" />
                                 <div className="relative flex items-start gap-3">
                                     <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 ring-2 ring-blue-500/20 dark:ring-purple-500/20">
