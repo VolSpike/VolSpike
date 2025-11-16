@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
@@ -98,7 +98,8 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
     const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null)
     const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
     const [detailsLoading, setDetailsLoading] = useState(false)
-    const [isNavigating, setIsNavigating] = useState(false)
+    const [showLoading, setShowLoading] = useState(false)
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     // Prefetch next and previous pages for instant navigation
     useEffect(() => {

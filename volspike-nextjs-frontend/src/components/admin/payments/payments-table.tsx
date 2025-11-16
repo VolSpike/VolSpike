@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     Table,
@@ -99,10 +99,13 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
 
 export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTableProps) {
     const router = useRouter()
+    const [isPending, startTransition] = useTransition()
     const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null)
     const [manualUpgradeOpen, setManualUpgradeOpen] = useState(false)
     const [upgradeReason, setUpgradeReason] = useState('')
     const [isProcessing, setIsProcessing] = useState(false)
+    const [showLoading, setShowLoading] = useState(false)
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     const handleSort = (column: string) => {
         const newSortBy = column
@@ -347,22 +350,85 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                     <div className="text-sm text-muted-foreground">
                         Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} payments
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => router.push(`/admin/payments?${new URLSearchParams({ ...currentQuery, page: String(pagination.page - 1) } as any).toString()}`)}
-                            disabled={pagination.page === 1}
+                            disabled={pagination.page === 1 || isPending}
+                            onClick={() => {
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
+                                
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
+                                
+                                startTransition(() => {
+                                    const params = new URLSearchParams()
+                                    Object.entries(currentQuery).forEach(([key, value]) => {
+                                        if (value !== undefined && value !== null) {
+                                            params.set(key, String(value))
+                                        }
+                                    })
+                                    params.set('page', String(pagination.page - 1))
+                                    router.push(`/admin/payments?${params.toString()}`)
+                                })
+                            }}
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            Previous
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Previous
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Loading...
+                                </span>
+                            )}
                         </Button>
+                        <span className="text-sm min-w-[100px] text-center">
+                            Page {pagination.page} of {pagination.pages}
+                        </span>
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => router.push(`/admin/payments?${new URLSearchParams({ ...currentQuery, page: String(pagination.page + 1) } as any).toString()}`)}
-                            disabled={pagination.page >= pagination.pages}
+                            disabled={pagination.page >= pagination.pages || isPending}
+                            onClick={() => {
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
+                                
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
+                                
+                                startTransition(() => {
+                                    const params = new URLSearchParams()
+                                    Object.entries(currentQuery).forEach(([key, value]) => {
+                                        if (value !== undefined && value !== null) {
+                                            params.set(key, String(value))
+                                        }
+                                    })
+                                    params.set('page', String(pagination.page + 1))
+                                    router.push(`/admin/payments?${params.toString()}`)
+                                })
+                            }}
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            Next
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Next
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Loading...
+                                </span>
+                            )}
                         </Button>
                     </div>
                 </div>
