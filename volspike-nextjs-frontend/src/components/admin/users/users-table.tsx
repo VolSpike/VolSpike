@@ -147,6 +147,36 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
         }
     }, [isPending])
 
+    // Ensure Actions column is visible on mount and detect scroll
+    useEffect(() => {
+        const ensureActionsVisible = () => {
+            if (scrollContainerRef.current) {
+                const container = scrollContainerRef.current
+                const { scrollLeft, scrollWidth, clientWidth } = container
+                
+                // If table is wider than container, scroll to show Actions column
+                if (scrollWidth > clientWidth) {
+                    // Scroll to the right to ensure Actions column (last 100px) is visible
+                    const targetScroll = scrollWidth - clientWidth
+                    if (scrollLeft < targetScroll - 50) { // 50px buffer
+                        container.scrollLeft = targetScroll
+                        console.log('[UsersTable] Scrolled to show Actions column:', {
+                            from: scrollLeft,
+                            to: targetScroll,
+                            scrollWidth,
+                            clientWidth
+                        })
+                    }
+                }
+            }
+        }
+
+        // Ensure Actions column is visible after a short delay to allow DOM to render
+        const timeoutId = setTimeout(ensureActionsVisible, 150)
+        
+        return () => clearTimeout(timeoutId)
+    }, [users]) // Re-run when users change
+
     // Detect horizontal scroll and show indicator + debug Actions column visibility
     useEffect(() => {
         const checkScroll = () => {
