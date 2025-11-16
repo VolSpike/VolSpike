@@ -346,5 +346,69 @@ export class NowPaymentsService {
       return []
     }
   }
+
+  /**
+   * Get minimum payment amount for a currency pair
+   * @param currencyFrom - Source currency (e.g., 'usd')
+   * @param currencyTo - Destination currency (e.g., 'usdtsol', 'btc')
+   * @returns Minimum amount in USD, or null if unable to fetch
+   */
+  async getMinimumAmount(currencyFrom: string = 'usd', currencyTo: string): Promise<number | null> {
+    if (!API_KEY) {
+      logger.warn('NowPayments API key not configured, cannot fetch minimum amount')
+      return null
+    }
+
+    try {
+      // Map our currency codes to NowPayments format
+      const currencyMapper = await import('./currency-mapper')
+      const mappedCurrency = currencyMapper.mapCurrencyToNowPayments(currencyTo, [])
+      const payCurrency = mappedCurrency || currencyTo.toLowerCase()
+
+      logger.info('Fetching minimum amount from NowPayments', {
+        currencyFrom,
+        currencyTo,
+        payCurrency,
+      })
+
+      const response = await axios.get(`${API_URL}/min-amount`, {
+        params: {
+          currency_from: currencyFrom.toLowerCase(),
+          currency_to: payCurrency,
+        },
+        headers: {
+          'x-api-key': API_KEY,
+        },
+      })
+
+      const minAmount = response.data?.min_amount
+      
+      if (minAmount && typeof minAmount === 'number') {
+        logger.info('NowPayments minimum amount fetched', {
+          currencyFrom,
+          currencyTo,
+          payCurrency,
+          minAmount,
+        })
+        return minAmount
+      }
+
+      logger.warn('NowPayments min-amount endpoint returned invalid data', {
+        response: response.data,
+        currencyFrom,
+        currencyTo,
+      })
+      return null
+    } catch (error: any) {
+      logger.error('NowPayments get minimum amount error:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        currencyFrom,
+        currencyTo,
+        fullError: error.message,
+      })
+      return null
+    }
+  }
 }
 

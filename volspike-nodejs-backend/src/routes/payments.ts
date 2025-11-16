@@ -914,11 +914,44 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             successUrl: z.string().url(),
             cancelUrl: z.string().url(),
             payCurrency: z.string().optional(),
-            // NowPayments minimums: USDT Solana ~$2, others vary. Use $5 as safe default
-            testAmount: z.number().min(2.0).max(10).optional().default(5.0), // Default $5 to exceed minimums
+            testAmount: z.number().min(0.01).max(10).optional(), // Optional - will be calculated from minimum
         }).parse(body)
 
-        const priceAmount = testAmount || 5.0 // Use test amount (default $5 to exceed NowPayments minimums)
+        // Fetch actual minimum amount from NowPayments API
+        let priceAmount = testAmount
+        const nowpayments = NowPaymentsService.getInstance()
+        
+        // If no test amount provided, fetch minimum for selected currency
+        if (!priceAmount && payCurrency) {
+            try {
+                const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
+                if (minAmount) {
+                    // Add 10% buffer to ensure we're above minimum
+                    priceAmount = Math.ceil(minAmount * 1.1 * 100) / 100
+                    logger.info('Calculated test amount from minimum', {
+                        currency: payCurrency,
+                        minAmount,
+                        priceAmount,
+                    })
+                } else {
+                    // Fallback to safe default if unable to fetch minimum
+                    priceAmount = 2.0
+                    logger.warn('Unable to fetch minimum amount, using fallback', {
+                        currency: payCurrency,
+                        fallbackAmount: priceAmount,
+                    })
+                }
+            } catch (minAmountError) {
+                logger.error('Error fetching minimum amount, using fallback', {
+                    error: minAmountError,
+                    currency: payCurrency,
+                })
+                priceAmount = 2.0 // Safe fallback
+            }
+        } else if (!priceAmount) {
+            // No currency selected, use safe default
+            priceAmount = 2.0
+        }
 
         logger.info('Test checkout parameters', {
             tier,
@@ -933,9 +966,6 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         // Check environment variables
         const backendUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(':3000', ':3001') || 'http://localhost:3001'
         const ipnCallbackUrl = `${backendUrl}/api/payments/nowpayments/webhook`
-
-        // Initialize NowPayments service (needed for currency fetching)
-        const nowpayments = NowPaymentsService.getInstance()
 
         // Map currency code to NowPayments format and validate (same logic as regular checkout)
         let mappedPayCurrency: string | null = null
