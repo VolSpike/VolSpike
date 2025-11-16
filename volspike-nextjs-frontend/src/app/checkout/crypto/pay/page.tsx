@@ -575,7 +575,11 @@ export default function CryptoPaymentPage() {
                         <div className="mt-2 p-3 bg-background/80 rounded border border-border/50">
                           <pre className="text-xs overflow-auto">
                             {JSON.stringify(
-                              Object.fromEntries(new URLSearchParams(solanaUri.split('?')[1] || '')),
+                              Object.fromEntries(
+                                new URLSearchParams(
+                                  (phantomUniversalLink || solanaUri || '').split('?')[1] || ''
+                                )
+                              ),
                               null,
                               2
                             )}
