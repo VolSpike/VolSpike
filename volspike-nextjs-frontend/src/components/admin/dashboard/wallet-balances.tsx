@@ -10,7 +10,6 @@ import {
     TrendingUp,
     Settings,
     Loader2,
-    ArrowRight,
     Radio,
     ChevronDown,
     ChevronUp,
