@@ -183,7 +183,6 @@ export function UserActions() {
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
-            </div>
 
             {/* Import Dialog */}
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
