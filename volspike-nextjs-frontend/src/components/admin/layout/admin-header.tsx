@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import {
@@ -17,15 +19,49 @@ import {
     Settings,
     LogOut
 } from 'lucide-react'
+import { useUserIdentity } from '@/hooks/use-user-identity'
+import { generateInitials, getAvatarColor, isLikelyGoogleLetterTile } from '@/lib/avatar-utils'
 
 export function AdminHeader() {
     const { data: session } = useSession()
     const pathname = usePathname()
     const router = useRouter()
+    const identity = useUserIdentity()
+    const [imageError, setImageError] = useState(false)
 
     const handleSignOut = () => {
         signOut({ callbackUrl: '/' })
     }
+
+    // Avatar logic - matching UserMenu component
+    const emailFromIdentity = identity.email
+    const emailFromSession = session?.user?.email
+    const normalizedEmail = (emailFromIdentity || emailFromSession)?.toLowerCase().trim() || null
+    const userIdentifier = normalizedEmail || (session?.user as any)?.walletAddress || session?.user?.id || null
+
+    // Generate initials from email for consistency
+    const initials = normalizedEmail
+        ? generateInitials(normalizedEmail, null)
+        : generateInitials(null, null, identity.address)
+
+    // Get avatar colors based on user identifier
+    const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
+
+    // Check if Google profile image should be shown
+    const isGoogleTile = isLikelyGoogleLetterTile(identity.image || undefined)
+    const envFilterTiles = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_FILTER_GOOGLE_TILES === 'true'
+    let hideTiles = false
+    try {
+        if (typeof window !== 'undefined') {
+            hideTiles = window.localStorage?.getItem('vs_avatar_hide_tiles') === '1'
+        }
+    } catch (_) { }
+    const shouldFilterTiles = envFilterTiles || hideTiles
+    const showAvatarImage = Boolean(
+        identity.image &&
+        !imageError &&
+        (!shouldFilterTiles || !isGoogleTile)
+    )
 
     const getSectionLabel = () => {
         if (!pathname) return 'Overview'
@@ -73,11 +109,32 @@ export function AdminHeader() {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="flex items-center space-x-2 hover:bg-muted/80 transition-colors">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 via-purple-600 to-purple-700 shadow-sm">
-                                    <User className="h-4 w-4 text-white" />
+                                {/* Avatar with VolSpike styling - matching UserMenu */}
+                                <div className={`h-8 w-8 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-sm flex-shrink-0`}>
+                                    <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
+                                        {showAvatarImage ? (
+                                            <div className="relative h-full w-full">
+                                                <Image
+                                                    src={identity.image as string}
+                                                    alt={identity.displayName || 'User'}
+                                                    fill
+                                                    sizes="32px"
+                                                    className="object-cover"
+                                                    referrerPolicy="no-referrer"
+                                                    onError={() => setImageError(true)}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs font-bold leading-none select-none font-mono">
+                                                {initials}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="hidden md:block text-left">
-                                    <div className="text-sm font-medium text-foreground">{session?.user?.email}</div>
+                                    <div className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                                        {session?.user?.email || identity.displayName}
+                                    </div>
                                     <div className="text-xs text-muted-foreground">Administrator</div>
                                 </div>
                             </Button>
