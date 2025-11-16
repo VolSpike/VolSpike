@@ -117,8 +117,11 @@ export function CreateUserForm() {
             } else {
                 console.warn('⚠️ [CreateUser] No temporary password in response', {
                     sendInvite: formData.sendInvite,
-                    hasTemporaryPassword: !!result.temporaryPassword,
+                    hasTemporaryPassword: result.temporaryPassword != null,
                     temporaryPasswordValue: result.temporaryPassword,
+                    temporaryPasswordType: typeof result.temporaryPassword,
+                    isNull: result.temporaryPassword === null,
+                    isUndefined: result.temporaryPassword === undefined,
                     resultKeys: Object.keys(result),
                 })
                 // Email was sent - safe to reset form
