@@ -76,8 +76,18 @@ adminUserRoutes.post('/', async (c) => {
         logger.info(`User created successfully: ${normalizedEmail}`, {
             userId: result.user.id,
             tier: result.user.tier,
+            sendInvite: data.sendInvite,
             hasPassword: !!result.temporaryPassword,
+            passwordLength: result.temporaryPassword?.length,
         })
+
+        // Log password for debugging (only in development)
+        if (result.temporaryPassword && process.env.NODE_ENV === 'development') {
+            logger.debug('Temporary password generated', {
+                password: result.temporaryPassword,
+                email: normalizedEmail,
+            })
+        }
 
         return c.json({
             user: {

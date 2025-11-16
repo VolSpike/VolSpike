@@ -35,12 +35,32 @@ export function CreateUserForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
+        
+        // Reset previous password display
+        setCreatedPassword(null)
+        setCreatedEmail(null)
+
+        console.log('[CreateUser] Form submission started', {
+            email: formData.email,
+            tier: formData.tier,
+            role: formData.role,
+            sendInvite: formData.sendInvite,
+        })
 
         try {
             const result = await adminAPI.createUser(formData)
+            
+            console.log('[CreateUser] API response received', {
+                hasUser: !!result.user,
+                hasTemporaryPassword: !!result.temporaryPassword,
+                temporaryPasswordLength: result.temporaryPassword?.length,
+                sendInvite: formData.sendInvite,
+                result,
+            })
 
+            // Always show password if it exists, regardless of sendInvite
             if (result.temporaryPassword) {
-                // Show password in a more visible way
+                console.log('[CreateUser] Password received, displaying alert')
                 setCreatedPassword(result.temporaryPassword)
                 setCreatedEmail(formData.email)
                 toast.success('User created successfully! Password shown below.', {
@@ -48,10 +68,35 @@ export function CreateUserForm() {
                 })
                 // Don't redirect immediately - let user see the password
             } else {
-                toast.success('User created successfully. Invitation email sent.')
-                router.push('/admin/users')
+                console.log('[CreateUser] No password in response', {
+                    sendInvite: formData.sendInvite,
+                    resultKeys: Object.keys(result),
+                })
+                
+                if (formData.sendInvite) {
+                    toast.success('User created successfully. Invitation email sent.', {
+                        duration: 3000,
+                    })
+                } else {
+                    // This shouldn't happen, but handle it gracefully
+                    toast.success('User created successfully, but password was not returned.', {
+                        duration: 5000,
+                    })
+                    console.warn('[CreateUser] WARNING: sendInvite is false but no password returned', result)
+                }
+                
+                // Only redirect if password is not shown
+                setTimeout(() => {
+                    router.push('/admin/users')
+                }, formData.sendInvite ? 2000 : 3000)
             }
         } catch (error: any) {
+            console.error('[CreateUser] Error occurred', {
+                error,
+                message: error?.message,
+                response: error?.response,
+                stack: error?.stack,
+            })
             // Enhanced error handling with detailed messages
             let errorMessage = 'Failed to create user'
             
