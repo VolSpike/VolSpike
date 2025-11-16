@@ -197,6 +197,77 @@ export function CreateUserForm() {
                     </div>
                 </CardHeader>
                 <CardContent>
+                    {/* Password Display - ABOVE form so it's always visible */}
+                    {createdPassword && createdEmail && (
+                        <div className="mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <Alert className="border-green-500 bg-green-500/20 shadow-lg shadow-green-500/20 ring-2 ring-green-500/30">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1 space-y-4">
+                                        <AlertTitle className="text-lg font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
+                                            <span className="text-2xl">✅</span>
+                                            User Created Successfully!
+                                        </AlertTitle>
+                                        <AlertDescription className="space-y-4">
+                                            <div className="bg-background/80 p-3 rounded-lg border border-green-500/30">
+                                                <p className="text-sm font-semibold mb-2 text-foreground">Email Address:</p>
+                                                <code className="text-base font-mono bg-background px-3 py-2 rounded border-2 border-green-500/50 text-green-600 dark:text-green-400 block">
+                                                    {createdEmail}
+                                                </code>
+                                            </div>
+                                            <div className="bg-background/80 p-3 rounded-lg border-2 border-green-500/50">
+                                                <p className="text-sm font-semibold mb-2 text-foreground flex items-center gap-2">
+                                                    <span className="text-yellow-500">🔑</span>
+                                                    Temporary Password:
+                                                </p>
+                                                <div className="flex items-center gap-3">
+                                                    <code className="flex-1 text-lg font-mono font-bold bg-background px-4 py-3 rounded border-2 border-green-500 text-green-600 dark:text-green-400 break-all">
+                                                        {createdPassword}
+                                                    </code>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="lg"
+                                                        onClick={handleCopyPassword}
+                                                        className="shrink-0 h-12 px-4 border-green-500/50 hover:bg-green-500/10"
+                                                    >
+                                                        {copied ? (
+                                                            <>
+                                                                <Check className="h-5 w-5 text-green-500 mr-2" />
+                                                                Copied!
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Copy className="h-5 w-5 mr-2" />
+                                                                Copy
+                                                            </>
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3">
+                                                <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                                                    <span className="text-lg">⚠️</span>
+                                                    Save this password now - you won&apos;t be able to see it again!
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2 pt-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleDismissPassword}
+                                                    className="text-sm"
+                                                >
+                                                    Dismiss & Create Another User
+                                                </Button>
+                                            </div>
+                                        </AlertDescription>
+                                    </div>
+                                </Alert>
+                            </div>
+                        </div>
+                    )}
+                    
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Email Field */}
                         <div className="space-y-2">
