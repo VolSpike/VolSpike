@@ -45,8 +45,23 @@ export function AdminHeader() {
         ? generateInitials(normalizedEmail, null)
         : generateInitials(null, null, identity.address)
 
-    // Get avatar colors based on user identifier
-    const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
+    // Get avatar colors - use neutral blue-purple gradient for admin (more professional)
+    // This avoids red/orange colors that might be distracting
+    const defaultAdminColors = {
+        bg: 'bg-blue-500',
+        gradientFrom: 'from-blue-400/30',
+        gradientVia: 'via-blue-500/40',
+        gradientTo: 'to-purple-600/30',
+        gradientFromBright: 'from-blue-400/40',
+        gradientViaBright: 'via-blue-500/50',
+        gradientToBright: 'to-purple-600/40',
+    }
+    const dynamicColors = getAvatarColor(normalizedEmail || userIdentifier)
+    // Use blue-purple gradient for admin (more professional than random colors)
+    const avatarColors = {
+        ...defaultAdminColors,
+        bg: dynamicColors.bg, // Keep dynamic background for initials
+    }
 
     // Check if Google profile image should be shown
     const isGoogleTile = isLikelyGoogleLetterTile(identity.image || undefined)
@@ -167,14 +182,30 @@ export function AdminHeader() {
                                             </div>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold truncate text-foreground">
-                                                {identity.displayName || session?.user?.email || 'Administrator'}
-                                            </p>
-                                            {session?.user?.email && (
-                                                <p className="text-xs text-muted-foreground truncate">
-                                                    {session.user.email}
-                                                </p>
-                                            )}
+                                            {(() => {
+                                                // Smart display logic - avoid duplication
+                                                const displayName = identity.displayName || session?.user?.name
+                                                const email = session?.user?.email
+                                                
+                                                // Primary: prefer display name, fallback to email, then 'Administrator'
+                                                const primary = displayName || email || 'Administrator'
+                                                
+                                                // Secondary: only show email if it's different from primary
+                                                const secondary = email && email !== primary ? email : null
+                                                
+                                                return (
+                                                    <>
+                                                        <p className="text-sm font-semibold truncate text-foreground">
+                                                            {primary}
+                                                        </p>
+                                                        {secondary && (
+                                                            <p className="text-xs text-muted-foreground truncate">
+                                                                {secondary}
+                                                            </p>
+                                                        )}
+                                                    </>
+                                                )
+                                            })()}
                                         </div>
                                     </div>
                                     {/* Admin Badge */}
