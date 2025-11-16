@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     Table,
@@ -68,7 +68,38 @@ const statusColors = {
 
 export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: SubscriptionsTableProps) {
     const router = useRouter()
+    const [isPending, startTransition] = useTransition()
     const [loading, setLoading] = useState<string | null>(null)
+    const [isNavigating, setIsNavigating] = useState(false)
+
+    // Prefetch next and previous pages for instant navigation
+    useEffect(() => {
+        const prefetchPages = () => {
+            if (pagination.page < pagination.pages) {
+                const nextParams = new URLSearchParams()
+                Object.entries(currentQuery).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        nextParams.set(key, String(value))
+                    }
+                })
+                nextParams.set('page', String(pagination.page + 1))
+                router.prefetch(`/admin/subscriptions?${nextParams.toString()}`)
+            }
+            
+            if (pagination.page > 1) {
+                const prevParams = new URLSearchParams()
+                Object.entries(currentQuery).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        prevParams.set(key, String(value))
+                    }
+                })
+                prevParams.set('page', String(pagination.page - 1))
+                router.prefetch(`/admin/subscriptions?${prevParams.toString()}`)
+            }
+        }
+        
+        prefetchPages()
+    }, [pagination.page, pagination.pages, currentQuery, router])
 
     const handleSort = (field: string) => {
         const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
@@ -365,29 +396,65 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page <= 1}
+                            disabled={pagination.page <= 1 || isNavigating || isPending}
                             onClick={() => {
-                                const params = new URLSearchParams(currentQuery)
-                                params.set('page', String(pagination.page - 1))
-                                router.push(`/admin/subscriptions?${params.toString()}`)
+                                setIsNavigating(true)
+                                startTransition(() => {
+                                    const params = new URLSearchParams()
+                                    Object.entries(currentQuery).forEach(([key, value]) => {
+                                        if (value !== undefined && value !== null) {
+                                            params.set(key, String(value))
+                                        }
+                                    })
+                                    params.set('page', String(pagination.page - 1))
+                                    router.push(`/admin/subscriptions?${params.toString()}`)
+                                    // Reset after navigation completes
+                                    setTimeout(() => setIsNavigating(false), 100)
+                                })
                             }}
+                            className="min-w-[80px]"
                         >
-                            Previous
+                            {isNavigating && pagination.page > 1 ? (
+                                <>
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Loading...
+                                </>
+                            ) : (
+                                'Previous'
+                            )}
                         </Button>
-                        <span className="text-sm">
+                        <span className="text-sm min-w-[100px] text-center">
                             Page {pagination.page} of {pagination.pages}
                         </span>
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page >= pagination.pages}
+                            disabled={pagination.page >= pagination.pages || isNavigating || isPending}
                             onClick={() => {
-                                const params = new URLSearchParams(currentQuery)
-                                params.set('page', String(pagination.page + 1))
-                                router.push(`/admin/subscriptions?${params.toString()}`)
+                                setIsNavigating(true)
+                                startTransition(() => {
+                                    const params = new URLSearchParams()
+                                    Object.entries(currentQuery).forEach(([key, value]) => {
+                                        if (value !== undefined && value !== null) {
+                                            params.set(key, String(value))
+                                        }
+                                    })
+                                    params.set('page', String(pagination.page + 1))
+                                    router.push(`/admin/subscriptions?${params.toString()}`)
+                                    // Reset after navigation completes
+                                    setTimeout(() => setIsNavigating(false), 100)
+                                })
                             }}
+                            className="min-w-[80px]"
                         >
-                            Next
+                            {isNavigating && pagination.page < pagination.pages ? (
+                                <>
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    Loading...
+                                </>
+                            ) : (
+                                'Next'
+                            )}
                         </Button>
                     </div>
                 </div>

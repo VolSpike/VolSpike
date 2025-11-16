@@ -12,6 +12,10 @@ export const metadata: Metadata = {
     description: 'Manage user subscriptions and billing',
 }
 
+// Enable dynamic rendering for search params
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface SubscriptionsPageProps {
     searchParams: Promise<{
         userId?: string

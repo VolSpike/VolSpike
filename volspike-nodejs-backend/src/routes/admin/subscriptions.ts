@@ -45,24 +45,24 @@ adminSubscriptionRoutes.get('/', async (c) => {
             where.stripeCustomerId = { not: null }
         }
 
-        // Get total count
-        const total = await prisma.user.count({ where })
-
-        // Get paginated results
-        const users = await prisma.user.findMany({
-            where,
-            select: {
-                id: true,
-                email: true,
-                tier: true,
-                stripeCustomerId: true,
-                createdAt: true,
-                updatedAt: true,
-            },
-            orderBy: { [params.sortBy]: params.sortOrder },
-            skip: (params.page - 1) * params.limit,
-            take: params.limit,
-        })
+        // Optimize: Run count and findMany in parallel for better performance
+        const [total, users] = await Promise.all([
+            prisma.user.count({ where }),
+            prisma.user.findMany({
+                where,
+                select: {
+                    id: true,
+                    email: true,
+                    tier: true,
+                    stripeCustomerId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
+                orderBy: { [params.sortBy]: params.sortOrder },
+                skip: (params.page - 1) * params.limit,
+                take: params.limit,
+            })
+        ])
 
         // Return subscription data with tier from user
         const subscriptions = users.map(user => ({
