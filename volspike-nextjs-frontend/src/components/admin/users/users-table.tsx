@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
@@ -83,7 +83,8 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     const [isPending, startTransition] = useTransition()
     const [selectedUsers, setSelectedUsers] = useState<string[]>([])
     const [loading, setLoading] = useState<string | null>(null)
-    const [isNavigating, setIsNavigating] = useState(false)
+    const [showLoading, setShowLoading] = useState(false)
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     // Prefetch next and previous pages for instant navigation
     useEffect(() => {
@@ -113,6 +114,18 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
         
         prefetchPages()
     }, [pagination.page, pagination.pages, currentQuery, router])
+
+    // Reset loading state when navigation completes
+    useEffect(() => {
+        if (!isPending) {
+            // Clear timeout if navigation completed quickly
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current)
+                loadingTimeoutRef.current = null
+            }
+            setShowLoading(false)
+        }
+    }, [isPending])
     const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
     const [editTier, setEditTier] = useState<'free' | 'pro' | 'elite'>('free')
     const [editRole, setEditRole] = useState<'USER' | 'ADMIN'>('USER')
@@ -974,9 +987,18 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page <= 1 || isNavigating || isPending}
+                            disabled={pagination.page <= 1 || isPending}
                             onClick={() => {
-                                setIsNavigating(true)
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
+                                
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
+                                
                                 startTransition(() => {
                                     const params = new URLSearchParams()
                                     
@@ -993,18 +1015,18 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     params.set('page', String(pagination.page - 1))
                                     
                                     router.push(`/admin/users?${params.toString()}`)
-                                    setTimeout(() => setIsNavigating(false), 100)
                                 })
                             }}
-                            className="min-w-[80px]"
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            {isNavigating && pagination.page > 1 ? (
-                                <>
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Previous
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
                                     <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                                     Loading...
-                                </>
-                            ) : (
-                                'Previous'
+                                </span>
                             )}
                         </Button>
                         <span className="text-sm min-w-[100px] text-center">
@@ -1013,9 +1035,18 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page >= pagination.pages || isNavigating || isPending}
+                            disabled={pagination.page >= pagination.pages || isPending}
                             onClick={() => {
-                                setIsNavigating(true)
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
+                                
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
+                                
                                 startTransition(() => {
                                     const params = new URLSearchParams()
                                     
@@ -1032,18 +1063,18 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     params.set('page', String(pagination.page + 1))
                                     
                                     router.push(`/admin/users?${params.toString()}`)
-                                    setTimeout(() => setIsNavigating(false), 100)
                                 })
                             }}
-                            className="min-w-[80px]"
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            {isNavigating && pagination.page < pagination.pages ? (
-                                <>
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Next
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
                                     <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                                     Loading...
-                                </>
-                            ) : (
-                                'Next'
+                                </span>
                             )}
                         </Button>
                     </div>

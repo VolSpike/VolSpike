@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
     Table,
@@ -70,7 +70,8 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
     const router = useRouter()
     const [isPending, startTransition] = useTransition()
     const [loading, setLoading] = useState<string | null>(null)
-    const [isNavigating, setIsNavigating] = useState(false)
+    const [showLoading, setShowLoading] = useState(false)
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     // Prefetch next and previous pages for instant navigation
     useEffect(() => {
@@ -100,6 +101,18 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
         
         prefetchPages()
     }, [pagination.page, pagination.pages, currentQuery, router])
+
+    // Reset loading state when navigation completes
+    useEffect(() => {
+        if (!isPending) {
+            // Clear timeout if navigation completed quickly
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current)
+                loadingTimeoutRef.current = null
+            }
+            setShowLoading(false)
+        }
+    }, [isPending])
 
     const handleSort = (field: string) => {
         const newSortOrder = currentQuery.sortBy === field && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
@@ -396,9 +409,18 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page <= 1 || isNavigating || isPending}
+                            disabled={pagination.page <= 1 || isPending}
                             onClick={() => {
-                                setIsNavigating(true)
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
+                                
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
+                                
                                 startTransition(() => {
                                     const params = new URLSearchParams()
                                     Object.entries(currentQuery).forEach(([key, value]) => {
@@ -408,19 +430,18 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                     })
                                     params.set('page', String(pagination.page - 1))
                                     router.push(`/admin/subscriptions?${params.toString()}`)
-                                    // Reset after navigation completes
-                                    setTimeout(() => setIsNavigating(false), 100)
                                 })
                             }}
-                            className="min-w-[80px]"
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            {isNavigating && pagination.page > 1 ? (
-                                <>
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Previous
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
                                     <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                                     Loading...
-                                </>
-                            ) : (
-                                'Previous'
+                                </span>
                             )}
                         </Button>
                         <span className="text-sm min-w-[100px] text-center">
@@ -429,9 +450,18 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={pagination.page >= pagination.pages || isNavigating || isPending}
+                            disabled={pagination.page >= pagination.pages || isPending}
                             onClick={() => {
-                                setIsNavigating(true)
+                                // Clear any existing timeout
+                                if (loadingTimeoutRef.current) {
+                                    clearTimeout(loadingTimeoutRef.current)
+                                }
+                                
+                                // Only show loading if transition takes more than 150ms
+                                loadingTimeoutRef.current = setTimeout(() => {
+                                    setShowLoading(true)
+                                }, 150)
+                                
                                 startTransition(() => {
                                     const params = new URLSearchParams()
                                     Object.entries(currentQuery).forEach(([key, value]) => {
@@ -441,19 +471,18 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                     })
                                     params.set('page', String(pagination.page + 1))
                                     router.push(`/admin/subscriptions?${params.toString()}`)
-                                    // Reset after navigation completes
-                                    setTimeout(() => setIsNavigating(false), 100)
                                 })
                             }}
-                            className="min-w-[80px]"
+                            className="min-w-[80px] transition-all duration-200 relative"
                         >
-                            {isNavigating && pagination.page < pagination.pages ? (
-                                <>
+                            <span className={`transition-opacity duration-200 ${showLoading && isPending ? 'opacity-0' : 'opacity-100'}`}>
+                                Next
+                            </span>
+                            {showLoading && isPending && (
+                                <span className="absolute flex items-center inset-0 justify-center">
                                     <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
                                     Loading...
-                                </>
-                            ) : (
-                                'Next'
+                                </span>
                             )}
                         </Button>
                     </div>
