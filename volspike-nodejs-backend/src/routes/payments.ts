@@ -920,7 +920,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         // Fetch actual minimum amount from NowPayments API
         let priceAmount = testAmount
         const nowpayments = NowPaymentsService.getInstance()
-        
+
         // If no test amount provided, fetch minimum for selected currency
         if (!priceAmount && payCurrency) {
             try {

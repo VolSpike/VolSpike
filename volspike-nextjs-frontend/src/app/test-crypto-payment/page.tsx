@@ -53,7 +53,7 @@ export default function TestCryptoPaymentPage() {
                 },
                 body: JSON.stringify({
                     tier,
-                    testAmount: 5.0, // $5 for testing (exceeds NowPayments minimums)
+                    // No testAmount - backend will fetch actual minimum from NowPayments API
                     successUrl: `${window.location.origin}/checkout/success?test=true`,
                     cancelUrl: `${window.location.origin}/test-crypto-payment?canceled=true`,
                     payCurrency: selectedCurrency, // Use selected currency from our 6 supported options
@@ -139,13 +139,13 @@ export default function TestCryptoPaymentPage() {
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <Coins className="h-5 w-5 text-brand-500" />
-                            <CardTitle>Test Crypto Payment ($5)</CardTitle>
+                            <CardTitle>Test Crypto Payment</CardTitle>
                             <Badge variant="outline" className="ml-auto">
                                 TEST MODE
                             </Badge>
                         </div>
                         <CardDescription>
-                            Test the NowPayments crypto payment integration. This will charge $5.00 (test amount - exceeds minimum transaction requirements) and upgrade you to {tier === 'pro' ? 'Pro' : 'Elite'} tier.
+                            Test the NowPayments crypto payment integration. Amount will be calculated automatically based on the selected currency&apos;s minimum (typically $2-3). You&apos;ll be upgraded to {tier === 'pro' ? 'Pro' : 'Elite'} tier.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -182,7 +182,7 @@ export default function TestCryptoPaymentPage() {
                                     className="flex-1"
                                 >
                                     <Sparkles className="h-4 w-4 mr-2" />
-                                    Pro ($5 test)
+                                    Pro (test)
                                 </Button>
                                 <Button
                                     variant={tier === 'elite' ? 'default' : 'outline'}
@@ -190,7 +190,7 @@ export default function TestCryptoPaymentPage() {
                                     className="flex-1"
                                 >
                                     <Sparkles className="h-4 w-4 mr-2" />
-                                    Elite ($5 test)
+                                    Elite (test)
                                 </Button>
                             </div>
                         </div>
@@ -240,7 +240,7 @@ export default function TestCryptoPaymentPage() {
                             ) : (
                                 <>
                                     <Coins className="mr-2 h-4 w-4" />
-                                    Test $5 Crypto Payment ({tier === 'pro' ? 'Pro' : 'Elite'})
+                                    Test Crypto Payment ({tier === 'pro' ? 'Pro' : 'Elite'})
                                 </>
                             )}
                         </Button>
@@ -251,7 +251,7 @@ export default function TestCryptoPaymentPage() {
                             <AlertDescription className="text-blue-700 dark:text-blue-400">
                                 <strong>Test Payment Details:</strong>
                                 <ul className="mt-2 space-y-1 list-disc list-inside text-sm">
-                                    <li>Amount: $5.00 USD (test amount - exceeds NowPayments minimums)</li>
+                                    <li>Amount: Calculated automatically (minimum + 10% buffer, typically $2-3)</li>
                                     <li>You can pay with any supported crypto currency</li>
                                     <li>Payment will upgrade you to {tier === 'pro' ? 'Pro' : 'Elite'} tier</li>
                                     <li>Subscription expires 30 days from payment</li>
@@ -266,9 +266,9 @@ export default function TestCryptoPaymentPage() {
                             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                                 <li>Select Pro or Elite tier above</li>
                                 <li>Select your preferred payment currency from the 6 supported options</li>
-                                <li>Click &quot;Test $5 Crypto Payment&quot; button</li>
+                                <li>Click &quot;Test Crypto Payment&quot; button</li>
                                 <li>You&apos;ll be redirected to NowPayments checkout (showing only your selected currency)</li>
-                                <li>Complete the payment (you&apos;ll pay ~$5 worth of crypto)</li>
+                                <li>Complete the payment (amount will be minimum + 10% buffer, typically $2-3)</li>
                                 <li>You&apos;ll be redirected back to success page</li>
                                 <li>Check your Settings → Subscription to see {tier === 'pro' ? 'Pro' : 'Elite'} Tier</li>
                                 <li>Check Admin → Payments to verify payment record</li>
