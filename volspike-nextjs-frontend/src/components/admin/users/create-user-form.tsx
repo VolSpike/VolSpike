@@ -52,7 +52,28 @@ export function CreateUserForm() {
                 router.push('/admin/users')
             }
         } catch (error: any) {
-            toast.error(error.message || 'Failed to create user')
+            // Enhanced error handling with detailed messages
+            let errorMessage = 'Failed to create user'
+            
+            if (error?.message) {
+                errorMessage = error.message
+            } else if (error?.error) {
+                errorMessage = error.error
+                if (error?.details && Array.isArray(error.details)) {
+                    const details = error.details.map((d: any) => `${d.path}: ${d.message}`).join(', ')
+                    errorMessage += ` (${details})`
+                }
+            }
+            
+            console.error('Create user error:', {
+                error,
+                message: errorMessage,
+                response: error?.response,
+            })
+            
+            toast.error(errorMessage, {
+                duration: 5000,
+            })
         } finally {
             setLoading(false)
         }

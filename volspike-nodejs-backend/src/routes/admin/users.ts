@@ -5,6 +5,7 @@ import { prisma } from '../../index'
 import { createLogger } from '../../lib/logger'
 import { Role, UserStatus } from '@prisma/client'
 import type { AppBindings, AppVariables } from '../../types/hono'
+import { UserManagementService } from '../../services/admin/user-management'
 
 const logger = createLogger()
 
@@ -26,12 +27,100 @@ const userListSchema = z.object({
     sortOrder: z.enum(['asc', 'desc']).default('desc'),
 })
 
+const createUserSchema = z.object({
+    email: z.string().email(),
+    tier: z.enum(['free', 'pro', 'elite']).default('free'),
+    role: z.enum(['USER', 'ADMIN']).default('USER'),
+    sendInvite: z.boolean().default(true),
+    temporaryPassword: z.string().min(12).optional(),
+})
+
 const updateUserSchema = z.object({
     tier: z.enum(['free', 'pro', 'elite']).optional(),
     role: z.enum(['USER', 'ADMIN']).optional(),
     status: z.enum(['ACTIVE', 'SUSPENDED', 'BANNED']).optional(),
     notes: z.string().optional(),
     emailVerified: z.union([z.boolean(), z.string().datetime()]).optional(),
+})
+
+// POST /api/admin/users - Create new user
+adminUserRoutes.post('/', async (c) => {
+    try {
+        const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+
+        const body = await c.req.json()
+        logger.info('Create user request received', {
+            email: body.email,
+            tier: body.tier,
+            role: body.role,
+            sendInvite: body.sendInvite,
+            adminEmail: adminUser.email,
+        })
+
+        const data = createUserSchema.parse(body)
+
+        // Normalize email to lowercase
+        const normalizedEmail = data.email.toLowerCase().trim()
+
+        const result = await UserManagementService.createUser(
+            {
+                ...data,
+                email: normalizedEmail,
+            },
+            adminUser.id
+        )
+
+        logger.info(`User created successfully: ${normalizedEmail}`, {
+            userId: result.user.id,
+            tier: result.user.tier,
+            hasPassword: !!result.temporaryPassword,
+        })
+
+        return c.json({
+            user: {
+                id: result.user.id,
+                email: result.user.email,
+                tier: result.user.tier,
+                role: result.user.role,
+                status: result.user.status,
+                emailVerified: result.user.emailVerified,
+                createdAt: result.user.createdAt,
+            },
+            temporaryPassword: result.temporaryPassword,
+        })
+    } catch (error: any) {
+        logger.error('Create user error:', {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+            issues: error?.issues,
+        })
+
+        // Handle validation errors
+        if (error?.issues && Array.isArray(error.issues)) {
+            const validationErrors = error.issues.map((issue: any) => ({
+                path: issue.path?.join('.'),
+                message: issue.message,
+            }))
+            return c.json({
+                error: 'Validation failed',
+                details: validationErrors,
+            }, 400)
+        }
+
+        // Handle specific errors
+        if (error?.message === 'User already exists') {
+            return c.json({ error: 'User with this email already exists' }, 409)
+        }
+
+        return c.json({
+            error: 'Failed to create user',
+            message: error?.message || 'Unknown error occurred',
+        }, 500)
+    }
 })
 
 // GET /api/admin/users - List users
