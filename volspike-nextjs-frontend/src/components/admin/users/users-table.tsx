@@ -760,29 +760,39 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
 
             {/* Edit user dialog */}
             <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit User</DialogTitle>
-                        <DialogDescription>
-                            Update tier, role, and status for{' '}
-                            <span className="font-medium">
-                                {editingUser?.email || 'selected user'}
-                            </span>
-                            .
-                        </DialogDescription>
+                <DialogContent className="sm:max-w-2xl border-2 border-border/80 bg-gradient-to-br from-background via-background to-background/95 backdrop-blur-xl shadow-2xl">
+                    <DialogHeader className="space-y-3 pb-4 border-b border-border/60">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-purple-600/20 ring-2 ring-blue-500/30 dark:ring-purple-500/30">
+                                <Edit className="h-5 w-5 text-blue-600 dark:text-purple-400" />
+                            </div>
+                            <div className="flex-1">
+                                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 bg-clip-text text-transparent">
+                                    Edit User
+                                </DialogTitle>
+                                <DialogDescription className="text-sm text-muted-foreground mt-1">
+                                    Updating settings for{' '}
+                                    <span className="font-semibold text-foreground">
+                                        {editingUser?.email || editingUser?.walletAddress || 'selected user'}
+                                    </span>
+                                </DialogDescription>
+                            </div>
+                        </div>
                     </DialogHeader>
                     {editingUser && (
-                        <div className="space-y-4">
+                        <div className="space-y-6 py-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="space-y-2">
+                                <div className="space-y-2.5">
                                     <div className="flex items-center gap-2">
-                                        <Label htmlFor="edit-tier">Tier</Label>
+                                        <Label htmlFor="edit-tier" className="text-sm font-semibold text-foreground">Tier</Label>
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <span className="text-xs text-muted-foreground cursor-help">ℹ️</span>
+                                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/10 border border-blue-500/20 cursor-help hover:bg-blue-500/20 transition-colors">
+                                                        <span className="text-[10px] text-blue-600 dark:text-blue-400">ℹ️</span>
+                                                    </div>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="top" className="max-w-xs">
+                                                <TooltipContent side="top" className="max-w-xs bg-popover border border-border shadow-lg">
                                                     <p className="text-xs">{getTierTooltip(editTier)}</p>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -794,42 +804,44 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             setEditTier(value as 'free' | 'pro' | 'elite')
                                         }
                                     >
-                                        <SelectTrigger id="edit-tier">
+                                        <SelectTrigger id="edit-tier" className="h-11 border-2 border-border/60 bg-background hover:border-blue-500/40 hover:bg-blue-50/50 dark:hover:bg-blue-950/10 transition-all">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="free">Free - Basic features, 15min refresh</SelectItem>
-                                            <SelectItem value="pro">Pro - Email alerts, 5min refresh</SelectItem>
-                                            <SelectItem value="elite">Elite - Real-time, SMS alerts</SelectItem>
+                                        <SelectContent className="border-2 border-border/80 bg-background shadow-xl">
+                                            <SelectItem value="free" className="hover:bg-blue-50 dark:hover:bg-blue-950/20">Free - Basic features, 15min refresh</SelectItem>
+                                            <SelectItem value="pro" className="hover:bg-purple-50 dark:hover:bg-purple-950/20">Pro - Email alerts, 5min refresh</SelectItem>
+                                            <SelectItem value="elite" className="hover:bg-purple-50 dark:hover:bg-purple-950/20">Elite - Real-time, SMS alerts</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-role">Role</Label>
+                                <div className="space-y-2.5">
+                                    <Label htmlFor="edit-role" className="text-sm font-semibold text-foreground">Role</Label>
                                     <Select
                                         value={editRole}
                                         onValueChange={(value) =>
                                             setEditRole(value as 'USER' | 'ADMIN')
                                         }
                                     >
-                                        <SelectTrigger id="edit-role">
+                                        <SelectTrigger id="edit-role" className="h-11 border-2 border-border/60 bg-background hover:border-purple-500/40 hover:bg-purple-50/50 dark:hover:bg-purple-950/10 transition-all">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="USER">User - Standard access</SelectItem>
-                                            <SelectItem value="ADMIN">Admin - Full system access</SelectItem>
+                                        <SelectContent className="border-2 border-border/80 bg-background shadow-xl">
+                                            <SelectItem value="USER" className="hover:bg-blue-50 dark:hover:bg-blue-950/20">User - Standard access</SelectItem>
+                                            <SelectItem value="ADMIN" className="hover:bg-purple-50 dark:hover:bg-purple-950/20">Admin - Full system access</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2.5">
                                     <div className="flex items-center gap-2">
-                                        <Label htmlFor="edit-status">Status</Label>
+                                        <Label htmlFor="edit-status" className="text-sm font-semibold text-foreground">Status</Label>
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <span className="text-xs text-muted-foreground cursor-help">ℹ️</span>
+                                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/10 border border-purple-500/20 cursor-help hover:bg-purple-500/20 transition-colors">
+                                                        <span className="text-[10px] text-purple-600 dark:text-purple-400">ℹ️</span>
+                                                    </div>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="top" className="max-w-xs">
+                                                <TooltipContent side="top" className="max-w-xs bg-popover border border-border shadow-lg">
                                                     <p className="text-xs">{getStatusTooltip(editStatus)}</p>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -843,30 +855,41 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             )
                                         }
                                     >
-                                        <SelectTrigger id="edit-status">
+                                        <SelectTrigger id="edit-status" className="h-11 border-2 border-border/60 bg-background hover:border-purple-500/40 hover:bg-purple-50/50 dark:hover:bg-purple-950/10 transition-all">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ACTIVE">Active - Can sign in</SelectItem>
-                                            <SelectItem value="SUSPENDED">Suspended - Temporarily disabled</SelectItem>
-                                            <SelectItem value="BANNED">Banned - Permanently disabled</SelectItem>
+                                        <SelectContent className="border-2 border-border/80 bg-background shadow-xl">
+                                            <SelectItem value="ACTIVE" className="hover:bg-emerald-50 dark:hover:bg-emerald-950/20">Active - Can sign in</SelectItem>
+                                            <SelectItem value="SUSPENDED" className="hover:bg-amber-50 dark:hover:bg-amber-950/20">Suspended - Temporarily disabled</SelectItem>
+                                            <SelectItem value="BANNED" className="hover:bg-red-50 dark:hover:bg-red-950/20">Banned - Permanently disabled</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
                             </div>
-                            <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-3">
-                                <p className="text-xs text-blue-900 dark:text-blue-100 font-medium mb-1">⚠️ Important</p>
-                                <p className="text-xs text-blue-800 dark:text-blue-200">
-                                    Changes take effect immediately. Users with SUSPENDED or BANNED status cannot sign in. For crypto payments, access length is controlled by the payment&apos;s expiration date.
-                                </p>
+                            <div className="relative rounded-xl border-2 border-gradient-to-r from-blue-500/30 via-purple-500/30 to-purple-600/30 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-purple-50/50 dark:from-blue-950/30 dark:via-purple-950/20 dark:to-purple-950/30 p-4 backdrop-blur-sm overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-purple-600/5" />
+                                <div className="relative flex items-start gap-3">
+                                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 ring-2 ring-blue-500/20 dark:ring-purple-500/20">
+                                        <Zap className="h-4 w-4 text-blue-600 dark:text-purple-400" />
+                                    </div>
+                                    <div className="flex-1 space-y-1">
+                                        <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Quick Info</span>
+                                        </p>
+                                        <p className="text-xs leading-relaxed text-muted-foreground">
+                                            Changes take effect immediately. Users with <span className="font-semibold text-amber-600 dark:text-amber-400">SUSPENDED</span> or <span className="font-semibold text-red-600 dark:text-red-400">BANNED</span> status cannot sign in. For crypto payments, access length is controlled by the payment&apos;s expiration date.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
-                    <DialogFooter>
+                    <DialogFooter className="gap-3 pt-4 border-t border-border/60">
                         <Button
                             variant="outline"
                             onClick={() => setEditingUser(null)}
                             disabled={savingEdit}
+                            className="border-2 border-border/60 hover:bg-muted/80 transition-all"
                         >
                             Cancel
                         </Button>
@@ -892,8 +915,19 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                 }
                             }}
                             disabled={savingEdit || !editingUser}
+                            className="bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 hover:from-blue-700 hover:via-purple-700 hover:to-purple-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
                         >
-                            {savingEdit ? 'Saving…' : 'Save changes'}
+                            {savingEdit ? (
+                                <>
+                                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                                    Saving…
+                                </>
+                            ) : (
+                                <>
+                                    <Zap className="mr-2 h-4 w-4" />
+                                    Save changes
+                                </>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
