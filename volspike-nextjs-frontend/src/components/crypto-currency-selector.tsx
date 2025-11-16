@@ -62,7 +62,7 @@ function getCryptoLogoUrl(logoId: string): string {
   // Primary: CoinGecko CDN (most reliable)
   // Fallback chain: CryptoCompare -> CoinCap -> Local fallback
   const coinGeckoId = getCoinGeckoImageId(logoId)
-  
+
   // Try CoinGecko first (most reliable)
   return `https://assets.coingecko.com/coins/images/${coinGeckoId}/large/${logoId}.png`
 }
@@ -114,7 +114,7 @@ function getFallbackLogoUrls(logoId: string, name: string): string[] {
       `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/eth.png`,
     ],
   }
-  
+
   return fallbacks[logoId] || []
 }
 
@@ -122,18 +122,18 @@ function getFallbackLogoUrls(logoId: string, name: string): string[] {
  * Crypto logo component with multiple fallback sources
  * Tries primary CDN, then fallback CDNs, then shows beautiful gradient initials
  */
-function CryptoLogo({ 
-  logoId, 
-  name, 
-  isSelected 
-}: { 
+function CryptoLogo({
+  logoId,
+  name,
+  isSelected
+}: {
   logoId: string
   name: string
   isSelected: boolean
 }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [imageError, setImageError] = useState(false)
-  
+
   // Build array of all logo URLs to try (primary + fallbacks)
   const primaryUrl = getCryptoLogoUrl(logoId)
   const fallbackUrls = getFallbackLogoUrls(logoId, name)
@@ -159,9 +159,9 @@ function CryptoLogo({
       'BTC': 'from-orange-500 to-amber-600',
       'ETH': 'from-indigo-500 via-purple-500 to-indigo-600',
     }
-    
+
     const gradientClass = cryptoColors[name] || 'from-sec-500 to-sec-600'
-    
+
     return (
       <div className={cn(
         'h-10 w-10 flex-shrink-0 transition-transform duration-300 rounded-full overflow-hidden ring-1 ring-border/30 shadow-sm flex items-center justify-center',
@@ -245,7 +245,7 @@ export function CryptoCurrencySelector({
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <CryptoLogo 
+                    <CryptoLogo
                       logoId={currency.logoId}
                       name={currency.name}
                       isSelected={isSelected}

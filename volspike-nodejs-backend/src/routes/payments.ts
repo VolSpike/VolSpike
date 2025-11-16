@@ -1094,11 +1094,14 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             throw dbError
         }
 
+        // Extract pay_address from invoice response if available
+        const payAddress = (invoice as any).pay_address || null
+
         return c.json({
             paymentId: null, // Will be set by webhook
             invoiceId: String(invoiceId),
             paymentUrl: invoiceUrl,
-            payAddress: null, // Will be set by webhook
+            payAddress: payAddress, // Extract from invoice response if available
             payAmount: null, // Will be set by webhook
             payCurrency: payCurrency || null,
             priceAmount: priceAmount,
@@ -1567,17 +1570,21 @@ payments.post('/nowpayments/checkout', async (c) => {
             throw new Error('Failed to save payment record. Please try again.')
         }
 
+        // Extract pay_address from invoice response if available
+        const payAddress = (invoice as any).pay_address || null
+
         logger.info(`NowPayments checkout completed successfully for ${user.email}`, {
             invoiceId,
             invoiceUrl,
             tier,
+            hasPayAddress: !!payAddress,
         })
 
         return c.json({
             paymentId: null, // Not available until IPN webhook
             invoiceId: invoiceId,
             paymentUrl: invoiceUrl,
-            payAddress: null, // Not available until payment is created
+            payAddress: payAddress, // Extract from invoice response if available
             payAmount: null,
             payCurrency: null,
             priceAmount: priceAmount,

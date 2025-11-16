@@ -215,7 +215,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
         } catch (searchError: any) {
             // Handle rate limit or other errors gracefully
             console.warn(`[use-asset-profile] CoinGecko search failed for ${upper}:`, searchError)
-            
+
             // Fallback to static override if we have one
             if (override) {
                 return {
@@ -303,7 +303,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
     } catch (coinError: any) {
         // Handle rate limit or other errors gracefully
         console.warn(`[use-asset-profile] CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
-        
+
         // Fallback to override if available
         if (override) {
             return {

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { startCryptoCheckout } from '@/lib/payments'
 import { toast } from 'react-hot-toast'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
+import { CryptoPaymentDetails } from '@/components/crypto-payment-details'
 
 export default function CryptoCheckoutPage() {
   const { data: session } = useSession()
@@ -21,8 +22,16 @@ export default function CryptoCheckoutPage() {
   const [selectedCurrency, setSelectedCurrency] = useState<string>('usdtsol') // Default to USDT on Solana
   const [isLoading, setIsLoading] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
+  const [paymentDetails, setPaymentDetails] = useState<{
+    payAddress: string | null
+    payAmount: string | number | null
+    payCurrency: string | null
+    priceAmount: number
+    priceCurrency: string
+    invoiceId: string
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [step, setStep] = useState<'select' | 'redirecting'>('select')
+  const [step, setStep] = useState<'select' | 'payment-details'>('select')
 
   useEffect(() => {
     if (!session?.user) {
@@ -40,15 +49,44 @@ export default function CryptoCheckoutPage() {
     try {
       setIsLoading(true)
       setError(null)
-      setStep('redirecting')
       
-      const result = await startCryptoCheckout(session, tier, selectedCurrency)
-      if (result.paymentUrl) {
-        setPaymentUrl(result.paymentUrl)
-        // Auto-redirect after a brief moment
-        setTimeout(() => {
-          window.location.href = result.paymentUrl
-        }, 500)
+      // Call backend directly to get full payment details including payAddress
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const authToken = (session as any)?.accessToken || session?.user?.id
+      
+      const response = await fetch(`${API_URL}/api/payments/nowpayments/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          tier,
+          successUrl: `${window.location.origin}/checkout/success?payment=crypto&tier=${tier}`,
+          cancelUrl: `${window.location.origin}/checkout/cancel`,
+          payCurrency: selectedCurrency,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
+        throw new Error(errorData.error || errorData.message || 'Failed to create payment')
+      }
+
+      const data = await response.json()
+      
+      if (data.paymentUrl) {
+        setPaymentUrl(data.paymentUrl)
+        // Store payment details to show QR code
+        setPaymentDetails({
+          payAddress: data.payAddress || null,
+          payAmount: data.payAmount || null,
+          payCurrency: data.payCurrency || selectedCurrency,
+          priceAmount: data.priceAmount || 0,
+          priceCurrency: data.priceCurrency || 'usd',
+          invoiceId: data.invoiceId || '',
+        })
+        setStep('payment-details')
       } else {
         throw new Error('Payment URL not received from server')
       }
@@ -63,7 +101,7 @@ export default function CryptoCheckoutPage() {
     }
   }
 
-  if (step === 'redirecting' || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
@@ -72,9 +110,32 @@ export default function CryptoCheckoutPage() {
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-sec-600 dark:text-sec-400 mb-4" />
               <p className="text-muted-foreground mb-2">Preparing your payment...</p>
-              <p className="text-xs text-muted-foreground">Redirecting to secure payment page</p>
+              <p className="text-xs text-muted-foreground">Creating payment invoice...</p>
             </CardContent>
           </Card>
+        </main>
+      </div>
+    )
+  }
+
+  // Show payment details with QR code
+  if (step === 'payment-details' && paymentDetails && paymentUrl) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-12 max-w-3xl">
+          <CryptoPaymentDetails
+            payAddress={paymentDetails.payAddress}
+            payAmount={paymentDetails.payAmount}
+            payCurrency={paymentDetails.payCurrency}
+            priceAmount={paymentDetails.priceAmount}
+            priceCurrency={paymentDetails.priceCurrency}
+            paymentUrl={paymentUrl}
+            invoiceId={paymentDetails.invoiceId}
+            onContinue={() => {
+              window.location.href = paymentUrl
+            }}
+          />
         </main>
       </div>
     )

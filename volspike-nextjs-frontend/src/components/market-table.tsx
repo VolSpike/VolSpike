@@ -64,9 +64,9 @@ const priceFormatter = new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 8,
 })
 
-export function MarketTable({ 
-    data, 
-    userTier = 'free', 
+export function MarketTable({
+    data,
+    userTier = 'free',
     withContainer = true,
     lastUpdate,
     isConnected = true,
@@ -357,13 +357,13 @@ export function MarketTable({
         // For symbol/ticker column, reverse the arrow direction
         // A-Z (asc) shows down arrow, Z-A (desc) shows up arrow
         if (column === 'symbol') {
-            return sortOrder === 'asc' ? 
-                <ArrowDown className="h-3 w-3 text-brand-500" /> : 
+            return sortOrder === 'asc' ?
+                <ArrowDown className="h-3 w-3 text-brand-500" /> :
                 <ArrowUp className="h-3 w-3 text-brand-500" />
         }
         // For numeric columns, normal direction
-        return sortOrder === 'desc' ? 
-            <ArrowDown className="h-3 w-3 text-brand-500" /> : 
+        return sortOrder === 'desc' ?
+            <ArrowDown className="h-3 w-3 text-brand-500" /> :
             <ArrowUp className="h-3 w-3 text-brand-500" />
     }
 
@@ -397,15 +397,13 @@ export function MarketTable({
                 <div className="flex items-center gap-2">
                     <Badge
                         variant="outline"
-                        className={`text-xs font-mono-tabular ${
-                            isConnected
+                        className={`text-xs font-mono-tabular ${isConnected
                                 ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
                                 : 'border-danger-500/30 text-danger-600 dark:text-danger-400'
-                        }`}
+                            }`}
                     >
-                        <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                            isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-danger-500'
-                        }`} />
+                        <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-danger-500'
+                            }`} />
                         {isConnected ? 'Connected' : 'Disconnected'}
                     </Badge>
                     {guestMode && (
@@ -435,7 +433,7 @@ export function MarketTable({
                                 ? 'Top 50 symbols (Free tier)'
                                 : `${sortedData.length} symbols`}
                     </span>
-                    <WatchlistExportButton 
+                    <WatchlistExportButton
                         data={sortedData}
                         userTier={userTier}
                         guestMode={guestMode}
@@ -445,10 +443,10 @@ export function MarketTable({
 
             {/* Table with sticky header */}
             <div className="relative">
-                <div 
+                <div
                     ref={scrollContainerRef}
-                    className={`max-h-[600px] vs-scroll ${guestMode ? 'overflow-y-hidden' : 'overflow-y-auto'} overflow-x-auto`} 
-                    style={{ 
+                    className={`max-h-[600px] vs-scroll ${guestMode ? 'overflow-y-hidden' : 'overflow-y-auto'} overflow-x-auto`}
+                    style={{
                         WebkitOverflowScrolling: 'touch',
                         // Prevent horizontal rubber-band overscroll; allow normal vertical behavior
                         overscrollBehaviorX: 'none',
@@ -460,292 +458,292 @@ export function MarketTable({
                 >
                     <table className="vs-market-table w-full min-w-[800px]">
                         <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm shadow-sm">
-                        <tr className="border-b border-border/50">
-                            <th className="text-left p-3">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleSort('symbol')}
-                                    disabled={guestMode}
-                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
-                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
-                                >
-                                    <span className="mr-1.5">Ticker</span>
-                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
-                                    <SortIcon column="symbol" />
-                                </Button>
-                            </th>
-                            <th className="text-right p-3">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleSort('price')}
-                                    disabled={guestMode}
-                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
-                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
-                                >
-                                    <span className="mr-1.5">Price</span>
-                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
-                                    <SortIcon column="price" />
-                                </Button>
-                            </th>
-                            <th className="text-right p-3">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleSort('change')}
-                                    disabled={guestMode}
-                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
-                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
-                                >
-                                    <span className="mr-1.5">24h Change</span>
-                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
-                                    <SortIcon column="change" />
-                                </Button>
-                            </th>
-                            <th className="text-right p-3">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleSort('funding')}
-                                    disabled={guestMode}
-                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
-                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
-                                >
-                                    <span className="mr-1.5">Funding Rate</span>
-                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
-                                    <SortIcon column="funding" />
-                                </Button>
-                            </th>
-                            <th className="text-right p-3">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleSort('volume')}
-                                    disabled={guestMode}
-                                    title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
-                                    className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
-                                >
-                                    <span className="mr-1.5">24h Volume</span>
-                                    {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
-                                    <SortIcon column="volume" />
-                                </Button>
-                            </th>
-                            {userTier !== 'free' && (
-                                <th className="text-right p-3">
+                            <tr className="border-b border-border/50">
+                                <th className="text-left p-3">
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={() => handleSort('openInterest')}
+                                        onClick={() => handleSort('symbol')}
                                         disabled={guestMode}
                                         title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
                                         className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                     >
-                                        <span className="mr-1.5">Open Interest</span>
+                                        <span className="mr-1.5">Ticker</span>
                                         {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
-                                        <SortIcon column="openInterest" />
+                                        <SortIcon column="symbol" />
                                     </Button>
                                 </th>
-                            )}
-                            <th className="w-24"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedData.map((item, index) => {
-                            const fundingRate = item.fundingRate ?? 0
-                            const exceedsThreshold = Math.abs(fundingRate) >= FUNDING_ALERT_THRESHOLD
-                            const changeValue = item.change24h ?? item.volumeChange ?? 0
-                            const isHovered = hoveredRow === item.symbol
-                            // For neutral rows, we keep a subtle grey hover per cell.
-                            // For funding-highlight rows, tinting is handled via global CSS on tr.funding-pos/.funding-neg.
-                            const cellHoverBg = exceedsThreshold ? '' : ' group-hover/row:bg-muted/70'
+                                <th className="text-right p-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleSort('price')}
+                                        disabled={guestMode}
+                                        title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
+                                        className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
+                                    >
+                                        <span className="mr-1.5">Price</span>
+                                        {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
+                                        <SortIcon column="price" />
+                                    </Button>
+                                </th>
+                                <th className="text-right p-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleSort('change')}
+                                        disabled={guestMode}
+                                        title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
+                                        className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
+                                    >
+                                        <span className="mr-1.5">24h Change</span>
+                                        {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
+                                        <SortIcon column="change" />
+                                    </Button>
+                                </th>
+                                <th className="text-right p-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleSort('funding')}
+                                        disabled={guestMode}
+                                        title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
+                                        className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
+                                    >
+                                        <span className="mr-1.5">Funding Rate</span>
+                                        {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
+                                        <SortIcon column="funding" />
+                                    </Button>
+                                </th>
+                                <th className="text-right p-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleSort('volume')}
+                                        disabled={guestMode}
+                                        title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
+                                        className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
+                                    >
+                                        <span className="mr-1.5">24h Volume</span>
+                                        {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
+                                        <SortIcon column="volume" />
+                                    </Button>
+                                </th>
+                                {userTier !== 'free' && (
+                                    <th className="text-right p-3">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleSort('openInterest')}
+                                            disabled={guestMode}
+                                            title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : undefined}
+                                            className={`h-auto p-0 font-semibold transition-colors ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
+                                        >
+                                            <span className="mr-1.5">Open Interest</span>
+                                            {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
+                                            <SortIcon column="openInterest" />
+                                        </Button>
+                                    </th>
+                                )}
+                                <th className="w-24"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {sortedData.map((item, index) => {
+                                const fundingRate = item.fundingRate ?? 0
+                                const exceedsThreshold = Math.abs(fundingRate) >= FUNDING_ALERT_THRESHOLD
+                                const changeValue = item.change24h ?? item.volumeChange ?? 0
+                                const isHovered = hoveredRow === item.symbol
+                                // For neutral rows, we keep a subtle grey hover per cell.
+                                // For funding-highlight rows, tinting is handled via global CSS on tr.funding-pos/.funding-neg.
+                                const cellHoverBg = exceedsThreshold ? '' : ' group-hover/row:bg-muted/70'
 
-                            const rowClasses = [
-                                'group/row border-b border-border/40 cursor-pointer relative'
-                            ]
-                            const isBlurred = guestMode && index >= guestVisibleRows
-                            if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
-                                // Make positive funding highlights more prominent with depth
-                                rowClasses.push(
-                                    // Keep border/shadow for positive rows; color is applied via CSS on cells
-                                    'funding-pos',
-                                    'border-l-4 border-l-brand-500/70',
-                                    'shadow-sm shadow-brand-500/10',
-                                    'hover:shadow-md hover:shadow-brand-500/20',
-                                    'hover:brightness-105 dark:hover:brightness-110'
-                                )
-                            } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
-                                // Make negative funding highlights more prominent with depth
-                                rowClasses.push(
-                                    // Keep border/shadow for negative rows; color is applied via CSS on cells
-                                    'funding-neg',
-                                    'border-l-4 border-l-danger-500/70',
-                                    'shadow-sm shadow-danger-500/10',
-                                    'hover:shadow-md hover:shadow-danger-500/20',
-                                    'hover:brightness-105 dark:hover:brightness-110'
-                                )
-                            } else {
-                                // Neutral funding rate rows – do not color the <tr>.
-                                // Hover background is applied to each <td> via group-hover to avoid paint conflicts.
-                            }
+                                const rowClasses = [
+                                    'group/row border-b border-border/40 cursor-pointer relative'
+                                ]
+                                const isBlurred = guestMode && index >= guestVisibleRows
+                                if (fundingRate >= FUNDING_ALERT_THRESHOLD) {
+                                    // Make positive funding highlights more prominent with depth
+                                    rowClasses.push(
+                                        // Keep border/shadow for positive rows; color is applied via CSS on cells
+                                        'funding-pos',
+                                        'border-l-4 border-l-brand-500/70',
+                                        'shadow-sm shadow-brand-500/10',
+                                        'hover:shadow-md hover:shadow-brand-500/20',
+                                        'hover:brightness-105 dark:hover:brightness-110'
+                                    )
+                                } else if (fundingRate <= -FUNDING_ALERT_THRESHOLD) {
+                                    // Make negative funding highlights more prominent with depth
+                                    rowClasses.push(
+                                        // Keep border/shadow for negative rows; color is applied via CSS on cells
+                                        'funding-neg',
+                                        'border-l-4 border-l-danger-500/70',
+                                        'shadow-sm shadow-danger-500/10',
+                                        'hover:shadow-md hover:shadow-danger-500/20',
+                                        'hover:brightness-105 dark:hover:brightness-110'
+                                    )
+                                } else {
+                                    // Neutral funding rate rows – do not color the <tr>.
+                                    // Hover background is applied to each <td> via group-hover to avoid paint conflicts.
+                                }
 
-                            const fundingClass = exceedsThreshold
-                                ? fundingRate > 0
-                                    ? 'text-brand-600 dark:text-brand-400 font-semibold'
-                                    : 'text-danger-600 dark:text-danger-400 font-semibold'
-                                : 'text-muted-foreground'
-
-                            const changeClass = changeValue > 0
-                                ? 'text-brand-600 dark:text-brand-400'
-                                : changeValue < 0
-                                    ? 'text-danger-600 dark:text-danger-400'
+                                const fundingClass = exceedsThreshold
+                                    ? fundingRate > 0
+                                        ? 'text-brand-600 dark:text-brand-400 font-semibold'
+                                        : 'text-danger-600 dark:text-danger-400 font-semibold'
                                     : 'text-muted-foreground'
 
-                            return (
-                                <tr
-                                    key={item.symbol}
-                                    className={`${rowClasses.join(' ')} ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
-                                    onMouseEnter={() => setHoveredRow(item.symbol)}
-                                    onMouseLeave={() => setHoveredRow(null)}
-                                    onClick={() => setSelectedSymbol(item)}
-                                >
-                                    <td className={`relative p-3 pl-4 font-semibold text-sm transition-colors duration-150${cellHoverBg}`}>
-                                        {exceedsThreshold && (
-                                            <span
-                                                className={`
+                                const changeClass = changeValue > 0
+                                    ? 'text-brand-600 dark:text-brand-400'
+                                    : changeValue < 0
+                                        ? 'text-danger-600 dark:text-danger-400'
+                                        : 'text-muted-foreground'
+
+                                return (
+                                    <tr
+                                        key={item.symbol}
+                                        className={`${rowClasses.join(' ')} ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
+                                        onMouseEnter={() => setHoveredRow(item.symbol)}
+                                        onMouseLeave={() => setHoveredRow(null)}
+                                        onClick={() => setSelectedSymbol(item)}
+                                    >
+                                        <td className={`relative p-3 pl-4 font-semibold text-sm transition-colors duration-150${cellHoverBg}`}>
+                                            {exceedsThreshold && (
+                                                <span
+                                                    className={`
                                                     pointer-events-none absolute left-0 top-1 bottom-1 w-1 rounded-full
                                                     ${fundingRate > 0 ? 'bg-brand-500/60' : 'bg-danger-500/60'}
                                                     shadow-[0_0_0_1px_rgba(0,0,0,0.04)]
                                                 `}
-                                            />
-                                        )}
-                                        {formatSymbol(item.symbol)}
-                                    </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
-                                        {(() => {
-                                            const precision = item.precision ?? 2
-                                            const formattedDisplay = formatPriceForDisplay(item.price, precision)
-                                            if (!FLASH_ENABLED) {
-                                                // Simply render price
-                                                prevPriceRef.current.set(item.symbol, item.price)
-                                                return formattedDisplay
-                                            }
-                                            const now = Date.now()
-                                            const prev = prevPriceRef.current.get(item.symbol)
-                                            let wholeClass = ''
-                                            let prefix = formattedDisplay
-                                            let suffix = ''
-                                            if (typeof prev === 'number' && prev !== item.price) {
-                                                const lastFlashTs = lastFlashTsRef.current.get(item.symbol) || 0
-                                                if (now - lastFlashTs > MIN_INTERVAL_MS) {
-                                                    // Determine direction
-                                                    const dir: 'up' | 'down' = item.price > prev ? 'up' : 'down'
-                                                    // Compute changed suffix via left-diff on digits (formatting-independent)
-                                                    const prevFormattedDiff = formatPriceForDiff(prev, precision)
-                                                    const currFormattedDiff = formatPriceForDiff(item.price, precision)
-                                                    const prevDigits = digitsOnly(prevFormattedDiff)
-                                                    const currDigits = digitsOnly(currFormattedDiff)
-                                                    const dfe = findDigitsFromEnd(prevDigits, currDigits)
-                                                    const splitIdx = indexFromDigitsFromEnd(formattedDisplay, dfe)
-                                                    const suffixIndex = Math.min(Math.max(splitIdx, 0), formattedDisplay.length - 1)
-                                                    flashRef.current.set(item.symbol, {
-                                                        dir,
-                                                        wholeUntil: now + WHOLE_MS,
-                                                        suffixUntil: now + SUFFIX_MS,
-                                                        suffixIndex,
-                                                    })
-                                                    lastFlashTsRef.current.set(item.symbol, now)
-                                                    lastDirRef.current.set(item.symbol, dir)
-                                                    // Persist the suffix split so digits that changed remain colored even after animation ends
-                                                    persistentRef.current.set(item.symbol, {
-                                                        dir,
-                                                        suffixIndex: Math.min(Math.max(suffixIndex, 1), formattedDisplay.length)
-                                                    } as any)
-                                                }
-                                            }
-                                            prevPriceRef.current.set(item.symbol, item.price)
-                                            const flash = flashRef.current.get(item.symbol)
-                                            const lastDir = lastDirRef.current.get(item.symbol)
-                                            const persistent = persistentRef.current.get(item.symbol)
-                                            if (flash) {
-                                                wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
-                                                const idx = Math.min(Math.max(flash.suffixIndex, 0), formattedDisplay.length)
-                                                prefix = formattedDisplay.slice(0, idx)
-                                                suffix = formattedDisplay.slice(idx)
-                                            } else {
-                                                // No active flash; keep at least the last digit colored using last direction
-                                                if (persistent) {
-                                                    const idx = Math.min(Math.max(persistent.suffixIndex, 1), formattedDisplay.length)
-                                                    prefix = formattedDisplay.slice(0, idx)
-                                                    suffix = formattedDisplay.slice(idx)
-                                                } else if (lastDir) {
-                                                    const idx = Math.max(formattedDisplay.length - 1, 0)
-                                                    prefix = formattedDisplay.slice(0, idx)
-                                                    suffix = formattedDisplay.slice(idx)
-                                                }
-                                            }
-                                            let suffixClass = ''
-                                            if (flash && now < flash.suffixUntil) {
-                                                suffixClass = flash.dir === 'up' ? 'price-suffix-up' : 'price-suffix-down'
-                                            } else if (persistent) {
-                                                suffixClass = persistent.dir === 'up' ? 'price-suffix-up-static' : 'price-suffix-down-static'
-                                            } else if (lastDir) {
-                                                // Persistent static color after animation ends
-                                                suffixClass = lastDir === 'up' ? 'price-suffix-up-static' : 'price-suffix-down-static'
-                                            }
-                                            return (
-                                                <span className={`inline-block ${wholeClass}`}>
-                                                    <span>{prefix}</span>
-                                                    {suffix && <span className={suffixClass}>{suffix}</span>}
-                                                </span>
-                                            )
-                                        })()}
-                                    </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
-                                        <span className={changeClass}>
-                                            {changeValue > 0 ? '+' : ''}{changeValue.toFixed(2)}%
-                                        </span>
-                                    </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
-                                        <span className={fundingClass}>
-                                            {fundingRate > 0 ? '+' : ''}{(fundingRate * 100).toFixed(4)}%
-                                        </span>
-                                    </td>
-                                    <td className={`p-3 text-right font-mono-tabular text-sm font-medium transition-colors duration-150${cellHoverBg}`}>
-                                        {formatVolume(item.volume24h)}
-                                    </td>
-                                    {userTier !== 'free' && (
-                                        <td className={`p-3 text-right font-mono-tabular text-sm text-muted-foreground transition-colors duration-150${cellHoverBg}`}>
-                                            {formatVolume(item.openInterest ?? 0)}
+                                                />
+                                            )}
+                                            {formatSymbol(item.symbol)}
                                         </td>
-                                    )}
-                                    <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
-                                        <div className="pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
-                                            <Button
-                                                className="pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={(e) => handleAddToWatchlist(e, item)}
-                                                title="Add to watchlist"
-                                            >
-                                                <Star className="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button
-                                                className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={(e) => handleCreateAlert(e, item)}
-                                                title="Create alert"
-                                            >
-                                                <Bell className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
+                                        <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
+                                            {(() => {
+                                                const precision = item.precision ?? 2
+                                                const formattedDisplay = formatPriceForDisplay(item.price, precision)
+                                                if (!FLASH_ENABLED) {
+                                                    // Simply render price
+                                                    prevPriceRef.current.set(item.symbol, item.price)
+                                                    return formattedDisplay
+                                                }
+                                                const now = Date.now()
+                                                const prev = prevPriceRef.current.get(item.symbol)
+                                                let wholeClass = ''
+                                                let prefix = formattedDisplay
+                                                let suffix = ''
+                                                if (typeof prev === 'number' && prev !== item.price) {
+                                                    const lastFlashTs = lastFlashTsRef.current.get(item.symbol) || 0
+                                                    if (now - lastFlashTs > MIN_INTERVAL_MS) {
+                                                        // Determine direction
+                                                        const dir: 'up' | 'down' = item.price > prev ? 'up' : 'down'
+                                                        // Compute changed suffix via left-diff on digits (formatting-independent)
+                                                        const prevFormattedDiff = formatPriceForDiff(prev, precision)
+                                                        const currFormattedDiff = formatPriceForDiff(item.price, precision)
+                                                        const prevDigits = digitsOnly(prevFormattedDiff)
+                                                        const currDigits = digitsOnly(currFormattedDiff)
+                                                        const dfe = findDigitsFromEnd(prevDigits, currDigits)
+                                                        const splitIdx = indexFromDigitsFromEnd(formattedDisplay, dfe)
+                                                        const suffixIndex = Math.min(Math.max(splitIdx, 0), formattedDisplay.length - 1)
+                                                        flashRef.current.set(item.symbol, {
+                                                            dir,
+                                                            wholeUntil: now + WHOLE_MS,
+                                                            suffixUntil: now + SUFFIX_MS,
+                                                            suffixIndex,
+                                                        })
+                                                        lastFlashTsRef.current.set(item.symbol, now)
+                                                        lastDirRef.current.set(item.symbol, dir)
+                                                        // Persist the suffix split so digits that changed remain colored even after animation ends
+                                                        persistentRef.current.set(item.symbol, {
+                                                            dir,
+                                                            suffixIndex: Math.min(Math.max(suffixIndex, 1), formattedDisplay.length)
+                                                        } as any)
+                                                    }
+                                                }
+                                                prevPriceRef.current.set(item.symbol, item.price)
+                                                const flash = flashRef.current.get(item.symbol)
+                                                const lastDir = lastDirRef.current.get(item.symbol)
+                                                const persistent = persistentRef.current.get(item.symbol)
+                                                if (flash) {
+                                                    wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
+                                                    const idx = Math.min(Math.max(flash.suffixIndex, 0), formattedDisplay.length)
+                                                    prefix = formattedDisplay.slice(0, idx)
+                                                    suffix = formattedDisplay.slice(idx)
+                                                } else {
+                                                    // No active flash; keep at least the last digit colored using last direction
+                                                    if (persistent) {
+                                                        const idx = Math.min(Math.max(persistent.suffixIndex, 1), formattedDisplay.length)
+                                                        prefix = formattedDisplay.slice(0, idx)
+                                                        suffix = formattedDisplay.slice(idx)
+                                                    } else if (lastDir) {
+                                                        const idx = Math.max(formattedDisplay.length - 1, 0)
+                                                        prefix = formattedDisplay.slice(0, idx)
+                                                        suffix = formattedDisplay.slice(idx)
+                                                    }
+                                                }
+                                                let suffixClass = ''
+                                                if (flash && now < flash.suffixUntil) {
+                                                    suffixClass = flash.dir === 'up' ? 'price-suffix-up' : 'price-suffix-down'
+                                                } else if (persistent) {
+                                                    suffixClass = persistent.dir === 'up' ? 'price-suffix-up-static' : 'price-suffix-down-static'
+                                                } else if (lastDir) {
+                                                    // Persistent static color after animation ends
+                                                    suffixClass = lastDir === 'up' ? 'price-suffix-up-static' : 'price-suffix-down-static'
+                                                }
+                                                return (
+                                                    <span className={`inline-block ${wholeClass}`}>
+                                                        <span>{prefix}</span>
+                                                        {suffix && <span className={suffixClass}>{suffix}</span>}
+                                                    </span>
+                                                )
+                                            })()}
+                                        </td>
+                                        <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
+                                            <span className={changeClass}>
+                                                {changeValue > 0 ? '+' : ''}{changeValue.toFixed(2)}%
+                                            </span>
+                                        </td>
+                                        <td className={`p-3 text-right font-mono-tabular text-sm transition-colors duration-150${cellHoverBg}`}>
+                                            <span className={fundingClass}>
+                                                {fundingRate > 0 ? '+' : ''}{(fundingRate * 100).toFixed(4)}%
+                                            </span>
+                                        </td>
+                                        <td className={`p-3 text-right font-mono-tabular text-sm font-medium transition-colors duration-150${cellHoverBg}`}>
+                                            {formatVolume(item.volume24h)}
+                                        </td>
+                                        {userTier !== 'free' && (
+                                            <td className={`p-3 text-right font-mono-tabular text-sm text-muted-foreground transition-colors duration-150${cellHoverBg}`}>
+                                                {formatVolume(item.openInterest ?? 0)}
+                                            </td>
+                                        )}
+                                        <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
+                                            <div className="pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
+                                                <Button
+                                                    className="pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => handleAddToWatchlist(e, item)}
+                                                    title="Add to watchlist"
+                                                >
+                                                    <Star className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => handleCreateAlert(e, item)}
+                                                    title="Create alert"
+                                                >
+                                                    <Bell className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                        </tbody>
+                    </table>
                 </div>
 
             </div>
@@ -787,12 +785,10 @@ export function MarketTable({
                                         {formatPrice(selectedSymbol.price)}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <TrendingUp className={`h-4 w-4 ${
-                                            (selectedSymbol.change24h ?? 0) > 0 ? 'text-brand-500' : 'text-danger-500'
-                                        }`} />
-                                        <span className={`font-mono-tabular text-sm font-semibold ${
-                                            (selectedSymbol.change24h ?? 0) > 0 ? 'text-brand-600 dark:text-brand-400' : 'text-danger-600 dark:text-danger-400'
-                                        }`}>
+                                        <TrendingUp className={`h-4 w-4 ${(selectedSymbol.change24h ?? 0) > 0 ? 'text-brand-500' : 'text-danger-500'
+                                            }`} />
+                                        <span className={`font-mono-tabular text-sm font-semibold ${(selectedSymbol.change24h ?? 0) > 0 ? 'text-brand-600 dark:text-brand-400' : 'text-danger-600 dark:text-danger-400'
+                                            }`}>
                                             {(selectedSymbol.change24h ?? 0) > 0 ? '+' : ''}{(selectedSymbol.change24h ?? 0).toFixed(2)}% (24h)
                                         </span>
                                     </div>
@@ -806,9 +802,8 @@ export function MarketTable({
                                     </div>
                                     <div>
                                         <div className="text-xs text-muted-foreground mb-1">Funding Rate</div>
-                                        <div className={`font-mono-tabular font-semibold ${
-                                            selectedSymbol.fundingRate > 0 ? 'text-brand-600 dark:text-brand-400' : 'text-danger-600 dark:text-danger-400'
-                                        }`}>
+                                        <div className={`font-mono-tabular font-semibold ${selectedSymbol.fundingRate > 0 ? 'text-brand-600 dark:text-brand-400' : 'text-danger-600 dark:text-danger-400'
+                                            }`}>
                                             {selectedSymbol.fundingRate > 0 ? '+' : ''}{(selectedSymbol.fundingRate * 100).toFixed(4)}%
                                         </div>
                                     </div>
@@ -827,14 +822,14 @@ export function MarketTable({
 
                                 {/* Actions */}
                                 <div className="space-y-2">
-                                    <Button 
+                                    <Button
                                         className="w-full bg-brand-600 hover:bg-brand-700 text-white"
                                         onClick={(e) => handleAddToWatchlist(e, selectedSymbol)}
                                     >
                                         <Star className="h-4 w-4 mr-2" />
                                         Add to Watchlist
                                     </Button>
-                                    <Button 
+                                    <Button
                                         className="w-full bg-sec-600 hover:bg-sec-700 text-white"
                                         onClick={() => {
                                             if (onCreateAlert) {
@@ -846,8 +841,8 @@ export function MarketTable({
                                         <Bell className="h-4 w-4 mr-2" />
                                         Create Alert
                                     </Button>
-                                    <Button 
-                                        variant="outline" 
+                                    <Button
+                                        variant="outline"
                                         className="w-full"
                                         onClick={() => window.open(`https://www.binance.com/en/futures/${formatSymbol(selectedSymbol.symbol)}USDT`, '_blank')}
                                     >

@@ -11,6 +11,7 @@ import { Loader2, CheckCircle2, XCircle, Coins, AlertTriangle, Sparkles } from '
 import { HeaderWithBanner } from '@/components/header-with-banner'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
 import { PaymentErrorDisplay } from '@/components/payment-error-display'
+import { CryptoPaymentDetails } from '@/components/crypto-payment-details'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -20,6 +21,14 @@ export default function TestCryptoPaymentPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
+    const [paymentDetails, setPaymentDetails] = useState<{
+        payAddress: string | null
+        payAmount: string | number | null
+        payCurrency: string | null
+        priceAmount: number
+        priceCurrency: string
+        invoiceId: string
+    } | null>(null)
     const [tier, setTier] = useState<'pro' | 'elite'>('pro')
     const [selectedCurrency, setSelectedCurrency] = useState<string>('usdtsol') // Default to USDT on Solana
 
@@ -83,8 +92,16 @@ export default function TestCryptoPaymentPage() {
 
             if (data.paymentUrl) {
                 setPaymentUrl(data.paymentUrl)
-                // Redirect to NowPayments checkout
-                window.location.href = data.paymentUrl
+                // Store payment details to show QR code
+                setPaymentDetails({
+                    payAddress: data.payAddress || null,
+                    payAmount: data.payAmount || null,
+                    payCurrency: data.payCurrency || selectedCurrency,
+                    priceAmount: data.priceAmount || data.testAmount || 0,
+                    priceCurrency: data.priceCurrency || 'usd',
+                    invoiceId: data.invoiceId || '',
+                })
+                // Don't auto-redirect - show payment details with QR code first
             } else {
                 throw new Error('No payment URL returned from server')
             }
@@ -210,40 +227,49 @@ export default function TestCryptoPaymentPage() {
                                 error={error}
                                 onRetry={() => {
                                     setError(null)
+                                    setPaymentDetails(null)
                                     handleTestPayment()
                                 }}
                             />
                         )}
 
-                        {/* Success Alert */}
-                        {paymentUrl && (
-                            <Alert className="border-green-500/50 bg-green-500/10">
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                <AlertDescription className="text-green-700 dark:text-green-400">
-                                    Redirecting to NowPayments checkout...
-                                </AlertDescription>
-                            </Alert>
+                        {/* Payment Details with QR Code - Visible by default */}
+                        {paymentDetails && paymentUrl && (
+                            <CryptoPaymentDetails
+                                payAddress={paymentDetails.payAddress}
+                                payAmount={paymentDetails.payAmount}
+                                payCurrency={paymentDetails.payCurrency}
+                                priceAmount={paymentDetails.priceAmount}
+                                priceCurrency={paymentDetails.priceCurrency}
+                                paymentUrl={paymentUrl}
+                                invoiceId={paymentDetails.invoiceId}
+                                onContinue={() => {
+                                    window.location.href = paymentUrl
+                                }}
+                            />
                         )}
 
                         {/* Test Button */}
-                        <Button
-                            onClick={handleTestPayment}
-                            disabled={loading || !!paymentUrl || !isTestUser || !selectedCurrency}
-                            size="lg"
-                            className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white"
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Creating Payment...
-                                </>
-                            ) : (
-                                <>
-                                    <Coins className="mr-2 h-4 w-4" />
-                                    Test Crypto Payment ({tier === 'pro' ? 'Pro' : 'Elite'})
-                                </>
-                            )}
-                        </Button>
+                        {!paymentDetails && (
+                            <Button
+                                onClick={handleTestPayment}
+                                disabled={loading || !isTestUser || !selectedCurrency}
+                                size="lg"
+                                className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Creating Payment...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Coins className="mr-2 h-4 w-4" />
+                                        Test Crypto Payment ({tier === 'pro' ? 'Pro' : 'Elite'})
+                                    </>
+                                )}
+                            </Button>
+                        )}
 
                         {/* Important Info */}
                         <Alert className="border-blue-500/50 bg-blue-500/10">
