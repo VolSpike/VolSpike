@@ -163,19 +163,34 @@ adminUserRoutes.get('/', async (c) => {
         if (params.role) where.role = params.role
         if (params.tier) where.tier = params.tier
         
-        // Handle status filter
+        // Handle status filter with comprehensive debugging
         const statusParam = params.status
+        logger.info('User list request - status filter processing', {
+            statusParam,
+            statusParamType: typeof statusParam,
+            hasStatusParam: statusParam !== undefined,
+            queryParams: query,
+        })
+        
         if (statusParam === 'all' || statusParam === '') {
             // Explicit "All Status" request - show all users including BANNED
             // Don't filter by status
+            logger.info('Status filter: Showing ALL users (including BANNED)')
         } else if (statusParam) {
             // Specific status filter - show only that status
             where.status = statusParam as UserStatus
+            logger.info('Status filter: Showing only', { status: statusParam })
         } else {
             // No status param at all - default behavior: exclude BANNED
             // This prevents deleted users from showing up in the list by default
             where.status = { not: UserStatus.BANNED }
+            logger.info('Status filter: Default - excluding BANNED users')
         }
+        
+        logger.info('Final where clause for user query', {
+            where,
+            statusFilter: where.status,
+        })
 
         // Optimize: Run count and findMany in parallel for better performance
         const [total, users] = await Promise.all([
@@ -212,6 +227,14 @@ adminUserRoutes.get('/', async (c) => {
             take: params.limit,
             })
         ])
+
+        logger.info('User query results', {
+            total,
+            usersCount: users.length,
+            statusFilter: where.status,
+            hasUsers: users.length > 0,
+            sampleUserStatuses: users.slice(0, 5).map(u => ({ id: u.id, email: u.email, status: u.status })),
+        })
 
         // Transform users to include payment method and subscription expiration
         // Optimize: Batch Stripe API calls instead of individual calls per user

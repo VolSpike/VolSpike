@@ -50,8 +50,21 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             sortOrder: params.sortOrder as any || 'desc',
         }
 
+        console.log('[UsersPage] Fetching users with query', {
+            query,
+            statusParam: params.status,
+            hasStatusParam: params.status !== undefined,
+            rawParams: params,
+        })
+
         // Fetch users data
         const usersData = await adminAPI.getUsers(query)
+        
+        console.log('[UsersPage] Users fetched', {
+            total: usersData.pagination.total,
+            usersCount: usersData.users.length,
+            statusFilter: query.status,
+        })
 
         return (
             <AdminLayout>

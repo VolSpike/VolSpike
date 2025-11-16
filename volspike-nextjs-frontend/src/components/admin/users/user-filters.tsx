@@ -44,19 +44,34 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
     const applyFilters = useCallback(() => {
         const params = new URLSearchParams()
 
+        console.log('[UserFilters] applyFilters called', {
+            filters,
+            currentUrl: window.location.search,
+        })
+
         Object.entries(filters).forEach(([key, value]) => {
             if (value && value !== 'all') {
                 params.set(key, value)
+                console.log(`[UserFilters] Added filter: ${key}=${value}`)
             } else if (key === 'status' && value === '') {
                 // Explicit "All Status" - send 'all' to backend
                 params.set(key, 'all')
+                console.log(`[UserFilters] Added explicit 'all' status filter`)
+            } else {
+                console.log(`[UserFilters] Skipped filter: ${key}=${value}`)
             }
         })
 
         // Reset to first page when applying filters
         params.set('page', '1')
 
-        router.push(`/admin/users?${params.toString()}`)
+        const finalUrl = `/admin/users?${params.toString()}`
+        console.log('[UserFilters] Navigating to', {
+            finalUrl,
+            params: Object.fromEntries(params),
+        })
+
+        router.push(finalUrl)
     }, [filters, router])
 
     // Auto-apply when dropdowns change (immediate)
@@ -252,8 +267,28 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                     {filters.status && filters.status !== 'all' && (
                         <button
                             onClick={() => {
-                                setFilters(prev => ({ ...prev, status: '' }))
-                                setTimeout(() => applyFilters(), 0)
+                                console.log('[UserFilters] Clearing status filter', {
+                                    currentStatus: filters.status,
+                                    before: filters,
+                                })
+                                setFilters(prev => {
+                                    const updated = { ...prev, status: '' }
+                                    console.log('[UserFilters] Status filter cleared', {
+                                        after: updated,
+                                    })
+                                    return updated
+                                })
+                                // Use router.push directly to ensure status param is removed
+                                setTimeout(() => {
+                                    const params = new URLSearchParams(window.location.search)
+                                    params.delete('status') // Remove status param completely
+                                    params.set('page', '1')
+                                    console.log('[UserFilters] Navigating to URL without status param', {
+                                        url: `/admin/users?${params.toString()}`,
+                                        params: Object.fromEntries(params),
+                                    })
+                                    router.push(`/admin/users?${params.toString()}`)
+                                }, 0)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-xs font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors border border-amber-300/50 dark:border-amber-700/50"
                         >
