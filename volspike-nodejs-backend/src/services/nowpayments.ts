@@ -181,6 +181,102 @@ export class NowPaymentsService {
     }
   }
 
+  /**
+   * Get invoice status and payment details
+   * This is used to get payment address for QR code generation
+   */
+  async getInvoiceStatus(invoiceId: string): Promise<InvoiceResponse & { pay_address?: string; pay_amount?: number }> {
+    if (!API_KEY) {
+      logger.error('NowPayments API key is not configured')
+      throw new Error('NowPayments API key is not configured')
+    }
+
+    try {
+      logger.info('Fetching NowPayments invoice status', { invoiceId })
+
+      const response = await axios.get(`${API_URL}/invoice/${invoiceId}`, {
+        headers: {
+          'x-api-key': API_KEY,
+        },
+      })
+
+      const data = response.data
+
+      logger.info('NowPayments invoice status fetched', {
+        invoiceId,
+        hasPayAddress: !!data.pay_address,
+        payAddress: data.pay_address,
+        payAmount: data.pay_amount,
+        paymentStatus: data.payment_status,
+        responseKeys: Object.keys(data),
+        fullResponse: JSON.stringify(data, null, 2),
+      })
+
+      return data
+    } catch (error: any) {
+      logger.error('NowPayments get invoice status error:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        invoiceId,
+        fullError: error.message,
+      })
+      throw new Error(`Failed to get invoice status: ${error.response?.data?.message || error.message}`)
+    }
+  }
+
+  /**
+   * Create a payment from an invoice
+   * This is needed to get the pay_address for QR code generation
+   */
+  async createPaymentFromInvoice(invoiceId: string): Promise<PaymentResponse> {
+    if (!API_KEY) {
+      logger.error('NowPayments API key is not configured')
+      throw new Error('NowPayments API key is not configured')
+    }
+
+    try {
+      logger.info('Creating payment from invoice', { invoiceId })
+
+      // First get invoice details to extract pay_currency
+      const invoice = await this.getInvoiceStatus(invoiceId)
+      
+      if (!invoice.pay_currency) {
+        throw new Error('Invoice does not have pay_currency set. User must select currency first on NowPayments page.')
+      }
+
+      // Get invoice details to get price_amount
+      const priceAmount = typeof invoice.price_amount === 'string' 
+        ? parseFloat(invoice.price_amount) 
+        : invoice.price_amount || 0
+
+      // Create payment using invoice details
+      const payment = await this.createPayment({
+        price_amount: priceAmount,
+        price_currency: invoice.price_currency || 'usd',
+        pay_currency: invoice.pay_currency,
+        order_id: invoice.order_id,
+        order_description: `Payment for invoice ${invoiceId}`,
+      })
+
+      logger.info('Payment created from invoice', {
+        invoiceId,
+        paymentId: payment.payment_id,
+        payAddress: payment.pay_address,
+        payAmount: payment.pay_amount,
+      })
+
+      return payment
+    } catch (error: any) {
+      logger.error('NowPayments create payment from invoice error:', {
+        error: error.response?.data || error.message,
+        status: error.response?.status,
+        invoiceId,
+        fullError: error.message,
+      })
+      throw error
+    }
+  }
+
   verifyIPNSignature(body: string, signature: string): boolean {
     try {
       const hmac = crypto.createHmac('sha512', IPN_SECRET)

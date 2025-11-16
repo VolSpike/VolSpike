@@ -1267,6 +1267,139 @@ payments.post('/nowpayments/checkout', async (c) => {
             wasMapped: !!mappedPayCurrency,
         })
 
+        // If currency is selected, use payment API to get pay_address immediately for QR code
+        // Otherwise, use invoice API for hosted checkout where user selects currency
+        const usePaymentAPI = !!payCurrency // Use payment API if user explicitly selected a currency
+
+        if (usePaymentAPI) {
+            // Create payment directly (gives us pay_address immediately for QR code)
+            logger.info('Using payment API (currency already selected)', {
+                payCurrency: finalPayCurrency,
+                priceAmount,
+                orderId,
+            })
+
+            const paymentParams: any = {
+                price_amount: priceAmount,
+                price_currency: 'usd',
+                pay_currency: finalPayCurrency,
+                order_id: orderId,
+                order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription`,
+                ipn_callback_url: ipnCallbackUrl,
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+            }
+
+            const payment = await nowpayments.createPayment(paymentParams)
+
+            const paymentId = payment.payment_id
+            const payAddress = payment.pay_address
+            const payAmount = payment.pay_amount
+            const payCurrency = payment.pay_currency
+
+            logger.info('NowPayments payment created successfully', {
+                paymentId,
+                payAddress,
+                payAmount,
+                payCurrency,
+                orderId,
+                hasPaymentId: !!paymentId,
+                hasPayAddress: !!payAddress,
+                fullResponse: JSON.stringify(payment, null, 2),
+            })
+
+            if (!paymentId) {
+                logger.error('CRITICAL: NowPayments payment response missing payment_id', {
+                    paymentResponse: payment,
+                    allKeys: Object.keys(payment),
+                })
+                throw new Error('NowPayments API did not return payment_id')
+            }
+
+            if (!payAddress) {
+                logger.error('CRITICAL: NowPayments payment response missing pay_address', {
+                    paymentId,
+                    paymentResponse: payment,
+                    allKeys: Object.keys(payment),
+                })
+                throw new Error('NowPayments API did not return pay_address')
+            }
+
+            // Store payment in database
+            try {
+                const existingPayment = await prisma.cryptoPayment.findFirst({
+                    where: { 
+                        OR: [
+                            { paymentId: String(paymentId) },
+                            { orderId: orderId },
+                        ],
+                    },
+                })
+
+                if (existingPayment) {
+                    logger.warn('Payment already exists in database, returning existing payment', {
+                        paymentId,
+                        orderId,
+                        userId: user.id,
+                        existingPaymentId: existingPayment.id,
+                    })
+                    return c.json({
+                        paymentId: existingPayment.paymentId || String(paymentId),
+                        invoiceId: existingPayment.invoiceId,
+                        paymentUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/checkout/crypto/pay?paymentId=${paymentId}`,
+                        payAddress: existingPayment.payAddress || payAddress,
+                        payAmount: existingPayment.payAmount || payAmount,
+                        payCurrency: existingPayment.payCurrency || payCurrency,
+                        priceAmount: priceAmount,
+                        priceCurrency: 'usd',
+                    })
+                }
+
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+                const cryptoPayment = await prisma.cryptoPayment.create({
+                    data: {
+                        userId: user.id,
+                        paymentStatus: payment.payment_status || 'waiting',
+                        tier: tier,
+                        paymentId: String(paymentId),
+                        invoiceId: `payment-${paymentId}`, // Use payment ID as invoice ID placeholder (required field)
+                        orderId: orderId,
+                        paymentUrl: `${frontendUrl}/checkout/crypto/pay?paymentId=${paymentId}`,
+                        payAddress: payAddress,
+                        payAmount: priceAmount,
+                        payCurrency: 'usd',
+                        actuallyPaidCurrency: payCurrency,
+                    },
+                })
+
+                logger.info('Crypto payment record created in database', {
+                    paymentId: cryptoPayment.id,
+                    nowpaymentsPaymentId: paymentId,
+                    orderId,
+                    userId: user.id,
+                })
+
+                return c.json({
+                    paymentId: String(paymentId),
+                    invoiceId: null,
+                    paymentUrl: `${frontendUrl}/checkout/crypto/pay?paymentId=${paymentId}`,
+                    payAddress: payAddress,
+                    payAmount: payAmount,
+                    payCurrency: payCurrency,
+                    priceAmount: priceAmount,
+                    priceCurrency: 'usd',
+                })
+            } catch (dbError) {
+                logger.error('Failed to create crypto payment record', {
+                    error: dbError,
+                    paymentId,
+                    orderId,
+                })
+                throw dbError
+            }
+        }
+
+        // Fallback to invoice API (for cases where currency not selected or default)
         // Create invoice parameters
         const invoiceParams: any = {
             price_amount: priceAmount,
@@ -1980,6 +2113,63 @@ payments.post('/nowpayments/webhook', async (c) => {
             } : String(error),
         })
         return c.json({ error: 'Webhook processing failed' }, 500)
+    }
+})
+
+// Get payment details (for custom payment page)
+payments.get('/nowpayments/payment/:paymentId', async (c) => {
+    try {
+        const user = requireUser(c)
+        const paymentId = c.req.param('paymentId')
+
+        logger.info('Fetching payment details', {
+            paymentId,
+            userId: user.id,
+        })
+
+        // Get payment from database first (to verify user owns it)
+        const cryptoPayment = await prisma.cryptoPayment.findFirst({
+            where: {
+                paymentId: paymentId,
+                userId: user.id,
+            },
+        })
+
+        if (!cryptoPayment) {
+            logger.warn('Payment not found or user does not own it', {
+                paymentId,
+                userId: user.id,
+            })
+            return c.json({ error: 'Payment not found' }, 404)
+        }
+
+        // Get latest status from NowPayments API
+        const nowpayments = NowPaymentsService.getInstance()
+        const paymentStatus = await nowpayments.getPaymentStatus(paymentId)
+
+        logger.info('Payment details fetched', {
+            paymentId,
+            payAddress: paymentStatus.pay_address,
+            payAmount: paymentStatus.pay_amount,
+            payCurrency: paymentStatus.pay_currency,
+            paymentStatus: paymentStatus.payment_status,
+        })
+
+        return c.json({
+            paymentId: paymentStatus.payment_id,
+            payAddress: paymentStatus.pay_address,
+            payAmount: paymentStatus.pay_amount,
+            payCurrency: paymentStatus.pay_currency,
+            priceAmount: paymentStatus.price_amount,
+            priceCurrency: paymentStatus.price_currency,
+            paymentStatus: paymentStatus.payment_status,
+            orderId: paymentStatus.order_id,
+            tier: cryptoPayment.tier,
+        })
+    } catch (error: any) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        logger.error('Get payment details error:', message)
+        return c.json({ error: 'Failed to get payment details' }, 500)
     }
 })
 
