@@ -28,26 +28,43 @@ export function WalletBalances() {
     }, [session])
 
     const fetchWalletAddresses = async () => {
-        if (!session?.accessToken) return
+        if (!session?.accessToken) {
+            console.log('[WalletBalances] No session token available')
+            setLoading(false)
+            return
+        }
 
         setLoading(true)
         try {
             adminAPI.setAccessToken(session.accessToken as string)
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+            const url = `${apiUrl}/api/admin/payments?limit=1000`
+            
+            console.log('[WalletBalances] Fetching payments from:', url)
+            
             // Fetch payments to extract wallet addresses
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/payments?limit=1000`, {
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
                     'Content-Type': 'application/json',
                 },
             })
             
+            console.log('[WalletBalances] Response status:', response.status)
+            
             if (!response.ok) {
-                throw new Error('Failed to fetch payments')
+                const errorText = await response.text()
+                console.error('[WalletBalances] API error:', response.status, errorText)
+                throw new Error(`Failed to fetch payments: ${response.status} ${errorText}`)
             }
             
             const data = await response.json()
+            console.log('[WalletBalances] Received data:', { 
+                paymentsCount: data.payments?.length || 0,
+                hasPagination: !!data.pagination 
+            })
             
-            if (data.payments) {
+            if (data.payments && Array.isArray(data.payments)) {
                 // Group by payAddress and currency
                 const walletMap = new Map<string, WalletAddress>()
                 
@@ -75,11 +92,22 @@ export function WalletBalances() {
                     }
                 })
                 
-                setWallets(Array.from(walletMap.values()).sort((a, b) => b.totalReceived - a.totalReceived))
+                const walletsArray = Array.from(walletMap.values()).sort((a, b) => b.totalReceived - a.totalReceived)
+                console.log('[WalletBalances] Processed wallets:', walletsArray.length)
+                setWallets(walletsArray)
+            } else {
+                console.log('[WalletBalances] No payments data or invalid format')
+                setWallets([])
             }
-        } catch (error) {
-            console.error('Failed to fetch wallet addresses:', error)
-            toast.error('Failed to load wallet addresses')
+        } catch (error: any) {
+            console.error('[WalletBalances] Failed to fetch wallet addresses:', error)
+            const errorMessage = error?.message || 'Failed to load wallet addresses'
+            console.error('[WalletBalances] Error details:', {
+                message: errorMessage,
+                stack: error?.stack,
+            })
+            toast.error(errorMessage)
+            setWallets([]) // Set empty array on error to show empty state
         } finally {
             setLoading(false)
         }

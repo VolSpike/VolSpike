@@ -434,8 +434,12 @@ export function DashboardWalletBalances() {
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => router.push('/admin/settings')}
+                            onClick={() => {
+                                console.log('[WalletBalances] Navigating to settings...')
+                                router.push('/admin/settings')
+                            }}
                             className="text-xs"
+                            title="Manage wallets in Settings"
                         >
                             <Settings className="h-3.5 w-3.5 mr-1.5" />
                             Manage
@@ -456,7 +460,7 @@ export function DashboardWalletBalances() {
                                 <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
                             </div>
                         </div>
-                        <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                        <p className="text-2xl font-bold text-foreground">
                             {formatUSD(totalBalance)}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
@@ -594,19 +598,6 @@ export function DashboardWalletBalances() {
                             </div>
                         )
                     })}
-                </div>
-
-                {/* Quick Link to Settings */}
-                <div className="pt-2 border-t border-border/60">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push('/admin/settings')}
-                        className="w-full justify-between text-muted-foreground hover:text-foreground"
-                    >
-                        <span className="text-sm">Manage wallets in Settings</span>
-                        <ArrowRight className="h-4 w-4" />
-                    </Button>
                 </div>
             </CardContent>
         </Card>
