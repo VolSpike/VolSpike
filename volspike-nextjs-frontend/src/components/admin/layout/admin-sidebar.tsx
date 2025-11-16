@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
+import { SystemStatusIndicator } from './system-status-indicator'
 
 const navigation = [
     {
