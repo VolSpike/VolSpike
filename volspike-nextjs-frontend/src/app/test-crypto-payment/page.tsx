@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, CheckCircle2, XCircle, Coins, AlertTriangle, Sparkles } from 'lucide-react'
 import { HeaderWithBanner } from '@/components/header-with-banner'
+import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -19,6 +20,7 @@ export default function TestCryptoPaymentPage() {
     const [error, setError] = useState<string | null>(null)
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
     const [tier, setTier] = useState<'pro' | 'elite'>('pro')
+    const [selectedCurrency, setSelectedCurrency] = useState<string>('usdtsol') // Default to USDT on Solana
 
     const isTestUser = session?.user?.email?.endsWith('-test@volspike.com') || 
                       session?.user?.email === 'test@volspike.com' ||
@@ -53,7 +55,7 @@ export default function TestCryptoPaymentPage() {
                     testAmount: 1.0, // $1 for testing
                     successUrl: `${window.location.origin}/checkout/success?test=true`,
                     cancelUrl: `${window.location.origin}/test-crypto-payment?canceled=true`,
-                    payCurrency: undefined, // Let user choose on NowPayments page
+                    payCurrency: selectedCurrency, // Use selected currency from our 6 supported options
                 }),
             })
 
@@ -178,6 +180,15 @@ export default function TestCryptoPaymentPage() {
                             </div>
                         </div>
 
+                        {/* Currency Selection */}
+                        <div className="p-4 bg-muted/50 rounded-lg">
+                            <p className="text-sm font-semibold mb-3">Select Payment Currency:</p>
+                            <CryptoCurrencySelector
+                                selectedCurrency={selectedCurrency}
+                                onCurrencyChange={setSelectedCurrency}
+                            />
+                        </div>
+
                         {/* Error Alert */}
                         {error && (
                             <Alert variant="destructive">
@@ -199,7 +210,7 @@ export default function TestCryptoPaymentPage() {
                         {/* Test Button */}
                         <Button
                             onClick={handleTestPayment}
-                            disabled={loading || !!paymentUrl || !isTestUser}
+                            disabled={loading || !!paymentUrl || !isTestUser || !selectedCurrency}
                             size="lg"
                             className="w-full bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white"
                         >
@@ -236,9 +247,9 @@ export default function TestCryptoPaymentPage() {
                             <p className="text-sm font-semibold">How to test:</p>
                             <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                                 <li>Select Pro or Elite tier above</li>
+                                <li>Select your preferred payment currency from the 6 supported options</li>
                                 <li>Click &quot;Test $1 Crypto Payment&quot; button</li>
-                                <li>You&apos;ll be redirected to NowPayments checkout</li>
-                                <li>Choose your preferred crypto currency (USDT, USDC, SOL, BTC, ETH, etc.)</li>
+                                <li>You&apos;ll be redirected to NowPayments checkout (showing only your selected currency)</li>
                                 <li>Complete the payment (you&apos;ll pay ~$1 worth of crypto)</li>
                                 <li>You&apos;ll be redirected back to success page</li>
                                 <li>Check your Settings → Subscription to see {tier === 'pro' ? 'Pro' : 'Elite'} Tier</li>

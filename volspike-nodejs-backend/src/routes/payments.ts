@@ -746,7 +746,7 @@ function extractUserIdFromOrderId(orderId?: string | null): string | null {
         logger.warn('Invalid order ID format', { orderId })
         return null
     }
-    
+
     // Order ID formats:
     // - Normal: volspike-{userId}-{timestamp}
     // - Test: volspike-test-{userId}-{timestamp}
@@ -756,22 +756,22 @@ function extractUserIdFromOrderId(orderId?: string | null): string | null {
         logger.warn('Order ID has insufficient parts', { orderId, partsCount: parts.length })
         return null
     }
-    
+
     // Remove 'volspike' (first part), optionally 'test' (second part if present), and timestamp (last part)
     // Everything in between is the userId
     let startIndex = 1 // Skip 'volspike'
     if (parts.length > 3 && parts[1] === 'test') {
         startIndex = 2 // Skip 'volspike' and 'test'
     }
-    
+
     const userIdParts = parts.slice(startIndex, -1) // Everything except first part(s) and last (timestamp)
     const userId = userIdParts.join('-')
-    
+
     if (!userId) {
         logger.warn('Failed to extract userId from order ID', { orderId, parts, startIndex })
         return null
     }
-    
+
     logger.debug('Extracted userId from order ID', { orderId, userId, isTest: parts[1] === 'test' })
     return userId
 }
@@ -889,13 +889,13 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         })
 
         const user = requireUser(c)
-        
+
         // Only allow test users
-        const isTestUser = user.email?.endsWith('-test@volspike.com') || 
-                          user.email === 'test@volspike.com' ||
-                          user.email?.includes('test@') ||
-                          process.env.NODE_ENV === 'development'
-        
+        const isTestUser = user.email?.endsWith('-test@volspike.com') ||
+            user.email === 'test@volspike.com' ||
+            user.email?.includes('test@') ||
+            process.env.NODE_ENV === 'development'
+
         if (!isTestUser) {
             logger.warn('Non-test user attempted to use test checkout', {
                 email: user.email,
@@ -933,12 +933,42 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         const backendUrl = process.env.BACKEND_URL || process.env.FRONTEND_URL?.replace(':3000', ':3001') || 'http://localhost:3001'
         const ipnCallbackUrl = `${backendUrl}/api/payments/nowpayments/webhook`
 
+        // Map currency code to NowPayments format and validate (same logic as regular checkout)
+        let mappedPayCurrency: string | null = null
+
+        if (payCurrency) {
+            // Import currency mapper
+            const { mapCurrencyToNowPayments, isSupportedCurrency } = await import('../services/currency-mapper')
+
+            // Validate currency is supported in our system
+            if (!isSupportedCurrency(payCurrency)) {
+                logger.error('Unsupported currency code requested in test checkout', {
+                    payCurrency,
+                    supportedCurrencies: ['usdtsol', 'usdterc20', 'usdce', 'sol', 'btc', 'eth'],
+                })
+                throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
+            }
+
+            // Map to NowPayments format
+            mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
+        }
+
+        // Use mapped currency or default to USDT on Solana (usdt_sol format)
+        // This ensures we only show supported currencies, not all 300+ NowPayments currencies
+        const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
+
+        logger.info('Test checkout currency determined', {
+            originalPayCurrency: payCurrency,
+            finalPayCurrency,
+            wasMapped: !!mappedPayCurrency,
+        })
+
         // Create invoice with NowPayments (hosted checkout flow)
         const nowpayments = NowPaymentsService.getInstance()
         const invoice = await nowpayments.createInvoice({
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: payCurrency,
+            pay_currency: finalPayCurrency, // Use validated/mapped currency code (defaults to usdt_sol)
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
             ipn_callback_url: ipnCallbackUrl,
@@ -1606,7 +1636,7 @@ payments.post('/nowpayments/webhook', async (c) => {
                 if (orderIdParts.length >= 3) {
                     const timestamp = orderIdParts[orderIdParts.length - 1]
                     const userId = extractUserIdFromOrderId(order_id)
-                    
+
                     if (userId) {
                         // Search for payments with same user and similar timestamp
                         const allUserPayments = await prisma.cryptoPayment.findMany({
@@ -1615,14 +1645,14 @@ payments.post('/nowpayments/webhook', async (c) => {
                             orderBy: { createdAt: 'desc' },
                             take: 10, // Check recent payments
                         })
-                        
+
                         // Find payment with matching timestamp in order ID
                         const matchingPayment = allUserPayments.find(p => {
                             if (!p.orderId) return false
                             const paymentTimestamp = p.orderId.split('-').pop()
                             return paymentTimestamp === timestamp
                         })
-                        
+
                         if (matchingPayment) {
                             cryptoPayment = matchingPayment as CryptoPaymentWithUser
                             lookupMethod = 'order_id_partial'
