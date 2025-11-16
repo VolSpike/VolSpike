@@ -181,10 +181,11 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
 
     return (
         <>
-            <div className="bg-card border rounded-lg shadow-sm">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
+            <div className="bg-card border rounded-lg shadow-sm overflow-hidden">
+                <div className="max-h-[calc(100vh-20rem)] overflow-auto">
+                    <Table>
+                        <TableHeader className="sticky top-0 z-30 bg-background shadow-sm border-b border-border/60">
+                            <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead className="w-[120px]">
                                 <button
                                     onClick={() => handleSort('createdAt')}

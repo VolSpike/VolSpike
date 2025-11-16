@@ -194,11 +194,11 @@ export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableP
                 </div>
             </div>
 
-            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm relative">
-                <div className="overflow-x-auto overflow-y-visible">
+            <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm relative overflow-hidden">
+                <div className="overflow-x-auto overflow-y-visible max-h-[calc(100vh-20rem)] overflow-y-auto">
                     <Table>
-                    <TableHeader>
-                        <TableRow>
+                    <TableHeader className="sticky top-0 z-30 bg-background shadow-sm border-b border-border/60">
+                        <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead>Action</TableHead>
                             <TableHead>Actor</TableHead>
                             <TableHead>Target</TableHead>

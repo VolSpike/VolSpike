@@ -324,10 +324,10 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
             )}
 
             <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden relative">
-                <div className="overflow-x-auto overflow-y-visible">
+                <div className="overflow-x-auto overflow-y-visible max-h-[calc(100vh-20rem)] overflow-y-auto">
                     <Table>
-                    <TableHeader>
-                        <TableRow className="bg-muted/30">
+                    <TableHeader className="sticky top-0 z-30 bg-background shadow-sm border-b border-border/60">
+                        <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead className="w-12">
                                 <Checkbox
                                     checked={selectedUsers.length === users.length && users.length > 0}
