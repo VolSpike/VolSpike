@@ -78,7 +78,7 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
   return (
     <div className={cn('space-y-3', className)}>
       <Alert 
-        variant={errorDetails.variant}
+        variant={errorDetails.variant === 'destructive' ? 'destructive' : 'default'}
         className={cn(
           'border-2',
           errorDetails.variant === 'destructive' && 'border-red-500/50 bg-red-500/10',
