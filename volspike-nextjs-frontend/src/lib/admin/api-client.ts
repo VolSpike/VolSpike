@@ -97,9 +97,11 @@ class AdminAPIClient {
         })
     }
 
-    async deleteUser(userId: string, hardDelete: boolean = false): Promise<{ success: boolean }> {
-        const params = hardDelete ? '?hard=true' : ''
-        return this.request<{ success: boolean }>(`/api/admin/users/${userId}${params}`, {
+    async deleteUser(userId: string, softDelete: boolean = false): Promise<{ success: boolean; deleted: boolean; softDelete: boolean }> {
+        // Default is hard delete (permanent removal)
+        // Pass softDelete=true to mark as BANNED instead
+        const params = softDelete ? '?soft=true' : ''
+        return this.request<{ success: boolean; deleted: boolean; softDelete: boolean }>(`/api/admin/users/${userId}${params}`, {
             method: 'DELETE',
         })
     }

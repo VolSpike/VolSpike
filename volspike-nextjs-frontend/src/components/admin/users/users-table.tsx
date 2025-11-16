@@ -187,10 +187,21 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                     router.refresh()
                     break
                 case 'delete':
-                    if (confirm('Are you sure you want to delete this user?')) {
-                        await adminAPI.deleteUser(user.id)
-                        toast.success('User deleted')
-                        router.refresh()
+                    const confirmMessage = `Are you sure you want to PERMANENTLY DELETE this user?\n\nEmail: ${user.email || user.walletAddress}\n\n⚠️ WARNING: This will permanently remove the user from the database. This action CANNOT be undone.\n\nType "DELETE" to confirm:`
+                    const userConfirmation = prompt(confirmMessage)
+                    if (userConfirmation === 'DELETE') {
+                        try {
+                            console.log('[UsersTable] Deleting user', { userId: user.id, email: user.email })
+                            const result = await adminAPI.deleteUser(user.id)
+                            console.log('[UsersTable] Delete result', result)
+                            toast.success('User permanently deleted')
+                            router.refresh()
+                        } catch (error: any) {
+                            console.error('[UsersTable] Delete error', error)
+                            toast.error(error.message || 'Failed to delete user')
+                        }
+                    } else if (userConfirmation !== null) {
+                        toast.error('Deletion cancelled - confirmation text did not match')
                     }
                     break
                 case 'reset-password':

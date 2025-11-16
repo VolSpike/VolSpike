@@ -162,7 +162,13 @@ adminUserRoutes.get('/', async (c) => {
 
         if (params.role) where.role = params.role
         if (params.tier) where.tier = params.tier
-        if (params.status) where.status = params.status
+        if (params.status) {
+            where.status = params.status
+        } else {
+            // By default, exclude BANNED users unless explicitly requested
+            // This prevents deleted users from showing up in the list
+            where.status = { not: UserStatus.BANNED }
+        }
 
         // Optimize: Run count and findMany in parallel for better performance
         const [total, users] = await Promise.all([
@@ -465,27 +471,68 @@ adminUserRoutes.patch('/:id', async (c) => {
 adminUserRoutes.delete('/:id', async (c) => {
     try {
         const userId = c.req.param('id')
-        const hardDelete = c.req.query('hard') === 'true'
+        const softDelete = c.req.query('soft') === 'true' // Changed: now soft delete is opt-in
+        const adminUser = c.get('adminUser')
 
-        if (hardDelete) {
-            await prisma.user.delete({
-                where: { id: userId },
+        logger.info('Delete user request received', {
+            userId,
+            softDelete,
+            adminEmail: adminUser?.email,
+        })
+
+        // Check if user exists
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true, status: true },
+        })
+
+        if (!user) {
+            logger.warn('User not found for deletion', { userId })
+            return c.json({ error: 'User not found' }, 404)
+        }
+
+        if (softDelete) {
+            // Soft delete - mark as BANNED (opt-in)
+            logger.info('Performing soft delete (marking as BANNED)', {
+                userId,
+                email: user.email,
             })
-        } else {
-            // Soft delete - mark as BANNED
             await prisma.user.update({
                 where: { id: userId },
                 data: { status: UserStatus.BANNED },
             })
+            logger.info(`User ${userId} soft deleted (BANNED) by admin ${adminUser?.email || 'unknown'}`)
+        } else {
+            // Hard delete - actually delete the user (default behavior)
+            logger.info('Performing hard delete (permanent removal)', {
+                userId,
+                email: user.email,
+            })
+            
+            // Delete related records first (if any)
+            // Note: Prisma will handle cascading deletes if foreign keys are set up correctly
+            await prisma.user.delete({
+                where: { id: userId },
+            })
+            logger.info(`User ${userId} permanently deleted by admin ${adminUser?.email || 'unknown'}`)
         }
 
-        const adminUser = c.get('adminUser')
-        logger.info(`User ${userId} deleted by admin ${adminUser?.email || 'unknown'}`)
-
-        return c.json({ success: true })
-    } catch (error) {
-        logger.error('Delete user error:', error)
-        return c.json({ error: 'Failed to delete user' }, 500)
+        return c.json({ 
+            success: true,
+            deleted: true,
+            softDelete,
+        })
+    } catch (error: any) {
+        logger.error('Delete user error:', {
+            error,
+            message: error?.message,
+            stack: error?.stack,
+            code: error?.code,
+        })
+        return c.json({ 
+            error: 'Failed to delete user',
+            message: error?.message || 'Unknown error occurred',
+        }, 500)
     }
 })
 
