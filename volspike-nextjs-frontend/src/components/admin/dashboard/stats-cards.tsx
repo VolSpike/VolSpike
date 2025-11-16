@@ -87,7 +87,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
                                 {card.title}
                             </CardTitle>
                             <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${card.iconBg} transition-all duration-300 group-hover:scale-110 group-hover:shadow-md`}>
-                                <Icon className={`h-4.5 w-4.5 ${card.iconColor} transition-colors duration-300`} />
+                                <Icon className={`h-4 w-4 ${card.iconColor} transition-colors duration-300`} />
                             </div>
                         </CardHeader>
                         <CardContent>
