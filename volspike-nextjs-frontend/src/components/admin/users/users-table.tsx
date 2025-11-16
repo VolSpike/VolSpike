@@ -457,7 +457,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     {getSortIcon('lastLoginAt')}
                                 </div>
                             </TableHead>
-                            <TableHead className="text-right sticky right-0 bg-background border-l border-border/60 z-10 min-w-[80px]">
+                            <TableHead className="text-right sticky right-0 bg-card border-l-2 border-border/80 z-10 min-w-[80px] shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]">
                                 Actions
                             </TableHead>
                         </TableRow>
@@ -715,7 +715,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     )}
                                 </TableCell>
                                 <TableCell 
-                                    className="text-right sticky right-0 bg-background border-l border-border/60 z-10 group-hover:bg-muted/50 transition-colors min-w-[80px]" 
+                                    className="text-right sticky right-0 bg-card border-l-2 border-border/80 z-10 group-hover:bg-muted/30 transition-colors min-w-[80px] shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]" 
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <DropdownMenu>
@@ -724,12 +724,12 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                 variant="ghost"
                                                 size="icon"
                                                 disabled={loading === user.id}
-                                                className="h-8 w-8 rounded-md hover:bg-muted/80 transition-colors"
+                                                className="h-8 w-8 rounded-md hover:bg-muted/60 transition-all text-muted-foreground/70 hover:text-foreground group/action"
                                             >
                                                 {loading === user.id ? (
                                                     <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
                                                 ) : (
-                                                    <MoreHorizontal className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                                    <MoreHorizontal className="h-4 w-4 transition-colors" />
                                                 )}
                                             </Button>
                                         </DropdownMenuTrigger>
