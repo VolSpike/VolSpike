@@ -93,21 +93,24 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
 
     // Helper to apply filters
     const applyFilters = useCallback(() => {
+        // Skip if this is a programmatic update
+        if (isProgrammaticUpdate.current) {
+            console.log('[UserFilters] Skipping applyFilters - programmatic update')
+            return
+        }
+
         const params = new URLSearchParams()
 
         console.log('[UserFilters] applyFilters called', {
             filters,
             currentUrl: window.location.search,
+            isProgrammatic: isProgrammaticUpdate.current,
         })
 
         Object.entries(filters).forEach(([key, value]) => {
             if (value && value !== 'all') {
                 params.set(key, value)
                 console.log(`[UserFilters] Added filter: ${key}=${value}`)
-            } else if (key === 'status' && value === '') {
-                // Explicit "All Status" - send 'all' to backend
-                params.set(key, 'all')
-                console.log(`[UserFilters] Added explicit 'all' status filter`)
             } else {
                 console.log(`[UserFilters] Skipped filter: ${key}=${value}`)
             }
@@ -116,17 +119,28 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         // Reset to first page when applying filters
         params.set('page', '1')
 
-        const finalUrl = `/admin/users?${params.toString()}`
+        const finalUrl = params.toString() 
+            ? `/admin/users?${params.toString()}` 
+            : '/admin/users'
+            
         console.log('[UserFilters] Navigating to', {
             finalUrl,
             params: Object.fromEntries(params),
+            hasStatusParam: params.has('status'),
         })
 
-        router.push(finalUrl)
+        // Use replace to avoid adding history entries
+        router.replace(finalUrl, { scroll: false })
     }, [filters, router])
 
-    // Auto-apply when dropdowns change (immediate)
+    // FIX: Auto-apply when dropdowns change (with debounce to prevent race conditions)
     useEffect(() => {
+        // Skip if this is a programmatic update
+        if (isProgrammaticUpdate.current) {
+            console.log('[UserFilters] Skipping auto-apply - programmatic update')
+            return
+        }
+
         const roleChanged = filters.role !== (currentFilters.role || '')
         const tierChanged = filters.tier !== (currentFilters.tier || '')
         const statusChanged = filters.status !== (currentFilters.status || '')
@@ -137,41 +151,66 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             statusChanged,
             filters,
             currentFilters,
+            isProgrammatic: isProgrammaticUpdate.current,
         })
         
         // Only apply if something actually changed
         if (roleChanged || tierChanged || statusChanged) {
-            const params = new URLSearchParams()
-            
-            if (filters.search) params.set('search', filters.search)
-            if (filters.role && filters.role !== 'all') params.set('role', filters.role)
-            if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-            
-            // Handle status filter: only add if it has a value, don't add 'all' or empty
-            if (filters.status && filters.status !== 'all' && filters.status !== '') {
-                params.set('status', filters.status)
-                console.log('[UserFilters] Adding status filter to URL', filters.status)
-            } else {
-                // Don't add status param at all - let backend default to excluding BANNED
-                console.log('[UserFilters] Not adding status filter (will default to exclude BANNED)')
+            // Clear any pending timeout
+            if (updateTimeoutRef.current) {
+                clearTimeout(updateTimeoutRef.current)
             }
-            
-            params.set('page', '1')
-            
-            const finalUrl = `/admin/users?${params.toString()}`
-            console.log('[UserFilters] Auto-apply navigating to', {
-                finalUrl,
-                params: Object.fromEntries(params),
-                hasStatusParam: params.has('status'),
-            })
-            
-            router.push(finalUrl)
+
+            // Debounce to prevent rapid-fire updates
+            updateTimeoutRef.current = setTimeout(() => {
+                const params = new URLSearchParams()
+                
+                if (filters.search) params.set('search', filters.search)
+                if (filters.role && filters.role !== 'all') params.set('role', filters.role)
+                if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
+                
+                // Handle status filter: only add if it has a value, don't add 'all' or empty
+                if (filters.status && filters.status !== 'all' && filters.status !== '') {
+                    params.set('status', filters.status)
+                    console.log('[UserFilters] Adding status filter to URL', filters.status)
+                } else {
+                    // Don't add status param at all - let backend default to excluding BANNED
+                    console.log('[UserFilters] Not adding status filter (will default to exclude BANNED)')
+                }
+                
+                params.set('page', '1')
+                
+                const finalUrl = params.toString() 
+                    ? `/admin/users?${params.toString()}` 
+                    : '/admin/users'
+                    
+                console.log('[UserFilters] Auto-apply navigating to', {
+                    finalUrl,
+                    params: Object.fromEntries(params),
+                    hasStatusParam: params.has('status'),
+                })
+                
+                // Use replace to avoid adding history entries
+                router.replace(finalUrl, { scroll: false })
+            }, 150) // 150ms debounce
+        }
+
+        return () => {
+            if (updateTimeoutRef.current) {
+                clearTimeout(updateTimeoutRef.current)
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.role, filters.tier, filters.status, router])
 
     // Auto-apply when debounced search changes
     useEffect(() => {
+        // Skip if this is a programmatic update
+        if (isProgrammaticUpdate.current) {
+            console.log('[UserFilters] Skipping search debounce - programmatic update')
+            return
+        }
+
         if (debouncedSearch !== (currentFilters.search || '')) {
             const params = new URLSearchParams()
             
@@ -186,19 +225,42 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             // Don't add status param if empty - let backend default to excluding BANNED
             
             params.set('page', '1')
-            router.push(`/admin/users?${params.toString()}`)
+            
+            const finalUrl = params.toString() 
+                ? `/admin/users?${params.toString()}` 
+                : '/admin/users'
+                
+            router.replace(finalUrl, { scroll: false })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedSearch, router])
 
     const clearFilters = () => {
+        console.log('[UserFilters] Clearing all filters')
+        
+        // Set flag to prevent state sync loop
+        isProgrammaticUpdate.current = true
+        
+        // Clear any pending timeouts
+        if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current)
+            updateTimeoutRef.current = null
+        }
+        
         setFilters({
             search: '',
             role: '',
             tier: '',
             status: '',
         })
-        router.push('/admin/users')
+        
+        // Use replace to avoid adding history entry
+        router.replace('/admin/users', { scroll: false })
+        
+        // Reset flag after navigation
+        setTimeout(() => {
+            isProgrammaticUpdate.current = false
+        }, 100)
     }
 
     const hasActiveFilters = Object.values(filters).some(value => value && value !== 'all')
