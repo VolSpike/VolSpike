@@ -17,11 +17,14 @@ import {
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import { CreateUserRequest } from '@/types/admin'
-import { UserPlus, Mail, Shield, Sparkles, ArrowLeft } from 'lucide-react'
+import { UserPlus, Mail, Shield, Sparkles, ArrowLeft, Copy, Check } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
 export function CreateUserForm() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [createdPassword, setCreatedPassword] = useState<string | null>(null)
+    const [createdEmail, setCreatedEmail] = useState<string | null>(null)
     const [formData, setFormData] = useState<CreateUserRequest>({
         email: '',
         tier: 'free',
@@ -37,12 +40,17 @@ export function CreateUserForm() {
             const result = await adminAPI.createUser(formData)
 
             if (result.temporaryPassword) {
-                toast.success(`User created successfully. Temporary password: ${result.temporaryPassword}`)
+                // Show password in a more visible way
+                setCreatedPassword(result.temporaryPassword)
+                setCreatedEmail(formData.email)
+                toast.success('User created successfully! Password shown below.', {
+                    duration: 5000,
+                })
+                // Don't redirect immediately - let user see the password
             } else {
                 toast.success('User created successfully. Invitation email sent.')
+                router.push('/admin/users')
             }
-
-            router.push('/admin/users')
         } catch (error: any) {
             toast.error(error.message || 'Failed to create user')
         } finally {
@@ -51,6 +59,22 @@ export function CreateUserForm() {
     }
 
     const handleCancel = () => {
+        router.push('/admin/users')
+    }
+
+    const [copied, setCopied] = useState(false)
+    const handleCopyPassword = () => {
+        if (createdPassword) {
+            navigator.clipboard.writeText(createdPassword)
+            setCopied(true)
+            toast.success('Password copied to clipboard!')
+            setTimeout(() => setCopied(false), 2000)
+        }
+    }
+
+    const handleContinue = () => {
+        setCreatedPassword(null)
+        setCreatedEmail(null)
         router.push('/admin/users')
     }
 
@@ -241,23 +265,33 @@ export function CreateUserForm() {
                                 >
                                     Cancel
                                 </Button>
-                                <Button 
-                                    type="submit" 
-                                    disabled={loading || !formData.email}
-                                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25"
-                                >
-                                    {loading ? (
-                                        <span className="flex items-center gap-2">
-                                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                            Creating...
-                                        </span>
-                                    ) : (
-                                        <span className="flex items-center gap-2">
-                                            <UserPlus className="h-4 w-4" />
-                                            Create User
-                                        </span>
-                                    )}
-                                </Button>
+                                {createdPassword ? (
+                                    <Button 
+                                        type="button"
+                                        onClick={handleContinue}
+                                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25"
+                                    >
+                                        Continue to Users
+                                    </Button>
+                                ) : (
+                                    <Button 
+                                        type="submit" 
+                                        disabled={loading || !formData.email}
+                                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25"
+                                    >
+                                        {loading ? (
+                                            <span className="flex items-center gap-2">
+                                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                                Creating...
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-2">
+                                                <UserPlus className="h-4 w-4" />
+                                                Create User
+                                            </span>
+                                        )}
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </form>
