@@ -436,6 +436,7 @@ export default function CryptoPaymentPage() {
             {qrCodeDataUrl ? (
               <div className="flex flex-col items-center gap-4">
                 <div className="p-4 bg-white rounded-lg border-2 border-border shadow-lg">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={qrCodeDataUrl}
                     alt="Payment QR Code"
@@ -584,7 +585,7 @@ export default function CryptoPaymentPage() {
               </p>
               <ol className="text-xs text-purple-600 dark:text-purple-400 space-y-1 list-decimal list-inside">
                 <li>Make sure Phantom wallet is installed on your phone</li>
-                <li>If Trust Wallet opens instead, tap "Open in Phantom Wallet" button above</li>
+                <li>If Trust Wallet opens instead, tap &quot;Open in Phantom Wallet&quot; button above</li>
                 <li>Or copy the address and paste it manually in Phantom</li>
                 <li>On iOS, you may need to allow Phantom to open from browser</li>
               </ol>
