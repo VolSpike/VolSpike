@@ -754,16 +754,14 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                 <div className="my-1.5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                                                 <DropdownMenuItem
                                                     onClick={() => {
-                                                        if (confirm(`Delete ${user.email || user.walletAddress}?\n\nThis will permanently disable their account (soft delete). This action cannot be undone.`)) {
-                                                            handleAction('delete', user)
-                                                        }
+                                                        handleAction('delete', user)
                                                     }}
                                                     className="px-3 py-2.5 cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-all duration-150 focus:bg-red-50 dark:focus:bg-red-950/40 group border border-transparent hover:border-red-300 dark:hover:border-red-700"
                                                 >
                                                     <Trash className="h-4 w-4 mr-3 text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform" />
                                                     <div className="flex flex-col flex-1">
                                                         <span className="font-medium text-red-700 dark:text-red-400 group-hover:text-red-800 dark:group-hover:text-red-300">Delete User</span>
-                                                        <span className="text-xs text-red-600/90 dark:text-red-400/90">Permanently disable account</span>
+                                                        <span className="text-xs text-red-600/90 dark:text-red-400/90">Permanently remove from database</span>
                                                     </div>
                                                 </DropdownMenuItem>
                                             </div>
