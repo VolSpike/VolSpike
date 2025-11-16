@@ -39,6 +39,7 @@ export default function CryptoPaymentPage() {
   const [copied, setCopied] = useState<'address' | 'amount' | null>(null)
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [polling, setPolling] = useState(false)
+  const [isExpired, setIsExpired] = useState(false)
 
   // Generate Solana Pay URI (standard format that Phantom recognizes)
   // Solana Pay spec: solana:<address>?amount=<decimal>&spl-token=<mint>&label=<label>&message=<message>
@@ -249,19 +250,62 @@ export default function CryptoPaymentPage() {
     fetchPaymentDetails()
   }, [session, paymentId, router])
 
-  // Countdown timer
+  // Countdown timer with expiration handling
   useEffect(() => {
-    if (timeRemaining === null || timeRemaining <= 0) return
+    if (timeRemaining === null) return
+
+    if (timeRemaining <= 0) {
+      if (!isExpired) {
+        setIsExpired(true)
+        // Check payment status one more time when timer expires
+        if (paymentDetails && session?.user && paymentId) {
+          const checkExpiredPayment = async () => {
+            try {
+              const authToken = (session as any)?.accessToken || session.user.id
+              const response = await fetch(`${API_URL}/api/payments/nowpayments/payment/${paymentId}`, {
+                headers: {
+                  'Authorization': `Bearer ${authToken}`,
+                },
+              })
+
+              if (response.ok) {
+                const data = await response.json()
+                // If payment was completed, update state (don't show expired message)
+                if (data.paymentStatus === 'finished') {
+                  setIsExpired(false)
+                  setPaymentDetails((prev) => prev ? { ...prev, ...data } : null)
+                  setTimeout(() => {
+                    router.push(`/checkout/success?payment=crypto&tier=${paymentDetails?.tier}`)
+                  }, 2000)
+                  return
+                }
+              }
+            } catch (err) {
+              console.error('[CryptoPaymentPage] Error checking expired payment:', err)
+            }
+            
+            // Show expiration toast
+            toast.error('Payment window expired. Please create a new payment.', {
+              duration: 5000,
+            })
+          }
+          checkExpiredPayment()
+        }
+      }
+      return
+    }
 
     const interval = setInterval(() => {
       setTimeRemaining((prev) => {
-        if (prev === null || prev <= 1) return 0
+        if (prev === null || prev <= 1) {
+          return 0
+        }
         return prev - 1
       })
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [timeRemaining])
+  }, [timeRemaining, isExpired, paymentDetails, session, paymentId, router])
 
   // Poll payment status (every 10 seconds)
   useEffect(() => {
@@ -407,15 +451,29 @@ export default function CryptoPaymentPage() {
                   Scan the QR code with your Phantom wallet to complete payment
                 </CardDescription>
               </div>
-              {timeRemaining !== null && timeRemaining > 0 && (
+              {timeRemaining !== null && (
                 <div className="flex items-center gap-2 text-sm font-mono">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className={cn(
-                    'font-semibold',
-                    timeRemaining < 300 && 'text-destructive'
-                  )}>
-                    {formatTime(timeRemaining)}
-                  </span>
+                  {isExpired ? (
+                    <>
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                      <span className="text-destructive font-semibold">
+                        Payment Window Expired
+                      </span>
+                    </>
+                  ) : timeRemaining > 0 ? (
+                    <>
+                      <Clock className={cn(
+                        'h-4 w-4',
+                        timeRemaining < 300 ? 'text-destructive' : 'text-muted-foreground'
+                      )} />
+                      <span className={cn(
+                        'font-semibold',
+                        timeRemaining < 300 && 'text-destructive'
+                      )}>
+                        {formatTime(timeRemaining)} remaining
+                      </span>
+                    </>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -526,6 +584,14 @@ export default function CryptoPaymentPage() {
                   </div>
                 )}
               </div>
+            ) : isExpired ? (
+              <div className="flex flex-col items-center justify-center p-12 bg-destructive/5 rounded-lg gap-3 border border-destructive/20">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+                <p className="text-sm font-semibold text-destructive">Payment Expired</p>
+                <p className="text-xs text-muted-foreground text-center max-w-sm">
+                  This payment link has expired. Please create a new payment to continue.
+                </p>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center p-12 bg-muted/20 rounded-lg gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -572,59 +638,95 @@ export default function CryptoPaymentPage() {
 
             {/* Actions */}
             <div className="flex flex-col gap-3">
-              {/* Primary: Open in Phantom (uses Solana Pay URI) */}
-              <Button
-                onClick={() => {
-                  // Use Solana Pay URI (Phantom recognizes this format)
-                  if (solanaUri) {
-                    console.log('[CryptoPaymentPage] Opening Solana Pay URI in Phantom:', solanaUri)
-                    // Try direct navigation first (works on mobile)
-                    try {
-                      window.location.href = solanaUri
-                    } catch (err) {
-                      console.warn('[CryptoPaymentPage] Direct navigation failed, trying window.open:', err)
-                      window.open(solanaUri, '_blank')
-                    }
-                    
-                    // Fallback to Phantom universal link if Solana Pay URI doesn't work
-                    setTimeout(() => {
-                      if (phantomUniversalLink) {
-                        console.log('[CryptoPaymentPage] Fallback to Phantom universal link:', phantomUniversalLink)
-                        window.open(phantomUniversalLink, '_blank')
+              {isExpired ? (
+                <>
+                  {/* Expired state - show message and option to create new payment */}
+                  <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-lg space-y-3">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                      <div className="space-y-2 flex-1">
+                        <p className="text-sm font-semibold text-destructive">
+                          Payment Window Expired
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          This payment link has expired. Crypto payment addresses are time-sensitive. Please create a new payment to continue.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        // Redirect to pricing or test payment page
+                        const tier = paymentDetails?.tier || 'pro'
+                        router.push(`/pricing?tier=${tier}`)
+                      }}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white"
+                      size="lg"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <span>Create New Payment</span>
+                        <ExternalLink className="h-4 w-4" />
+                      </span>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Primary: Open in Phantom (uses Solana Pay URI) */}
+                  <Button
+                    onClick={() => {
+                      // Use Solana Pay URI (Phantom recognizes this format)
+                      if (solanaUri) {
+                        console.log('[CryptoPaymentPage] Opening Solana Pay URI in Phantom:', solanaUri)
+                        // Try direct navigation first (works on mobile)
+                        try {
+                          window.location.href = solanaUri
+                        } catch (err) {
+                          console.warn('[CryptoPaymentPage] Direct navigation failed, trying window.open:', err)
+                          window.open(solanaUri, '_blank')
+                        }
+                        
+                        // Fallback to Phantom universal link if Solana Pay URI doesn't work
+                        setTimeout(() => {
+                          if (phantomUniversalLink) {
+                            console.log('[CryptoPaymentPage] Fallback to Phantom universal link:', phantomUniversalLink)
+                            window.open(phantomUniversalLink, '_blank')
+                          }
+                        }, 1000)
+                      } else {
+                        toast.error('Payment details not available')
+                        console.error('[CryptoPaymentPage] No Solana Pay URI available')
                       }
-                    }, 1000)
-                  } else {
-                    toast.error('Payment details not available')
-                    console.error('[CryptoPaymentPage] No Solana Pay URI available')
-                  }
-                }}
-                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white shadow-lg"
-                size="lg"
-                disabled={!solanaUri}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <span>Open in Phantom Wallet</span>
-                  <ExternalLink className="h-4 w-4" />
-                </span>
-              </Button>
-              
-              {/* Secondary: Copy address for manual entry */}
-              <Button
-                onClick={() => {
-                  if (paymentDetails.payAddress) {
-                    copyToClipboard(paymentDetails.payAddress, 'address')
-                    toast.success('Address copied! Paste it in Phantom wallet manually.')
-                  }
-                }}
-                variant="outline"
-                className="w-full"
-                size="lg"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <Copy className="h-4 w-4" />
-                  Copy Address (Manual Entry)
-                </span>
-              </Button>
+                    }}
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white shadow-lg"
+                    size="lg"
+                    disabled={!solanaUri || isExpired}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <span>Open in Phantom Wallet</span>
+                      <ExternalLink className="h-4 w-4" />
+                    </span>
+                  </Button>
+                  
+                  {/* Secondary: Copy address for manual entry */}
+                  <Button
+                    onClick={() => {
+                      if (paymentDetails?.payAddress) {
+                        copyToClipboard(paymentDetails.payAddress, 'address')
+                        toast.success('Address copied! Paste it in Phantom wallet manually.')
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    disabled={!paymentDetails?.payAddress || isExpired}
+                  >
+                    <span className="flex items-center justify-center gap-2">
+                      <Copy className="h-4 w-4" />
+                      Copy Address (Manual Entry)
+                    </span>
+                  </Button>
+                </>
+              )}
               
               <Button
                 onClick={() => router.push('/pricing')}
