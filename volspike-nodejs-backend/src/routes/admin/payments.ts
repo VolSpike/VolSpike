@@ -86,11 +86,10 @@ adminPaymentRoutes.get('/', async (c) => {
             where.orderId = params.orderId
         }
 
-        // Get total count
-        const total = await prisma.cryptoPayment.count({ where })
-
-        // Get paginated results
-        const payments = await prisma.cryptoPayment.findMany({
+        // Optimize: Run count and findMany in parallel for better performance
+        const [total, payments] = await Promise.all([
+            prisma.cryptoPayment.count({ where }),
+            prisma.cryptoPayment.findMany({
             where,
             include: {
                 user: {
@@ -105,7 +104,8 @@ adminPaymentRoutes.get('/', async (c) => {
             orderBy: { [params.sortBy]: params.sortOrder },
             skip: (params.page - 1) * params.limit,
             take: params.limit,
-        })
+            })
+        ])
 
         return c.json({
             payments,

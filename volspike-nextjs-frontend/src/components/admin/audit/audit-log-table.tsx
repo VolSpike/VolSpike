@@ -93,10 +93,49 @@ const actionColors = {
 export function AuditLogTable({ logs, pagination, currentQuery }: AuditLogTableProps) {
     const router = useRouter()
     const { data: session } = useSession()
+    const [isPending, startTransition] = useTransition()
     const [loading, setLoading] = useState<string | null>(null)
     const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null)
     const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
     const [detailsLoading, setDetailsLoading] = useState(false)
+    const [isNavigating, setIsNavigating] = useState(false)
+
+    // Prefetch next and previous pages for instant navigation
+    useEffect(() => {
+        const prefetchPages = () => {
+            if (pagination.page < pagination.pages) {
+                const nextParams = new URLSearchParams()
+                Object.entries(currentQuery).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        if (value instanceof Date) {
+                            nextParams.set(key, value.toISOString())
+                        } else {
+                            nextParams.set(key, String(value))
+                        }
+                    }
+                })
+                nextParams.set('page', String(pagination.page + 1))
+                router.prefetch(`/admin/audit?${nextParams.toString()}`)
+            }
+            
+            if (pagination.page > 1) {
+                const prevParams = new URLSearchParams()
+                Object.entries(currentQuery).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        if (value instanceof Date) {
+                            prevParams.set(key, value.toISOString())
+                        } else {
+                            prevParams.set(key, String(value))
+                        }
+                    }
+                })
+                prevParams.set('page', String(pagination.page - 1))
+                router.prefetch(`/admin/audit?${prevParams.toString()}`)
+            }
+        }
+        
+        prefetchPages()
+    }, [pagination.page, pagination.pages, currentQuery, router])
 
     // Ensure admin API has the current access token on the client
     useEffect(() => {
