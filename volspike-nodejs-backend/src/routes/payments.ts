@@ -1009,10 +1009,35 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         // This ensures we only show supported currencies, not all 300+ NowPayments currencies
         const finalPayCurrency: string = mappedPayCurrency || 'usdtsol'
 
+        // If no test amount was provided and we have a currency, fetch minimum for that currency
+        if (!testAmount && finalPayCurrency) {
+            try {
+                const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
+                if (minAmount && (!priceAmount || priceAmount < minAmount)) {
+                    // Add 10% buffer to ensure we're above minimum
+                    const calculatedAmount = Math.ceil(minAmount * 1.1 * 100) / 100
+                    priceAmount = calculatedAmount
+                    logger.info('Updated price amount based on minimum', {
+                        currency: finalPayCurrency,
+                        minAmount,
+                        calculatedAmount,
+                        finalAmount: priceAmount,
+                    })
+                }
+            } catch (minAmountError) {
+                logger.warn('Could not fetch minimum amount for final currency, using existing amount', {
+                    error: minAmountError,
+                    currency: finalPayCurrency,
+                    currentAmount: priceAmount,
+                })
+            }
+        }
+
         logger.info('Test checkout currency determined', {
             originalPayCurrency: payCurrency,
             finalPayCurrency,
             wasMapped: !!mappedPayCurrency,
+            priceAmount,
         })
 
         // Create invoice with NowPayments (hosted checkout flow)
