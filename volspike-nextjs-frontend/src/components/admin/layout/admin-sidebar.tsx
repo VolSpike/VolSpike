@@ -16,7 +16,8 @@ import {
     Menu,
     X,
     Shield,
-    User
+    User,
+    TrendingUp
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -42,6 +43,11 @@ const navigation = [
         name: 'Payments',
         href: '/admin/payments',
         icon: CreditCard,
+    },
+    {
+        name: 'Revenue Analytics',
+        href: '/admin/revenue',
+        icon: TrendingUp,
     },
     {
         name: 'Audit Logs',
@@ -140,7 +146,7 @@ export function AdminSidebar() {
                                 <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Users & Billing
                                 </p>
-                                {navigation.slice(1, 4).map((item) => {
+                                {navigation.slice(1, 5).map((item) => {
                                     const isActive = pathname === item.href
                                     return (
                                         <Link
@@ -168,7 +174,7 @@ export function AdminSidebar() {
                                 <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Monitoring &amp; Settings
                                 </p>
-                                {navigation.slice(4).map((item) => {
+                                {navigation.slice(5).map((item) => {
                                     const isActive = pathname === item.href
                                     return (
                                         <Link

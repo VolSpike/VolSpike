@@ -240,6 +240,10 @@ class AdminAPIClient {
         return this.request<any>(`/api/admin/metrics/revenue?period=${period}`)
     }
 
+    async getRevenueAnalytics(period: string = '1y'): Promise<any> {
+        return this.request<any>(`/api/admin/metrics/revenue-analytics?period=${period}`)
+    }
+
     async getActivityMetrics(period: string = '30d'): Promise<any> {
         return this.request<any>(`/api/admin/metrics/activity?period=${period}`)
     }

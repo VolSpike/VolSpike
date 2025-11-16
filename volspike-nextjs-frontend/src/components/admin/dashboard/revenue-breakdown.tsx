@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
     DollarSign,
     TrendingUp,
@@ -10,6 +12,7 @@ import {
     Coins,
     Sparkles,
     Crown,
+    ArrowRight,
 } from 'lucide-react'
 import { adminAPI } from '@/lib/admin/api-client'
 import { useSession } from 'next-auth/react'
@@ -138,6 +141,12 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                             </p>
                         </div>
                     </div>
+                    <Link href="/admin/revenue">
+                        <Button variant="ghost" size="sm" className="gap-2">
+                            <span className="hidden sm:inline">View Analytics</span>
+                            <ArrowRight className="h-4 w-4" />
+                        </Button>
+                    </Link>
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">

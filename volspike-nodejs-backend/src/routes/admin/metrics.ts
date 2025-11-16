@@ -486,6 +486,264 @@ adminMetricsRoutes.get('/activity', async (c) => {
     }
 })
 
+// GET /api/admin/metrics/revenue-analytics - Get detailed revenue analytics with time-series data
+adminMetricsRoutes.get('/revenue-analytics', async (c) => {
+    try {
+        const query = c.req.query()
+        const period = query.period || '1y' // Default to 1 year
+        
+        // Calculate date range
+        const now = new Date()
+        const startDate = new Date()
+        
+        switch (period) {
+            case '7d':
+                startDate.setDate(now.getDate() - 7)
+                break
+            case '30d':
+                startDate.setDate(now.getDate() - 30)
+                break
+            case '90d':
+                startDate.setDate(now.getDate() - 90)
+                break
+            case '1y':
+                startDate.setFullYear(now.getFullYear() - 1)
+                break
+            case 'all':
+                startDate.setFullYear(2020, 0, 1) // Start from beginning
+                break
+        }
+
+        // Get crypto payments grouped by day
+        const cryptoPayments = await prisma.cryptoPayment.findMany({
+            where: {
+                paymentStatus: 'finished',
+                payAmount: { not: null },
+                createdAt: { gte: startDate },
+            },
+            select: {
+                payAmount: true,
+                createdAt: true,
+                tier: true,
+            },
+        })
+
+        // Get Stripe invoices
+        const stripeInvoices: Array<{ date: Date; amount: number; tier: string }> = []
+        try {
+            let hasMore = true
+            let startingAfter: string | undefined = undefined
+            
+            while (hasMore) {
+                const invoices = await stripe.invoices.list({
+                    status: 'paid',
+                    limit: 100,
+                    starting_after: startingAfter,
+                })
+
+                for (const invoice of invoices.data) {
+                    const invoiceDate = new Date(invoice.created * 1000)
+                    if (invoiceDate >= startDate && invoice.subscription) {
+                        try {
+                            const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
+                            const priceId = subscription.items.data[0]?.price?.id
+                            if (priceId) {
+                                const price = await stripe.prices.retrieve(priceId)
+                                let tier = price.metadata?.tier || 'pro'
+                                
+                                // Infer tier from price if not in metadata
+                                if (!price.metadata?.tier && price.unit_amount) {
+                                    const priceAmount = price.unit_amount / 100
+                                    if (priceAmount >= 50) {
+                                        tier = 'elite'
+                                    } else if (priceAmount >= 9) {
+                                        tier = 'pro'
+                                    }
+                                }
+                                
+                                stripeInvoices.push({
+                                    date: invoiceDate,
+                                    amount: (invoice.amount_paid || 0) / 100,
+                                    tier,
+                                })
+                            }
+                        } catch (err) {
+                            logger.warn('Failed to process invoice for analytics:', err)
+                        }
+                    }
+                }
+
+                hasMore = invoices.has_more
+                startingAfter = invoices.data[invoices.data.length - 1]?.id
+            }
+        } catch (stripeError: any) {
+            logger.warn('Failed to fetch Stripe invoices for analytics:', stripeError.message)
+        }
+
+        // Helper function to format date as YYYY-MM-DD
+        const formatDate = (date: Date): string => {
+            return date.toISOString().split('T')[0]
+        }
+
+        // Helper function to format date as YYYY-MM (month)
+        const formatMonth = (date: Date): string => {
+            return date.toISOString().substring(0, 7)
+        }
+
+        // Aggregate daily revenue
+        const dailyRevenueMap = new Map<string, { total: number; crypto: number; stripe: number; pro: number; elite: number }>()
+        
+        // Process crypto payments
+        cryptoPayments.forEach((payment) => {
+            const dateKey = formatDate(payment.createdAt)
+            const existing = dailyRevenueMap.get(dateKey) || { total: 0, crypto: 0, stripe: 0, pro: 0, elite: 0 }
+            const amount = payment.payAmount || 0
+            existing.total += amount
+            existing.crypto += amount
+            if (payment.tier === 'pro') {
+                existing.pro += amount
+            } else if (payment.tier === 'elite') {
+                existing.elite += amount
+            }
+            dailyRevenueMap.set(dateKey, existing)
+        })
+
+        // Process Stripe invoices
+        stripeInvoices.forEach((invoice) => {
+            const dateKey = formatDate(invoice.date)
+            const existing = dailyRevenueMap.get(dateKey) || { total: 0, crypto: 0, stripe: 0, pro: 0, elite: 0 }
+            existing.total += invoice.amount
+            existing.stripe += invoice.amount
+            if (invoice.tier === 'pro') {
+                existing.pro += invoice.amount
+            } else if (invoice.tier === 'elite') {
+                existing.elite += invoice.amount
+            }
+            dailyRevenueMap.set(dateKey, existing)
+        })
+
+        // Convert to array and sort by date
+        const dailyRevenue = Array.from(dailyRevenueMap.entries())
+            .map(([date, data]) => ({
+                date,
+                total: Math.round(data.total * 100) / 100,
+                crypto: Math.round(data.crypto * 100) / 100,
+                stripe: Math.round(data.stripe * 100) / 100,
+                pro: Math.round(data.pro * 100) / 100,
+                elite: Math.round(data.elite * 100) / 100,
+            }))
+            .sort((a, b) => a.date.localeCompare(b.date))
+
+        // Aggregate monthly revenue
+        const monthlyRevenueMap = new Map<string, { total: number; crypto: number; stripe: number; pro: number; elite: number }>()
+        
+        // Process crypto payments for monthly
+        cryptoPayments.forEach((payment) => {
+            const monthKey = formatMonth(payment.createdAt)
+            const existing = monthlyRevenueMap.get(monthKey) || { total: 0, crypto: 0, stripe: 0, pro: 0, elite: 0 }
+            const amount = payment.payAmount || 0
+            existing.total += amount
+            existing.crypto += amount
+            if (payment.tier === 'pro') {
+                existing.pro += amount
+            } else if (payment.tier === 'elite') {
+                existing.elite += amount
+            }
+            monthlyRevenueMap.set(monthKey, existing)
+        })
+
+        // Process Stripe invoices for monthly
+        stripeInvoices.forEach((invoice) => {
+            const monthKey = formatMonth(invoice.date)
+            const existing = monthlyRevenueMap.get(monthKey) || { total: 0, crypto: 0, stripe: 0, pro: 0, elite: 0 }
+            existing.total += invoice.amount
+            existing.stripe += invoice.amount
+            if (invoice.tier === 'pro') {
+                existing.pro += invoice.amount
+            } else if (invoice.tier === 'elite') {
+                existing.elite += invoice.amount
+            }
+            monthlyRevenueMap.set(monthKey, existing)
+        })
+
+        // Convert to array and sort by date
+        const monthlyRevenue = Array.from(monthlyRevenueMap.entries())
+            .map(([month, data]) => ({
+                month,
+                total: Math.round(data.total * 100) / 100,
+                crypto: Math.round(data.crypto * 100) / 100,
+                stripe: Math.round(data.stripe * 100) / 100,
+                pro: Math.round(data.pro * 100) / 100,
+                elite: Math.round(data.elite * 100) / 100,
+            }))
+            .sort((a, b) => a.month.localeCompare(b.month))
+
+        // Calculate summary stats
+        const today = formatDate(now)
+        const todayStart = new Date(now)
+        todayStart.setHours(0, 0, 0, 0)
+        
+        const weekStart = new Date(now)
+        weekStart.setDate(now.getDate() - 7)
+        
+        const monthStart = new Date(now)
+        monthStart.setMonth(now.getMonth() - 1)
+        
+        const yearStart = new Date(now)
+        yearStart.setFullYear(now.getFullYear() - 1)
+
+        const calculatePeriodRevenue = (start: Date) => {
+            let total = 0
+            let crypto = 0
+            let stripe = 0
+            
+            // Crypto payments
+            cryptoPayments.forEach((payment) => {
+                if (payment.createdAt >= start) {
+                    total += payment.payAmount || 0
+                    crypto += payment.payAmount || 0
+                }
+            })
+            
+            // Stripe invoices
+            stripeInvoices.forEach((invoice) => {
+                if (invoice.date >= start) {
+                    total += invoice.amount
+                    stripe += invoice.amount
+                }
+            })
+            
+            return {
+                total: Math.round(total * 100) / 100,
+                crypto: Math.round(crypto * 100) / 100,
+                stripe: Math.round(stripe * 100) / 100,
+            }
+        }
+
+        const summary = {
+            today: calculatePeriodRevenue(todayStart),
+            thisWeek: calculatePeriodRevenue(weekStart),
+            thisMonth: calculatePeriodRevenue(monthStart),
+            thisYear: calculatePeriodRevenue(yearStart),
+            allTime: {
+                total: Math.round((cryptoPayments.reduce((sum, p) => sum + (p.payAmount || 0), 0) + stripeInvoices.reduce((sum, i) => sum + i.amount, 0)) * 100) / 100,
+                crypto: Math.round(cryptoPayments.reduce((sum, p) => sum + (p.payAmount || 0), 0) * 100) / 100,
+                stripe: Math.round(stripeInvoices.reduce((sum, i) => sum + i.amount, 0) * 100) / 100,
+            },
+        }
+
+        return c.json({
+            dailyRevenue,
+            monthlyRevenue,
+            summary,
+            period,
+        })
+    } catch (error) {
+        logger.error('Get revenue analytics error:', error)
+        return c.json({ error: 'Failed to fetch revenue analytics' }, 500)
+    }
+})
+
 // GET /api/admin/metrics/health - Get system health
 adminMetricsRoutes.get('/health', async (c) => {
     try {
