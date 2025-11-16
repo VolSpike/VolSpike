@@ -38,7 +38,7 @@ export function UserGrowthChart({ metrics }: UserGrowthChartProps) {
             <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted/50">
-                        <Users className="h-5 w-5 text-muted-foreground" />
+                        <Users className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                     </div>
                     <div>
                         <CardTitle className="text-lg font-semibold">User Growth</CardTitle>

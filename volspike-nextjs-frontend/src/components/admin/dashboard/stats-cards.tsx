@@ -30,10 +30,10 @@ export function StatsCards({ stats }: StatsCardsProps) {
             change: null,
             changeType: null as any,
             description: 'All registered users',
-            // Brand green - primary brand color
-            iconBg: 'bg-gradient-to-br from-brand-500/20 via-brand-400/15 to-brand-600/20',
+            // Subtle brand green accent - professional, not overwhelming
+            iconBg: 'bg-muted/50',
             iconColor: 'text-brand-600 dark:text-brand-400',
-            valueGradient: 'from-brand-500 to-brand-600',
+            valueColor: 'text-foreground',
         },
         {
             title: 'Active Users',
@@ -42,10 +42,10 @@ export function StatsCards({ stats }: StatsCardsProps) {
             change: null,
             changeType: null as any,
             description: 'Users active in last 30 days',
-            // Secondary blue/cyan - represents activity and growth
-            iconBg: 'bg-gradient-to-br from-sec-500/20 via-sec-400/15 to-sec-600/20',
+            // Subtle secondary blue accent
+            iconBg: 'bg-muted/50',
             iconColor: 'text-sec-600 dark:text-sec-400',
-            valueGradient: 'from-sec-500 to-sec-600',
+            valueColor: 'text-foreground',
         },
         {
             title: 'Total Revenue',
@@ -54,10 +54,10 @@ export function StatsCards({ stats }: StatsCardsProps) {
             change: null,
             changeType: null as any,
             description: 'Lifetime revenue',
-            // Elite purple - premium/valuable
-            iconBg: 'bg-gradient-to-br from-elite-500/20 via-elite-400/15 to-elite-600/20',
+            // Subtle elite purple accent
+            iconBg: 'bg-muted/50',
             iconColor: 'text-elite-600 dark:text-elite-400',
-            valueGradient: 'from-elite-500 to-elite-600',
+            valueColor: 'text-foreground',
         },
         {
             title: 'Recent Signups',
@@ -66,10 +66,10 @@ export function StatsCards({ stats }: StatsCardsProps) {
             change: null,
             changeType: null as any,
             description: 'New users in last 30 days',
-            // Rose/pink gradient - energetic, represents excitement and new beginnings - distinct and sophisticated
-            iconBg: 'bg-gradient-to-br from-rose-500/20 via-pink-500/15 to-fuchsia-500/20',
-            iconColor: 'text-rose-500 dark:text-rose-400',
-            valueGradient: 'from-rose-500 via-pink-500 to-fuchsia-500',
+            // Subtle muted accent - less prominent than others
+            iconBg: 'bg-muted/50',
+            iconColor: 'text-muted-foreground',
+            valueColor: 'text-foreground',
         },
     ]
 
@@ -91,7 +91,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className={`text-3xl font-bold bg-gradient-to-r ${card.valueGradient} bg-clip-text text-transparent mb-1.5 tracking-tight`}>
+                            <div className={`text-3xl font-bold ${card.valueColor} mb-1.5 tracking-tight`}>
                                 {card.value}
                             </div>
                             {card.change && card.changeType && (

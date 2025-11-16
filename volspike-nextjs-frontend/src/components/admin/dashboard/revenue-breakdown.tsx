@@ -129,7 +129,7 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted/50">
-                            <DollarSign className="h-5 w-5 text-muted-foreground" />
+                            <DollarSign className="h-5 w-5 text-elite-600 dark:text-elite-400" />
                         </div>
                         <div>
                             <CardTitle className="text-lg font-semibold">Revenue</CardTitle>
@@ -178,7 +178,7 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                         {/* Crypto Payments */}
                                         <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
                                             <div className="flex items-center gap-3">
-                                                <Coins className="h-4 w-4 text-muted-foreground" />
+                                                <Coins className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                                                 <span className="text-sm font-medium text-foreground">Crypto Payments</span>
                                             </div>
                                             <div className="text-right">
@@ -196,7 +196,7 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                         {/* Stripe Payments */}
                                         <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
                                             <div className="flex items-center gap-3">
-                                                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                                                <CreditCard className="h-4 w-4 text-sec-600 dark:text-sec-400" />
                                                 <span className="text-sm font-medium text-foreground">Stripe Payments</span>
                                             </div>
                                             <div className="text-right">
@@ -266,7 +266,7 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                             {proRevenue > 0 && (
                                                 <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
                                                     <div className="flex items-center gap-3">
-                                                        <Sparkles className="h-4 w-4 text-muted-foreground" />
+                                                        <Sparkles className="h-4 w-4 text-sec-600 dark:text-sec-400" />
                                                         <span className="text-sm font-medium text-foreground">Pro Tier</span>
                                                     </div>
                                                     <div className="text-right">
@@ -284,7 +284,7 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                             {eliteRevenue > 0 && (
                                                 <div className="flex items-center justify-between py-2.5 px-3 rounded-lg border border-border/40 bg-muted/20">
                                                     <div className="flex items-center gap-3">
-                                                        <Crown className="h-4 w-4 text-muted-foreground" />
+                                                        <Crown className="h-4 w-4 text-elite-600 dark:text-elite-400" />
                                                         <span className="text-sm font-medium text-foreground">Elite Tier</span>
                                                     </div>
                                                     <div className="text-right">
