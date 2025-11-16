@@ -1,12 +1,13 @@
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient({
-    datasources: {
-        db: {
-            url: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_UhnuFE0swD7A@ep-snowy-sunset-ahlodmvx-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
-        },
-    },
-})
+if (!process.env.DATABASE_URL) {
+    console.error('❌ ERROR: DATABASE_URL environment variable is required')
+    console.error('   Please set it before running this script:')
+    console.error('   export DATABASE_URL="postgresql://..."')
+    process.exit(1)
+}
+
+const prisma = new PrismaClient()
 
 async function fixMelnikovkkPayment() {
     try {
