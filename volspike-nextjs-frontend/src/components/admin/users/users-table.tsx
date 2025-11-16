@@ -457,8 +457,9 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     {getSortIcon('lastLoginAt')}
                                 </div>
                             </TableHead>
-                            <TableHead className="text-right sticky right-0 bg-card border-l-2 border-border/80 z-10 min-w-[80px] shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]">
-                                Actions
+                            <TableHead className="text-right sticky right-0 z-10 min-w-[80px] relative p-0">
+                                <div className="absolute inset-0 !bg-background border-l-2 border-border/80 shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]" style={{ opacity: 1 }} />
+                                <div className="relative z-10 p-4">Actions</div>
                             </TableHead>
                         </TableRow>
                     </TableHeader>
@@ -715,9 +716,13 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     )}
                                 </TableCell>
                                 <TableCell 
-                                    className="text-right sticky right-0 bg-card border-l-2 border-border/80 z-10 group-hover:bg-muted/30 transition-colors min-w-[80px] shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]" 
+                                    className="text-right sticky right-0 z-10 min-w-[80px] relative p-0" 
                                     onClick={(e) => e.stopPropagation()}
                                 >
+                                    {/* Solid background layer - ensures full opacity */}
+                                    <div className="absolute inset-0 !bg-background border-l-2 border-border/80 shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)] group-hover:bg-muted/20 transition-colors" style={{ opacity: 1 }} />
+                                    {/* Content wrapper */}
+                                    <div className="relative z-10 p-4 flex items-center justify-end">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
@@ -819,6 +824,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                             </div>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))
