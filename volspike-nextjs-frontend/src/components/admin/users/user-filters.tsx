@@ -349,20 +349,24 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                     {filters.search && (
                         <button
                             onClick={() => {
+                                isProgrammaticUpdate.current = true
                                 setFilters(prev => ({ ...prev, search: '' }))
                                 // Apply immediately
                                 setTimeout(() => {
                                     const params = new URLSearchParams()
                                     if (filters.role && filters.role !== 'all') params.set('role', filters.role)
                                     if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-                                    if (filters.status && filters.status !== 'all') {
+                                    if (filters.status && filters.status !== 'all' && filters.status !== '') {
                                         params.set('status', filters.status)
-                                    } else if (filters.status === '') {
-                                        // Explicit "All Status" - send 'all' to backend
-                                        params.set('status', 'all')
                                     }
                                     params.set('page', '1')
-                                    router.push(`/admin/users?${params.toString()}`)
+                                    const finalUrl = params.toString() 
+                                        ? `/admin/users?${params.toString()}` 
+                                        : '/admin/users'
+                                    router.replace(finalUrl, { scroll: false })
+                                    setTimeout(() => {
+                                        isProgrammaticUpdate.current = false
+                                    }, 100)
                                 }, 0)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors border border-blue-300/50 dark:border-blue-700/50"
@@ -375,8 +379,14 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                     {filters.role && filters.role !== 'all' && (
                         <button
                             onClick={() => {
+                                isProgrammaticUpdate.current = true
                                 setFilters(prev => ({ ...prev, role: '' }))
-                                setTimeout(() => applyFilters(), 0)
+                                setTimeout(() => {
+                                    applyFilters()
+                                    setTimeout(() => {
+                                        isProgrammaticUpdate.current = false
+                                    }, 100)
+                                }, 0)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors border border-purple-300/50 dark:border-purple-700/50"
                         >
@@ -387,8 +397,14 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                     {filters.tier && filters.tier !== 'all' && (
                         <button
                             onClick={() => {
+                                isProgrammaticUpdate.current = true
                                 setFilters(prev => ({ ...prev, tier: '' }))
-                                setTimeout(() => applyFilters(), 0)
+                                setTimeout(() => {
+                                    applyFilters()
+                                    setTimeout(() => {
+                                        isProgrammaticUpdate.current = false
+                                    }, 100)
+                                }, 0)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 text-xs font-medium hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors border border-indigo-300/50 dark:border-indigo-700/50"
                         >
