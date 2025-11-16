@@ -167,10 +167,10 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
             )}
 
             {totalBalance > 0 && (
-                <div className="rounded-lg border border-border/60 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-transparent p-3">
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
                     <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">Total Across All Chains</span>
-                        <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <span className="text-lg font-bold text-foreground">
                             {formatBalance(totalBalance)} {displayName}
                         </span>
                     </div>
@@ -209,9 +209,7 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
                                 </div>
                                 <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                                     <div className="text-right">
-                                        <p
-                                            className={`text-sm font-bold bg-gradient-to-r ${chainInfo.color} bg-clip-text text-transparent`}
-                                        >
+                                        <p className="text-sm font-bold text-foreground">
                                             {formatBalance(chain.balance)} {displayName}
                                         </p>
                                     </div>
