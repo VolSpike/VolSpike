@@ -245,6 +245,51 @@ export function CreateUserForm() {
                             )}
                         </div>
 
+                        {/* Password Display (shown after user creation) */}
+                        {createdPassword && createdEmail && (
+                            <Alert className="mt-6 border-green-500/50 bg-green-500/10">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <AlertTitle className="text-green-600 dark:text-green-400 mb-2">
+                                            ✅ User Created Successfully!
+                                        </AlertTitle>
+                                        <AlertDescription className="space-y-3">
+                                            <div>
+                                                <p className="text-sm font-medium mb-1">Email:</p>
+                                                <code className="text-sm bg-background/50 px-2 py-1 rounded border border-border">
+                                                    {createdEmail}
+                                                </code>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium mb-1">Temporary Password:</p>
+                                                <div className="flex items-center gap-2">
+                                                    <code className="flex-1 text-sm bg-background/50 px-2 py-1 rounded border border-border font-mono">
+                                                        {createdPassword}
+                                                    </code>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={handleCopyPassword}
+                                                        className="shrink-0"
+                                                    >
+                                                        {copied ? (
+                                                            <Check className="h-4 w-4 text-green-500" />
+                                                        ) : (
+                                                            <Copy className="h-4 w-4" />
+                                                        )}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-2">
+                                                ⚠️ Save this password now - you won't be able to see it again!
+                                            </p>
+                                        </AlertDescription>
+                                    </div>
+                                </div>
+                            </Alert>
+                        )}
+
                         {/* Action Buttons */}
                         <div className="flex items-center justify-between pt-4 border-t border-border/60">
                             <Button 
