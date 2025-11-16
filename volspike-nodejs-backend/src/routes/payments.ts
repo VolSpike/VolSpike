@@ -741,11 +741,33 @@ async function notifyAdminPaymentSuccess(type: string, details: Record<string, a
 // NowPayments Crypto Payment Routes
 // ============================================
 
-function extractUserIdFromOrderId(orderId?: string | null) {
-    if (!orderId || !orderId.startsWith('volspike-')) return null
+function extractUserIdFromOrderId(orderId?: string | null): string | null {
+    if (!orderId || !orderId.startsWith('volspike-')) {
+        logger.warn('Invalid order ID format', { orderId })
+        return null
+    }
+    
+    // Order ID format: volspike-{userId}-{timestamp}
+    // We need to extract userId which is everything between 'volspike-' and the last '-{timestamp}'
+    // Split by '-' and take everything except first ('volspike') and last (timestamp)
     const parts = orderId.split('-')
-    if (parts.length < 3) return null
-    return parts[1] || null
+    if (parts.length < 3) {
+        logger.warn('Order ID has insufficient parts', { orderId, partsCount: parts.length })
+        return null
+    }
+    
+    // Remove 'volspike' (first part) and timestamp (last part)
+    // Everything in between is the userId
+    const userIdParts = parts.slice(1, -1)
+    const userId = userIdParts.join('-')
+    
+    if (!userId) {
+        logger.warn('Failed to extract userId from order ID', { orderId, parts })
+        return null
+    }
+    
+    logger.debug('Extracted userId from order ID', { orderId, userId })
+    return userId
 }
 
 function inferTierFromWebhook(data: any): 'pro' | 'elite' {
@@ -1405,12 +1427,17 @@ payments.post('/nowpayments/webhook', async (c) => {
         // Find payment in database by payment_id, invoice_id, or order_id
         // Try payment_id first (if it exists), then invoice_id, then order_id
         let cryptoPayment: CryptoPaymentWithUser | null = null
+        let lookupMethod = 'none'
 
         if (payment_id) {
             cryptoPayment = await prisma.cryptoPayment.findUnique({
                 where: { paymentId: payment_id },
                 include: { user: true },
             })
+            if (cryptoPayment) {
+                lookupMethod = 'payment_id'
+                logger.info('Payment found by payment_id', { payment_id, paymentId: cryptoPayment.id })
+            }
         }
 
         if (!cryptoPayment && invoice_id) {
@@ -1420,18 +1447,71 @@ payments.post('/nowpayments/webhook', async (c) => {
             })
             if (found) {
                 cryptoPayment = found
+                lookupMethod = 'invoice_id'
+                logger.info('Payment found by invoice_id', { invoice_id, paymentId: cryptoPayment.id })
             }
         }
 
         if (!cryptoPayment && order_id) {
+            // Try exact match first
             cryptoPayment = await prisma.cryptoPayment.findFirst({
                 where: { orderId: order_id },
                 include: { user: true },
             })
+            if (cryptoPayment) {
+                lookupMethod = 'order_id_exact'
+                logger.info('Payment found by order_id (exact match)', { order_id, paymentId: cryptoPayment.id })
+            } else {
+                // Try partial match (in case of order ID format differences)
+                // Extract timestamp from order_id and search for payments with same timestamp
+                const orderIdParts = order_id.split('-')
+                if (orderIdParts.length >= 3) {
+                    const timestamp = orderIdParts[orderIdParts.length - 1]
+                    const userId = extractUserIdFromOrderId(order_id)
+                    
+                    if (userId) {
+                        // Search for payments with same user and similar timestamp
+                        const allUserPayments = await prisma.cryptoPayment.findMany({
+                            where: { userId },
+                            include: { user: true },
+                            orderBy: { createdAt: 'desc' },
+                            take: 10, // Check recent payments
+                        })
+                        
+                        // Find payment with matching timestamp in order ID
+                        const matchingPayment = allUserPayments.find(p => {
+                            if (!p.orderId) return false
+                            const paymentTimestamp = p.orderId.split('-').pop()
+                            return paymentTimestamp === timestamp
+                        })
+                        
+                        if (matchingPayment) {
+                            cryptoPayment = matchingPayment as CryptoPaymentWithUser
+                            lookupMethod = 'order_id_partial'
+                            logger.warn('Payment found by order_id (partial match - timestamp)', {
+                                webhookOrderId: order_id,
+                                dbOrderId: matchingPayment.orderId,
+                                paymentId: cryptoPayment.id,
+                            })
+                        }
+                    }
+                }
+            }
         }
 
+        // If still not found, try fallback creation
         if (!cryptoPayment) {
+            logger.warn('Payment not found by any method, attempting fallback creation', {
+                payment_id,
+                invoice_id,
+                order_id,
+                payment_status,
+            })
             cryptoPayment = await createCryptoPaymentFallbackFromWebhook(data)
+            if (cryptoPayment) {
+                lookupMethod = 'fallback_created'
+                logger.info('Payment created via fallback', { paymentId: cryptoPayment.id })
+            }
         }
 
         if (!cryptoPayment) {
@@ -1496,91 +1576,151 @@ payments.post('/nowpayments/webhook', async (c) => {
             return c.json({ error: 'Payment not found' }, 404)
         }
 
-        // Update payment status
-        // Use the ID we found (could be paymentId, invoiceId, or orderId)
-        // Must use id field for update if paymentId/invoiceId might be null
-        const updateWhere = cryptoPayment.paymentId
-            ? { paymentId: cryptoPayment.paymentId }
-            : cryptoPayment.invoiceId
-                ? { invoiceId: cryptoPayment.invoiceId }
-                : { id: cryptoPayment.id }
+        // Update payment status (unless it's finished - that will be handled in the transaction below)
+        if (payment_status !== 'finished') {
+            const updateWhere = cryptoPayment.paymentId
+                ? { paymentId: cryptoPayment.paymentId }
+                : cryptoPayment.invoiceId
+                    ? { invoiceId: cryptoPayment.invoiceId }
+                    : { id: cryptoPayment.id }
 
-        await prisma.cryptoPayment.update({
-            where: updateWhere,
-            data: {
-                paymentId: payment_id || cryptoPayment.paymentId, // Set paymentId if it was null
-                paymentStatus: payment_status,
-                payAmount: data.price_amount || cryptoPayment.payAmount,
-                payCurrency: data.price_currency || cryptoPayment.payCurrency,
-                actuallyPaid: data.actually_paid,
-                actuallyPaidCurrency: data.pay_currency || data.actually_paid_currency,
-                payAddress: data.pay_address || cryptoPayment.payAddress,
-                purchaseId: data.purchase_id || cryptoPayment.purchaseId,
-                updatedAt: new Date(),
-                ...(payment_status === 'finished' && { paidAt: new Date() }),
-            },
-        })
+            await prisma.cryptoPayment.update({
+                where: updateWhere,
+                data: {
+                    paymentId: payment_id || cryptoPayment.paymentId,
+                    paymentStatus: payment_status,
+                    payAmount: data.price_amount || cryptoPayment.payAmount,
+                    payCurrency: data.price_currency || cryptoPayment.payCurrency,
+                    actuallyPaid: data.actually_paid,
+                    actuallyPaidCurrency: data.pay_currency || data.actually_paid_currency,
+                    payAddress: data.pay_address || cryptoPayment.payAddress,
+                    purchaseId: data.purchase_id || cryptoPayment.purchaseId,
+                    updatedAt: new Date(),
+                },
+            })
+        }
 
         // Handle successful payment
         if (payment_status === 'finished') {
-            // Get user's previous tier before updating (for email notification)
-            const previousTier = cryptoPayment.user.tier
+            try {
+                // Get user's previous tier before updating (for email notification)
+                const previousTier = cryptoPayment.user.tier
 
-            // Calculate expiration date (30 days from now for subscription)
-            const expiresAt = new Date()
-            expiresAt.setDate(expiresAt.getDate() + 30) // 30-day subscription period
+                // Calculate expiration date (30 days from now for subscription)
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 30) // 30-day subscription period
 
-            // Update user tier
-            await prisma.user.update({
-                where: { id: cryptoPayment.userId },
-                data: { tier: cryptoPayment.tier },
-            })
+                // Use a transaction to ensure atomicity
+                await prisma.$transaction(async (tx) => {
+                    // Update user tier FIRST (most important)
+                    await tx.user.update({
+                        where: { id: cryptoPayment.userId },
+                        data: { tier: cryptoPayment.tier },
+                    })
 
-            // Update crypto payment with expiration date
-            await prisma.cryptoPayment.update({
-                where: { id: cryptoPayment.id },
-                data: { expiresAt } as any,
-            })
-
-            logger.info(`User ${cryptoPayment.userId} upgraded to ${cryptoPayment.tier} via crypto payment`, {
-                paymentId: payment_id,
-                previousTier,
-                newTier: cryptoPayment.tier,
-                expiresAt,
-            })
-
-            // Send email notification
-            const emailService = EmailService.getInstance()
-            if (cryptoPayment.user.email && previousTier !== cryptoPayment.tier) {
-                await emailService.sendTierUpgradeEmail({
-                    email: cryptoPayment.user.email,
-                    name: undefined,
-                    newTier: cryptoPayment.tier,
-                    previousTier: previousTier,
-                }).catch((error) => {
-                    logger.error('Failed to send tier upgrade email:', error)
+                    // Update crypto payment with expiration date and payment details
+                    await tx.cryptoPayment.update({
+                        where: { id: cryptoPayment.id },
+                        data: {
+                            expiresAt,
+                            paymentId: payment_id || cryptoPayment.paymentId,
+                            paymentStatus: 'finished',
+                            payAmount: data.price_amount || cryptoPayment.payAmount,
+                            payCurrency: data.price_currency || cryptoPayment.payCurrency,
+                            actuallyPaid: data.actually_paid ? Number(data.actually_paid) : cryptoPayment.actuallyPaid,
+                            actuallyPaidCurrency: data.pay_currency || data.actually_paid_currency || cryptoPayment.actuallyPaidCurrency,
+                            payAddress: data.pay_address || cryptoPayment.payAddress,
+                            purchaseId: data.purchase_id || cryptoPayment.purchaseId,
+                            paidAt: new Date(),
+                        } as any,
+                    })
                 })
-            }
 
-            // Broadcast tier change via WebSocket
-            if (io) {
-                io.to(`user-${cryptoPayment.userId}`).emit('tier-changed', { tier: cryptoPayment.tier })
-                logger.info(`Broadcasted tier change to user ${cryptoPayment.userId}`)
-            }
+                logger.info(`✅ User ${cryptoPayment.userId} upgraded to ${cryptoPayment.tier} via crypto payment`, {
+                    paymentId: payment_id,
+                    previousTier,
+                    newTier: cryptoPayment.tier,
+                    expiresAt,
+                    lookupMethod,
+                    orderId: order_id,
+                })
 
-            await notifyAdminPaymentSuccess('CRYPTO_PAYMENT_FINISHED', {
-                paymentId: payment_id || cryptoPayment.paymentId,
-                invoiceId: invoice_id || cryptoPayment.invoiceId,
-                orderId: order_id || cryptoPayment.orderId,
-                tier: cryptoPayment.tier,
-                userId: cryptoPayment.userId,
-                userEmail: cryptoPayment.user.email,
-                amountUsd: cryptoPayment.payAmount,
-                payCurrency: cryptoPayment.payCurrency,
-                actuallyPaid: cryptoPayment.actuallyPaid,
-                actuallyPaidCurrency: cryptoPayment.actuallyPaidCurrency,
-                expiresAt,
-            })
+                // Send email notification (non-blocking)
+                const emailService = EmailService.getInstance()
+                if (cryptoPayment.user.email && previousTier !== cryptoPayment.tier) {
+                    emailService.sendTierUpgradeEmail({
+                        email: cryptoPayment.user.email,
+                        name: undefined,
+                        newTier: cryptoPayment.tier,
+                        previousTier: previousTier,
+                    }).catch((error) => {
+                        logger.error('Failed to send tier upgrade email (non-critical):', error)
+                    })
+                }
+
+                // Broadcast tier change via WebSocket (non-blocking)
+                if (io) {
+                    try {
+                        io.to(`user-${cryptoPayment.userId}`).emit('tier-changed', { tier: cryptoPayment.tier })
+                        logger.info(`Broadcasted tier change to user ${cryptoPayment.userId}`)
+                    } catch (wsError) {
+                        logger.error('Failed to broadcast tier change (non-critical):', wsError)
+                    }
+                }
+
+                // Notify admin (non-blocking)
+                notifyAdminPaymentSuccess('CRYPTO_PAYMENT_FINISHED', {
+                    paymentId: payment_id || cryptoPayment.paymentId,
+                    invoiceId: invoice_id || cryptoPayment.invoiceId,
+                    orderId: order_id || cryptoPayment.orderId,
+                    tier: cryptoPayment.tier,
+                    userId: cryptoPayment.userId,
+                    userEmail: cryptoPayment.user.email,
+                    amountUsd: cryptoPayment.payAmount,
+                    payCurrency: cryptoPayment.payCurrency,
+                    actuallyPaid: cryptoPayment.actuallyPaid,
+                    actuallyPaidCurrency: cryptoPayment.actuallyPaidCurrency,
+                    expiresAt,
+                    lookupMethod,
+                }).catch((error) => {
+                    logger.error('Failed to notify admin (non-critical):', error)
+                })
+            } catch (upgradeError) {
+                // CRITICAL: Log error but don't fail the webhook
+                // The payment was received, we MUST upgrade the user
+                logger.error('CRITICAL ERROR during user upgrade - attempting recovery', {
+                    error: upgradeError instanceof Error ? {
+                        name: upgradeError.name,
+                        message: upgradeError.message,
+                        stack: upgradeError.stack,
+                    } : String(upgradeError),
+                    userId: cryptoPayment.userId,
+                    tier: cryptoPayment.tier,
+                    paymentId: payment_id,
+                })
+
+                // Attempt recovery: try to upgrade user directly
+                try {
+                    await prisma.user.update({
+                        where: { id: cryptoPayment.userId },
+                        data: { tier: cryptoPayment.tier },
+                    })
+                    logger.info('✅ Recovery successful: User tier updated directly')
+                } catch (recoveryError) {
+                    logger.error('CRITICAL: Recovery failed - user upgrade may be incomplete', {
+                        error: recoveryError,
+                        userId: cryptoPayment.userId,
+                    })
+                    // Still return success to NowPayments, but notify admin
+                    await notifyAdminPaymentIssue('CRYPTO_PAYMENT_UPGRADE_FAILED', {
+                        userId: cryptoPayment.userId,
+                        userEmail: cryptoPayment.user.email,
+                        tier: cryptoPayment.tier,
+                        paymentId: payment_id,
+                        error: recoveryError instanceof Error ? recoveryError.message : String(recoveryError),
+                    })
+                }
+            }
         }
 
         logger.info(`NowPayments webhook event processed successfully: ${payment_status}`)
