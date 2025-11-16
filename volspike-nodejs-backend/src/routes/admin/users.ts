@@ -346,7 +346,7 @@ adminUserRoutes.post('/:id/reset-password', async (c) => {
         // Get user details
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { email: true, passwordHash: true },
+            select: { id: true, email: true, passwordHash: true },
         })
 
         if (!user) {
@@ -362,7 +362,8 @@ adminUserRoutes.post('/:id/reset-password', async (c) => {
         }
 
         // Generate password reset token
-        const { emailService } = await import('../../services/email')
+        const EmailService = (await import('../../services/email')).default
+        const emailService = EmailService.getInstance()
         const token = emailService.generateVerificationToken()
         const identifier = `${user.email}|pwreset`
 
@@ -398,16 +399,18 @@ adminUserRoutes.post('/:id/reset-password', async (c) => {
 
         // Log audit event
         const { AuditService } = await import('../../services/admin/audit-service')
-        await AuditService.logUserAction({
-            actorUserId: adminUser?.id || '',
-            action: 'RESET_PASSWORD',
-            targetType: 'USER',
-            targetId: userId,
-            metadata: {
+        await AuditService.logUserAction(
+            adminUser?.id || '',
+            'RESET_PASSWORD',
+            'USER',
+            userId,
+            undefined, // oldValues
+            undefined, // newValues
+            {
                 userEmail: user.email,
                 emailSent: true,
-            },
-        })
+            }
+        )
 
         return c.json({
             success: true,
