@@ -664,84 +664,89 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         <DropdownMenuContent 
                                             align="end" 
                                             usePortal={true}
-                                            className="w-56 rounded-lg border border-border/60 bg-card/95 backdrop-blur-sm shadow-lg p-1 z-[9999]"
+                                            className="w-64 rounded-xl border-2 border-border/80 bg-background shadow-2xl backdrop-blur-xl p-2 z-[9999] animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-200"
+                                            style={{
+                                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+                                            }}
                                         >
-                                            <DropdownMenuLabel className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                            <DropdownMenuLabel className="px-3 py-2.5 mb-1 text-xs font-bold text-foreground uppercase tracking-wider border-b border-border/60 bg-muted/30 rounded-t-lg -mx-2 -mt-2 mb-2">
                                                 Actions
                                             </DropdownMenuLabel>
-                                            <DropdownMenuItem
-                                                onClick={() => handleAction('edit', user)}
-                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
-                                            >
-                                                <Edit className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                                                <div className="flex flex-col">
-                                                    <span>Edit User</span>
-                                                    <span className="text-xs text-muted-foreground">Change tier, role, or status</span>
-                                                </div>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={() => handleAction('view-subscription', user)}
-                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
-                                            >
-                                                <DollarSign className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                                                <div className="flex flex-col">
-                                                    <span>View Subscription</span>
-                                                    <span className="text-xs text-muted-foreground">See payment and billing details</span>
-                                                </div>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator className="my-1 bg-border/60" />
-                                            {user.status === 'ACTIVE' ? (
+                                            <div className="space-y-0.5">
+                                                <DropdownMenuItem
+                                                    onClick={() => handleAction('edit', user)}
+                                                    className="px-3 py-2.5 cursor-pointer rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-all duration-150 focus:bg-blue-50 dark:focus:bg-blue-950/30 group border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
+                                                >
+                                                    <Edit className="h-4 w-4 mr-3 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                                                    <div className="flex flex-col flex-1">
+                                                        <span className="font-medium text-foreground group-hover:text-blue-700 dark:group-hover:text-blue-300">Edit User</span>
+                                                        <span className="text-xs text-muted-foreground group-hover:text-blue-600/80 dark:group-hover:text-blue-400/80">Change tier, role, or status</span>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={() => handleAction('view-subscription', user)}
+                                                    className="px-3 py-2.5 cursor-pointer rounded-lg hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-150 focus:bg-purple-50 dark:focus:bg-purple-950/30 group border border-transparent hover:border-purple-200 dark:hover:border-purple-800"
+                                                >
+                                                    <DollarSign className="h-4 w-4 mr-3 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+                                                    <div className="flex flex-col flex-1">
+                                                        <span className="font-medium text-foreground group-hover:text-purple-700 dark:group-hover:text-purple-300">View Subscription</span>
+                                                        <span className="text-xs text-muted-foreground group-hover:text-purple-600/80 dark:group-hover:text-purple-400/80">See payment and billing details</span>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                                <div className="my-1.5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                                                {user.status === 'ACTIVE' ? (
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            if (confirm(`Suspend ${user.email || user.walletAddress}?\n\nThis will temporarily disable their account. They will not be able to sign in until reactivated.`)) {
+                                                                handleAction('suspend', user)
+                                                            }
+                                                        }}
+                                                        className="px-3 py-2.5 cursor-pointer rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all duration-150 focus:bg-amber-50 dark:focus:bg-amber-950/40 group border border-transparent hover:border-amber-300 dark:hover:border-amber-700"
+                                                    >
+                                                        <Ban className="h-4 w-4 mr-3 text-amber-600 dark:text-amber-500 group-hover:scale-110 transition-transform" />
+                                                        <div className="flex flex-col flex-1">
+                                                            <span className="font-medium text-amber-700 dark:text-amber-400 group-hover:text-amber-800 dark:group-hover:text-amber-300">Suspend User</span>
+                                                            <span className="text-xs text-amber-600/90 dark:text-amber-400/90">Temporarily disable account</span>
+                                                        </div>
+                                                    </DropdownMenuItem>
+                                                ) : (
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleAction('activate', user)}
+                                                        className="px-3 py-2.5 cursor-pointer rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all duration-150 focus:bg-emerald-50 dark:focus:bg-emerald-950/40 group border border-transparent hover:border-emerald-300 dark:hover:border-emerald-700"
+                                                    >
+                                                        <RefreshCw className="h-4 w-4 mr-3 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                                                        <div className="flex flex-col flex-1">
+                                                            <span className="font-medium text-emerald-700 dark:text-emerald-400 group-hover:text-emerald-800 dark:group-hover:text-emerald-300">Activate User</span>
+                                                            <span className="text-xs text-emerald-600/90 dark:text-emerald-400/90">Restore account access</span>
+                                                        </div>
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem
+                                                    onClick={() => handleAction('reset-password', user)}
+                                                    className="px-3 py-2.5 cursor-pointer rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all duration-150 focus:bg-indigo-50 dark:focus:bg-indigo-950/30 group border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800"
+                                                >
+                                                    <Mail className="h-4 w-4 mr-3 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+                                                    <div className="flex flex-col flex-1">
+                                                        <span className="font-medium text-foreground group-hover:text-indigo-700 dark:group-hover:text-indigo-300">Reset Password</span>
+                                                        <span className="text-xs text-muted-foreground group-hover:text-indigo-600/80 dark:group-hover:text-indigo-400/80">Send password reset email</span>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                                <div className="my-1.5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
                                                 <DropdownMenuItem
                                                     onClick={() => {
-                                                        if (confirm(`Suspend ${user.email || user.walletAddress}?\n\nThis will temporarily disable their account. They will not be able to sign in until reactivated.`)) {
-                                                            handleAction('suspend', user)
+                                                        if (confirm(`Delete ${user.email || user.walletAddress}?\n\nThis will permanently disable their account (soft delete). This action cannot be undone.`)) {
+                                                            handleAction('delete', user)
                                                         }
                                                     }}
-                                                    className="px-3 py-2 cursor-pointer rounded-md hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors focus:bg-amber-50 dark:focus:bg-amber-950/20"
+                                                    className="px-3 py-2.5 cursor-pointer rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition-all duration-150 focus:bg-red-50 dark:focus:bg-red-950/40 group border border-transparent hover:border-red-300 dark:hover:border-red-700"
                                                 >
-                                                    <Ban className="h-4 w-4 mr-2.5 text-amber-600 dark:text-amber-500" />
-                                                    <div className="flex flex-col">
-                                                        <span className="text-amber-700 dark:text-amber-400">Suspend User</span>
-                                                        <span className="text-xs text-amber-600/80 dark:text-amber-400/80">Temporarily disable account</span>
+                                                    <Trash className="h-4 w-4 mr-3 text-red-600 dark:text-red-400 group-hover:scale-110 transition-transform" />
+                                                    <div className="flex flex-col flex-1">
+                                                        <span className="font-medium text-red-700 dark:text-red-400 group-hover:text-red-800 dark:group-hover:text-red-300">Delete User</span>
+                                                        <span className="text-xs text-red-600/90 dark:text-red-400/90">Permanently disable account</span>
                                                     </div>
                                                 </DropdownMenuItem>
-                                            ) : (
-                                                <DropdownMenuItem
-                                                    onClick={() => handleAction('activate', user)}
-                                                    className="px-3 py-2 cursor-pointer rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
-                                                >
-                                                    <RefreshCw className="h-4 w-4 mr-2.5 text-emerald-600 dark:text-emerald-400" />
-                                                    <div className="flex flex-col">
-                                                        <span className="text-emerald-700 dark:text-emerald-400">Activate User</span>
-                                                        <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80">Restore account access</span>
-                                                    </div>
-                                                </DropdownMenuItem>
-                                            )}
-                                            <DropdownMenuItem
-                                                onClick={() => handleAction('reset-password', user)}
-                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-muted/80 transition-colors focus:bg-muted/80"
-                                            >
-                                                <Mail className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                                                <div className="flex flex-col">
-                                                    <span>Reset Password</span>
-                                                    <span className="text-xs text-muted-foreground">Send password reset email</span>
-                                                </div>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator className="my-1 bg-border/60" />
-                                            <DropdownMenuItem
-                                                onClick={() => {
-                                                    if (confirm(`Delete ${user.email || user.walletAddress}?\n\nThis will permanently disable their account (soft delete). This action cannot be undone.`)) {
-                                                        handleAction('delete', user)
-                                                    }
-                                                }}
-                                                className="px-3 py-2 cursor-pointer rounded-md hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors focus:bg-red-50 dark:focus:bg-red-950/20"
-                                            >
-                                                <Trash className="h-4 w-4 mr-2.5 text-red-600 dark:text-red-400" />
-                                                <div className="flex flex-col">
-                                                    <span className="text-red-700 dark:text-red-400">Delete User</span>
-                                                    <span className="text-xs text-red-600/80 dark:text-red-400/80">Permanently disable account</span>
-                                                </div>
-                                            </DropdownMenuItem>
+                                            </div>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
