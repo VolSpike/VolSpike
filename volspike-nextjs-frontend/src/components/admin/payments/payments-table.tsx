@@ -337,7 +337,8 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                             })
                         )}
                     </TableBody>
-                </Table>
+                    </Table>
+                </div>
             </div>
 
             {/* Pagination */}
