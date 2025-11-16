@@ -128,14 +128,17 @@ export class UserManagementService {
             // Generate temporary password if not provided
             const tempPassword = data.temporaryPassword || this.generateTempPassword()
 
-            // Create user
+            // Hash the password for storage
+            const passwordHash = await bcrypt.hash(tempPassword, 12)
+
+            // Create user with password hash
             const user = await prisma.user.create({
                 data: {
                     email: data.email,
                     tier: data.tier,
                     role: data.role,
-                    // Note: Add passwordHash field to schema if needed
-                    // passwordHash: await bcrypt.hash(tempPassword, 12),
+                    passwordHash: passwordHash,
+                    emailVerified: new Date(), // Mark as verified since admin created it
                 },
             })
 
