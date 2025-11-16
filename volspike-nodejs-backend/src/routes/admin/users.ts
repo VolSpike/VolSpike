@@ -439,6 +439,70 @@ adminUserRoutes.get('/', async (c) => {
     }
 })
 
+// POST /api/admin/users/bulk - Execute bulk actions on multiple users
+// IMPORTANT: This must come BEFORE /:id routes to avoid route matching conflicts
+adminUserRoutes.post('/bulk', async (c) => {
+    try {
+        const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+
+        const body = await c.req.json()
+        logger.info('📦 Bulk action request received', {
+            action: body.action,
+            userIdsCount: body.userIds?.length,
+            userIds: body.userIds,
+            adminEmail: adminUser.email,
+            fullBody: body,
+        })
+
+        const data = bulkActionSchema.parse(body)
+        
+        logger.info('🔍 Bulk action request parsed', {
+            action: data.action,
+            userIdsCount: data.userIds.length,
+            userIds: data.userIds,
+            hasParams: !!data.params,
+        })
+
+        const result = await UserManagementService.executeBulkAction(
+            data,
+            adminUser.id
+        )
+
+        logger.info('✅ Bulk action completed', {
+            action: data.action,
+            userIdsCount: data.userIds.length,
+            resultsCount: result.results.length,
+            successCount: result.results.filter((r: any) => r.success).length,
+            failureCount: result.results.filter((r: any) => !r.success).length,
+        })
+
+        return c.json(result)
+    } catch (error: any) {
+        logger.error('❌ Bulk action error:', {
+            message: error?.message,
+            stack: error?.stack,
+            name: error?.name,
+            issues: error?.issues,
+        })
+        
+        if (error?.issues) {
+            // Zod validation error
+            return c.json({
+                error: 'Validation failed',
+                details: error.issues,
+            }, 400)
+        }
+
+        return c.json({
+            error: 'Bulk action failed',
+            message: error?.message || 'Unknown error occurred',
+        }, 500)
+    }
+})
+
 // GET /api/admin/users/:id - Get user details
 adminUserRoutes.get('/:id', async (c) => {
     try {
@@ -675,69 +739,6 @@ adminUserRoutes.post('/:id/reset-password', async (c) => {
     } catch (error) {
         logger.error('Reset password error:', error)
         return c.json({ error: 'Failed to reset password' }, 500)
-    }
-})
-
-// POST /api/admin/users/bulk - Execute bulk actions on multiple users
-adminUserRoutes.post('/bulk', async (c) => {
-    try {
-        const adminUser = c.get('adminUser')
-        if (!adminUser) {
-            return c.json({ error: 'Unauthorized' }, 401)
-        }
-
-        const body = await c.req.json()
-        logger.info('📦 Bulk action request received', {
-            action: body.action,
-            userIdsCount: body.userIds?.length,
-            userIds: body.userIds,
-            adminEmail: adminUser.email,
-            fullBody: body,
-        })
-
-        const data = bulkActionSchema.parse(body)
-        
-        logger.info('🔍 Bulk action request parsed', {
-            action: data.action,
-            userIdsCount: data.userIds.length,
-            userIds: data.userIds,
-            hasParams: !!data.params,
-        })
-
-        const result = await UserManagementService.executeBulkAction(
-            data,
-            adminUser.id
-        )
-
-        logger.info('✅ Bulk action completed', {
-            action: data.action,
-            userIdsCount: data.userIds.length,
-            resultsCount: result.results.length,
-            successCount: result.results.filter((r: any) => r.success).length,
-            failureCount: result.results.filter((r: any) => !r.success).length,
-        })
-
-        return c.json(result)
-    } catch (error: any) {
-        logger.error('❌ Bulk action error:', {
-            message: error?.message,
-            stack: error?.stack,
-            name: error?.name,
-            issues: error?.issues,
-        })
-        
-        if (error?.issues) {
-            // Zod validation error
-            return c.json({
-                error: 'Validation failed',
-                details: error.issues,
-            }, 400)
-        }
-
-        return c.json({
-            error: 'Bulk action failed',
-            message: error?.message || 'Unknown error occurred',
-        }, 500)
     }
 })
 
