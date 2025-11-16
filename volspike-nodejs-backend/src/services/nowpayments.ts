@@ -239,14 +239,14 @@ export class NowPaymentsService {
 
       // First get invoice details to extract pay_currency
       const invoice = await this.getInvoiceStatus(invoiceId)
-      
+
       if (!invoice.pay_currency) {
         throw new Error('Invoice does not have pay_currency set. User must select currency first on NowPayments page.')
       }
 
       // Get invoice details to get price_amount
-      const priceAmount = typeof invoice.price_amount === 'string' 
-        ? parseFloat(invoice.price_amount) 
+      const priceAmount = typeof invoice.price_amount === 'string'
+        ? parseFloat(invoice.price_amount)
         : invoice.price_amount || 0
 
       // Create payment using invoice details

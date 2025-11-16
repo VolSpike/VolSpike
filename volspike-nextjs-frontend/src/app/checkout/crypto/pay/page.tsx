@@ -40,21 +40,101 @@ export default function CryptoPaymentPage() {
   const [polling, setPolling] = useState(false)
 
   // Generate Solana URI scheme for QR code
+  // Solana Pay spec: solana:<address>?amount=<lamports>&spl-token=<mint>&reference=<reference>&label=<label>&message=<message>
+  // Phantom wallet recognizes this format and opens automatically
   const solanaUri = useMemo(() => {
     if (!paymentDetails?.payAddress || !paymentDetails?.payAmount) return null
 
-    // Format: solana:<address>?amount=<amount>&label=<label>&message=<message>
-    const params = new URLSearchParams()
-    params.set('amount', paymentDetails.payAmount.toString())
-    params.set('label', 'VolSpike Payment')
-    params.set('message', `Upgrade to ${paymentDetails.tier.toUpperCase()} tier`)
+    try {
+      const currency = paymentDetails.payCurrency?.toLowerCase() || ''
+      const isSOL = currency === 'sol'
+      const isUSDT = currency.includes('usdt')
+      const isUSDC = currency.includes('usdc')
 
-    return `solana:${paymentDetails.payAddress}?${params.toString()}`
+      // SPL Token mint addresses (Solana mainnet)
+      const SPL_TOKEN_MINTS: Record<string, string> = {
+        'usdt': 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT on Solana
+        'usdc': 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
+      }
+
+      // Format amount correctly
+      // For SOL: amount in lamports (SOL * 1e9)
+      // For SPL tokens: amount in smallest unit (token * 1e6 for USDT/USDC with 6 decimals)
+      let amountInSmallestUnit: string
+      let splTokenMint: string | null = null
+
+      if (isSOL) {
+        // SOL amount in lamports
+        const lamports = Math.floor(paymentDetails.payAmount * 1e9)
+        amountInSmallestUnit = lamports.toString()
+      } else if (isUSDT) {
+        // USDT amount in smallest unit (6 decimals)
+        const smallestUnit = Math.floor(paymentDetails.payAmount * 1e6)
+        amountInSmallestUnit = smallestUnit.toString()
+        splTokenMint = SPL_TOKEN_MINTS.usdt
+      } else if (isUSDC) {
+        // USDC amount in smallest unit (6 decimals)
+        const smallestUnit = Math.floor(paymentDetails.payAmount * 1e6)
+        amountInSmallestUnit = smallestUnit.toString()
+        splTokenMint = SPL_TOKEN_MINTS.usdc
+      } else {
+        // For other tokens, use decimal amount (Phantom will handle it)
+        amountInSmallestUnit = paymentDetails.payAmount.toString()
+      }
+
+      // Build Solana Pay URI
+      const params = new URLSearchParams()
+      
+      // Amount is required
+      params.set('amount', amountInSmallestUnit)
+      
+      // SPL token mint address (required for tokens, not for SOL)
+      if (splTokenMint && !isSOL) {
+        params.set('spl-token', splTokenMint)
+      }
+      
+      // Optional metadata
+      params.set('label', 'VolSpike Payment')
+      params.set('message', `Upgrade to ${paymentDetails.tier.toUpperCase()} tier`)
+      
+      // Reference for tracking (base58 encoded order ID)
+      if (paymentDetails.orderId) {
+        // Note: reference should be base58 encoded, but URLSearchParams will handle encoding
+        params.set('reference', paymentDetails.orderId)
+      }
+
+      const uri = `solana:${paymentDetails.payAddress}?${params.toString()}`
+      
+      // Debug logging
+      console.log('[CryptoPaymentPage] Generated Solana Pay URI:', {
+        payAddress: paymentDetails.payAddress,
+        payAmount: paymentDetails.payAmount,
+        payCurrency: paymentDetails.payCurrency,
+        isSOL,
+        isUSDT,
+        isUSDC,
+        amountInSmallestUnit,
+        splTokenMint,
+        uri,
+        decodedParams: Object.fromEntries(params),
+        fullUri: uri,
+      })
+
+      return uri
+    } catch (error) {
+      console.error('[CryptoPaymentPage] Error generating Solana URI:', error)
+      return null
+    }
   }, [paymentDetails])
 
   // Generate QR code
   useEffect(() => {
-    if (!solanaUri) return
+    if (!solanaUri) {
+      console.warn('[CryptoPaymentPage] No Solana URI available for QR code generation')
+      return
+    }
+
+    console.log('[CryptoPaymentPage] Generating QR code for Solana URI:', solanaUri)
 
     QRCode.toDataURL(solanaUri, {
       width: 300,
@@ -63,12 +143,21 @@ export default function CryptoPaymentPage() {
         dark: '#000000',
         light: '#FFFFFF',
       },
+      errorCorrectionLevel: 'M', // Medium error correction for better scanning
     })
       .then((url) => {
+        console.log('[CryptoPaymentPage] QR code generated successfully', {
+          uriLength: solanaUri.length,
+          qrCodeSize: url.length,
+        })
         setQrCodeDataUrl(url)
       })
       .catch((err) => {
-        console.error('QR code generation error:', err)
+        console.error('[CryptoPaymentPage] QR code generation error:', {
+          error: err,
+          uri: solanaUri,
+          uriLength: solanaUri.length,
+        })
         toast.error('Failed to generate QR code')
       })
   }, [solanaUri])
@@ -326,12 +415,27 @@ export default function CryptoPaymentPage() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground text-center max-w-sm">
-                  Scan with Phantom wallet app on your phone. The QR code uses Solana URI scheme to automatically open your wallet.
+                  Scan with Phantom wallet app on your phone. The QR code uses Solana Pay URI scheme to automatically open your wallet.
                 </p>
+                {/* Debug info (development only) */}
+                {process.env.NODE_ENV === 'development' && solanaUri && (
+                  <div className="w-full p-3 bg-muted/50 rounded-lg border border-border/50">
+                    <p className="text-xs font-mono text-muted-foreground break-all">
+                      <strong className="block mb-1">Solana Pay URI:</strong>
+                      {solanaUri}
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="flex items-center justify-center p-12 bg-muted/20 rounded-lg">
+              <div className="flex flex-col items-center justify-center p-12 bg-muted/20 rounded-lg gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Generating QR code...</p>
+                {!solanaUri && (
+                  <p className="text-xs text-destructive mt-2">
+                    Waiting for payment details...
+                  </p>
+                )}
               </div>
             )}
 

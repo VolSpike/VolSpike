@@ -1040,6 +1040,114 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             priceAmount,
         })
 
+        // If currency is selected, use payment API to get pay_address immediately for QR code
+        // Otherwise, use invoice API for hosted checkout where user selects currency
+        const usePaymentAPI = !!payCurrency // Use payment API if user explicitly selected a currency
+
+        if (usePaymentAPI) {
+            // Create payment directly (gives us pay_address immediately for QR code)
+            logger.info('Using payment API for test checkout (currency already selected)', {
+                payCurrency: finalPayCurrency,
+                priceAmount,
+                orderId,
+            })
+
+            const paymentParams: any = {
+                price_amount: priceAmount,
+                price_currency: 'usd',
+                pay_currency: finalPayCurrency,
+                order_id: orderId,
+                order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
+                ipn_callback_url: ipnCallbackUrl,
+                success_url: successUrl,
+                cancel_url: cancelUrl,
+            }
+
+            const payment = await nowpayments.createPayment(paymentParams)
+
+            const paymentId = payment.payment_id
+            const payAddress = payment.pay_address
+            const payAmount = payment.pay_amount
+            const payCurrencyFromPayment = payment.pay_currency
+
+            logger.info('NowPayments test payment created successfully', {
+                paymentId,
+                payAddress,
+                payAmount,
+                payCurrency: payCurrencyFromPayment,
+                orderId,
+                hasPaymentId: !!paymentId,
+                hasPayAddress: !!payAddress,
+                fullResponse: JSON.stringify(payment, null, 2),
+            })
+
+            if (!paymentId) {
+                logger.error('CRITICAL: NowPayments test payment response missing payment_id', {
+                    paymentResponse: payment,
+                    allKeys: Object.keys(payment),
+                })
+                throw new Error('NowPayments API did not return payment_id')
+            }
+
+            if (!payAddress) {
+                logger.error('CRITICAL: NowPayments test payment response missing pay_address', {
+                    paymentId,
+                    paymentResponse: payment,
+                    allKeys: Object.keys(payment),
+                })
+                throw new Error('NowPayments API did not return pay_address')
+            }
+
+            // Store payment in database
+            try {
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+                const cryptoPayment = await prisma.cryptoPayment.create({
+                    data: {
+                        userId: user.id,
+                        paymentStatus: payment.payment_status || 'waiting',
+                        tier: tier,
+                        paymentId: String(paymentId),
+                        invoiceId: `test-payment-${paymentId}`, // Use payment ID as invoice ID placeholder (required field)
+                        orderId: orderId,
+                        paymentUrl: `${frontendUrl}/checkout/crypto/pay?paymentId=${paymentId}`,
+                        payAddress: payAddress,
+                        payAmount: priceAmount,
+                        payCurrency: 'usd',
+                        actuallyPaidCurrency: payCurrencyFromPayment,
+                    },
+                })
+
+                logger.info('TEST crypto payment record created in database', {
+                    paymentId: cryptoPayment.id,
+                    nowpaymentsPaymentId: paymentId,
+                    orderId,
+                    userId: user.id,
+                    testAmount: priceAmount,
+                })
+
+                return c.json({
+                    paymentId: String(paymentId),
+                    invoiceId: null,
+                    paymentUrl: `${frontendUrl}/checkout/crypto/pay?paymentId=${paymentId}`,
+                    payAddress: payAddress,
+                    payAmount: payAmount,
+                    payCurrency: payCurrencyFromPayment,
+                    priceAmount: priceAmount,
+                    priceCurrency: 'usd',
+                    isTestPayment: true,
+                    testAmount: priceAmount,
+                })
+            } catch (dbError) {
+                logger.error('Failed to create TEST crypto payment record', {
+                    error: dbError,
+                    paymentId,
+                    orderId,
+                })
+                throw dbError
+            }
+        }
+
+        // Fallback to invoice API (for cases where currency not selected)
         // Create invoice with NowPayments (hosted checkout flow)
         const invoice = await nowpayments.createInvoice({
             price_amount: priceAmount,
@@ -1328,7 +1436,7 @@ payments.post('/nowpayments/checkout', async (c) => {
             // Store payment in database
             try {
                 const existingPayment = await prisma.cryptoPayment.findFirst({
-                    where: { 
+                    where: {
                         OR: [
                             { paymentId: String(paymentId) },
                             { orderId: orderId },
