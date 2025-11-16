@@ -55,18 +55,18 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
 
         return (
             <AdminLayout>
-                <div className="space-y-6">
-                    {/* Header with user count and actions */}
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-4 sm:space-y-6">
+                    {/* Header with user count and actions - Responsive */}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="rounded-lg border border-border/60 bg-card/50 px-4 py-2 backdrop-blur-sm">
-                                <span className="text-sm font-semibold text-foreground">
+                            <div className="rounded-lg border border-border/60 bg-card/50 px-3 py-1.5 sm:px-4 sm:py-2 backdrop-blur-sm">
+                                <span className="text-sm sm:text-base font-semibold text-foreground">
                                     {usersData.pagination.total.toLocaleString()}
                                 </span>
                                 <span className="text-xs text-muted-foreground ml-1.5">users</span>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <UserActions />
                         </div>
                     </div>

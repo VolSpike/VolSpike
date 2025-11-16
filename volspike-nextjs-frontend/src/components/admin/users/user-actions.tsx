@@ -81,13 +81,12 @@ export function UserActions() {
     }
 
     return (
-        <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2 flex-wrap">
                 <Dialog open={createUserOpen} onOpenChange={setCreateUserOpen}>
                     <DialogTrigger asChild>
-                        <Button className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all">
-                            <UserPlus className="h-4 w-4" />
-                            <span>Create User</span>
+                        <Button className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all text-sm sm:text-base">
+                            <UserPlus className="h-4 w-4 flex-shrink-0" />
+                            <span className="whitespace-nowrap">Create User</span>
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -158,9 +157,10 @@ export function UserActions() {
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="flex items-center space-x-2">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span>More Actions</span>
+                        <Button variant="outline" className="flex items-center gap-2 text-sm sm:text-base">
+                            <MoreHorizontal className="h-4 w-4 flex-shrink-0" />
+                            <span className="whitespace-nowrap hidden sm:inline">More Actions</span>
+                            <span className="whitespace-nowrap sm:hidden">More</span>
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
