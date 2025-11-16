@@ -536,7 +536,7 @@ export function DashboardWalletBalances() {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                                        <div className="text-right">
+                                        <div className="text-right min-w-[120px]">
                                             <p
                                                 className={`text-sm font-semibold transition-colors duration-200 ${
                                                     isBalanceLoaded
@@ -554,17 +554,18 @@ export function DashboardWalletBalances() {
                                                 </p>
                                             )}
                                         </div>
-                                        {isMultiChain && (
-                                            <div className={`flex items-center justify-center w-6 h-6 rounded-md transition-all duration-200 ${
-                                                isExpanded 
+                                        {/* Always reserve space for chevron to keep balances aligned */}
+                                        <div className={`flex items-center justify-center w-6 h-6 rounded-md transition-all duration-200 flex-shrink-0 ${
+                                            isMultiChain
+                                                ? isExpanded 
                                                     ? 'bg-muted' 
                                                     : 'bg-muted/50 group-hover:bg-muted'
-                                            }`}>
-                                                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-                                                    isExpanded ? 'rotate-180' : ''
-                                                }`} />
-                                            </div>
-                                        )}
+                                                : 'opacity-0 pointer-events-none'
+                                        }`}>
+                                            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                                                isExpanded ? 'rotate-180' : ''
+                                            }`} />
+                                        </div>
                                     </div>
                                 </div>
                                 {/* Multi-chain balance view - expanded inline */}
