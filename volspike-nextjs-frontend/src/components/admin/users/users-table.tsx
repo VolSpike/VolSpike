@@ -147,32 +147,21 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
         }
     }, [isPending])
 
-    // Ensure Actions column is visible on mount and detect scroll
+    // Ensure table starts at leftmost position (scrollLeft = 0)
     useEffect(() => {
-        const ensureActionsVisible = () => {
+        const resetScrollPosition = () => {
             if (scrollContainerRef.current) {
                 const container = scrollContainerRef.current
-                const { scrollLeft, scrollWidth, clientWidth } = container
-                
-                // If table is wider than container, scroll to show Actions column
-                if (scrollWidth > clientWidth) {
-                    // Scroll to the right to ensure Actions column (last 100px) is visible
-                    const targetScroll = scrollWidth - clientWidth
-                    if (scrollLeft < targetScroll - 50) { // 50px buffer
-                        container.scrollLeft = targetScroll
-                        console.log('[UsersTable] Scrolled to show Actions column:', {
-                            from: scrollLeft,
-                            to: targetScroll,
-                            scrollWidth,
-                            clientWidth
-                        })
-                    }
+                // Reset to leftmost position - sticky Actions column will handle visibility
+                if (container.scrollLeft !== 0) {
+                    container.scrollLeft = 0
+                    console.log('[UsersTable] Reset scroll position to 0 (leftmost)')
                 }
             }
         }
 
-        // Ensure Actions column is visible after a short delay to allow DOM to render
-        const timeoutId = setTimeout(ensureActionsVisible, 150)
+        // Reset scroll position after a short delay to ensure DOM is ready
+        const timeoutId = setTimeout(resetScrollPosition, 100)
         
         return () => clearTimeout(timeoutId)
     }, [users]) // Re-run when users change
@@ -181,11 +170,19 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     useEffect(() => {
         const checkScroll = () => {
             if (scrollContainerRef.current) {
-                const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+                const container = scrollContainerRef.current
+                const { scrollLeft, scrollWidth, clientWidth } = container
                 // Show indicator if content is scrollable and not at the right edge
                 const isScrollable = scrollWidth > clientWidth
                 const isNotAtEnd = scrollLeft < scrollWidth - clientWidth - 10
                 setShowScrollIndicator(isScrollable && isNotAtEnd)
+                
+                // Get Actions column position for debugging
+                const actionsHeader = document.querySelector('[data-actions-column="header"]')
+                const actionsCell = document.querySelector('[data-actions-column="cell"]')
+                const containerRect = container.getBoundingClientRect()
+                const headerRect = actionsHeader?.getBoundingClientRect()
+                const cellRect = actionsCell?.getBoundingClientRect()
                 
                 // Debug logging - always log for troubleshooting
                 console.log('[UsersTable] Scroll check:', {
@@ -195,8 +192,23 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                     isScrollable,
                     isNotAtEnd,
                     showIndicator: isScrollable && isNotAtEnd,
-                    containerRect: scrollContainerRef.current.getBoundingClientRect(),
-                    actionsColumn: document.querySelector('[data-actions-column]')?.getBoundingClientRect()
+                    containerRect: {
+                        left: containerRect.left,
+                        right: containerRect.right,
+                        width: containerRect.width
+                    },
+                    actionsHeaderRect: headerRect ? {
+                        left: headerRect.left,
+                        right: headerRect.right,
+                        width: headerRect.width,
+                        isVisible: headerRect.right <= containerRect.right && headerRect.left >= containerRect.left
+                    } : null,
+                    actionsCellRect: cellRect ? {
+                        left: cellRect.left,
+                        right: cellRect.right,
+                        width: cellRect.width,
+                        isVisible: cellRect.right <= containerRect.right && cellRect.left >= containerRect.left
+                    } : null
                 })
             }
         }
@@ -561,7 +573,9 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     position: 'sticky',
                                     right: 0,
                                     backgroundColor: 'hsl(var(--background))',
-                                    zIndex: 50
+                                    zIndex: 50,
+                                    // Ensure sticky works correctly
+                                    top: 0 // For header row
                                 }}
                             >
                                 <div className="absolute inset-0 !bg-background border-l-2 border-border/80 shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]" style={{ opacity: 1 }} />
@@ -829,7 +843,8 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                         position: 'sticky',
                                         right: 0,
                                         backgroundColor: 'hsl(var(--background))',
-                                        zIndex: 50
+                                        zIndex: 50,
+                                        // Ensure sticky works correctly - no top value needed for body cells
                                     }}
                                 >
                                     {/* Solid background layer - ensures full opacity */}
