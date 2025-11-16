@@ -128,8 +128,8 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-green-500/10 via-emerald-500/10 to-transparent">
-                            <DollarSign className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-elite-500/10 via-elite-400/10 to-transparent">
+                            <DollarSign className="h-5 w-5 text-elite-600 dark:text-elite-400" />
                         </div>
                         <div>
                             <CardTitle className="text-lg font-semibold">Revenue</CardTitle>
@@ -138,14 +138,6 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                             </p>
                         </div>
                     </div>
-                    {totalRevenue > 0 && (
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
-                                <TrendingUp className="h-3 w-3 mr-1" />
-                                Active
-                            </Badge>
-                        </div>
-                    )}
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -153,14 +145,14 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                 <div className="flex items-baseline justify-between pb-4 border-b border-border/60">
                     <div>
                         <p className="text-sm text-muted-foreground mb-1">Total Revenue</p>
-                        <p className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                        <p className="text-3xl font-bold bg-gradient-to-r from-elite-500 to-elite-600 bg-clip-text text-transparent">
                             {formatCurrency(totalRevenue)}
                         </p>
                     </div>
                     {mrr > 0 && (
                         <div className="text-right">
                             <p className="text-xs text-muted-foreground mb-1">MRR</p>
-                            <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                            <p className="text-sm font-semibold text-elite-600 dark:text-elite-400">
                                 {formatCurrency(mrr)}/mo
                             </p>
                         </div>
@@ -176,61 +168,47 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                             </div>
                         ) : (
                             <>
-                                {/* Payment Source Breakdown */}
+                                {/* Payment Source Breakdown - Elegant Side-by-Side */}
                                 <div className="space-y-3">
                                     <h4 className="text-sm font-semibold text-foreground">
                                         By Payment Source
                                     </h4>
                                     
-                                    {/* Crypto Payments */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10">
-                                                    <Coins className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {/* Crypto Payments */}
+                                        <div className="p-3 rounded-xl border border-brand-500/20 bg-gradient-to-br from-brand-500/5 to-brand-600/5">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-500/10">
+                                                    <Coins className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
                                                 </div>
-                                                <span className="text-sm font-medium">Crypto Payments</span>
+                                                <span className="text-xs font-medium text-foreground/80">Crypto</span>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-semibold">
-                                                    {formatCurrency(cryptoRevenue)}
-                                                </p>
+                                            <p className="text-lg font-bold text-brand-600 dark:text-brand-400 mb-0.5">
+                                                {formatCurrency(cryptoRevenue)}
+                                            </p>
+                                            {cryptoRevenue > 0 && stripeRevenue > 0 && (
                                                 <p className="text-xs text-muted-foreground">
-                                                    {getPercentage(cryptoRevenue, totalRevenue)}%
+                                                    {getPercentage(cryptoRevenue, totalRevenue)}% of total
                                                 </p>
-                                            </div>
+                                            )}
                                         </div>
-                                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500"
-                                                style={{ width: `${getPercentage(cryptoRevenue, totalRevenue)}%` }}
-                                            />
-                                        </div>
-                                    </div>
 
-                                    {/* Stripe Payments */}
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
-                                                    <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        {/* Stripe Payments */}
+                                        <div className="p-3 rounded-xl border border-sec-500/20 bg-gradient-to-br from-sec-500/5 to-sec-600/5">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sec-500/10">
+                                                    <CreditCard className="h-3.5 w-3.5 text-sec-600 dark:text-sec-400" />
                                                 </div>
-                                                <span className="text-sm font-medium">Stripe Payments</span>
+                                                <span className="text-xs font-medium text-foreground/80">Stripe</span>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-semibold">
-                                                    {formatCurrency(stripeRevenue)}
-                                                </p>
+                                            <p className="text-lg font-bold text-sec-600 dark:text-sec-400 mb-0.5">
+                                                {formatCurrency(stripeRevenue)}
+                                            </p>
+                                            {cryptoRevenue > 0 && stripeRevenue > 0 && (
                                                 <p className="text-xs text-muted-foreground">
-                                                    {getPercentage(stripeRevenue, totalRevenue)}%
+                                                    {getPercentage(stripeRevenue, totalRevenue)}% of total
                                                 </p>
-                                            </div>
-                                        </div>
-                                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500"
-                                                style={{ width: `${getPercentage(stripeRevenue, totalRevenue)}%` }}
-                                            />
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -241,10 +219,10 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                         <h4 className="text-sm font-semibold text-foreground">
                                             Crypto Payments by Currency
                                         </h4>
-                                        <div className="space-y-2">
+                                        <div className="grid grid-cols-1 gap-2">
                                             {cryptoCurrencyBreakdown.map((item) => {
                                                 const displayName = formatCurrencyDisplayName(item.currency)
-                                                // Extract base currency for amount display (e.g., "USDCE" -> "USDC", "USDTE" -> "USDT")
+                                                // Extract base currency for amount display
                                                 const upper = item.currency.toUpperCase()
                                                 let baseCurrency = upper
                                                 if (upper.endsWith('E') || upper.endsWith('-E')) {
@@ -254,10 +232,10 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                                 }
                                                 
                                                 return (
-                                                    <div key={item.currency} className="space-y-1.5">
+                                                    <div key={item.currency} className="p-2.5 rounded-lg border border-brand-500/15 bg-brand-500/5">
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-2">
-                                                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20 text-xs font-medium">
+                                                                <Badge variant="outline" className="bg-brand-500/10 text-brand-600 dark:text-brand-400 border-brand-500/20 text-xs font-medium">
                                                                     {displayName}
                                                                 </Badge>
                                                                 <span className="text-xs text-muted-foreground">
@@ -265,19 +243,13 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                                                 </span>
                                                             </div>
                                                             <div className="text-right">
-                                                                <p className="text-sm font-semibold">
+                                                                <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">
                                                                     {formatCurrency(item.usdValue)}
                                                                 </p>
                                                                 <p className="text-xs text-muted-foreground">
                                                                     {formatCrypto(item.amount)} {baseCurrency}
                                                                 </p>
                                                             </div>
-                                                        </div>
-                                                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500"
-                                                                style={{ width: `${getPercentage(item.usdValue, cryptoRevenue)}%` }}
-                                                            />
                                                         </div>
                                                     </div>
                                                 )
@@ -286,68 +258,50 @@ export function RevenueBreakdown({ totalRevenue }: RevenueBreakdownProps) {
                                     </div>
                                 )}
 
-                                {/* Tier Breakdown */}
+                                {/* Tier Breakdown - Elegant Grid */}
                                 {(proRevenue > 0 || eliteRevenue > 0) && (
                                     <div className="space-y-3 pt-2 border-t border-border/60">
                                         <h4 className="text-sm font-semibold text-foreground">
                                             By Tier
                                         </h4>
                                         
-                                        {/* Pro Tier */}
-                                        {proRevenue > 0 && (
-                                            <div className="space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
-                                                            <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* Pro Tier */}
+                                            {proRevenue > 0 && (
+                                                <div className="p-3 rounded-xl border border-sec-500/20 bg-gradient-to-br from-sec-500/5 to-sec-600/5">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sec-500/10">
+                                                            <Sparkles className="h-3.5 w-3.5 text-sec-600 dark:text-sec-400" />
                                                         </div>
-                                                        <span className="text-sm font-medium">Pro Tier</span>
+                                                        <span className="text-xs font-medium text-foreground/80">Pro</span>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="text-sm font-semibold">
-                                                            {formatCurrency(proRevenue)}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {getPercentage(proRevenue, totalRevenue)}%
-                                                        </p>
-                                                    </div>
+                                                    <p className="text-lg font-bold text-sec-600 dark:text-sec-400 mb-0.5">
+                                                        {formatCurrency(proRevenue)}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {getPercentage(proRevenue, totalRevenue)}% of total
+                                                    </p>
                                                 </div>
-                                                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500"
-                                                        style={{ width: `${getPercentage(proRevenue, totalRevenue)}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
+                                            )}
 
-                                        {/* Elite Tier */}
-                                        {eliteRevenue > 0 && (
-                                            <div className="space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-500/10">
-                                                            <Crown className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                            {/* Elite Tier */}
+                                            {eliteRevenue > 0 && (
+                                                <div className="p-3 rounded-xl border border-elite-500/20 bg-gradient-to-br from-elite-500/5 to-elite-600/5">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-elite-500/10">
+                                                            <Crown className="h-3.5 w-3.5 text-elite-600 dark:text-elite-400" />
                                                         </div>
-                                                        <span className="text-sm font-medium">Elite Tier</span>
+                                                        <span className="text-xs font-medium text-foreground/80">Elite</span>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="text-sm font-semibold">
-                                                            {formatCurrency(eliteRevenue)}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {getPercentage(eliteRevenue, totalRevenue)}%
-                                                        </p>
-                                                    </div>
+                                                    <p className="text-lg font-bold text-elite-600 dark:text-elite-400 mb-0.5">
+                                                        {formatCurrency(eliteRevenue)}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {getPercentage(eliteRevenue, totalRevenue)}% of total
+                                                    </p>
                                                 </div>
-                                                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                                    <div
-                                                        className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-500"
-                                                        style={{ width: `${getPercentage(eliteRevenue, totalRevenue)}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </>
