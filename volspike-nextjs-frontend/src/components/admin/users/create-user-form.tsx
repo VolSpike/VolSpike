@@ -285,7 +285,9 @@ export function CreateUserForm() {
                                         Send invitation email
                                     </Label>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        User will receive an email with account setup instructions
+                                        {formData.sendInvite 
+                                            ? '✓ User will receive an email with account setup instructions. Password will NOT be shown.'
+                                            : '✗ Password will be displayed below after creation. No email will be sent.'}
                                     </p>
                                 </div>
                             </div>
