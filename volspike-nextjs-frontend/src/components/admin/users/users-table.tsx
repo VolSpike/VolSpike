@@ -86,6 +86,8 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
     const [loading, setLoading] = useState<string | null>(null)
     const [showLoading, setShowLoading] = useState(false)
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const [showScrollIndicator, setShowScrollIndicator] = useState(false)
 
     // Sync selectedUsers with current users list - remove deleted users from selection
     useEffect(() => {
@@ -144,6 +146,48 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
             setShowLoading(false)
         }
     }, [isPending])
+
+    // Detect horizontal scroll and show indicator
+    useEffect(() => {
+        const checkScroll = () => {
+            if (scrollContainerRef.current) {
+                const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+                // Show indicator if content is scrollable and not at the right edge
+                const isScrollable = scrollWidth > clientWidth
+                const isNotAtEnd = scrollLeft < scrollWidth - clientWidth - 10
+                setShowScrollIndicator(isScrollable && isNotAtEnd)
+                
+                // Debug logging (can be removed in production)
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('[UsersTable] Scroll check:', {
+                        scrollLeft,
+                        scrollWidth,
+                        clientWidth,
+                        isScrollable,
+                        isNotAtEnd,
+                        showIndicator: isScrollable && isNotAtEnd
+                    })
+                }
+            }
+        }
+
+        // Check on mount and resize with a small delay to ensure DOM is ready
+        const timeoutId = setTimeout(checkScroll, 100)
+        window.addEventListener('resize', checkScroll)
+        
+        const container = scrollContainerRef.current
+        if (container) {
+            container.addEventListener('scroll', checkScroll)
+        }
+
+        return () => {
+            clearTimeout(timeoutId)
+            window.removeEventListener('resize', checkScroll)
+            if (container) {
+                container.removeEventListener('scroll', checkScroll)
+            }
+        }
+    }, [users]) // Re-check when users change
     const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
     const [editTier, setEditTier] = useState<'free' | 'pro' | 'elite'>('free')
     const [editRole, setEditRole] = useState<'USER' | 'ADMIN'>('USER')
@@ -408,8 +452,19 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
             )}
 
             <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden relative">
-                <div className="overflow-x-auto overflow-y-visible max-h-[calc(100vh-20rem)] overflow-y-auto">
-                    <Table>
+                <div 
+                    ref={scrollContainerRef}
+                    className="overflow-x-auto overflow-y-visible max-h-[calc(100vh-20rem)] overflow-y-auto relative"
+                    style={{ scrollbarWidth: 'thin' }}
+                >
+                    {/* Scroll indicator - shows when content is scrollable */}
+                    <div 
+                        className={`absolute right-0 top-0 bottom-0 w-12 pointer-events-none z-30 bg-gradient-to-l from-background via-background/80 to-transparent transition-opacity duration-300 ${
+                            showScrollIndicator ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        style={{ right: '100px' }} // Position before Actions column
+                    />
+                    <Table className="min-w-[1000px] w-full">
                     <TableHeader className="sticky top-0 z-30 bg-background shadow-sm border-b border-border/60">
                         <TableRow className="bg-muted/50 hover:bg-muted/50">
                             <TableHead className="w-12">
@@ -457,7 +512,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     {getSortIcon('lastLoginAt')}
                                 </div>
                             </TableHead>
-                            <TableHead className="text-right sticky right-0 z-10 min-w-[80px] relative p-0">
+                            <TableHead className="text-right sticky right-0 z-40 min-w-[100px] w-[100px] relative p-0">
                                 <div className="absolute inset-0 !bg-background border-l-2 border-border/80 shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.1)] dark:shadow-[inset_8px_0_8px_-8px_rgba(0,0,0,0.3)]" style={{ opacity: 1 }} />
                                 <div className="relative z-10 p-4">Actions</div>
                             </TableHead>
@@ -716,7 +771,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                     )}
                                 </TableCell>
                                 <TableCell 
-                                    className="text-right sticky right-0 z-10 min-w-[80px] relative p-0" 
+                                    className="text-right sticky right-0 z-40 min-w-[100px] w-[100px] relative p-0" 
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     {/* Solid background layer - ensures full opacity */}
