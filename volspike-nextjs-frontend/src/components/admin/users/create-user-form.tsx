@@ -282,7 +282,7 @@ export function CreateUserForm() {
                                                 </div>
                                             </div>
                                             <p className="text-xs text-muted-foreground mt-2">
-                                                ⚠️ Save this password now - you won't be able to see it again!
+                                                ⚠️ Save this password now - you won&apos;t be able to see it again!
                                             </p>
                                         </AlertDescription>
                                     </div>
