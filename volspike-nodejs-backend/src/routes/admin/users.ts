@@ -20,7 +20,11 @@ const userListSchema = z.object({
     search: z.string().optional(),
     role: z.enum(['USER', 'ADMIN']).optional(),
     tier: z.enum(['free', 'pro', 'elite']).optional(),
-    status: z.enum(['ACTIVE', 'SUSPENDED', 'BANNED']).optional(),
+    status: z.union([
+        z.enum(['ACTIVE', 'SUSPENDED', 'BANNED']),
+        z.literal('all'),
+        z.literal(''),
+    ]).optional(),
     page: z.coerce.number().min(1).default(1),
     limit: z.coerce.number().min(1).max(100).default(20),
     sortBy: z.enum(['createdAt', 'email', 'lastLoginAt', 'tier', 'role', 'status']).default('createdAt'),
@@ -164,19 +168,23 @@ adminUserRoutes.get('/', async (c) => {
         if (params.tier) where.tier = params.tier
         
         // Handle status filter with comprehensive debugging
+        // Get raw query param before Zod parsing to check for 'all' or ''
+        const rawStatusParam = query.status as string | undefined
         const statusParam = params.status
         logger.info('User list request - status filter processing', {
+            rawStatusParam,
             statusParam,
             statusParamType: typeof statusParam,
             hasStatusParam: statusParam !== undefined,
             queryParams: query,
         })
         
-        if (statusParam === 'all' || statusParam === '') {
+        // Check raw param first (before Zod parsing) to handle 'all' and ''
+        if (rawStatusParam === 'all' || rawStatusParam === '') {
             // Explicit "All Status" request - show all users including BANNED
             // Don't filter by status
             logger.info('Status filter: Showing ALL users (including BANNED)')
-        } else if (statusParam) {
+        } else if (statusParam && (statusParam === 'ACTIVE' || statusParam === 'SUSPENDED' || statusParam === 'BANNED')) {
             // Specific status filter - show only that status
             where.status = statusParam as UserStatus
             logger.info('Status filter: Showing only', { status: statusParam })
