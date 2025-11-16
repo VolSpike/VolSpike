@@ -316,49 +316,64 @@ export function CreateUserForm() {
                             )}
                         </div>
 
-                        {/* Password Display (shown after user creation) */}
+                        {/* Password Display (shown after user creation) - PROMINENT */}
                         {createdPassword && createdEmail && (
-                            <Alert className="mt-6 border-green-500/50 bg-green-500/10">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <AlertTitle className="text-green-600 dark:text-green-400 mb-2">
-                                            ✅ User Created Successfully!
-                                        </AlertTitle>
-                                        <AlertDescription className="space-y-3">
-                                            <div>
-                                                <p className="text-sm font-medium mb-1">Email:</p>
-                                                <code className="text-sm bg-background/50 px-2 py-1 rounded border border-border">
-                                                    {createdEmail}
-                                                </code>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium mb-1">Temporary Password:</p>
-                                                <div className="flex items-center gap-2">
-                                                    <code className="flex-1 text-sm bg-background/50 px-2 py-1 rounded border border-border font-mono">
-                                                        {createdPassword}
+                            <div className="mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <Alert className="border-green-500 bg-green-500/20 shadow-lg shadow-green-500/20 ring-2 ring-green-500/30">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1 space-y-4">
+                                            <AlertTitle className="text-lg font-bold text-green-600 dark:text-green-400 flex items-center gap-2">
+                                                <span className="text-2xl">✅</span>
+                                                User Created Successfully!
+                                            </AlertTitle>
+                                            <AlertDescription className="space-y-4">
+                                                <div className="bg-background/80 p-3 rounded-lg border border-green-500/30">
+                                                    <p className="text-sm font-semibold mb-2 text-foreground">Email Address:</p>
+                                                    <code className="text-base font-mono bg-background px-3 py-2 rounded border-2 border-green-500/50 text-green-600 dark:text-green-400 block">
+                                                        {createdEmail}
                                                     </code>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={handleCopyPassword}
-                                                        className="shrink-0"
-                                                    >
-                                                        {copied ? (
-                                                            <Check className="h-4 w-4 text-green-500" />
-                                                        ) : (
-                                                            <Copy className="h-4 w-4" />
-                                                        )}
-                                                    </Button>
                                                 </div>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground mt-2">
-                                                ⚠️ Save this password now - you won&apos;t be able to see it again!
-                                            </p>
-                                        </AlertDescription>
+                                                <div className="bg-background/80 p-3 rounded-lg border-2 border-green-500/50">
+                                                    <p className="text-sm font-semibold mb-2 text-foreground flex items-center gap-2">
+                                                        <span className="text-yellow-500">🔑</span>
+                                                        Temporary Password:
+                                                    </p>
+                                                    <div className="flex items-center gap-3">
+                                                        <code className="flex-1 text-lg font-mono font-bold bg-background px-4 py-3 rounded border-2 border-green-500 text-green-600 dark:text-green-400 break-all">
+                                                            {createdPassword}
+                                                        </code>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="lg"
+                                                            onClick={handleCopyPassword}
+                                                            className="shrink-0 h-12 px-4 border-green-500/50 hover:bg-green-500/10"
+                                                        >
+                                                            {copied ? (
+                                                                <>
+                                                                    <Check className="h-5 w-5 text-green-500 mr-2" />
+                                                                    Copied!
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Copy className="h-5 w-5 mr-2" />
+                                                                    Copy
+                                                                </>
+                                                            )}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3">
+                                                    <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                                                        <span className="text-lg">⚠️</span>
+                                                        Save this password now - you won&apos;t be able to see it again!
+                                                    </p>
+                                                </div>
+                                            </AlertDescription>
+                                        </div>
                                     </div>
-                                </div>
-                            </Alert>
+                                </Alert>
+                            </div>
                         )}
 
                         {/* Action Buttons */}
