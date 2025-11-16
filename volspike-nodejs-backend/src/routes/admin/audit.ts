@@ -45,11 +45,10 @@ adminAuditRoutes.get('/', async (c) => {
             }
         }
 
-        // Get total count
-        const total = await prisma.auditLog.count({ where })
-
-        // Get paginated results
-        const logs = await prisma.auditLog.findMany({
+        // Optimize: Run count and findMany in parallel for better performance
+        const [total, logs] = await Promise.all([
+            prisma.auditLog.count({ where }),
+            prisma.auditLog.findMany({
             where,
             include: {
                 actor: {
@@ -63,7 +62,8 @@ adminAuditRoutes.get('/', async (c) => {
             orderBy: { [params.sortBy]: params.sortOrder },
             skip: (params.page - 1) * params.limit,
             take: params.limit,
-        })
+            })
+        ])
 
         return c.json({
             logs,

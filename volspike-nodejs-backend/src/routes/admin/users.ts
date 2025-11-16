@@ -54,11 +54,10 @@ adminUserRoutes.get('/', async (c) => {
         if (params.tier) where.tier = params.tier
         if (params.status) where.status = params.status
 
-        // Get total count
-        const total = await prisma.user.count({ where })
-
-        // Get paginated results
-        const users = await prisma.user.findMany({
+        // Optimize: Run count and findMany in parallel for better performance
+        const [total, users] = await Promise.all([
+            prisma.user.count({ where }),
+            prisma.user.findMany({
             where,
             select: {
                 id: true,
@@ -88,10 +87,46 @@ adminUserRoutes.get('/', async (c) => {
             orderBy: { [params.sortBy]: params.sortOrder },
             skip: (params.page - 1) * params.limit,
             take: params.limit,
-        })
+            })
+        ])
 
         // Transform users to include payment method and subscription expiration
-        const usersWithPaymentMethod = await Promise.all(users.map(async (user) => {
+        // Optimize: Batch Stripe API calls instead of individual calls per user
+        const stripeCustomerIds = users
+            .filter(u => u.stripeCustomerId)
+            .map(u => u.stripeCustomerId!)
+        
+        // Batch fetch all Stripe subscriptions at once
+        const stripeSubscriptionsMap = new Map<string, any>()
+        if (stripeCustomerIds.length > 0) {
+            try {
+                // Fetch all subscriptions for all customers in parallel
+                const subscriptionPromises = stripeCustomerIds.map(async (customerId) => {
+                    try {
+                        const subscriptions = await stripe.subscriptions.list({
+                            customer: customerId,
+                            status: 'active',
+                            limit: 1,
+                        })
+                        return { customerId, subscription: subscriptions.data[0] || null }
+                    } catch (error) {
+                        logger.warn(`Error fetching Stripe subscription for customer ${customerId}:`, error)
+                        return { customerId, subscription: null }
+                    }
+                })
+                
+                const subscriptionResults = await Promise.all(subscriptionPromises)
+                subscriptionResults.forEach(({ customerId, subscription }) => {
+                    if (subscription) {
+                        stripeSubscriptionsMap.set(customerId, subscription)
+                    }
+                })
+            } catch (error) {
+                logger.warn('Error batch fetching Stripe subscriptions:', error)
+            }
+        }
+
+        const usersWithPaymentMethod = users.map((user) => {
             const hasCryptoPayment = user.cryptoPayments && user.cryptoPayments.length > 0
             const hasStripe = !!user.stripeCustomerId
             let paymentMethod: 'stripe' | 'crypto' | null = null
