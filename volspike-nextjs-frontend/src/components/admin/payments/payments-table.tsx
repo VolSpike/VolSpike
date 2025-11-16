@@ -107,6 +107,47 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
     const [showLoading, setShowLoading] = useState(false)
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+    // Prefetch next and previous pages for instant navigation
+    useEffect(() => {
+        const prefetchPages = () => {
+            if (pagination.page < pagination.pages) {
+                const nextParams = new URLSearchParams()
+                Object.entries(currentQuery).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        nextParams.set(key, String(value))
+                    }
+                })
+                nextParams.set('page', String(pagination.page + 1))
+                router.prefetch(`/admin/payments?${nextParams.toString()}`)
+            }
+            
+            if (pagination.page > 1) {
+                const prevParams = new URLSearchParams()
+                Object.entries(currentQuery).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null) {
+                        prevParams.set(key, String(value))
+                    }
+                })
+                prevParams.set('page', String(pagination.page - 1))
+                router.prefetch(`/admin/payments?${prevParams.toString()}`)
+            }
+        }
+        
+        prefetchPages()
+    }, [pagination.page, pagination.pages, currentQuery, router])
+
+    // Reset loading state when navigation completes
+    useEffect(() => {
+        if (!isPending) {
+            // Clear timeout if navigation completed quickly
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current)
+                loadingTimeoutRef.current = null
+            }
+            setShowLoading(false)
+        }
+    }, [isPending])
+
     const handleSort = (column: string) => {
         const newSortBy = column
         const newSortOrder = currentQuery.sortBy === column && currentQuery.sortOrder === 'asc' ? 'desc' : 'asc'
