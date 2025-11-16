@@ -26,6 +26,17 @@ const BASE_DELAY_MS = 6000 // 6 seconds between requests (10 calls/minute)
 const MAX_DELAY_MS = 60000 // Max 1 minute delay
 const RATE_LIMIT_DELAY_MS = 60000 // Wait 1 minute on 429 error
 
+// Debug logging (can be enabled via localStorage)
+const DEBUG = typeof window !== 'undefined' && 
+  (localStorage.getItem('volspike:debug:coingecko') === 'true' || 
+   process.env.NODE_ENV === 'development')
+
+const debugLog = (...args: any[]) => {
+  if (DEBUG) {
+    console.log('[CoinGeckoRateLimiter]', ...args)
+  }
+}
+
 class CoinGeckoRateLimiter {
   private queue: QueuedRequest[] = []
   private processing = false
@@ -46,8 +57,11 @@ class CoinGeckoRateLimiter {
     // Check if request is already in flight
     const existing = this.inflightRequests.get(id)
     if (existing) {
+      debugLog(`Request ${id} already in flight, reusing promise`)
       return existing as Promise<T>
     }
+
+    debugLog(`Queueing request ${id} (priority: ${priority}), queue length: ${this.queue.length}`)
 
     // Create promise for this request
     const promise = new Promise<T>((resolve, reject) => {
@@ -90,7 +104,7 @@ class CoinGeckoRateLimiter {
       const now = Date.now()
       if (now < this.rateLimitUntil) {
         const waitTime = this.rateLimitUntil - now
-        console.log(`[CoinGeckoRateLimiter] Rate limited, waiting ${waitTime}ms`)
+        debugLog(`Rate limited, waiting ${Math.ceil(waitTime / 1000)}s`)
         await this.sleep(waitTime)
         continue
       }
@@ -99,6 +113,7 @@ class CoinGeckoRateLimiter {
       const timeSinceLastRequest = now - this.lastRequestTime
       if (timeSinceLastRequest < BASE_DELAY_MS) {
         const waitTime = BASE_DELAY_MS - timeSinceLastRequest
+        debugLog(`Rate limiting: waiting ${Math.ceil(waitTime / 1000)}s before next request`)
         await this.sleep(waitTime)
       }
 
@@ -106,13 +121,16 @@ class CoinGeckoRateLimiter {
       if (!request) break
 
       try {
+        debugLog(`Processing request ${request.id} (attempt ${request.retries + 1}/${MAX_RETRIES + 1})`)
         const result = await this.executeRequest(request)
+        debugLog(`Request ${request.id} completed successfully`)
         request.resolve(result)
         this.inflightRequests.delete(request.id)
       } catch (error: any) {
         // Handle rate limit errors
         if (error.status === 429 || error.message?.includes('429')) {
           console.warn(`[CoinGeckoRateLimiter] Rate limited for request ${request.id}, retrying...`)
+          debugLog(`Rate limit detected for ${request.id}, setting cooldown`)
           
           // Set rate limit cooldown
           const previousRateLimit = this.rateLimitUntil
@@ -130,7 +148,7 @@ class CoinGeckoRateLimiter {
               BASE_DELAY_MS * Math.pow(2, request.retries),
               MAX_DELAY_MS
             )
-            console.log(`[CoinGeckoRateLimiter] Retrying ${request.id} after ${delay}ms (attempt ${request.retries}/${MAX_RETRIES})`)
+            debugLog(`Retrying ${request.id} after ${Math.ceil(delay / 1000)}s (attempt ${request.retries}/${MAX_RETRIES})`)
             
             // Re-queue with lower priority
             setTimeout(() => {
@@ -141,7 +159,8 @@ class CoinGeckoRateLimiter {
             }, delay)
           } else {
             console.error(`[CoinGeckoRateLimiter] Max retries exceeded for ${request.id}`)
-            request.reject(new Error('CoinGecko API rate limit exceeded. Please try again later.'))
+            debugLog(`Max retries exceeded for ${request.id}, rejecting`)
+            request.reject(new Error('CoinGecko API rate limit exceeded. Asset profiles will load automatically once the limit clears.'))
             this.inflightRequests.delete(request.id)
           }
         } else {
