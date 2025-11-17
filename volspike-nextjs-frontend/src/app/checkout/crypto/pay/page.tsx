@@ -192,21 +192,20 @@ export default function CryptoPaymentPage() {
         'usdc': 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
       }
 
-      // Amount for Solana Pay URI – DECIMAL string in token units
-      // We keep a conservative number of decimals to avoid floating‑point artefacts
+      // Amount formatting - remove trailing zeros for cleaner URLs
       let amountDecimal: string
       let splTokenMint: string | null = null
 
       if (isSOL) {
-        // SOL: up to 9 decimals
-        amountDecimal = paymentDetails.payAmount.toFixed(9)
+        // SOL: up to 9 decimals, remove trailing zeros
+        amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
       } else if (isUSDT) {
-        // USDT: 6 decimals
-        amountDecimal = paymentDetails.payAmount.toFixed(6)
+        // USDT: 6 decimals, remove trailing zeros
+        amountDecimal = paymentDetails.payAmount.toFixed(6).replace(/\.?0+$/, '')
         splTokenMint = SPL_TOKEN_MINTS.usdt
       } else if (isUSDC) {
-        // USDC: 6 decimals
-        amountDecimal = paymentDetails.payAmount.toFixed(6)
+        // USDC: 6 decimals, remove trailing zeros
+        amountDecimal = paymentDetails.payAmount.toFixed(6).replace(/\.?0+$/, '')
         splTokenMint = SPL_TOKEN_MINTS.usdc
       } else {
         // For other tokens, use raw decimal string
@@ -214,44 +213,77 @@ export default function CryptoPaymentPage() {
       }
 
       // Build Solana Pay URI (standard format - supported by Phantom and other wallets)
-      // This will be our **primary** QR payload for one-tap payments.
+      // CRITICAL: Amount must come first and always be included
       const params = new URLSearchParams()
       
-      // Decimal amount in token units
-      params.set('amount', amountDecimal)
+      // Amount is always required and should be first
+      params.append('amount', amountDecimal)
       
-      // SPL token mint address (required for tokens, not for SOL)
-      if (splTokenMint && !isSOL) {
-        params.set('spl-token', splTokenMint)
+      // SPL token mint address (only for tokens, not SOL)
+      // FIXED: Removed redundant !isSOL check - splTokenMint is already null for SOL
+      if (splTokenMint) {
+        params.append('spl-token', splTokenMint)
       }
       
       // Optional metadata (helps with UX)
-      // Let URLSearchParams handle encoding – pass plain strings here.
-      params.set('label', 'VolSpike Payment')
-      params.set('message', `Upgrade to ${paymentDetails.tier.toUpperCase()} tier`)
+      // URLSearchParams handles encoding automatically
+      params.append('label', 'VolSpike Payment')
+      params.append('message', `Upgrade to ${paymentDetails.tier.toUpperCase()} tier`)
       
-      // Reference for tracking (optional) - must be a valid PublicKey base58 string
-      // Only include if orderId is a valid base58 string (44 chars typical for Solana addresses)
-      if (paymentDetails.orderId && paymentDetails.orderId.length >= 32) {
-        params.set('reference', paymentDetails.orderId)
+      // Reference for tracking (optional) - CRITICAL FIX
+      // Reference MUST be a valid Solana public key (base58, 32-44 chars)
+      // Most orderIds are UUIDs or database IDs, NOT valid Solana keys
+      // Including an invalid reference causes Phantom to reject the entire URI
+      if (paymentDetails.orderId) {
+        // Validate that orderId is a valid Solana public key format
+        const isValidSolanaKey = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(paymentDetails.orderId)
+        if (isValidSolanaKey) {
+          params.append('reference', paymentDetails.orderId)
+        } else {
+          // Log warning but don't break the payment flow
+          console.warn('[CryptoPaymentPage] Skipping invalid reference (not a valid Solana public key):', {
+            orderId: paymentDetails.orderId,
+            reason: 'OrderId is not a valid Solana base58 public key format',
+            note: 'Reference is optional - payment will work without it',
+          })
+        }
       }
 
       const solanaPayUri = `solana:${paymentDetails.payAddress}?${params.toString()}`
       
-      // Debug: Log the exact URI being generated
-      console.log('[CryptoPaymentPage] Generated Solana Pay URI (Solana Pay transfer request):', {
+      // Comprehensive debug logging
+      console.log('[CryptoPaymentPage] ✅ Generated Solana Pay URI:', {
         fullUri: solanaPayUri,
         address: paymentDetails.payAddress,
         amount: amountDecimal,
-        splToken: splTokenMint,
-        params: Object.fromEntries(params),
+        currency: currency,
+        isSOL: isSOL,
+        splToken: splTokenMint || 'none (native SOL)',
+        paramsObject: Object.fromEntries(params),
         uriLength: solanaPayUri.length,
-        // Verify format
+        // Validation checks
         startsWithSolana: solanaPayUri.startsWith('solana:'),
         hasAddress: !!paymentDetails.payAddress,
         hasAmount: params.has('amount'),
         hasSplToken: params.has('spl-token'),
+        hasReference: params.has('reference'),
+        // Reference validation
+        orderId: paymentDetails.orderId,
+        referenceIncluded: params.has('reference'),
       })
+      
+      // Validate URI format
+      try {
+        // This will throw if the URI is malformed
+        const testUrl = new URL(solanaPayUri)
+        console.log('[CryptoPaymentPage] ✅ URI format validation passed:', {
+          protocol: testUrl.protocol,
+          pathname: testUrl.pathname,
+          search: testUrl.search,
+        })
+      } catch (validationError) {
+        console.error('[CryptoPaymentPage] ❌ URI format validation failed:', validationError)
+      }
       
       // Phantom universal link (EXPERIMENTAL – not used for QR, may be used for future UX)
       // NOTE: Phantom does not currently document a "send" or "transfer" method; official deeplinks

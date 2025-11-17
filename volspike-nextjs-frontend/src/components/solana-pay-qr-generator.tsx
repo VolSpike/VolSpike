@@ -83,16 +83,19 @@ export function SolanaPayQRGenerator({
       return null
     }
 
-    // Build URL
+    // Build Solana Pay URL
+    // CRITICAL: Amount should come first and always be included if provided
     let url = `solana:${recipient.trim()}`
     const params = new URLSearchParams()
 
-    // Add amount if provided
+    // Add amount if provided (remove trailing zeros for cleaner URLs)
     if (amount && parseFloat(amount) > 0) {
-      params.append('amount', amount)
+      const cleanAmount = parseFloat(amount).toString().replace(/\.?0+$/, '')
+      params.append('amount', cleanAmount)
     }
 
     // Add SPL token if selected (skip if SOL native)
+    // FIXED: Simplified logic - selectedToken is already 'sol' for native SOL
     const tokenMint = selectedToken === 'custom' ? customToken.trim() : (selectedToken === 'sol' ? '' : selectedToken)
     if (tokenMint && tokenMint !== 'sol') {
       if (!isValidSolanaAddress(tokenMint)) {
@@ -102,20 +105,22 @@ export function SolanaPayQRGenerator({
       params.append('spl-token', tokenMint)
     }
 
-    // Add label if provided
+    // Add label if provided (URLSearchParams handles encoding)
     if (label.trim()) {
       params.append('label', label.trim())
     }
 
-    // Add message if provided
+    // Add message if provided (URLSearchParams handles encoding)
     if (message.trim()) {
       params.append('message', message.trim())
     }
 
     // Add reference if provided
+    // CRITICAL: Reference MUST be a valid Solana public key (base58, 32-44 chars)
+    // Invalid references cause Phantom to reject the entire URI
     if (reference.trim()) {
       if (!isValidSolanaAddress(reference.trim())) {
-        setError('Invalid reference address format')
+        setError('Invalid reference address format - must be a valid Solana public key (base58, 32-44 characters)')
         return null
       }
       params.append('reference', reference.trim())
@@ -126,6 +131,15 @@ export function SolanaPayQRGenerator({
     if (queryString) {
       url += '?' + queryString
     }
+
+    // Log generated URL for debugging
+    console.log('[SolanaPayQRGenerator] ✅ Generated Solana Pay URL:', {
+      url,
+      params: Object.fromEntries(params),
+      hasAmount: params.has('amount'),
+      hasSplToken: params.has('spl-token'),
+      hasReference: params.has('reference'),
+    })
 
     return url
   }, [recipient, amount, selectedToken, customToken, label, message, reference, isValidSolanaAddress])
@@ -296,11 +310,16 @@ export function SolanaPayQRGenerator({
 
           {/* Reference */}
           <div className="space-y-2">
-            <Label htmlFor="reference">Reference (Optional)</Label>
+            <Label htmlFor="reference">
+              Reference (Optional)
+              <span className="text-xs text-muted-foreground ml-2 font-normal">
+                Must be a valid Solana public key
+              </span>
+            </Label>
             <Input
               id="reference"
               type="text"
-              placeholder="Unique reference key for tracking"
+              placeholder="e.g., 8rqoXFKMpCFYeZVvZVVVVVVVVVVVVVVVVVVVVVVVVVVV"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               className={cn(
@@ -308,6 +327,11 @@ export function SolanaPayQRGenerator({
                 reference && !isValidSolanaAddress(reference) && 'border-destructive'
               )}
             />
+            {reference && !isValidSolanaAddress(reference) && (
+              <p className="text-xs text-destructive">
+                Reference must be a valid Solana public key (base58, 32-44 characters). Invalid references cause Phantom to reject the payment URI.
+              </p>
+            )}
           </div>
         </div>
 
