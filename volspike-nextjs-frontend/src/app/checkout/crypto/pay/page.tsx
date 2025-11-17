@@ -739,10 +739,16 @@ export default function CryptoPaymentPage() {
             // Show success message
             toast.success('Payment confirmed! Upgrading your account...', { duration: 5000 })
           } else if (data.status === 'partially_paid') {
+            // Update payment details to show partially_paid status
+            setPaymentDetails((prev) => prev ? { 
+              ...prev, 
+              paymentStatus: 'partially_paid',
+            } : null)
+            
             // Show informative message about partially_paid status
-            toast('Payment received! Waiting for blockchain confirmations...', {
+            toast('Payment received! Amount is slightly less than requested. Waiting for confirmations...', {
               icon: '⏳',
-              duration: 5000,
+              duration: 8000,
             })
           }
         }
@@ -811,7 +817,7 @@ export default function CryptoPaymentPage() {
       return { label: 'Payment could not be completed', tone: 'danger' }
     }
     if (normalized === 'partially_paid') {
-      return { label: 'Payment received, confirming on blockchain', tone: 'warning' }
+      return { label: 'Partially paid - Waiting for full confirmation', tone: 'warning' }
     }
     if (normalized === 'confirming' || normalized === 'sending') {
       return { label: 'Waiting for blockchain confirmations', tone: 'warning' }

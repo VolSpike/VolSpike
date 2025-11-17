@@ -1096,13 +1096,40 @@ payments.post('/nowpayments/test-checkout', async (c) => {
 
             const paymentId = payment.payment_id
             const payAddress = payment.pay_address
-            const payAmount = payment.pay_amount
+            let payAmount = payment.pay_amount
             const payCurrencyFromPayment = payment.pay_currency
+
+            // CRITICAL FIX: Round UP pay_amount to 6 decimals and add buffer for USDT/USDC
+            // This ensures QR code amount is HIGHER than invoice amount, preventing partial payments
+            // Invoice: 2.39101226 USDT (8 decimals from NowPayments)
+            // QR Code: 2.391013 USDT (6 decimals rounded UP) + buffer = 2.3915 USDT
+            // User pays: 2.3915 USDT > Invoice amount = Fully paid ✅
+            const isUSDT = payCurrencyFromPayment?.toLowerCase().includes('usdt')
+            const isUSDC = payCurrencyFromPayment?.toLowerCase().includes('usdc')
+            if ((isUSDT || isUSDC) && typeof payAmount === 'number') {
+                // Round UP to 6 decimals (ceiling function)
+                const roundedUp = Math.ceil(payAmount * 1000000) / 1000000
+                // Add 0.1% buffer for network fees and decimal precision
+                const bufferedAmount = roundedUp * 1.001
+                // Round UP again to ensure we're always above invoice
+                payAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
+                
+                logger.info('Applied decimal precision fix and buffer to pay_amount', {
+                    originalPayAmount: payment.pay_amount,
+                    roundedUpTo6Decimals: roundedUp,
+                    bufferedAmount: bufferedAmount,
+                    finalPayAmount: payAmount,
+                    increase: payAmount - payment.pay_amount,
+                    increasePercent: ((payAmount - payment.pay_amount) / payment.pay_amount * 100).toFixed(4) + '%',
+                    note: 'QR code will show this higher amount, ensuring full payment even after network fees',
+                })
+            }
 
             logger.info('NowPayments test payment created successfully', {
                 paymentId,
                 payAddress,
                 payAmount,
+                originalPayAmount: payment.pay_amount,
                 payCurrency: payCurrencyFromPayment,
                 orderId,
                 hasPaymentId: !!paymentId,
@@ -1431,13 +1458,37 @@ payments.post('/nowpayments/checkout', async (c) => {
 
             const paymentId = payment.payment_id
             const payAddress = payment.pay_address
-            const payAmount = payment.pay_amount
+            let payAmount = payment.pay_amount
             const payCurrency = payment.pay_currency
+
+            // CRITICAL FIX: Round UP pay_amount to 6 decimals and add buffer for USDT/USDC
+            // This ensures QR code amount is HIGHER than invoice amount, preventing partial payments
+            const isUSDT = payCurrency?.toLowerCase().includes('usdt')
+            const isUSDC = payCurrency?.toLowerCase().includes('usdc')
+            if ((isUSDT || isUSDC) && typeof payAmount === 'number') {
+                // Round UP to 6 decimals (ceiling function)
+                const roundedUp = Math.ceil(payAmount * 1000000) / 1000000
+                // Add 0.1% buffer for network fees and decimal precision
+                const bufferedAmount = roundedUp * 1.001
+                // Round UP again to ensure we're always above invoice
+                payAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
+                
+                logger.info('Applied decimal precision fix and buffer to pay_amount', {
+                    originalPayAmount: payment.pay_amount,
+                    roundedUpTo6Decimals: roundedUp,
+                    bufferedAmount: bufferedAmount,
+                    finalPayAmount: payAmount,
+                    increase: payAmount - payment.pay_amount,
+                    increasePercent: ((payAmount - payment.pay_amount) / payment.pay_amount * 100).toFixed(4) + '%',
+                    note: 'QR code will show this higher amount, ensuring full payment even after network fees',
+                })
+            }
 
             logger.info('NowPayments payment created successfully', {
                 paymentId,
                 payAddress,
                 payAmount,
+                originalPayAmount: payment.pay_amount,
                 payCurrency,
                 orderId,
                 hasPaymentId: !!paymentId,
@@ -2134,7 +2185,7 @@ payments.post('/nowpayments/webhook', async (c) => {
                 const shortfallPercent = payAmount > 0 ? ((shortfall / payAmount) * 100).toFixed(2) : '0.00'
 
                 try {
-                    await notifyAdminPaymentIssue('CRYPTO_PAYMENT_PARTIALLY_PAID', {
+                    const emailResult = await notifyAdminPaymentIssue('CRYPTO_PAYMENT_PARTIALLY_PAID', {
                         paymentId: payment_id || cryptoPayment.paymentId,
                         orderId: order_id || cryptoPayment.orderId,
                         actuallyPaid: actuallyPaid,
@@ -2145,15 +2196,21 @@ payments.post('/nowpayments/webhook', async (c) => {
                         userId: cryptoPayment.userId,
                         userEmail: cryptoPayment.user.email,
                         tier: cryptoPayment.tier,
-                        note: 'Payment received but amount is less than requested (likely due to network fees). User will be upgraded when status becomes "finished" or admin can manually complete payment.',
+                        note: 'Payment received but amount is less than requested (likely due to network fees or decimal precision). User will be upgraded when status becomes "finished" or admin can manually complete payment.',
                         actionRequired: 'Review payment. If user paid full amount, manually complete payment via /api/admin/payments/complete-partial-payment',
                     })
                     logger.info('✅ Admin notified about partially_paid payment', {
                         paymentId: payment_id,
                         userEmail: cryptoPayment.user.email,
+                        emailSent: emailResult,
                     })
                 } catch (emailError) {
-                    logger.error('❌ Failed to notify admin about partially_paid status:', emailError)
+                    logger.error('❌ Failed to notify admin about partially_paid status:', {
+                        error: emailError,
+                        paymentId: payment_id,
+                        userEmail: cryptoPayment.user.email,
+                        stack: emailError instanceof Error ? emailError.stack : undefined,
+                    })
                     // Don't throw - payment processing should continue
                 }
             }
@@ -2387,10 +2444,10 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
 
         // CRITICAL: Preserve full precision of pay_amount by converting to string
         // JavaScript numbers can lose precision for long decimals, so we send as string
-        const payAmountString = typeof paymentStatus.pay_amount === 'string' 
-          ? paymentStatus.pay_amount 
-          : paymentStatus.pay_amount.toFixed(9).replace(/\.?0+$/, '')
-        
+        const payAmountString = typeof paymentStatus.pay_amount === 'string'
+            ? paymentStatus.pay_amount
+            : paymentStatus.pay_amount.toFixed(9).replace(/\.?0+$/, '')
+
         logger.info('Returning payment details with preserved precision', {
             paymentId: paymentStatus.payment_id,
             payAmountNumber: paymentStatus.pay_amount,
