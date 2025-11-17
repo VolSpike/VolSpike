@@ -2338,18 +2338,48 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
         })
 
         // Calculate buffer percentage for display
-        // If priceAmount includes buffer, show it; otherwise calculate from minimum
+        // Try to fetch minimum amount to calculate actual buffer
         let bufferInfo = null
-        if (paymentStatus.price_amount && cryptoPayment.payAmount) {
-            // Check if priceAmount is higher than stored payAmount (which might be minimum)
-            // Buffer is typically 20% = 1.2x multiplier
-            const bufferMultiplier = paymentStatus.price_amount / (cryptoPayment.payAmount || paymentStatus.price_amount)
-            if (bufferMultiplier >= 1.15) { // At least 15% buffer
-                const bufferPercent = ((bufferMultiplier - 1) * 100).toFixed(0)
+        if (paymentStatus.price_amount) {
+            try {
+                // Fetch current minimum to calculate buffer
+                const minAmount = await nowpayments.getMinimumAmount('usd', paymentStatus.pay_currency || 'usdtsol')
+                if (minAmount && paymentStatus.price_amount > minAmount) {
+                    const bufferPercent = (((paymentStatus.price_amount / minAmount) - 1) * 100).toFixed(0)
+                    bufferInfo = {
+                        applied: true,
+                        percentage: `${bufferPercent}%`,
+                        baseAmount: minAmount,
+                        bufferedAmount: paymentStatus.price_amount,
+                    }
+                    logger.info('Calculated buffer info for display', {
+                        paymentId,
+                        minAmount,
+                        priceAmount: paymentStatus.price_amount,
+                        bufferPercent,
+                    })
+                } else if (!minAmount) {
+                    // If we can't fetch minimum, assume 20% buffer was applied
+                    // Estimate base amount by reversing the 20% calculation
+                    const estimatedBase = paymentStatus.price_amount / 1.2
+                    bufferInfo = {
+                        applied: true,
+                        percentage: '20%',
+                        baseAmount: Math.round(estimatedBase * 100) / 100,
+                        bufferedAmount: paymentStatus.price_amount,
+                    }
+                }
+            } catch (bufferError) {
+                logger.warn('Could not calculate buffer info', {
+                    error: bufferError,
+                    paymentId,
+                })
+                // Fallback: Assume 20% buffer was applied
+                const estimatedBase = paymentStatus.price_amount / 1.2
                 bufferInfo = {
                     applied: true,
-                    percentage: `${bufferPercent}%`,
-                    baseAmount: cryptoPayment.payAmount,
+                    percentage: '20%',
+                    baseAmount: Math.round(estimatedBase * 100) / 100,
                     bufferedAmount: paymentStatus.price_amount,
                 }
             }
