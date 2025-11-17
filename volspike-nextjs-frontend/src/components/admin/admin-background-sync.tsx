@@ -50,9 +50,9 @@ export function AdminBackgroundSync() {
             lastSyncRef.current = now
 
             try {
-                // Fetch pending payments (not finished/failed)
+                // Fetch all payments and filter client-side
+                // We'll sync any payment that isn't finished/failed
                 const data = await adminAPI.getPayments({
-                    status: 'waiting,confirming,sending,partially_paid',
                     limit: 100, // Sync up to 100 payments at a time
                 })
 
