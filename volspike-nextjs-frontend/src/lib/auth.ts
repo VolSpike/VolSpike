@@ -400,13 +400,35 @@ export const authConfig: NextAuthConfig = {
                         }
                     } else {
                         const errorData = await response.json().catch(() => ({}))
-                        console.error('[NextAuth] OAuth linking failed:', errorData)
-                        // Don't throw error - let NextAuth handle it
+                        const errorMessage = errorData?.error || `OAuth linking failed: ${response.status} ${response.statusText}`
+                        console.error('[NextAuth] OAuth linking failed:', {
+                            status: response.status,
+                            statusText: response.statusText,
+                            errorData,
+                            email: user?.email,
+                            provider: account?.provider,
+                        })
+                        // CRITICAL: Throw error so NextAuth knows sign-in failed
+                        // If we don't throw, NextAuth continues with incomplete token and user isn't signed in
+                        throw new Error(errorMessage)
                     }
                 } catch (error) {
                     console.error('[NextAuth] OAuth linking failed:', error)
-                    // Don't throw error - let NextAuth handle it
+                    // CRITICAL: Re-throw error so NextAuth knows sign-in failed
+                    throw error
                 }
+            }
+
+            // CRITICAL: Ensure token has required fields before returning
+            // If OAuth linking didn't set token.id, the session will be invalid
+            if (account?.provider === 'google' && !token.id) {
+                console.error('[NextAuth] CRITICAL: OAuth token missing user ID after linking attempt', {
+                    hasToken: !!token,
+                    tokenKeys: token ? Object.keys(token) : [],
+                    email: user?.email,
+                    provider: account?.provider,
+                })
+                throw new Error('OAuth authentication failed: Unable to create user session')
             }
 
             return token
@@ -414,6 +436,17 @@ export const authConfig: NextAuthConfig = {
         async session({ session, token }: any) {
             // If token is null (invalidated due to password change), return null to force logout
             if (!token) {
+                console.warn('[Auth] Session callback: token is null, returning null session')
+                return null as any
+            }
+
+            // CRITICAL: If token doesn't have user ID, session is invalid
+            if (!token.id) {
+                console.error('[Auth] Session callback: token missing user ID, returning null session', {
+                    hasToken: !!token,
+                    tokenKeys: token ? Object.keys(token) : [],
+                    email: token.email,
+                })
                 return null as any
             }
 
@@ -435,7 +468,13 @@ export const authConfig: NextAuthConfig = {
                     session.user.image = token.image
                 }
                 session.accessToken = token.accessToken
-                console.log(`[Auth] Session callback - User: ${token.email}, tier: ${session.user.tier}, image: ${token.image ? 'present' : 'missing'}`)
+                console.log(`[Auth] Session callback - User: ${token.email}, role: ${token.role}, tier: ${session.user.tier}, hasAccessToken: ${!!token.accessToken}, image: ${token.image ? 'present' : 'missing'}`)
+            } else {
+                console.error('[Auth] Session callback: token or session.user missing', {
+                    hasToken: !!token,
+                    hasSession: !!session,
+                    hasSessionUser: !!session?.user,
+                })
             }
             return session
         },
