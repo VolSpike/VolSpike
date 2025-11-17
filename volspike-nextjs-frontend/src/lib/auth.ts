@@ -355,14 +355,35 @@ export const authConfig: NextAuthConfig = {
                         console.log('[NextAuth] Creating new account with Google OAuth')
                     }
 
+                    console.log('[NextAuth] Calling OAuth endpoint:', {
+                        endpoint,
+                        email: requestBody.email,
+                        provider: requestBody.provider,
+                        hasExistingSession: !!existingSession?.userId,
+                    })
+
                     const response = await fetch(endpoint, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify(requestBody),
                     })
 
+                    console.log('[NextAuth] OAuth endpoint response:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok,
+                        endpoint,
+                    })
+
                     if (response.ok) {
                         const responseData = await response.json()
+                        console.log('[NextAuth] OAuth endpoint success:', {
+                            hasUser: !!responseData.user,
+                            hasToken: !!responseData.token,
+                            userId: responseData.user?.id,
+                            email: responseData.user?.email,
+                            role: responseData.user?.role,
+                        })
 
                         // If linking to existing account, use existing token data
                         if (existingSession?.userId && responseData.success) {
