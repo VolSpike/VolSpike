@@ -874,7 +874,15 @@ export default function CryptoPaymentPage() {
                         Amount includes network fee buffer
                       </p>
                       <p className="text-[11px] leading-relaxed text-muted-foreground">
-                        The payment amount includes a 20% buffer to cover blockchain network fees. This ensures your payment completes successfully even if fees are higher than expected. You&apos;ll only pay the actual amount sent, and any excess covers transaction costs.
+                        {paymentDetails.bufferInfo?.applied ? (
+                          <>
+                            The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes a <strong>{paymentDetails.bufferInfo.percentage} buffer</strong> over the minimum (${paymentDetails.bufferInfo.baseAmount.toFixed(2)} base + ${(paymentDetails.bufferInfo.bufferedAmount - paymentDetails.bufferInfo.baseAmount).toFixed(2)} buffer). This ensures your payment completes successfully even if network fees are higher than expected. The crypto amount shown above (${paymentDetails.payAmount.toFixed(8)} {currencyDisplay}) is converted from this buffered USD amount.
+                          </>
+                        ) : (
+                          <>
+                            The payment amount includes a 20% buffer to cover blockchain network fees. The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes this buffer before conversion to crypto. This ensures your payment completes successfully even if fees are higher than expected. You&apos;ll only pay the actual amount sent, and any excess covers transaction costs.
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
