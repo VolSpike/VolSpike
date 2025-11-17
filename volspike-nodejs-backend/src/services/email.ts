@@ -67,6 +67,19 @@ interface PaymentConfirmationEmailData {
     expiresAt: Date
 }
 
+interface PartialPaymentEmailData {
+    email: string
+    name?: string
+    tier: string
+    requestedAmount: number
+    actuallyPaid: number
+    payCurrency: string
+    shortfall: number
+    shortfallPercent: string
+    paymentId: string
+    orderId: string
+}
+
 export class EmailService {
     private static instance: EmailService
     private fromEmail: string

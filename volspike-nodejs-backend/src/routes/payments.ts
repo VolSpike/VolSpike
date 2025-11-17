@@ -2179,6 +2179,7 @@ payments.post('/nowpayments/webhook', async (c) => {
                 const shortfall = payAmount - actuallyPaid
                 const shortfallPercent = payAmount > 0 ? ((shortfall / payAmount) * 100).toFixed(2) : '0.00'
 
+                // Notify admin about partially_paid status - CRITICAL for monitoring
                 try {
                     const emailResult = await notifyAdminPaymentIssue('CRYPTO_PAYMENT_PARTIALLY_PAID', {
                         paymentId: payment_id || cryptoPayment.paymentId,
@@ -2207,6 +2208,25 @@ payments.post('/nowpayments/webhook', async (c) => {
                         stack: emailError instanceof Error ? emailError.stack : undefined,
                     })
                     // Don't throw - payment processing should continue
+                }
+
+                // Send beautiful partial payment email to user (non-blocking)
+                const emailService = EmailService.getInstance()
+                if (cryptoPayment.user.email) {
+                    emailService.sendPartialPaymentEmail({
+                        email: cryptoPayment.user.email,
+                        name: undefined,
+                        tier: cryptoPayment.tier,
+                        requestedAmount: payAmount,
+                        actuallyPaid: actuallyPaid,
+                        payCurrency: data.pay_currency || cryptoPayment.payCurrency,
+                        shortfall: shortfall,
+                        shortfallPercent: `${shortfallPercent}%`,
+                        paymentId: payment_id || cryptoPayment.paymentId || '',
+                        orderId: order_id || cryptoPayment.orderId || '',
+                    }).catch((error: any) => {
+                        logger.error('Failed to send partial payment email to user (non-critical):', error)
+                    })
                 }
             }
         }

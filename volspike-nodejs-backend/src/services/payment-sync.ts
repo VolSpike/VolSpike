@@ -64,6 +64,59 @@ export async function syncPendingPayments() {
 
                 synced++
 
+                // Handle partially_paid status - send emails to both admin and user
+                if (paymentStatus.payment_status === 'partially_paid') {
+                    const payAmount = updatedPayment.payAmount || 0
+                    const actuallyPaid = paymentStatus.actually_paid ? Number(paymentStatus.actually_paid) : 0
+                    const shortfall = payAmount - actuallyPaid
+                    const shortfallPercent = payAmount > 0 ? ((shortfall / payAmount) * 100).toFixed(2) : '0.00'
+
+                    // Notify admin about partially_paid status
+                    try {
+                        await EmailService.getInstance().sendPaymentIssueAlertEmail({
+                            type: 'CRYPTO_PAYMENT_PARTIALLY_PAID_SYNC',
+                            details: {
+                                paymentId: payment.paymentId,
+                                orderId: updatedPayment.orderId,
+                                actuallyPaid: actuallyPaid,
+                                payAmount: payAmount,
+                                shortfall: shortfall,
+                                shortfallPercent: `${shortfallPercent}%`,
+                                payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency,
+                                userId: updatedPayment.userId,
+                                userEmail: updatedPayment.user.email,
+                                tier: updatedPayment.tier,
+                                note: 'Payment synced from NowPayments API - status is partially_paid',
+                                actionRequired: 'Review payment. If user paid full amount, manually complete payment via /api/admin/payments/complete-partial-payment',
+                            },
+                        })
+                    } catch (emailError) {
+                        logger.error('Failed to notify admin about partially_paid status:', emailError)
+                    }
+
+                    // Send partial payment email to user
+                    if (updatedPayment.user.email) {
+                        const emailService = EmailService.getInstance()
+                        emailService.sendPartialPaymentEmail({
+                            email: updatedPayment.user.email,
+                            name: undefined,
+                            tier: updatedPayment.tier,
+                            requestedAmount: payAmount,
+                            actuallyPaid: actuallyPaid,
+                            payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency,
+                            shortfall: shortfall,
+                            shortfallPercent: `${shortfallPercent}%`,
+                            paymentId: payment.paymentId || '',
+                            orderId: updatedPayment.orderId || '',
+                        }).catch((error) => {
+                            logger.error('Failed to send partial payment email to user:', error)
+                        })
+                    }
+
+                    // Continue to next payment (don't upgrade user yet)
+                    continue
+                }
+
                 // If payment is finished/confirmed but user wasn't upgraded yet, trigger upgrade
                 if (
                     (paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') &&
