@@ -199,7 +199,8 @@ export const authConfig: NextAuthConfig = {
             return baseUrl
         },
         async jwt({ token, user, account, trigger }: any) {
-            if (user) {
+            // Handle non-Google sign-in (email/password, SIWE, etc.)
+            if (user && account?.provider !== 'google') {
                 token.id = user.id
                 // Normalize email to ensure consistency across auth methods
                 token.email = user.email ? String(user.email).toLowerCase().trim() : user.email
@@ -215,12 +216,37 @@ export const authConfig: NextAuthConfig = {
                 if ((user as any).authMethod) {
                     token.authMethod = (user as any).authMethod
                 }
-                // Store profile image if available (from Google OAuth or other providers)
+                // Store profile image if available (from OAuth or other providers)
                 if (user.image) {
                     token.image = user.image
                 }
                 token.iat = Math.floor(Date.now() / 1000) // Issued at time
                 console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}, image: ${user.image ? 'present' : 'missing'}`)
+            }
+
+            // For initial Google OAuth sign-in, we deliberately avoid treating
+            // Google's subject (`profile.sub`) as our database user ID.
+            // We only stash basic identity here; the real user ID is obtained
+            // from the backend in the OAuth linking block below.
+            if (user && account?.provider === 'google') {
+                // Normalize email immediately so subsequent callbacks see the same casing
+                token.email = user.email ? String(user.email).toLowerCase().trim() : user.email
+                token.tier = user.tier || token.tier || 'free'
+                token.emailVerified = user.emailVerified ?? token.emailVerified
+                token.role = user.role || token.role || 'USER'
+                token.status = user.status ?? token.status
+                token.twoFactorEnabled = user.twoFactorEnabled ?? token.twoFactorEnabled
+                if ((user as any).authMethod) {
+                    token.authMethod = (user as any).authMethod
+                } else if (!token.authMethod) {
+                    token.authMethod = 'google'
+                }
+                // Store Google profile image while we have it
+                if (user.image) {
+                    token.image = user.image
+                }
+                token.iat = Math.floor(Date.now() / 1000)
+                console.log(`[Auth] JWT callback - Google OAuth user initiated login: ${user.email}, image: ${user.image ? 'present' : 'missing'}`)
             }
 
             // Always fetch fresh tier data from database when update() is called or periodically
@@ -289,49 +315,51 @@ export const authConfig: NextAuthConfig = {
                             return null // Return null to invalidate the session
                         }
                     } else if (response.status === 404 || response.status === 401) {
-                        // User not found - account was deleted
-                        // Check error message to confirm it's a "user not found" error
+                        // User not found or token invalid – attempt Google self-heal first if possible
                         const errorData = await response.json().catch(() => ({ error: 'User not found' }))
-                        if (response.status === 404 || errorData.error?.toLowerCase().includes('not found')) {
+                        const isNotFound = response.status === 404 || errorData.error?.toLowerCase().includes('not found')
+
+                        if (isNotFound && token.oauthProvider === 'google' && token.oauthProviderAccountId && token.email) {
+                            try {
+                                console.warn('[Auth] /me returned not found. Attempting self-heal via /oauth-link')
+                                const linkRes = await fetch(`${BACKEND_API_URL}/api/auth/oauth-link`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        email: String(token.email).toLowerCase().trim(),
+                                        name: token.email?.split('@')[0],
+                                        image: token.image,
+                                        provider: 'google',
+                                        providerId: token.oauthProviderAccountId,
+                                    }),
+                                })
+                                if (linkRes.ok) {
+                                    const { user: dbUser, token: dbToken } = await linkRes.json()
+                                    token.id = dbUser.id
+                                    token.tier = dbUser.tier || token.tier || 'free'
+                                    token.emailVerified = dbUser.emailVerified
+                                    token.role = dbUser.role || token.role || 'USER'
+                                    token.status = dbUser.status || token.status
+                                    token.twoFactorEnabled = dbUser.twoFactorEnabled ?? token.twoFactorEnabled
+                                    if (dbToken) token.accessToken = dbToken
+                                    token.tierLastChecked = Date.now()
+                                    console.log('[Auth] ✅ Self-heal succeeded. Token now bound to DB user', dbUser.id)
+                                } else {
+                                    const detail = await linkRes.json().catch(() => ({}))
+                                    console.warn('[Auth] Self-heal /oauth-link failed', linkRes.status, detail)
+                                }
+                            } catch (e) {
+                                console.warn('[Auth] Self-heal attempt errored', e)
+                            }
+                        }
+
+                        if (isNotFound) {
                             console.error(`[Auth] ⚠️ User not found (${response.status}) - account was deleted - invalidating session`)
                             return null // Return null to invalidate the session
                         }
-                        // If it's a 401 but not "not found", might be auth error - don't invalidate yet
+
+                        // If it's a 401 but not clearly "not found", might be auth error - don't invalidate yet
                         console.warn(`[Auth] Non-404/401 error or unclear error message, status: ${response.status}`)
-                    } else if ((response.status === 401 || response.status === 404) && token.oauthProvider === 'google' && token.oauthProviderAccountId && token.email) {
-                        // Self-heal: if /me says user not found but we have Google identity,
-                        // create/link the account now using the saved providerAccountId.
-                        try {
-                            console.warn('[Auth] /me returned not found. Attempting self-heal via /oauth-link')
-                            const linkRes = await fetch(`${BACKEND_API_URL}/api/auth/oauth-link`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    email: String(token.email).toLowerCase().trim(),
-                                    name: token.email?.split('@')[0],
-                                    image: token.image,
-                                    provider: 'google',
-                                    providerId: token.oauthProviderAccountId,
-                                }),
-                            })
-                            if (linkRes.ok) {
-                                const { user: dbUser, token: dbToken } = await linkRes.json()
-                                token.id = dbUser.id
-                                token.tier = dbUser.tier || token.tier || 'free'
-                                token.emailVerified = dbUser.emailVerified
-                                token.role = dbUser.role || token.role || 'USER'
-                                token.status = dbUser.status || token.status
-                                token.twoFactorEnabled = dbUser.twoFactorEnabled ?? token.twoFactorEnabled
-                                if (dbToken) token.accessToken = dbToken
-                                token.tierLastChecked = Date.now()
-                                console.log('[Auth] ✅ Self-heal succeeded. Token now bound to DB user', dbUser.id)
-                            } else {
-                                const detail = await linkRes.json().catch(() => ({}))
-                                console.warn('[Auth] Self-heal /oauth-link failed', linkRes.status, detail)
-                            }
-                        } catch (e) {
-                            console.warn('[Auth] Self-heal attempt errored', e)
-                        }
                     }
                 } catch (error) {
                     // Silently fail - use cached tier if fetch fails
@@ -339,7 +367,9 @@ export const authConfig: NextAuthConfig = {
                 }
             }
 
-            // Handle Google OAuth account linking
+            // Handle Google OAuth account linking for sign-in.
+            // This runs on the OAuth callback and ensures we always have a real
+            // database user ID + backend access token associated with the session.
             if (account?.provider === 'google' && user?.email) {
                 try {
                     token.authMethod = 'google'
@@ -354,9 +384,6 @@ export const authConfig: NextAuthConfig = {
                         console.warn('[NextAuth] ⚠️ Google OAuth user object missing image field:', user)
                     }
 
-                    // Check if user is already logged in (for account linking)
-                    const existingSession = token.id ? { userId: token.id } : null
-
                     const requestBody: any = {
                         // Send normalized email to backend for consistent linking
                         email: String(user.email).toLowerCase().trim(),
@@ -368,25 +395,23 @@ export const authConfig: NextAuthConfig = {
                         providerId: account.providerAccountId,
                     }
 
-                    // If user is already logged in, include Authorization header for linking
                     const headers: HeadersInit = {
                         'Content-Type': 'application/json',
                     }
 
-                    let endpoint = `${BACKEND_API_URL}/api/auth/oauth-link`
-                    if (existingSession?.userId) {
-                        headers['Authorization'] = `Bearer ${existingSession.userId}`
-                        endpoint = `${BACKEND_API_URL}/api/auth/oauth/link`
-                        console.log('[NextAuth] Linking Google OAuth to existing account:', existingSession.userId)
-                    } else {
-                        console.log('[NextAuth] Creating new account with Google OAuth')
-                    }
+                    // Always use the unauthenticated OAuth endpoint here. It handles both
+                    // first-time sign-ins and repeat sign-ins for the same Google account.
+                    const endpoint = `${BACKEND_API_URL}/api/auth/oauth-link`
+                    console.log('[NextAuth] Creating or linking account with Google OAuth via /oauth-link', {
+                        endpoint,
+                        email: requestBody.email,
+                        provider: requestBody.provider,
+                    })
 
                     console.log('[NextAuth] Calling OAuth endpoint:', {
                         endpoint,
                         email: requestBody.email,
                         provider: requestBody.provider,
-                        hasExistingSession: !!existingSession?.userId,
                     })
 
                     const response = await fetch(endpoint, {
@@ -403,48 +428,43 @@ export const authConfig: NextAuthConfig = {
                     })
 
                     if (response.ok) {
-                        const responseData = await response.json()
+                        const { user: dbUser, token: dbToken } = await response.json()
                         console.log('[NextAuth] OAuth endpoint success:', {
-                            hasUser: !!responseData.user,
-                            hasToken: !!responseData.token,
-                            userId: responseData.user?.id,
-                            email: responseData.user?.email,
-                            role: responseData.user?.role,
+                            hasUser: !!dbUser,
+                            hasToken: !!dbToken,
+                            userId: dbUser?.id,
+                            email: dbUser?.email,
+                            role: dbUser?.role,
                         })
 
-                        // If linking to existing account, use existing token data
-                        if (existingSession?.userId && responseData.success) {
-                            console.log('[NextAuth] Google OAuth linked successfully to existing account')
-                            // Keep existing token data, just mark OAuth as linked
-                            token.googleLinked = true
-                        } else {
-                            // New account creation
-                            const { user: dbUser, token: dbToken } = responseData
-                            token.id = dbUser.id
-                            {
-                                // Preserve email, but normalize casing for consistency
-                                const candidate = token.email || dbUser.email || user.email
-                                token.email = candidate ? String(candidate).toLowerCase().trim() : candidate
-                            }
-                            token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
-                            token.emailVerified = dbUser.emailVerified
-                            token.role = dbUser.role || 'USER' // Default to 'USER' if undefined - CRITICAL for admin access
-                            token.status = dbUser.status
-                            token.twoFactorEnabled = dbUser.twoFactorEnabled
-                            token.accessToken = dbToken
-                            token.tierLastChecked = Date.now() // Mark as checked so refresh happens
+                        if (!dbUser || !dbUser.id) {
+                            throw new Error('OAuth linking failed: backend did not return a user')
+                        }
 
-                            console.log(`[NextAuth] ✅ OAuth account created/linked: ${dbUser.email}, role: ${token.role}, tier: ${token.tier}`)
-                            // CRITICAL: Preserve Google profile image - backend doesn't return it
-                            // Always use user.image if available (it's the fresh Google profile photo)
-                            if (user.image) {
-                                token.image = user.image
-                                console.log('[NextAuth] ✅ Preserved Google profile image after account creation:', user.image)
-                            } else if (token.image) {
-                                console.log('[NextAuth] Keeping existing image from token:', token.image)
-                            } else {
-                                console.warn('[NextAuth] ⚠️ No profile image available after account creation')
-                            }
+                        token.id = dbUser.id
+                        {
+                            // Preserve email, but normalize casing for consistency
+                            const candidate = token.email || dbUser.email || user.email
+                            token.email = candidate ? String(candidate).toLowerCase().trim() : candidate
+                        }
+                        token.tier = dbUser.tier || 'free' // Default to 'free' if undefined
+                        token.emailVerified = dbUser.emailVerified
+                        token.role = dbUser.role || 'USER' // Default to 'USER' if undefined - CRITICAL for admin access
+                        token.status = dbUser.status
+                        token.twoFactorEnabled = dbUser.twoFactorEnabled
+                        token.accessToken = dbToken
+                        token.tierLastChecked = Date.now() // Mark as checked so refresh happens
+
+                        console.log(`[NextAuth] ✅ OAuth account created/linked: ${dbUser.email}, role: ${token.role}, tier: ${token.tier}`)
+                        // CRITICAL: Preserve Google profile image - backend doesn't return it
+                        // Always use user.image if available (it's the fresh Google profile photo)
+                        if (user.image) {
+                            token.image = user.image
+                            console.log('[NextAuth] ✅ Preserved Google profile image after account creation:', user.image)
+                        } else if (token.image) {
+                            console.log('[NextAuth] Keeping existing image from token:', token.image)
+                        } else {
+                            console.warn('[NextAuth] ⚠️ No profile image available after account creation')
                         }
                     } else {
                         const errorData = await response.json().catch(() => ({}))
