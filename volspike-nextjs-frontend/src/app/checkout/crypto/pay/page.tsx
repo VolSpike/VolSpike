@@ -544,6 +544,7 @@ export default function CryptoPaymentPage() {
   }, [timeRemaining, isExpired, paymentDetails, session, paymentId, router])
 
   // Poll payment status (every 10 seconds)
+  // Uses status endpoint which automatically triggers upgrade if payment is finished
   useEffect(() => {
     if (!paymentDetails || !session?.user || polling) return
 
@@ -556,7 +557,8 @@ export default function CryptoPaymentPage() {
     const interval = setInterval(async () => {
       try {
         const authToken = (session as any)?.accessToken || session.user.id
-        const response = await fetch(`${API_URL}/api/payments/nowpayments/payment/${paymentId}`, {
+        // Use status endpoint which triggers upgrade automatically if finished
+        const response = await fetch(`${API_URL}/api/payments/nowpayments/status/${paymentId}`, {
           headers: {
             'Authorization': `Bearer ${authToken}`,
           },
@@ -564,13 +566,29 @@ export default function CryptoPaymentPage() {
 
         if (response.ok) {
           const data = await response.json()
-          setPaymentDetails((prev) => prev ? { ...prev, ...data } : null)
+          // Update payment details with status info
+          setPaymentDetails((prev) => prev ? { 
+            ...prev, 
+            paymentStatus: data.status,
+            // Keep other fields from prev
+          } : null)
 
-          // If payment is finished, redirect to success page
-          if (data.paymentStatus === 'finished') {
+          // If payment is finished and user was upgraded, redirect to success page
+          if (data.status === 'finished' && data.upgraded) {
+            // Refresh session to get new tier
+            const { update } = await import('next-auth/react')
+            await update()
+            
             setTimeout(() => {
               router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
             }, 2000)
+          } else if (data.status === 'finished') {
+            // Payment finished but upgrade pending - refresh session and check again
+            const { update } = await import('next-auth/react')
+            await update()
+            
+            // Show success message
+            toast.success('Payment confirmed! Upgrading your account...', { duration: 5000 })
           }
         }
       } catch (err) {
