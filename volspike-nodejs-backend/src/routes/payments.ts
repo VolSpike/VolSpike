@@ -2390,51 +2390,30 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
         })
 
         // Calculate buffer percentage for display
-        // Try to fetch minimum amount to calculate actual buffer
+        // CRITICAL: Invoice is $2.00, QR code shows 20% more (~$2.40 worth of crypto)
+        // Buffer info should show: $2.00 base + $0.40 buffer = $2.40
         let bufferInfo = null
         if (paymentStatus.price_amount) {
-            try {
-                // Fetch current minimum to calculate buffer
-                const minAmount = await nowpayments.getMinimumAmount('usd', paymentStatus.pay_currency || 'usdtsol')
-                if (minAmount && paymentStatus.price_amount > minAmount) {
-                    const bufferPercent = (((paymentStatus.price_amount / minAmount) - 1) * 100).toFixed(0)
-                    bufferInfo = {
-                        applied: true,
-                        percentage: `${bufferPercent}%`,
-                        baseAmount: minAmount,
-                        bufferedAmount: paymentStatus.price_amount,
-                    }
-                    logger.info('Calculated buffer info for display', {
-                        paymentId,
-                        minAmount,
-                        priceAmount: paymentStatus.price_amount,
-                        bufferPercent,
-                    })
-                } else if (!minAmount) {
-                    // If we can't fetch minimum, assume 20% buffer was applied
-                    // Estimate base amount by reversing the 20% calculation
-                    const estimatedBase = paymentStatus.price_amount / 1.2
-                    bufferInfo = {
-                        applied: true,
-                        percentage: '20%',
-                        baseAmount: Math.round(estimatedBase * 100) / 100,
-                        bufferedAmount: paymentStatus.price_amount,
-                    }
-                }
-            } catch (bufferError) {
-                logger.warn('Could not calculate buffer info', {
-                    error: bufferError,
-                    paymentId,
-                })
-                // Fallback: Assume 20% buffer was applied
-                const estimatedBase = paymentStatus.price_amount / 1.2
-                bufferInfo = {
-                    applied: true,
-                    percentage: '20%',
-                    baseAmount: Math.round(estimatedBase * 100) / 100,
-                    bufferedAmount: paymentStatus.price_amount,
-                }
+            // The invoice amount is the BASE amount ($2.00)
+            // We apply 20% buffer to the QR code amount (crypto side)
+            // So the USD equivalent of QR code is: invoice * 1.20 = $2.40
+            const baseAmount = paymentStatus.price_amount // $2.00 (invoice amount)
+            const bufferedAmount = baseAmount * 1.20 // $2.40 (QR code amount with 20% buffer)
+            
+            bufferInfo = {
+                applied: true,
+                percentage: '20%',
+                baseAmount: Math.round(baseAmount * 100) / 100, // Round to 2 decimals
+                bufferedAmount: Math.round(bufferedAmount * 100) / 100, // Round to 2 decimals
             }
+            
+            logger.info('Calculated buffer info for display', {
+                paymentId,
+                invoiceAmount: baseAmount,
+                qrCodeAmountUSD: bufferedAmount,
+                bufferPercent: '20%',
+                note: 'Invoice is base amount, QR code shows 20% more to cover network fees',
+            })
         }
 
         // CRITICAL: For USDT/USDC, use 6 decimals (token standard)
