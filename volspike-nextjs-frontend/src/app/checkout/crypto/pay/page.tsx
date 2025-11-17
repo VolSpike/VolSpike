@@ -450,7 +450,7 @@ export default function CryptoPaymentPage() {
     <div className="min-h-screen bg-background relative">
       <Header />
       <main className="container mx-auto px-4 py-12 max-w-2xl relative z-0">
-        <Card>
+        <Card className="relative z-0">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
