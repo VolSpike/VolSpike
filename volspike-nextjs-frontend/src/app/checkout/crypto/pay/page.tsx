@@ -698,25 +698,45 @@ export default function CryptoPaymentPage() {
                 <>
                   {/* Primary: Open in Phantom (uses Solana Pay URI) */}
                   <Button
-                    onClick={() => {
+                    onClick={(e) => {
+                      // Prevent any default behavior that might block navigation
+                      e.preventDefault()
+                      e.stopPropagation()
+                      
                       // Use Solana Pay URI (Phantom recognizes this format)
                       if (solanaUri) {
-                        console.log('[CryptoPaymentPage] Opening Solana Pay URI in Phantom:', solanaUri)
-                        // Try direct navigation first (works on mobile)
-                        try {
-                          window.location.href = solanaUri
-                        } catch (err) {
-                          console.warn('[CryptoPaymentPage] Direct navigation failed, trying window.open:', err)
-                          window.open(solanaUri, '_blank')
-                        }
+                        console.log('[CryptoPaymentPage] Opening Solana Pay URI in Phantom:', {
+                          solanaUri,
+                          phantomUniversalLink,
+                          timestamp: new Date().toISOString(),
+                        })
                         
-                        // Fallback to Phantom universal link if Solana Pay URI doesn't work
-                        setTimeout(() => {
+                        // Use window.open instead of window.location.href to avoid blocking navigation
+                        // This allows the page to remain interactive while opening the wallet
+                        try {
+                          // Try Phantom universal link first (more reliable)
                           if (phantomUniversalLink) {
-                            console.log('[CryptoPaymentPage] Fallback to Phantom universal link:', phantomUniversalLink)
-                            window.open(phantomUniversalLink, '_blank')
+                            console.log('[CryptoPaymentPage] Opening Phantom universal link:', phantomUniversalLink)
+                            const opened = window.open(phantomUniversalLink, '_blank', 'noopener,noreferrer')
+                            if (!opened) {
+                              // Popup blocked, try direct navigation as fallback
+                              console.warn('[CryptoPaymentPage] Popup blocked, trying direct navigation')
+                              window.location.href = phantomUniversalLink
+                            }
+                          } else {
+                            // Fallback to Solana Pay URI
+                            console.log('[CryptoPaymentPage] Opening Solana Pay URI:', solanaUri)
+                            const opened = window.open(solanaUri, '_blank', 'noopener,noreferrer')
+                            if (!opened) {
+                              // Popup blocked, try direct navigation as fallback
+                              console.warn('[CryptoPaymentPage] Popup blocked, trying direct navigation')
+                              window.location.href = solanaUri
+                            }
                           }
-                        }, 1000)
+                        } catch (err) {
+                          console.error('[CryptoPaymentPage] Error opening wallet:', err)
+                          toast.error('Failed to open wallet. Please copy the address manually.')
+                        }
                       } else {
                         toast.error('Payment details not available')
                         console.error('[CryptoPaymentPage] No Solana Pay URI available')
@@ -725,6 +745,7 @@ export default function CryptoPaymentPage() {
                     className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white shadow-lg"
                     size="lg"
                     disabled={!solanaUri || isExpired}
+                    type="button"
                   >
                     <span className="flex items-center justify-center gap-2">
                       <span>Open in Phantom Wallet</span>
@@ -754,9 +775,14 @@ export default function CryptoPaymentPage() {
               )}
               
               <Button
-                onClick={() => router.push('/pricing')}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  router.push('/pricing')
+                }}
                 variant="ghost"
                 className="w-full"
+                type="button"
               >
                 Cancel Payment
               </Button>
