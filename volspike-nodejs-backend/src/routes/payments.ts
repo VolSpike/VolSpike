@@ -926,12 +926,15 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
                 if (minAmount) {
-                    // Add 10% buffer to ensure we're above minimum
-                    priceAmount = Math.ceil(minAmount * 1.1 * 100) / 100
-                    logger.info('Calculated test amount from minimum', {
+                    // Add 20% buffer to account for network fees and ensure we're well above minimum
+                    // Network fees can reduce received amount, so we need extra buffer
+                    priceAmount = Math.ceil(minAmount * 1.2 * 100) / 100
+                    logger.info('Calculated test amount from minimum with network fee buffer', {
                         currency: payCurrency,
                         minAmount,
+                        buffer: '20%',
                         priceAmount,
+                        note: 'Increased buffer to account for network fees that reduce received amount',
                     })
                 } else {
                     // Fallback to safe default if unable to fetch minimum
@@ -1014,14 +1017,17 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
                 if (minAmount && (!priceAmount || priceAmount < minAmount)) {
-                    // Add 10% buffer to ensure we're above minimum
-                    const calculatedAmount = Math.ceil(minAmount * 1.1 * 100) / 100
+                    // Add 20% buffer to account for network fees and ensure we're well above minimum
+                    // Network fees can reduce received amount, so we need extra buffer
+                    const calculatedAmount = Math.ceil(minAmount * 1.2 * 100) / 100
                     priceAmount = calculatedAmount
-                    logger.info('Updated price amount based on minimum', {
+                    logger.info('Updated price amount based on minimum with network fee buffer', {
                         currency: finalPayCurrency,
                         minAmount,
+                        buffer: '20%',
                         calculatedAmount,
                         finalAmount: priceAmount,
+                        note: 'Increased buffer to account for network fees that reduce received amount',
                     })
                 }
             } catch (minAmountError) {
@@ -2097,20 +2103,36 @@ payments.post('/nowpayments/webhook', async (c) => {
                     note: 'NowPayments will send another webhook when status changes to "finished"',
                 })
 
-                // Notify admin about partially_paid status (non-critical)
-                notifyAdminPaymentIssue('CRYPTO_PAYMENT_PARTIALLY_PAID', {
-                    paymentId: payment_id || cryptoPayment.paymentId,
-                    orderId: order_id || cryptoPayment.orderId,
-                    actuallyPaid: data.actually_paid,
-                    payAmount: data.price_amount || cryptoPayment.payAmount,
-                    payCurrency: data.pay_currency || cryptoPayment.payCurrency,
-                    userId: cryptoPayment.userId,
-                    userEmail: cryptoPayment.user.email,
-                    tier: cryptoPayment.tier,
-                    note: 'Payment received but not yet fully confirmed. User will be upgraded when status becomes "finished".',
-                }).catch((error) => {
-                    logger.error('Failed to notify admin about partially_paid status (non-critical):', error)
-                })
+                // Notify admin about partially_paid status - CRITICAL for monitoring
+                // Calculate shortfall to help admin understand the issue
+                const payAmount = data.price_amount || cryptoPayment.payAmount
+                const actuallyPaid = data.actually_paid ? Number(data.actually_paid) : 0
+                const shortfall = payAmount - actuallyPaid
+                const shortfallPercent = payAmount > 0 ? ((shortfall / payAmount) * 100).toFixed(2) : '0.00'
+                
+                try {
+                    await notifyAdminPaymentIssue('CRYPTO_PAYMENT_PARTIALLY_PAID', {
+                        paymentId: payment_id || cryptoPayment.paymentId,
+                        orderId: order_id || cryptoPayment.orderId,
+                        actuallyPaid: actuallyPaid,
+                        payAmount: payAmount,
+                        shortfall: shortfall,
+                        shortfallPercent: `${shortfallPercent}%`,
+                        payCurrency: data.pay_currency || cryptoPayment.payCurrency,
+                        userId: cryptoPayment.userId,
+                        userEmail: cryptoPayment.user.email,
+                        tier: cryptoPayment.tier,
+                        note: 'Payment received but amount is less than requested (likely due to network fees). User will be upgraded when status becomes "finished" or admin can manually complete payment.',
+                        actionRequired: 'Review payment. If user paid full amount, manually complete payment via /api/admin/payments/complete-partial-payment',
+                    })
+                    logger.info('✅ Admin notified about partially_paid payment', {
+                        paymentId: payment_id,
+                        userEmail: cryptoPayment.user.email,
+                    })
+                } catch (emailError) {
+                    logger.error('❌ Failed to notify admin about partially_paid status:', emailError)
+                    // Don't throw - payment processing should continue
+                }
             }
         }
 
