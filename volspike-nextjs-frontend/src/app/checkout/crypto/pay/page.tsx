@@ -691,13 +691,37 @@ export default function CryptoPaymentPage() {
     return () => clearInterval(interval)
   }, [timeRemaining, isExpired, paymentDetails, session, paymentId, router])
 
+  // Check if user was already upgraded (for cases where payment is confirmed but user hasn't been redirected)
+  useEffect(() => {
+    if (!paymentDetails || !session?.user) return
+    
+    // If payment is confirmed/finished and user tier matches payment tier, redirect
+    const isPaymentComplete = paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'confirmed'
+    const isUserUpgraded = session.user.tier === paymentDetails.tier
+    
+    if (isPaymentComplete && isUserUpgraded) {
+      console.log('[CryptoPaymentPage] Payment confirmed and user upgraded - redirecting to success page', {
+        paymentStatus: paymentDetails.paymentStatus,
+        userTier: session.user.tier,
+        paymentTier: paymentDetails.tier,
+      })
+      
+      toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
+      
+      setTimeout(() => {
+        router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
+      }, 2000)
+    }
+  }, [paymentDetails, session?.user, router])
+
   // Poll payment status (every 10 seconds)
   // Uses status endpoint which automatically triggers upgrade if payment is finished
   useEffect(() => {
     if (!paymentDetails || !session?.user || polling) return
 
-    // Only poll if payment is not finished or confirmed
-    if (paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'confirmed' || paymentDetails.paymentStatus === 'failed') {
+    // Continue polling even if confirmed/finished to check for upgrades
+    // Only stop if payment failed
+    if (paymentDetails.paymentStatus === 'failed') {
       return
     }
 
@@ -732,12 +756,16 @@ export default function CryptoPaymentPage() {
             setTimeout(() => {
               router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
             }, 2000)
+            return // Stop polling after redirect
           } else if (data.status === 'finished' || data.status === 'confirmed') {
-            // Payment finished but upgrade pending - refresh session and check again
+            // Payment finished/confirmed - refresh session to check if user was upgraded
             await updateSession()
             
-            // Show success message
-            toast.success('Payment confirmed! Upgrading your account...', { duration: 5000 })
+            // Check again after session refresh (will be handled by the upgrade check effect above)
+            console.log('[CryptoPaymentPage] Payment confirmed, checking user tier after session refresh', {
+              paymentStatus: data.status,
+              upgraded: data.upgraded,
+            })
           } else if (data.status === 'partially_paid') {
             // Update payment details to show partially_paid status
             setPaymentDetails((prev) => prev ? { 
