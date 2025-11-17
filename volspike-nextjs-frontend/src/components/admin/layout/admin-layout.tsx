@@ -2,6 +2,7 @@ import React from 'react'
 import { AdminHeader } from './admin-header'
 import { AdminSidebar } from './admin-sidebar'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
+import { AdminBackgroundSync } from '@/components/admin/admin-background-sync'
 
 interface AdminLayoutProps {
     children: React.ReactNode
@@ -11,6 +12,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     return (
         <div className="relative min-h-screen bg-background flex flex-col">
             <BackgroundPattern />
+            {/* Global background sync for admin users */}
+            <AdminBackgroundSync />
             <div className="relative z-10 flex flex-1 min-h-0">
                 {/* Sidebar column - sticky on desktop, fixed overlay on mobile */}
                 <div className="hidden lg:block lg:sticky lg:top-0 lg:self-start lg:h-screen lg:z-30">
