@@ -27,7 +27,7 @@ interface PaymentDetails {
 }
 
 export default function CryptoPaymentPage() {
-  const { data: session } = useSession()
+  const { data: session, update: updateSession } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const paymentId = searchParams.get('paymentId')
@@ -576,16 +576,14 @@ export default function CryptoPaymentPage() {
           // If payment is finished and user was upgraded, redirect to success page
           if (data.status === 'finished' && data.upgraded) {
             // Refresh session to get new tier
-            const { update } = await import('next-auth/react')
-            await update()
+            await updateSession()
             
             setTimeout(() => {
               router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
             }, 2000)
           } else if (data.status === 'finished') {
             // Payment finished but upgrade pending - refresh session and check again
-            const { update } = await import('next-auth/react')
-            await update()
+            await updateSession()
             
             // Show success message
             toast.success('Payment confirmed! Upgrading your account...', { duration: 5000 })
@@ -601,7 +599,7 @@ export default function CryptoPaymentPage() {
       clearInterval(interval)
       setPolling(false)
     }
-  }, [paymentDetails, session, paymentId, router, polling])
+  }, [paymentDetails, session, paymentId, router, polling, updateSession])
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
