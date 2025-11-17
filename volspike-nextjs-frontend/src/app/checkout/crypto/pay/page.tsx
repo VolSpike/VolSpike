@@ -848,6 +848,17 @@ export default function CryptoPaymentPage() {
                   <p className="text-sm text-muted-foreground">
                     ≈ ${usdAmount.toFixed(2)} USD · {networkName} network
                   </p>
+                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-border/40 bg-muted/30 p-2.5">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-sec-500 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-foreground">
+                        Amount includes network fee buffer
+                      </p>
+                      <p className="text-[11px] leading-relaxed text-muted-foreground">
+                        The payment amount includes a 20% buffer to cover blockchain network fees. This ensures your payment completes successfully even if fees are higher than expected. You&apos;ll only pay the actual amount sent, and any excess covers transaction costs.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2 rounded-lg border border-border/60 bg-background/90 p-3 text-xs">
