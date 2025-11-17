@@ -733,6 +733,7 @@ export default function CryptoPaymentPage() {
     const isUserUpgraded = session.user.tier === paymentDetails.tier
     if (isPaymentComplete && isUserUpgraded) {
       // Payment complete and user upgraded - redirect will be handled by the upgrade check effect
+      console.log('[CryptoPaymentPage] Payment confirmed and user upgraded - stopping polling, redirect will happen via effect')
       return
     }
 
@@ -764,38 +765,47 @@ export default function CryptoPaymentPage() {
             // Keep other fields from prev
           } : null)
 
-          // If payment is finished/confirmed and user was upgraded, redirect immediately
-          if ((data.status === 'finished' || data.status === 'confirmed') && data.upgraded) {
-            // Stop polling immediately
-            if (intervalId) {
-              clearInterval(intervalId)
-              intervalId = null
+          // If payment is finished/confirmed, check if user should be upgraded
+          if (data.status === 'finished' || data.status === 'confirmed') {
+            // Check if backend confirms user was upgraded (either via upgraded flag or tier match)
+            const backendConfirmsUpgrade = data.upgraded || (data.userTier === data.targetTier && data.userTier !== 'free')
+            
+            if (backendConfirmsUpgrade) {
+              // Stop polling immediately
+              if (intervalId) {
+                clearInterval(intervalId)
+                intervalId = null
+              }
+              setPolling(false)
+              
+              // Stop timer countdown
+              setTimeRemaining(null)
+              
+              // Refresh session to get new tier (but don't wait for it)
+              updateSession().catch((err) => {
+                console.error('[CryptoPaymentPage] Failed to refresh session:', err)
+              })
+              
+              // Show success message and redirect immediately
+              toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
+              
+              // Redirect immediately (no delay) - backend confirms upgrade
+              router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
+              return // Stop polling after redirect
+            } else {
+              // Payment finished/confirmed but backend doesn't show upgrade yet
+              // Refresh session and check again
+              await updateSession()
+              
+              // Check again after session refresh (will be handled by the upgrade check effect above)
+              console.log('[CryptoPaymentPage] Payment confirmed, checking user tier after session refresh', {
+                paymentStatus: data.status,
+                upgraded: data.upgraded,
+                userTier: data.userTier,
+                targetTier: data.targetTier,
+                backendConfirmsUpgrade,
+              })
             }
-            setPolling(false)
-            
-            // Stop timer countdown
-            setTimeRemaining(null)
-            
-            // Refresh session to get new tier
-            await updateSession()
-            
-            // Show success message and redirect immediately
-            toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
-            
-            // Redirect immediately (no delay)
-            router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
-            return // Stop polling after redirect
-          } else if (data.status === 'finished' || data.status === 'confirmed') {
-            // Payment finished/confirmed - refresh session to check if user was upgraded
-            await updateSession()
-            
-            // Check again after session refresh (will be handled by the upgrade check effect above)
-            console.log('[CryptoPaymentPage] Payment confirmed, checking user tier after session refresh', {
-              paymentStatus: data.status,
-              upgraded: data.upgraded,
-              userTier: data.userTier,
-              targetTier: data.targetTier,
-            })
           } else if (data.status === 'partially_paid') {
             // Update payment details to show partially_paid status
             setPaymentDetails((prev) => prev ? { 
