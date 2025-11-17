@@ -2273,7 +2273,7 @@ payments.post('/nowpayments/webhook', async (c) => {
                         paymentId: payment_id || cryptoPayment.paymentId || '',
                         orderId: order_id || cryptoPayment.orderId || '',
                         expiresAt,
-                    }).catch((error) => {
+                    }).catch((error: any) => {
                         logger.error('Failed to send payment confirmation email (non-critical):', error)
                     })
 
