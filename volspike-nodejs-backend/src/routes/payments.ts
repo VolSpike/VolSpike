@@ -2083,6 +2083,35 @@ payments.post('/nowpayments/webhook', async (c) => {
                     updatedAt: new Date(),
                 },
             })
+
+            // Log partially_paid status for debugging
+            if (payment_status === 'partially_paid') {
+                logger.warn('⚠️ Payment received but status is "partially_paid" - waiting for full confirmation', {
+                    paymentId: payment_id,
+                    orderId: order_id,
+                    actuallyPaid: data.actually_paid,
+                    payAmount: data.price_amount || cryptoPayment.payAmount,
+                    payCurrency: data.pay_currency || cryptoPayment.payCurrency,
+                    userId: cryptoPayment.userId,
+                    userEmail: cryptoPayment.user.email,
+                    note: 'NowPayments will send another webhook when status changes to "finished"',
+                })
+
+                // Notify admin about partially_paid status (non-critical)
+                notifyAdminPaymentIssue('CRYPTO_PAYMENT_PARTIALLY_PAID', {
+                    paymentId: payment_id || cryptoPayment.paymentId,
+                    orderId: order_id || cryptoPayment.orderId,
+                    actuallyPaid: data.actually_paid,
+                    payAmount: data.price_amount || cryptoPayment.payAmount,
+                    payCurrency: data.pay_currency || cryptoPayment.payCurrency,
+                    userId: cryptoPayment.userId,
+                    userEmail: cryptoPayment.user.email,
+                    tier: cryptoPayment.tier,
+                    note: 'Payment received but not yet fully confirmed. User will be upgraded when status becomes "finished".',
+                }).catch((error) => {
+                    logger.error('Failed to notify admin about partially_paid status (non-critical):', error)
+                })
+            }
         }
 
         // Handle successful payment
@@ -2281,7 +2310,7 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
     }
 })
 
-// Get payment status
+// Get payment status and manually trigger upgrade if finished
 payments.get('/nowpayments/status/:paymentId', async (c) => {
     try {
         const user = requireUser(c)
@@ -2292,18 +2321,19 @@ payments.get('/nowpayments/status/:paymentId', async (c) => {
                 paymentId,
                 userId: user.id,
             },
+            include: { user: true },
         })
 
         if (!cryptoPayment) {
             return c.json({ error: 'Payment not found' }, 404)
         }
 
-        // Optionally refresh from NowPayments API
+        // Refresh from NowPayments API
         const nowpayments = NowPaymentsService.getInstance()
         const paymentStatus = await nowpayments.getPaymentStatus(paymentId)
 
         // Update database
-        await prisma.cryptoPayment.update({
+        const updatedPayment = await prisma.cryptoPayment.update({
             where: { id: cryptoPayment.id },
             data: {
                 paymentStatus: paymentStatus.payment_status,
@@ -2312,7 +2342,73 @@ payments.get('/nowpayments/status/:paymentId', async (c) => {
                 updatedAt: new Date(),
                 ...(paymentStatus.payment_status === 'finished' && { paidAt: new Date() }),
             },
+            include: { user: true },
         })
+
+        // If status is now "finished" but user wasn't upgraded yet, trigger upgrade
+        if (paymentStatus.payment_status === 'finished' && updatedPayment.user.tier !== updatedPayment.tier) {
+            logger.info('🔄 Manually triggering user upgrade for finished payment', {
+                paymentId,
+                userId: updatedPayment.userId,
+                currentTier: updatedPayment.user.tier,
+                targetTier: updatedPayment.tier,
+            })
+
+            try {
+                const previousTier = updatedPayment.user.tier
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 30)
+
+                await prisma.$transaction(async (tx) => {
+                    await tx.user.update({
+                        where: { id: updatedPayment.userId },
+                        data: { tier: updatedPayment.tier },
+                    })
+
+                    await tx.cryptoPayment.update({
+                        where: { id: updatedPayment.id },
+                        data: {
+                            expiresAt,
+                            paidAt: new Date(),
+                        },
+                    })
+                })
+
+                // Send email notification
+                const emailService = EmailService.getInstance()
+                if (updatedPayment.user.email && previousTier !== updatedPayment.tier) {
+                    emailService.sendTierUpgradeEmail({
+                        email: updatedPayment.user.email,
+                        name: undefined,
+                        newTier: updatedPayment.tier,
+                        previousTier: previousTier,
+                    }).catch((error) => {
+                        logger.error('Failed to send tier upgrade email:', error)
+                    })
+                }
+
+                // Notify admin
+                notifyAdminPaymentSuccess('CRYPTO_PAYMENT_FINISHED_MANUAL', {
+                    paymentId: updatedPayment.paymentId,
+                    orderId: updatedPayment.orderId,
+                    tier: updatedPayment.tier,
+                    userId: updatedPayment.userId,
+                    userEmail: updatedPayment.user.email,
+                    amountUsd: updatedPayment.payAmount,
+                    payCurrency: updatedPayment.payCurrency,
+                    actuallyPaid: paymentStatus.actually_paid,
+                    actuallyPaidCurrency: paymentStatus.pay_currency,
+                    expiresAt,
+                    note: 'Upgrade triggered manually via status check endpoint',
+                }).catch((error) => {
+                    logger.error('Failed to notify admin:', error)
+                })
+
+                logger.info('✅ User upgraded successfully via manual status check')
+            } catch (upgradeError) {
+                logger.error('Failed to upgrade user during manual status check:', upgradeError)
+            }
+        }
 
         return c.json({
             paymentId: cryptoPayment.paymentId,
@@ -2321,6 +2417,9 @@ payments.get('/nowpayments/status/:paymentId', async (c) => {
             payCurrency: cryptoPayment.payCurrency,
             actuallyPaid: paymentStatus.actually_paid,
             actuallyPaidCurrency: paymentStatus.pay_currency,
+            userTier: updatedPayment.user.tier,
+            targetTier: updatedPayment.tier,
+            upgraded: paymentStatus.payment_status === 'finished' && updatedPayment.user.tier === updatedPayment.tier,
         })
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
