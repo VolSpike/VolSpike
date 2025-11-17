@@ -655,7 +655,7 @@ export default function CryptoPaymentPage() {
               if (response.ok) {
                 const data = await response.json()
                 // If payment was completed, update state (don't show expired message)
-                if (data.paymentStatus === 'finished') {
+                if (data.paymentStatus === 'finished' || data.paymentStatus === 'confirmed') {
                   setIsExpired(false)
                   setPaymentDetails((prev) => prev ? { ...prev, ...data } : null)
                   setTimeout(() => {
@@ -696,8 +696,8 @@ export default function CryptoPaymentPage() {
   useEffect(() => {
     if (!paymentDetails || !session?.user || polling) return
 
-    // Only poll if payment is not finished
-    if (paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'failed') {
+    // Only poll if payment is not finished or confirmed
+    if (paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'confirmed' || paymentDetails.paymentStatus === 'failed') {
       return
     }
 
@@ -721,8 +721,8 @@ export default function CryptoPaymentPage() {
             // Keep other fields from prev
           } : null)
 
-          // If payment is finished and user was upgraded, redirect to success page
-          if (data.status === 'finished' && data.upgraded) {
+          // If payment is finished/confirmed and user was upgraded, redirect to success page
+          if ((data.status === 'finished' || data.status === 'confirmed') && data.upgraded) {
             // Refresh session to get new tier
             await updateSession()
             
@@ -732,7 +732,7 @@ export default function CryptoPaymentPage() {
             setTimeout(() => {
               router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
             }, 2000)
-          } else if (data.status === 'finished') {
+          } else if (data.status === 'finished' || data.status === 'confirmed') {
             // Payment finished but upgrade pending - refresh session and check again
             await updateSession()
             

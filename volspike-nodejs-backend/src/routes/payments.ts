@@ -2136,8 +2136,8 @@ payments.post('/nowpayments/webhook', async (c) => {
             return c.json({ error: 'Payment not found' }, 404)
         }
 
-        // Update payment status (unless it's finished - that will be handled in the transaction below)
-        if (payment_status !== 'finished') {
+        // Update payment status (unless it's finished/confirmed - that will be handled in the transaction below)
+        if (payment_status !== 'finished' && payment_status !== 'confirmed') {
             const updateWhere = cryptoPayment.paymentId
                 ? { paymentId: cryptoPayment.paymentId }
                 : cryptoPayment.invoiceId
@@ -2212,7 +2212,9 @@ payments.post('/nowpayments/webhook', async (c) => {
         }
 
         // Handle successful payment
-        if (payment_status === 'finished') {
+        // NowPayments uses "confirmed" or "finished" for completed payments
+        // Handle both statuses to ensure upgrades happen
+        if (payment_status === 'finished' || payment_status === 'confirmed') {
             try {
                 // Get user's previous tier before updating (for email notification)
                 const previousTier = cryptoPayment.user.tier
@@ -2421,7 +2423,7 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
         let finalPayAmount = paymentStatus.pay_amount
         const isUSDT = paymentStatus.pay_currency?.toLowerCase().includes('usdt')
         const isUSDC = paymentStatus.pay_currency?.toLowerCase().includes('usdc')
-        
+
         if ((isUSDT || isUSDC) && typeof finalPayAmount === 'number') {
             // Round UP to 6 decimals (ceiling function) - ensures we're at least equal to invoice
             const roundedUp = Math.ceil(finalPayAmount * 1000000) / 1000000
@@ -2429,7 +2431,7 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
             const bufferedAmount = roundedUp * 1.20
             // Round UP again to ensure we're always above invoice amount
             finalPayAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
-            
+
             logger.info('Applied 20% buffer to pay_amount for QR code', {
                 originalPayAmount: paymentStatus.pay_amount,
                 roundedUpTo6Decimals: roundedUp,
@@ -2440,7 +2442,7 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
                 note: 'QR code will show buffered amount, ensuring NowPayments recognizes full payment',
             })
         }
-        
+
         // Format payAmountString with correct precision
         const payAmountString = typeof finalPayAmount === 'string'
             ? finalPayAmount
@@ -2507,13 +2509,13 @@ payments.get('/nowpayments/status/:paymentId', async (c) => {
                 actuallyPaid: paymentStatus.actually_paid,
                 actuallyPaidCurrency: paymentStatus.pay_currency,
                 updatedAt: new Date(),
-                ...(paymentStatus.payment_status === 'finished' && { paidAt: new Date() }),
+                ...((paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') && { paidAt: new Date() }),
             },
             include: { user: true },
         })
 
-        // If status is now "finished" but user wasn't upgraded yet, trigger upgrade
-        if (paymentStatus.payment_status === 'finished' && updatedPayment.user.tier !== updatedPayment.tier) {
+        // If status is now "finished" or "confirmed" but user wasn't upgraded yet, trigger upgrade
+        if ((paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') && updatedPayment.user.tier !== updatedPayment.tier) {
             logger.info('🔄 Manually triggering user upgrade for finished payment', {
                 paymentId,
                 userId: updatedPayment.userId,
@@ -2586,7 +2588,7 @@ payments.get('/nowpayments/status/:paymentId', async (c) => {
             actuallyPaidCurrency: paymentStatus.pay_currency,
             userTier: updatedPayment.user.tier,
             targetTier: updatedPayment.tier,
-            upgraded: paymentStatus.payment_status === 'finished' && updatedPayment.user.tier === updatedPayment.tier,
+            upgraded: (paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') && updatedPayment.user.tier === updatedPayment.tier,
         })
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
