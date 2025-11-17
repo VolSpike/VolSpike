@@ -485,13 +485,13 @@ adminPaymentRoutes.post('/sync-from-nowpayments', async (c) => {
                 actuallyPaid: paymentStatus.actually_paid,
                 actuallyPaidCurrency: paymentStatus.pay_currency,
                 updatedAt: new Date(),
-                ...(paymentStatus.payment_status === 'finished' && { paidAt: new Date() }),
+                ...((paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') && { paidAt: new Date() }),
             },
             include: { user: true },
         })
 
-        // If status is "finished" but user wasn't upgraded yet, trigger upgrade
-        if (paymentStatus.payment_status === 'finished' && updatedPayment.user.tier !== updatedPayment.tier) {
+        // If status is "finished" or "confirmed" but user wasn't upgraded yet, trigger upgrade
+        if ((paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') && updatedPayment.user.tier !== updatedPayment.tier) {
             logger.info('🔄 Payment is finished in NowPayments but user not upgraded - upgrading now', {
                 paymentId: payment.id,
                 nowpaymentsPaymentId: payment.paymentId,
@@ -591,7 +591,7 @@ adminPaymentRoutes.post('/sync-from-nowpayments', async (c) => {
                 previousStatus: payment.paymentStatus,
                 userTier: updatedPayment.user.tier,
                 targetTier: updatedPayment.tier,
-                upgraded: paymentStatus.payment_status === 'finished' && updatedPayment.user.tier === updatedPayment.tier,
+                upgraded: (paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') && updatedPayment.user.tier === updatedPayment.tier,
             },
         })
     } catch (error) {
