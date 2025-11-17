@@ -384,7 +384,7 @@ export default function CryptoPaymentPage() {
         })
         toast.error('Failed to generate QR code')
       })
-  }, [phantomUniversalLink, solanaUri])
+  }, [phantomUniversalLink, solanaUri, paymentDetails])
 
   // Fetch payment details
   useEffect(() => {
@@ -838,7 +838,7 @@ export default function CryptoPaymentPage() {
                           <span className="font-bold text-sec-500">3.</span>
                           <span>
                             If another wallet opens instead, close it and use{' '}
-                            <span className="font-medium text-foreground">"Open in Phantom Wallet"</span> button below.
+                            <span className="font-medium text-foreground">&quot;Open in Phantom Wallet&quot;</span> button below.
                           </span>
                         </p>
                       </div>
