@@ -639,7 +639,7 @@ Need help? Contact us at support@volspike.com
     <tr><td align="center" style="padding:24px;">
       <table role="presentation" width="600" class="container" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
         <tr>
-          <td align="center" style="padding:32px;background:linear-gradient(135deg, #0ea371 0%, #059669 100%);border-radius:12px 12px 0 0;">
+          <td align="center" style="padding:32px;background:#0ea371;border-radius:12px 12px 0 0;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="center" style="padding-bottom:12px;">
@@ -647,8 +647,7 @@ Need help? Contact us at support@volspike.com
                 </td>
               </tr>
             </table>
-            <div style="font:700 28px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;margin-top:12px;">✅ Payment Confirmed!</div>
-            <div style="font:600 18px/1.3 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;margin-top:8px;opacity:0.95;">Welcome to ${tierName} Tier</div>
+            <div style="font:700 24px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;">Payment Confirmed</div>
           </td>
         </tr>
         <tr>
@@ -683,20 +682,20 @@ Need help? Contact us at support@volspike.com
               <p style="margin:0;color:#334155;">Your ${tierName} Tier features are now unlocked! Access real-time market data, advanced analytics, and premium alerts.</p>
             </div>
 
-            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:32px auto;">
+            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:24px auto;">
               <tr><td align="center">
                 <!--[if mso]>
                 <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${safeDashboardUrl}"
-                  style="height:52px;v-text-anchor:middle;width:300px;" arcsize="10%" stroke="f" fillcolor="#059669">
+                  style="height:48px;v-text-anchor:middle;width:280px;" arcsize="10%" stroke="f" fillcolor="#059669">
                   <w:anchorlock/>
-                  <center style="color:#ffffff;font-family:Arial, sans-serif;font-size:16px;font-weight:600;">
+                  <center style="color:#ffffff;font-family:Arial, sans-serif;font-size:16px;font-weight:bold;">
                     Go to Dashboard
                   </center>
                 </v:roundrect>
                 <![endif]-->
                 <!--[if !mso]><!-- -->
-                <a href="${safeDashboardUrl}" target="_blank" style="display:block;background:linear-gradient(135deg, #0ea371 0%, #059669 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;box-shadow:0 4px 6px rgba(5, 150, 105, 0.2);">
-                  Go to Dashboard →
+                <a href="${safeDashboardUrl}" target="_blank" style="display:block;background-color:#059669;color:#ffffff;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;">
+                  Go to Dashboard
                 </a>
                 <!--<![endif]-->
               </td></tr>
@@ -833,7 +832,7 @@ Questions about your payment? Contact us at support@volspike.com
     <tr><td align="center" style="padding:24px;">
       <table role="presentation" width="600" class="container" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
         <tr>
-          <td align="center" style="padding:32px;background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);border-radius:12px 12px 0 0;">
+          <td align="center" style="padding:32px;background:#f59e0b;border-radius:12px 12px 0 0;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="center" style="padding-bottom:12px;">
@@ -841,8 +840,7 @@ Questions about your payment? Contact us at support@volspike.com
                 </td>
               </tr>
             </table>
-            <div style="font:700 28px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;margin-top:12px;">⏳ Payment Received</div>
-            <div style="font:600 18px/1.3 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;margin-top:8px;opacity:0.95;">Waiting for Full Confirmation</div>
+            <div style="font:700 24px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;">Payment Received</div>
           </td>
         </tr>
         <tr>
@@ -874,20 +872,20 @@ Questions about your payment? Contact us at support@volspike.com
               <p style="margin:0;color:#334155;">If you believe you paid the full amount, please contact support and we'll review your payment manually.</p>
             </div>
 
-            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:32px auto;">
+            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:24px auto;">
               <tr><td align="center">
                 <!--[if mso]>
                 <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${safePaymentUrl}"
-                  style="height:52px;v-text-anchor:middle;width:300px;" arcsize="10%" stroke="f" fillcolor="#f59e0b">
+                  style="height:48px;v-text-anchor:middle;width:280px;" arcsize="10%" stroke="f" fillcolor="#d97706">
                   <w:anchorlock/>
-                  <center style="color:#ffffff;font-family:Arial, sans-serif;font-size:16px;font-weight:600;">
+                  <center style="color:#ffffff;font-family:Arial, sans-serif;font-size:16px;font-weight:bold;">
                     View Payment Status
                   </center>
                 </v:roundrect>
                 <![endif]-->
                 <!--[if !mso]><!-- -->
-                <a href="${safePaymentUrl}" target="_blank" style="display:block;background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;box-shadow:0 4px 6px rgba(217, 119, 6, 0.2);">
-                  View Payment Status →
+                <a href="${safePaymentUrl}" target="_blank" style="display:block;background-color:#d97706;color:#ffffff;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;">
+                  View Payment Status
                 </a>
                 <!--<![endif]-->
               </td></tr>
