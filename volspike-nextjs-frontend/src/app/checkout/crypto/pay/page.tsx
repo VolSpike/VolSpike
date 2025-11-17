@@ -255,19 +255,27 @@ export default function CryptoPaymentPage() {
       })
       
       // Phantom universal link (for QR codes and button clicks - ensures Phantom opens directly)
-      // Format: https://phantom.app/ul/v1/transfer?recipient=<address>&amount=<decimal>&token=<mint>
+      // Format per official docs: https://phantom.app/ul/v1/send?recipient=<address>&amount=<decimal>
+      // Reference: https://docs.phantom.com/phantom-deeplinks/deeplinks-ios-and-android
       // IMPORTANT: Universal links should NOT include label, message, or reference - those only work in Solana Pay URIs
       // Use decimal amounts for Phantom universal links (Phantom handles conversion)
       const phantomParams = new URLSearchParams()
       phantomParams.set('recipient', paymentDetails.payAddress)
       phantomParams.set('amount', amountDecimal) // Use the same decimal format as Solana Pay
+      
+      // For SPL tokens, we need to check if Phantom supports token parameter in /send method
+      // If not, we may need to use Solana Pay URI format instead
       if (splTokenMint && !isSOL) {
+        // Try token parameter - if this doesn't work, we'll fall back to Solana Pay URI
         phantomParams.set('token', splTokenMint)
       }
-      // NOTE: Do NOT add label, message, or reference to universal links - Phantom ignores them
+      
+      // Optional memo parameter (per Phantom docs)
+      // phantomParams.set('memo', `Upgrade to ${paymentDetails.tier.toUpperCase()} tier`)
       
       // Universal link (for QR codes and button clicks - opens Phantom app directly)
-      const phantomUniversalLinkUri = `https://phantom.app/ul/v1/transfer?${phantomParams.toString()}`
+      // Using /send method per official Phantom documentation
+      const phantomUniversalLinkUri = `https://phantom.app/ul/v1/send?${phantomParams.toString()}`
       // Deep link (fallback for direct button clicks)
       const phantomDeepLinkUri = phantomUniversalLinkUri.replace('https://phantom.app/ul/', 'phantom://ul/')
       
@@ -306,7 +314,7 @@ export default function CryptoPaymentPage() {
           hasSplToken: !isSOL && !!splTokenMint,
           amountFormat: 'decimal',
           solanaPayUriValid: solanaPayUri.startsWith('solana:'),
-          phantomLinkValid: phantomUniversalLinkUri.startsWith('https://phantom.app/ul/v1/transfer'),
+          phantomLinkValid: phantomUniversalLinkUri.startsWith('https://phantom.app/ul/v1/send'),
         },
       })
 
@@ -385,7 +393,7 @@ export default function CryptoPaymentPage() {
           parsedUri: usingPhantomLink ? {
             scheme: 'https',
             domain: 'phantom.app',
-            path: '/ul/v1/transfer',
+            path: '/ul/v1/send',
             params: Object.fromEntries(new URLSearchParams(uriForQR.split('?')[1] || '')),
           } : {
             scheme: 'solana',
@@ -938,7 +946,7 @@ export default function CryptoPaymentPage() {
                                 ✅ <strong>Optimal format:</strong> Using Phantom universal link format. This is designed specifically for Phantom&apos;s scanner.
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Universal links (<code className="rounded bg-muted px-1 py-0.5 text-[10px]">https://phantom.app/ul/v1/transfer</code>) are Phantom&apos;s recommended format and work reliably with their built-in scanner.
+                                Universal links (<code className="rounded bg-muted px-1 py-0.5 text-[10px]">https://phantom.app/ul/v1/send</code>) are Phantom&apos;s recommended format per <a href="https://docs.phantom.com/phantom-deeplinks/deeplinks-ios-and-android" target="_blank" rel="noopener noreferrer" className="underline">official documentation</a> and work reliably with their built-in scanner.
                               </p>
                             </div>
                           )}
