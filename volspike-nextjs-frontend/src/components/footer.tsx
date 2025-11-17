@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useTheme } from 'next-themes'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { SafeNavLink } from '@/components/safe-nav-link'
 
 const primaryLinks = [
     { href: '/pricing', label: 'Pricing' },
@@ -88,13 +89,14 @@ export function Footer() {
                             <ul className="mt-3 space-y-2">
                                 {primaryLinks.map((link) => (
                                     <li key={link.href}>
-                                        <Link 
-                                            href={link.href} 
+                                        <SafeNavLink
+                                            href={link.href}
+                                            debugLabel={`footer-${link.label.toLowerCase()}`}
                                             className={cn(linkClass, 'pointer-events-auto')}
                                             style={{ zIndex: 101 }}
                                         >
                                             {link.label}
-                                        </Link>
+                                        </SafeNavLink>
                                     </li>
                                 ))}
                             </ul>
@@ -106,13 +108,14 @@ export function Footer() {
                             <ul className="mt-3 space-y-2">
                                 {secondaryLinks.map((link) => (
                                     <li key={link.href}>
-                                        <Link 
-                                            href={link.href} 
+                                        <SafeNavLink
+                                            href={link.href}
+                                            debugLabel={`footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
                                             className={cn(linkClass, 'pointer-events-auto')}
                                             style={{ zIndex: 101 }}
                                         >
                                             {link.label}
-                                        </Link>
+                                        </SafeNavLink>
                                     </li>
                                 ))}
                             </ul>

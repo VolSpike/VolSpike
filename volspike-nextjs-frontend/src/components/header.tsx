@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Separator } from '@/components/ui/separator'
 import { signOut } from 'next-auth/react'
 import { useEnforceSingleIdentity } from '@/hooks/use-enforce-single-identity'
+import { SafeNavLink } from '@/components/safe-nav-link'
 
 export function Header({ hideWalletConnect = false }: { hideWalletConnect?: boolean }) {
     const { data: session, status } = useSession()
@@ -35,8 +36,9 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
         <header className="sticky top-0 z-[100] w-full border-b border-border/40 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm transition-all duration-200">
             <div className="container flex h-16 items-center justify-between gap-3">
                 {/* Logo with subtle hover effect */}
-                <Link
+                <SafeNavLink
                     href="/"
+                    debugLabel="logo"
                     className="flex items-center gap-3 min-w-0 group transition-opacity hover:opacity-80"
                 >
                     <div className="relative">
@@ -52,12 +54,13 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     <span className="truncate text-xl font-bold tracking-tight sm:text-2xl bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text">
                         VolSpike
                     </span>
-                </Link>
+                </SafeNavLink>
 
                 {/* Navigation Links */}
                 <nav className="hidden md:flex items-center gap-1 ml-8">
-                    <Link
+                    <SafeNavLink
                         href="/pricing"
+                        debugLabel="header-pricing"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative pointer-events-auto ${pathname === '/pricing'
                             ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -68,9 +71,10 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
                         )}
                         Pricing
-                    </Link>
-                    <Link
+                    </SafeNavLink>
+                    <SafeNavLink
                         href="/dashboard"
+                        debugLabel="header-dashboard"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative pointer-events-auto ${(pathname === '/dashboard' || pathname === '/')
                             ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -81,9 +85,10 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
                         )}
                         Dashboard
-                    </Link>
-                    <Link
+                    </SafeNavLink>
+                    <SafeNavLink
                         href="/donate"
+                        debugLabel="header-donate"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${pathname === '/donate'
                             ? 'text-purple-400 bg-purple-500/10 font-semibold'
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -94,7 +99,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-purple-500 rounded-full" />
                         )}
                         Donate
-                    </Link>
+                    </SafeNavLink>
                 </nav>
 
                 {/* Right side actions */}
