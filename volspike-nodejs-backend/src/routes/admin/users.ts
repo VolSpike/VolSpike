@@ -612,6 +612,19 @@ adminUserRoutes.delete('/:id', async (c) => {
                 email: user.email,
             })
             
+            // CRITICAL: Delete all NextAuth sessions for this user to force immediate logout
+            // This ensures deleted users cannot continue using their sessions
+            try {
+                await prisma.session.deleteMany({
+                    where: { userId: userId },
+                })
+                logger.info(`Deleted all NextAuth sessions for user ${userId}`)
+            } catch (sessionError: any) {
+                // Session deletion is not critical - JWT callback will handle invalidation
+                // NextAuth JWT strategy stores sessions in cookies, not DB, so this may not find anything
+                logger.warn('Failed to delete sessions (non-critical - JWT sessions are in cookies):', sessionError?.message)
+            }
+            
             // Delete related records first (if any)
             // Note: Prisma will handle cascading deletes if foreign keys are set up correctly
             await prisma.user.delete({

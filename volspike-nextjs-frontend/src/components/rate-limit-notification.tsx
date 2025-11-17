@@ -15,8 +15,24 @@ import { cn } from '@/lib/utils'
 export function RateLimitNotification() {
   const [isRateLimited, setIsRateLimited] = useState(false)
   const [retryAfter, setRetryAfter] = useState<number | null>(null)
+  const [enabled, setEnabled] = useState(false)
 
   useEffect(() => {
+    // In production we keep this notification disabled by default because
+    // CoinGecko rate limits are transient and showing them globally is
+    // distracting for users. Developers can opt‑in via query param or
+    // localStorage flag when debugging.
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      const debugOptIn =
+        search.get('debugCoingecko') === 'true' ||
+        window.localStorage.getItem('volspike:debug:coingecko') === 'true'
+
+      if (process.env.NODE_ENV !== 'production' || debugOptIn) {
+        setEnabled(true)
+      }
+    }
+
     const updateStatus = () => {
       const status = coingeckoRateLimiter.getStatus()
       const now = Date.now()
@@ -46,7 +62,7 @@ export function RateLimitNotification() {
     }
   }, [])
 
-  if (!isRateLimited) return null
+  if (!enabled || !isRateLimited) return null
 
   const formatTime = (seconds: number): string => {
     if (seconds < 60) return `${seconds}s`
@@ -94,4 +110,3 @@ export function RateLimitNotification() {
     </Alert>
   )
 }
-

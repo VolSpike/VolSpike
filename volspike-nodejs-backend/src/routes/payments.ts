@@ -2109,7 +2109,7 @@ payments.post('/nowpayments/webhook', async (c) => {
                 const actuallyPaid = data.actually_paid ? Number(data.actually_paid) : 0
                 const shortfall = payAmount - actuallyPaid
                 const shortfallPercent = payAmount > 0 ? ((shortfall / payAmount) * 100).toFixed(2) : '0.00'
-                
+
                 try {
                     await notifyAdminPaymentIssue('CRYPTO_PAYMENT_PARTIALLY_PAID', {
                         paymentId: payment_id || cryptoPayment.paymentId,

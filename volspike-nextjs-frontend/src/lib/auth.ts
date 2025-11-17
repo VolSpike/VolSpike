@@ -228,6 +228,12 @@ export const authConfig: NextAuthConfig = {
                                 return null // Return null to invalidate the session
                             }
 
+                            // CRITICAL: Check if user status is BANNED or user was deleted
+                            if (dbUser.status === 'BANNED') {
+                                console.log(`[Auth] ⚠️ User account is banned - invalidating session`)
+                                return null // Return null to invalidate the session
+                            }
+
                             const oldTier = token.tier
                             token.tier = dbUser.tier || 'free'
                             token.emailVerified = dbUser.emailVerified
@@ -248,7 +254,15 @@ export const authConfig: NextAuthConfig = {
                             if (oldTier !== token.tier) {
                                 console.log(`[Auth] ✅ Tier updated: ${oldTier} → ${token.tier} for ${dbUser.email}`)
                             }
+                        } else {
+                            // User not found in database - account was deleted
+                            console.log(`[Auth] ⚠️ User not found in database - account was deleted - invalidating session`)
+                            return null // Return null to invalidate the session
                         }
+                    } else if (response.status === 404) {
+                        // User not found - account was deleted
+                        console.log(`[Auth] ⚠️ User not found (404) - account was deleted - invalidating session`)
+                        return null // Return null to invalidate the session
                     } else if ((response.status === 401 || response.status === 404) && token.oauthProvider === 'google' && token.oauthProviderAccountId && token.email) {
                         // Self-heal: if /me says user not found but we have Google identity,
                         // create/link the account now using the saved providerAccountId.
