@@ -48,6 +48,7 @@ export default function CryptoPaymentPage() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [polling, setPolling] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
+  const isRedirectingRef = useRef(false) // Prevent multiple redirect attempts
 
   const safeNavigate = useCallback(
     (href: string, source: string) => {
@@ -700,13 +701,17 @@ export default function CryptoPaymentPage() {
   // Check if user was already upgraded (for cases where payment is confirmed but user hasn't been redirected)
   // This effect runs when session updates after payment is confirmed
   useEffect(() => {
-    if (!paymentDetails || !session?.user) return
+    if (!paymentDetails || !session?.user || isRedirectingRef.current) return
     
     // If payment is confirmed/finished and user tier matches payment tier, redirect immediately
     const isPaymentComplete = paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'confirmed'
     const isUserUpgraded = session.user.tier === paymentDetails.tier
     
     if (isPaymentComplete && isUserUpgraded) {
+      // Prevent multiple redirect attempts
+      if (isRedirectingRef.current) return
+      isRedirectingRef.current = true
+      
       console.log('[CryptoPaymentPage] Payment confirmed and user upgraded - redirecting to success page', {
         paymentStatus: paymentDetails.paymentStatus,
         userTier: session.user.tier,
@@ -719,11 +724,23 @@ export default function CryptoPaymentPage() {
       // Stop polling if still running
       setPolling(false)
       
-      // Show success message and redirect immediately
-      toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
+      // Show success message only once
+      toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 2000 })
       
-      // Redirect immediately (no delay)
-      router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
+      // Redirect immediately using window.location as fallback
+      const redirectUrl = `/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`
+      try {
+        router.push(redirectUrl)
+        // Fallback: Force redirect if router.push doesn't work
+        setTimeout(() => {
+          if (window.location.pathname.includes('/checkout/crypto/pay')) {
+            window.location.href = redirectUrl
+          }
+        }, 500)
+      } catch (error) {
+        console.error('[CryptoPaymentPage] Redirect error, using window.location:', error)
+        window.location.href = redirectUrl
+      }
     }
   }, [paymentDetails, session?.user, router])
 
@@ -774,7 +791,10 @@ export default function CryptoPaymentPage() {
             // Check if backend confirms user was upgraded (either via upgraded flag or tier match)
             const backendConfirmsUpgrade = data.upgraded || (data.userTier === data.targetTier && data.userTier !== 'free')
             
-            if (backendConfirmsUpgrade) {
+            if (backendConfirmsUpgrade && !isRedirectingRef.current) {
+              // Prevent multiple redirect attempts
+              isRedirectingRef.current = true
+              
               // Stop polling immediately
               if (intervalId) {
                 clearInterval(intervalId)
@@ -790,11 +810,23 @@ export default function CryptoPaymentPage() {
                 console.error('[CryptoPaymentPage] Failed to refresh session:', err)
               })
               
-              // Show success message and redirect immediately
-              toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
+              // Show success message only once
+              toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 2000 })
               
               // Redirect immediately (no delay) - backend confirms upgrade
-              router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
+              const redirectUrl = `/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`
+              try {
+                router.push(redirectUrl)
+                // Fallback: Force redirect if router.push doesn't work
+                setTimeout(() => {
+                  if (window.location.pathname.includes('/checkout/crypto/pay')) {
+                    window.location.href = redirectUrl
+                  }
+                }, 500)
+              } catch (error) {
+                console.error('[CryptoPaymentPage] Redirect error, using window.location:', error)
+                window.location.href = redirectUrl
+              }
               return // Stop polling after redirect
             } else {
               // Payment finished/confirmed but backend doesn't show upgrade yet
