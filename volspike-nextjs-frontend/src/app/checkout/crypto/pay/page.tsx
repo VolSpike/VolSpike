@@ -254,11 +254,24 @@ export default function CryptoPaymentPage() {
       // CRITICAL: Don't re-parse and convert - this can lose precision!
       // Keep the original amountDecimal string as-is to preserve all decimal places
 
+      // CRITICAL: Validate payAddress is a valid Solana address format
+      // Invalid addresses cause Phantom to fail with "Failed to generate a valid transaction"
+      const solanaAddressRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+      if (!solanaAddressRegex.test(paymentDetails.payAddress)) {
+        console.error('[CryptoPaymentPage] ❌ Invalid Solana address format:', {
+          address: paymentDetails.payAddress,
+          length: paymentDetails.payAddress.length,
+          reason: 'Address does not match Solana base58 format (32-44 characters)',
+        })
+        throw new Error('Invalid payment address format')
+      }
+
       // Build Solana Pay URI (standard format - supported by Phantom and other wallets)
       // CRITICAL: Amount must come first and always be included
       const params = new URLSearchParams()
       
       // Amount is always required and should be first
+      // CRITICAL: Use the exact string to preserve precision - don't let URLSearchParams convert it
       params.append('amount', amountDecimal)
       
       // SPL token mint address (only for tokens, not SOL)
