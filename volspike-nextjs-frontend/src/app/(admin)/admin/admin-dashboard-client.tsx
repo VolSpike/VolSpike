@@ -20,16 +20,32 @@ export default function AdminDashboardClient() {
 
     useEffect(() => {
         const fetchMetrics = async () => {
-            // Get accessToken from session (could be in session.accessToken or session.user.id)
-            const accessToken = (session as any)?.accessToken || session?.user?.id
+            // Admin API requires JWT token (not user.id)
+            const accessToken = (session as any)?.accessToken
             
             if (!accessToken) {
                 console.error('[AdminDashboard] No access token in session', {
                     hasSession: !!session,
+                    hasUser: !!session?.user,
                     sessionKeys: session ? Object.keys(session) : [],
                     userKeys: session?.user ? Object.keys(session.user) : [],
+                    userId: session?.user?.id,
+                    role: session?.user?.role,
+                    note: 'Admin API requires JWT token in session.accessToken',
                 })
-                setError('Authentication required. Please sign in again.')
+                setError('Authentication token missing. Please sign out and sign in again.')
+                setLoading(false)
+                return
+            }
+
+            // Verify token looks like a JWT (contains dots)
+            if (!accessToken.includes('.')) {
+                console.error('[AdminDashboard] Invalid token format (not a JWT)', {
+                    tokenLength: accessToken.length,
+                    tokenPreview: accessToken.substring(0, 20),
+                    note: 'Admin API requires JWT token format',
+                })
+                setError('Invalid authentication token. Please sign out and sign in again.')
                 setLoading(false)
                 return
             }
@@ -42,9 +58,9 @@ export default function AdminDashboardClient() {
                 console.error('[AdminDashboard] Failed to fetch metrics:', err)
                 // Check if it's an authentication error
                 if (err?.status === 401 || err?.message?.includes('Authentication') || err?.message?.includes('Unauthorized')) {
-                    setError('Authentication failed. Please sign out and sign in again.')
+                    setError('Authentication failed. Your session may have expired. Please sign out and sign in again.')
                 } else {
-                    setError('Failed to load dashboard metrics')
+                    setError(`Failed to load dashboard metrics: ${err?.message || 'Unknown error'}`)
                 }
             } finally {
                 setLoading(false)

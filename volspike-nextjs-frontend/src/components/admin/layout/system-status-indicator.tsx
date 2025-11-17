@@ -26,9 +26,10 @@ export function SystemStatusIndicator() {
     useEffect(() => {
         const checkHealth = async () => {
             try {
-                // Get accessToken from session (could be in session.accessToken or session.user.id)
-                const token = ((session as any)?.accessToken || session?.user?.id) as string | undefined
-                if (!token) {
+                // Admin API requires JWT token (not user.id)
+                const token = (session as any)?.accessToken as string | undefined
+                if (!token || !token.includes('.')) {
+                    // Not a valid JWT token
                     setStatus('unknown')
                     return
                 }
