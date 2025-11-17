@@ -34,7 +34,7 @@ interface SolanaPayQRGeneratorProps {
 }
 
 const SPL_TOKENS = [
-  { value: '', label: 'SOL (Native)', mint: '' },
+  { value: 'sol', label: 'SOL (Native)', mint: '' },
   { value: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', label: 'USDC', mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' },
   { value: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', label: 'USDT', mint: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB' },
   { value: 'custom', label: 'Custom SPL Token', mint: '' },
@@ -50,7 +50,8 @@ export function SolanaPayQRGenerator({
 }: SolanaPayQRGeneratorProps) {
   const [recipient, setRecipient] = useState(defaultRecipient)
   const [amount, setAmount] = useState(defaultAmount)
-  const [selectedToken, setSelectedToken] = useState(defaultToken || '')
+  // Convert empty string to 'sol' for Select component compatibility
+  const [selectedToken, setSelectedToken] = useState(defaultToken || 'sol')
   const [customToken, setCustomToken] = useState('')
   const [label, setLabel] = useState('')
   const [message, setMessage] = useState('')
@@ -91,9 +92,9 @@ export function SolanaPayQRGenerator({
       params.append('amount', amount)
     }
 
-    // Add SPL token if selected
-    const tokenMint = selectedToken === 'custom' ? customToken.trim() : selectedToken
-    if (tokenMint) {
+    // Add SPL token if selected (skip if SOL native)
+    const tokenMint = selectedToken === 'custom' ? customToken.trim() : (selectedToken === 'sol' ? '' : selectedToken)
+    if (tokenMint && tokenMint !== 'sol') {
       if (!isValidSolanaAddress(tokenMint)) {
         setError('Invalid token mint address format')
         return null
