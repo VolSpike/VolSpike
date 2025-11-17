@@ -578,15 +578,15 @@ export default function CryptoPaymentPage() {
         <Header />
         <main className="container mx-auto px-4 py-10 max-w-2xl relative z-0">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sec-500">
-                Crypto Checkout
+                Crypto checkout
               </p>
               <h1 className="text-2xl font-bold tracking-tight">
-                Complete Your Payment
+                Scan &amp; confirm in Phantom
               </h1>
               <p className="text-sm text-muted-foreground max-w-md">
-                Scan the QR code or open Phantom on your phone. Your tier upgrades automatically once the payment confirms on-chain.
+                Open Phantom on your phone, scan the QR code, and confirm. We&apos;ll upgrade your tier automatically once the payment lands on‑chain.
               </p>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs">
@@ -605,10 +605,10 @@ export default function CryptoPaymentPage() {
                   </div>
                   <div>
                     <CardTitle className="flex items-center gap-2 text-xl">
-                      Review &amp; Send Payment
+                      Pay with Phantom
                     </CardTitle>
                     <CardDescription className="mt-1.5">
-                      Use your wallet&apos;s <span className="font-medium text-foreground">Scan</span> feature to pay the exact amount shown below.
+                      Use your wallet&apos;s <span className="font-medium text-foreground">Scan</span> feature to send the exact amount below.
                     </CardDescription>
                   </div>
                 </div>
@@ -653,7 +653,7 @@ export default function CryptoPaymentPage() {
 
             <CardContent className="space-y-6 pb-6">
               {/* Amount & status row */}
-              <div className="grid gap-4 rounded-xl border border-border/60 bg-muted/30 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)]">
+              <div className="grid gap-4 rounded-xl border border-border/60 bg-muted/20 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)]">
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Amount to pay
@@ -683,7 +683,7 @@ export default function CryptoPaymentPage() {
                   </p>
                 </div>
 
-                <div className="space-y-2 rounded-lg border border-border/60 bg-background/80 p-3 text-xs">
+                <div className="space-y-2 rounded-lg border border-border/60 bg-background/90 p-3 text-xs">
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Payment status
                   </p>
@@ -721,18 +721,17 @@ export default function CryptoPaymentPage() {
                       />
                     </div>
                   </div>
-                  <div className="text-center space-y-2 max-w-sm text-xs text-muted-foreground">
+                  <div className="text-center space-y-1.5 max-w-sm text-xs text-muted-foreground">
                     <p>
-                      1. On your phone, open{' '}
+                      1. On your phone open{' '}
                       <span className="font-medium text-foreground">Phantom</span>{' '}
-                      and choose <span className="font-medium text-foreground">Scan</span>.
+                      and tap <span className="font-medium text-foreground">Scan</span>.
                     </p>
                     <p>
-                      2. Point your camera at this QR code. The amount and address are pre-filled;
-                      you only need to confirm.
+                      2. Point at this QR code. The amount and address are pre‑filled; you just confirm.
                     </p>
                     <p>
-                      3. If a different wallet opens, close it and tap{' '}
+                      3. If another wallet opens, close it and use{' '}
                       <span className="font-medium text-foreground">“Open in Phantom Wallet”</span> below.
                     </p>
                   </div>
@@ -851,12 +850,12 @@ export default function CryptoPaymentPage() {
               </div>
 
               {/* Payment Info */}
-              <div className="space-y-2 rounded-xl border border-sec-500/25 bg-sec-500/5 p-4">
-                <p className="text-sm font-semibold text-sec-400">
+              <div className="space-y-1 rounded-xl border border-sec-500/25 bg-sec-500/5 p-4">
+                <p className="text-sm font-semibold text-sec-300">
                   Upgrading to <span className="uppercase">{paymentDetails.tier}</span> tier
                 </p>
-                <p className="text-xs text-sec-300">
-                  As soon as this payment is confirmed on the blockchain, your VolSpike account unlocks the new tier automatically.
+                <p className="text-xs text-sec-200">
+                  Once the payment confirms on‑chain, your VolSpike account unlocks this tier automatically (usually within a few minutes).
                 </p>
               </div>
 
@@ -984,17 +983,17 @@ export default function CryptoPaymentPage() {
             </div>
             
               {/* Helpful Instructions */}
-              <div className="space-y-2 rounded-xl border border-purple-500/20 bg-purple-500/8 p-4 text-xs">
-                <p className="mb-1 text-sm font-semibold text-purple-300">
+              <details className="rounded-xl border border-purple-500/20 bg-purple-500/8 p-4 text-xs [&_summary]:list-none [&_summary]:cursor-pointer">
+                <summary className="mb-1 text-sm font-semibold text-purple-300">
                   💡 Having trouble with Phantom?
-                </p>
-                <ol className="list-decimal list-inside space-y-1 text-purple-200/90">
-                  <li>Make sure Phantom is installed on the same device you&apos;re using to scan.</li>
-                  <li>If Trust Wallet or another app opens, close it and tap <span className="font-medium">“Open in Phantom Wallet”</span> above.</li>
+                </summary>
+                <ol className="list-decimal list-inside space-y-1 text-purple-200/90 mt-1.5">
+                  <li>Confirm Phantom is installed on the device you&apos;re using to scan.</li>
+                  <li>If another wallet opens, close it and tap <span className="font-medium">“Open in Phantom Wallet”</span> above.</li>
                   <li>You can always copy the address and amount, then paste them manually into Phantom.</li>
-                  <li>On iOS, you may need to confirm that Safari/Chrome is allowed to open Phantom.</li>
+                  <li>On iOS, make sure your browser is allowed to open Phantom.</li>
                 </ol>
-              </div>
+              </details>
 
               {/* Status footer */}
               {paymentDetails.paymentStatus && (
