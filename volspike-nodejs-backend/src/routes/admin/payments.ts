@@ -159,6 +159,133 @@ adminPaymentRoutes.get('/:id', async (c) => {
     }
 })
 
+// POST /api/admin/payments/complete-partial-payment - Manually complete a partially_paid payment
+adminPaymentRoutes.post('/complete-partial-payment', async (c) => {
+    try {
+        const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+        const body = await c.req.json()
+        const { paymentId, reason } = z.object({
+            paymentId: z.string(),
+            reason: z.string().optional(),
+        }).parse(body)
+
+        // Get payment with user
+        const payment = await prisma.cryptoPayment.findUnique({
+            where: { id: paymentId },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        tier: true,
+                    },
+                },
+            },
+        })
+
+        if (!payment) {
+            return c.json({ error: 'Payment not found' }, 404)
+        }
+
+        if (payment.paymentStatus === 'finished') {
+            return c.json({ error: 'Payment is already finished' }, 400)
+        }
+
+        const previousTier = payment.user.tier
+        const expiresAt = new Date()
+        expiresAt.setDate(expiresAt.getDate() + 30) // 30-day subscription
+
+        // Update payment to finished and upgrade user
+        await prisma.$transaction(async (tx) => {
+            // Update payment status
+            await tx.cryptoPayment.update({
+                where: { id: paymentId },
+                data: {
+                    paymentStatus: 'finished',
+                    paidAt: new Date(),
+                    expiresAt,
+                },
+            })
+
+            // Upgrade user tier
+            await tx.user.update({
+                where: { id: payment.userId },
+                data: { tier: payment.tier },
+            })
+        })
+
+        // Create audit log
+        await prisma.auditLog.create({
+            data: {
+                actorUserId: adminUser.id,
+                action: 'MANUAL_PAYMENT_COMPLETE',
+                targetType: 'CRYPTO_PAYMENT',
+                targetId: paymentId,
+                oldValues: { 
+                    paymentStatus: payment.paymentStatus,
+                    tier: previousTier,
+                },
+                newValues: { 
+                    paymentStatus: 'finished',
+                    tier: payment.tier,
+                    reason: reason || 'Admin manually completed partially_paid payment',
+                },
+                metadata: {
+                    adminEmail: adminUser.email,
+                    userEmail: payment.user.email,
+                    paymentId: payment.paymentId,
+                    orderId: payment.orderId,
+                    expiresAt,
+                },
+            },
+        })
+
+        // Send email notification
+        const { EmailService } = await import('../../services/email')
+        const emailService = EmailService.getInstance()
+        if (payment.user.email && previousTier !== payment.tier) {
+            emailService.sendTierUpgradeEmail({
+                email: payment.user.email,
+                name: undefined,
+                newTier: payment.tier,
+                previousTier: previousTier,
+            }).catch((error) => {
+                logger.error('Failed to send tier upgrade email:', error)
+            })
+        }
+
+        logger.info(`Admin manually completed payment: ${payment.user.email} ${previousTier} → ${payment.tier}`, {
+            paymentId,
+            adminEmail: adminUser.email,
+            reason: reason || 'Admin manually completed partially_paid payment',
+        })
+
+        return c.json({
+            success: true,
+            message: 'Payment completed and user upgraded',
+            payment: {
+                id: payment.id,
+                paymentId: payment.paymentId,
+                orderId: payment.orderId,
+                status: 'finished',
+                tier: payment.tier,
+            },
+            user: {
+                id: payment.user.id,
+                email: payment.user.email,
+                previousTier,
+                newTier: payment.tier,
+            },
+        })
+    } catch (error) {
+        logger.error('Complete partial payment error:', error)
+        return c.json({ error: 'Failed to complete payment' }, 500)
+    }
+})
+
 // POST /api/admin/payments/manual-upgrade - Manually upgrade user tier
 adminPaymentRoutes.post('/manual-upgrade', async (c) => {
     try {
