@@ -2442,11 +2442,15 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
             }
         }
 
-        // CRITICAL: Preserve full precision of pay_amount by converting to string
-        // JavaScript numbers can lose precision for long decimals, so we send as string
+        // CRITICAL: For USDT/USDC, use 6 decimals (token standard)
+        // For other tokens, preserve full precision
+        const isUSDT = paymentStatus.pay_currency?.toLowerCase().includes('usdt')
+        const isUSDC = paymentStatus.pay_currency?.toLowerCase().includes('usdc')
         const payAmountString = typeof paymentStatus.pay_amount === 'string'
             ? paymentStatus.pay_amount
-            : paymentStatus.pay_amount.toFixed(9).replace(/\.?0+$/, '')
+            : (isUSDT || isUSDC)
+                ? paymentStatus.pay_amount.toFixed(6).replace(/\.?0+$/, '')
+                : paymentStatus.pay_amount.toFixed(9).replace(/\.?0+$/, '')
 
         logger.info('Returning payment details with preserved precision', {
             paymentId: paymentStatus.payment_id,
