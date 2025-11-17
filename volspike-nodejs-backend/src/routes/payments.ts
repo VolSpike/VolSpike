@@ -931,12 +931,12 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                     // CRITICAL: Always ensure buffer is applied, even if minAmount is already high
                     const bufferedAmount = minAmount * 1.2
                     priceAmount = Math.ceil(bufferedAmount * 100) / 100
-                    
+
                     // Ensure we're at least $0.10 above minimum to account for buffer
                     if (priceAmount <= minAmount) {
                         priceAmount = Math.ceil((minAmount + 0.10) * 100) / 100
                     }
-                    
+
                     logger.info('Calculated test amount from minimum with network fee buffer', {
                         currency: payCurrency,
                         minAmount,
@@ -1038,10 +1038,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                     // CRITICAL: Always ensure buffer is applied, even if minAmount is already high
                     const bufferedAmount = minAmount * 1.2
                     const calculatedAmount = Math.ceil(bufferedAmount * 100) / 100
-                    
+
                     // Ensure we're at least $0.10 above minimum to account for buffer
                     priceAmount = calculatedAmount > minAmount ? calculatedAmount : Math.ceil((minAmount + 0.10) * 100) / 100
-                    
+
                     logger.info('Updated price amount based on minimum with network fee buffer', {
                         currency: finalPayCurrency,
                         minAmount,
@@ -2385,10 +2385,24 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
             }
         }
 
+        // CRITICAL: Preserve full precision of pay_amount by converting to string
+        // JavaScript numbers can lose precision for long decimals, so we send as string
+        const payAmountString = typeof paymentStatus.pay_amount === 'string' 
+          ? paymentStatus.pay_amount 
+          : paymentStatus.pay_amount.toFixed(9).replace(/\.?0+$/, '')
+        
+        logger.info('Returning payment details with preserved precision', {
+            paymentId: paymentStatus.payment_id,
+            payAmountNumber: paymentStatus.pay_amount,
+            payAmountString,
+            decimalPlaces: payAmountString.includes('.') ? payAmountString.split('.')[1].length : 0,
+        })
+
         return c.json({
             paymentId: paymentStatus.payment_id,
             payAddress: paymentStatus.pay_address,
-            payAmount: paymentStatus.pay_amount,
+            payAmount: paymentStatus.pay_amount, // Keep as number for backward compatibility
+            payAmountString, // Add string version for full precision
             payCurrency: paymentStatus.pay_currency,
             priceAmount: paymentStatus.price_amount,
             priceCurrency: paymentStatus.price_currency,

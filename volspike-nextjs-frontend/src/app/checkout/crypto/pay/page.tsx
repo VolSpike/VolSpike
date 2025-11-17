@@ -18,6 +18,7 @@ interface PaymentDetails {
   paymentId: string
   payAddress: string
   payAmount: number
+  payAmountString?: string // Full precision string version from backend
   payCurrency: string
   priceAmount: number
   priceCurrency: string
@@ -206,18 +207,52 @@ export default function CryptoPaymentPage() {
         // SOL: up to 9 decimals, remove trailing zeros
         amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
       } else if (isUSDT) {
-        // USDT: Use full precision (up to 9 decimals) to prevent truncation issues
-        // iPhone camera scanner may truncate, so we need maximum precision
-        amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
+        // USDT: Preserve FULL precision - use string version from backend if available
+        // CRITICAL: Backend sends payAmountString with full precision to avoid JavaScript number precision loss
+        if (paymentDetails.payAmountString) {
+          // Use the string version directly - it has full precision
+          amountDecimal = paymentDetails.payAmountString
+          console.log('[CryptoPaymentPage] Using payAmountString for full precision:', {
+            payAmountString: paymentDetails.payAmountString,
+            payAmountNumber: paymentDetails.payAmount,
+            decimalPlaces: amountDecimal.includes('.') ? amountDecimal.split('.')[1].length : 0,
+          })
+        } else {
+          // Fallback: Use number version with maximum precision
+          amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
+          console.warn('[CryptoPaymentPage] payAmountString not available, using number version:', {
+            payAmount: paymentDetails.payAmount,
+            formatted: amountDecimal,
+            note: 'Precision may be lost - backend should send payAmountString',
+          })
+        }
         splTokenMint = SPL_TOKEN_MINTS.usdt
       } else if (isUSDC) {
-        // USDC: Use full precision (up to 9 decimals) to prevent truncation issues
-        amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
+        // USDC: Preserve FULL precision - use string version from backend if available
+        if (paymentDetails.payAmountString) {
+          amountDecimal = paymentDetails.payAmountString
+        } else {
+          amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
+        }
         splTokenMint = SPL_TOKEN_MINTS.usdc
       } else {
-        // For other tokens, use raw decimal string
+        // For other tokens, use raw decimal string with full precision
         amountDecimal = paymentDetails.payAmount.toString()
       }
+      
+      // CRITICAL: Validate amount is a valid positive number
+      const parsedAmount = parseFloat(amountDecimal)
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        console.error('[CryptoPaymentPage] Invalid amount:', {
+          original: paymentDetails.payAmount,
+          formatted: amountDecimal,
+          parsed: parsedAmount,
+        })
+        throw new Error('Invalid payment amount')
+      }
+      
+      // CRITICAL: Don't re-parse and convert - this can lose precision!
+      // Keep the original amountDecimal string as-is to preserve all decimal places
 
       // Build Solana Pay URI (standard format - supported by Phantom and other wallets)
       // CRITICAL: Amount must come first and always be included
@@ -256,13 +291,31 @@ export default function CryptoPaymentPage() {
         }
       }
 
+      // CRITICAL: Verify amount parameter before building URI
+      const amountParam = params.get('amount')
+      if (!amountParam || amountParam !== amountDecimal) {
+        console.error('[CryptoPaymentPage] ❌ Amount parameter mismatch!', {
+          expected: amountDecimal,
+          actual: amountParam,
+          paramsString: params.toString(),
+        })
+      }
+      
       const solanaPayUri = `solana:${paymentDetails.payAddress}?${params.toString()}`
+      
+      // Parse the URI to verify amount is preserved correctly
+      const uriParams = new URLSearchParams(solanaPayUri.split('?')[1] || '')
+      const uriAmount = uriParams.get('amount')
       
       // Comprehensive debug logging
       console.log('[CryptoPaymentPage] ✅ Generated Solana Pay URI:', {
         fullUri: solanaPayUri,
         address: paymentDetails.payAddress,
-        amount: amountDecimal,
+        originalAmount: paymentDetails.payAmount,
+        formattedAmount: amountDecimal,
+        amountInParams: amountParam,
+        amountInURI: uriAmount,
+        amountPreserved: uriAmount === amountDecimal,
         currency: currency,
         isSOL: isSOL,
         splToken: splTokenMint || 'none (native SOL)',
@@ -277,7 +330,27 @@ export default function CryptoPaymentPage() {
         // Reference validation
         orderId: paymentDetails.orderId,
         referenceIncluded: params.has('reference'),
+        // Amount precision check
+        originalDecimalPlaces: paymentDetails.payAmount.toString().includes('.') 
+          ? paymentDetails.payAmount.toString().split('.')[1].length 
+          : 0,
+        formattedDecimalPlaces: amountDecimal.includes('.') 
+          ? amountDecimal.split('.')[1].length 
+          : 0,
+        uriDecimalPlaces: uriAmount?.includes('.') 
+          ? uriAmount.split('.')[1].length 
+          : 0,
       })
+      
+      // CRITICAL: Warn if amount precision was lost
+      if (uriAmount && uriAmount !== amountDecimal) {
+        console.error('[CryptoPaymentPage] ⚠️ Amount precision lost in URI!', {
+          original: paymentDetails.payAmount,
+          formatted: amountDecimal,
+          inURI: uriAmount,
+          difference: parseFloat(amountDecimal) - parseFloat(uriAmount || '0'),
+        })
+      }
       
       // Validate URI format
       try {
