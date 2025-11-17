@@ -679,13 +679,16 @@ export default function CryptoPaymentPage() {
                       </div>
                     </div>
                     <Button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
                         // Redirect to pricing or test payment page
                         const tier = paymentDetails?.tier || 'pro'
                         router.push(`/pricing?tier=${tier}`)
                       }}
                       className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white"
                       size="lg"
+                      type="button"
                     >
                       <span className="flex items-center justify-center gap-2">
                         <span>Create New Payment</span>
@@ -755,7 +758,9 @@ export default function CryptoPaymentPage() {
                   
                   {/* Secondary: Copy address for manual entry */}
                   <Button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
                       if (paymentDetails?.payAddress) {
                         copyToClipboard(paymentDetails.payAddress, 'address')
                         toast.success('Address copied! Paste it in Phantom wallet manually.')
@@ -765,6 +770,7 @@ export default function CryptoPaymentPage() {
                     className="w-full"
                     size="lg"
                     disabled={!paymentDetails?.payAddress || isExpired}
+                    type="button"
                   >
                     <span className="flex items-center justify-center gap-2">
                       <Copy className="h-4 w-4" />
