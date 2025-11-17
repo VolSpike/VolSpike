@@ -698,6 +698,7 @@ export default function CryptoPaymentPage() {
   }, [timeRemaining, isExpired, paymentDetails, session, paymentId, router])
 
   // Check if user was already upgraded (for cases where payment is confirmed but user hasn't been redirected)
+  // This effect runs when session updates after payment is confirmed
   useEffect(() => {
     if (!paymentDetails || !session?.user) return
     
@@ -714,6 +715,9 @@ export default function CryptoPaymentPage() {
       
       // Stop timer countdown
       setTimeRemaining(null)
+      
+      // Stop polling if still running
+      setPolling(false)
       
       // Show success message and redirect immediately
       toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
