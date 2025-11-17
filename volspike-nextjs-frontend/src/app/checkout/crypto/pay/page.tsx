@@ -286,17 +286,17 @@ export default function CryptoPaymentPage() {
     }
   }, [paymentDetails])
 
-  // Generate QR code favouring Solana Pay URI (best when scanning from Phantom)
-  // If Solana Pay URI not available, fall back to Phantom universal link
+  // Generate QR code favouring Phantom universal link (best when scanning with phone camera)
+  // If Phantom link is not available, fall back to Solana Pay URI
   useEffect(() => {
-    const uriForQR = solanaUri || phantomUniversalLink
+    const uriForQR = phantomUniversalLink || solanaUri
     
     if (!uriForQR) {
       console.warn('[CryptoPaymentPage] No URI available for QR code generation')
       return
     }
 
-    const usingPhantomLink = !solanaUri && !!phantomUniversalLink
+    const usingPhantomLink = !!phantomUniversalLink
     console.log('[CryptoPaymentPage] Generating QR code', {
       usingPhantomUniversalLink: usingPhantomLink,
       usingSolanaPayUri: !usingPhantomLink,
