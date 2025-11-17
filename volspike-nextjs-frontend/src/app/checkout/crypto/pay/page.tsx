@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/header'
@@ -41,6 +41,60 @@ export default function CryptoPaymentPage() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [polling, setPolling] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
+
+  const safeNavigate = useCallback(
+    (href: string, source: string) => {
+      const isDebug =
+        process.env.NODE_ENV === 'development' ||
+        (typeof window !== 'undefined' &&
+          new URLSearchParams(window.location.search).get('debugNav') === 'true')
+
+      const beforeHref =
+        typeof window !== 'undefined' ? window.location.href : null
+
+      if (isDebug) {
+        console.log('[CryptoPaymentPage] safeNavigate start', {
+          href,
+          source,
+          beforeHref,
+        })
+      }
+
+      try {
+        router.push(href)
+      } catch (error) {
+        if (isDebug) {
+          console.error('[CryptoPaymentPage] safeNavigate router.push error', {
+            href,
+            source,
+            error,
+          })
+        }
+        if (typeof window !== 'undefined') {
+          window.location.href = href
+        }
+        return
+      }
+
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          const afterHref = window.location.href
+          if (beforeHref && afterHref === beforeHref) {
+            if (isDebug) {
+              console.warn('[CryptoPaymentPage] safeNavigate fallback triggered', {
+                href,
+                source,
+                beforeHref,
+                afterHref,
+              })
+            }
+            window.location.href = href
+          }
+        }, 700)
+      }
+    },
+    [router]
+  )
 
   // Debug: Log page structure on mount
   useEffect(() => {
@@ -875,9 +929,8 @@ export default function CryptoPaymentPage() {
                     </div>
                     <Button
                       onClick={() => {
-                        // Redirect to pricing or test payment page
                         const tier = paymentDetails?.tier || 'pro'
-                        router.push(`/pricing?tier=${tier}`)
+                        safeNavigate(`/pricing?tier=${tier}`, 'expired-create-new-payment')
                       }}
                       className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white"
                       size="lg"
@@ -959,7 +1012,7 @@ export default function CryptoPaymentPage() {
               
               <Button
                 onClick={() => {
-                  router.push('/pricing')
+                  safeNavigate('/pricing', 'expired-cancel-payment')
                 }}
                 variant="ghost"
                 className="w-full"
