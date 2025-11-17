@@ -985,9 +985,10 @@ export default function CryptoPaymentPage() {
             </CardHeader>
 
             <CardContent className="space-y-6 pb-6">
-              {/* Amount & status row */}
-              <div className="grid gap-4 rounded-xl border border-border/60 bg-muted/20 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)]">
-                <div className="space-y-2">
+              {/* Amount & Address - Prominent Display */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Amount Section */}
+                <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Amount to pay
                   </p>
@@ -1014,49 +1015,79 @@ export default function CryptoPaymentPage() {
                   <p className="text-sm text-muted-foreground">
                     ≈ ${usdAmount.toFixed(2)} USD · {networkName} network
                   </p>
-                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-border/40 bg-muted/30 p-2.5">
-                    <AlertCircle className="h-4 w-4 shrink-0 text-sec-500 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-foreground">
-                        Amount includes network fee buffer
-                      </p>
-                      <p className="text-[11px] leading-relaxed text-muted-foreground">
-                        {paymentDetails.bufferInfo?.applied ? (
-                          <>
-                            The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes a <strong>{paymentDetails.bufferInfo.percentage} buffer</strong> over the minimum (${paymentDetails.bufferInfo.baseAmount.toFixed(2)} base + ${(paymentDetails.bufferInfo.bufferedAmount - paymentDetails.bufferInfo.baseAmount).toFixed(2)} buffer). This ensures your payment completes successfully even if network fees are higher than expected. The crypto amount shown above (${paymentDetails.payAmount.toFixed(8)} {currencyDisplay}) is converted from this buffered USD amount.
-                          </>
-                        ) : (
-                          <>
-                            The payment amount includes a 20% buffer to cover blockchain network fees. The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes this buffer before conversion to crypto. This ensures your payment completes successfully even if fees are higher than expected. You&apos;ll only pay the actual amount sent, and any excess covers transaction costs.
-                          </>
-                        )}
-                      </p>
-                    </div>
-                  </div>
                 </div>
 
-                <div className="space-y-2 rounded-lg border border-border/60 bg-background/90 p-3 text-xs">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Payment status
+                {/* Payment Address Section - Prominent */}
+                <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    Payment address
                   </p>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'inline-flex h-2 w-2 rounded-full',
-                        friendlyStatus.tone === 'success' && 'bg-emerald-400',
-                        friendlyStatus.tone === 'warning' && 'bg-amber-400',
-                        friendlyStatus.tone === 'danger' && 'bg-destructive',
-                        friendlyStatus.tone === 'default' && 'bg-sec-400'
+                  <div className="flex items-start gap-2">
+                    <code className="flex-1 break-all font-mono text-lg font-semibold leading-tight text-foreground">
+                      {paymentDetails.payAddress}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(paymentDetails.payAddress, 'address')}
+                      className="h-8 w-8 flex-shrink-0 p-0"
+                    >
+                      {copied === 'address' ? (
+                        <Check className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <Copy className="h-5 w-5" />
                       )}
-                    />
-                    <span className="text-[13px] font-medium">
-                      {friendlyStatus.label}
-                    </span>
+                    </Button>
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    This page auto-updates. You can safely switch apps while waiting for confirmations.
+                  <p className="text-sm text-muted-foreground">
+                    Send to this {networkName} address
                   </p>
                 </div>
+              </div>
+
+              {/* Buffer Info */}
+              <div className="flex items-start gap-2 rounded-lg border border-border/40 bg-muted/30 p-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0 text-sec-500 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-foreground">
+                    Amount includes network fee buffer
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    {paymentDetails.bufferInfo?.applied ? (
+                      <>
+                        The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes a <strong>{paymentDetails.bufferInfo.percentage} buffer</strong> over the minimum (${paymentDetails.bufferInfo.baseAmount.toFixed(2)} base + ${(paymentDetails.bufferInfo.bufferedAmount - paymentDetails.bufferInfo.baseAmount).toFixed(2)} buffer). This ensures your payment completes successfully even if network fees are higher than expected. The crypto amount shown above (${paymentDetails.payAmount.toFixed(8)} {currencyDisplay}) is converted from this buffered USD amount.
+                      </>
+                    ) : (
+                      <>
+                        The payment amount includes a 20% buffer to cover blockchain network fees. The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes this buffer before conversion to crypto. This ensures your payment completes successfully even if fees are higher than expected. You&apos;ll only pay the actual amount sent, and any excess covers transaction costs.
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Payment Status */}
+              <div className="space-y-2 rounded-lg border border-border/60 bg-background/90 p-3 text-xs">
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Payment status
+                </p>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'inline-flex h-2 w-2 rounded-full',
+                      friendlyStatus.tone === 'success' && 'bg-emerald-400',
+                      friendlyStatus.tone === 'warning' && 'bg-amber-400',
+                      friendlyStatus.tone === 'danger' && 'bg-destructive',
+                      friendlyStatus.tone === 'default' && 'bg-sec-400'
+                    )}
+                  />
+                  <span className="text-[13px] font-medium">
+                    {friendlyStatus.label}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  This page auto-updates. You can safely switch apps while waiting for confirmations.
+                </p>
               </div>
 
               {/* QR Code */}
