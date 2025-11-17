@@ -44,6 +44,9 @@ export function SafeNavLink(props: SafeNavLinkProps) {
             (typeof window !== 'undefined' &&
                 new URLSearchParams(window.location.search).get('debugNav') === 'true')
 
+        const beforeHref =
+            typeof window !== 'undefined' ? window.location.href : null
+
         if (isDebug) {
             // Lightweight, structured debug logging
             // eslint-disable-next-line no-console
@@ -79,6 +82,25 @@ export function SafeNavLink(props: SafeNavLinkProps) {
             if (typeof window !== 'undefined') {
                 window.location.href = hrefString
             }
+        }
+
+        // Safety net: if router.push didn't change location within a short time,
+        // fall back to a hard navigation so links never feel "dead".
+        if (typeof window !== 'undefined') {
+            window.setTimeout(() => {
+                const afterHref = window.location.href
+                if (beforeHref && afterHref === beforeHref) {
+                    if (isDebug) {
+                        // eslint-disable-next-line no-console
+                        console.warn('[SafeNavLink] Fallback navigation triggered', {
+                            href: hrefString,
+                            beforeHref,
+                            afterHref,
+                        })
+                    }
+                    window.location.href = hrefString
+                }
+            }, 700)
         }
     }
 
