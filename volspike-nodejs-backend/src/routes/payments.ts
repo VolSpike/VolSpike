@@ -2144,6 +2144,9 @@ payments.post('/nowpayments/webhook', async (c) => {
                     ? { invoiceId: cryptoPayment.invoiceId }
                     : { id: cryptoPayment.id }
 
+            // Get previous status before updating (to check if status changed)
+            const previousStatus = cryptoPayment.paymentStatus
+
             await prisma.cryptoPayment.update({
                 where: updateWhere,
                 data: {
@@ -2160,7 +2163,8 @@ payments.post('/nowpayments/webhook', async (c) => {
             })
 
             // Log partially_paid status for debugging
-            if (payment_status === 'partially_paid') {
+            // CRITICAL: Only send emails if status JUST changed to partially_paid (not if it was already partially_paid)
+            if (payment_status === 'partially_paid' && previousStatus !== 'partially_paid') {
                 logger.warn('⚠️ Payment received but status is "partially_paid" - waiting for full confirmation', {
                     paymentId: payment_id,
                     orderId: order_id,

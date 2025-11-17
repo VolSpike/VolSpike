@@ -64,52 +64,73 @@ export async function syncPendingPayments() {
 
                 synced++
 
-                // Handle partially_paid status - send emails to both admin and user
+                // Handle partially_paid status - send emails ONLY if status was recently updated (within last hour)
+                // This prevents duplicate emails from being sent every 30 seconds
                 if (paymentStatus.payment_status === 'partially_paid') {
                     const payAmount = updatedPayment.payAmount || 0
                     const actuallyPaid = paymentStatus.actually_paid ? Number(paymentStatus.actually_paid) : 0
                     const shortfall = payAmount - actuallyPaid
                     const shortfallPercent = payAmount > 0 ? ((shortfall / payAmount) * 100).toFixed(2) : '0.00'
 
-                    // Notify admin about partially_paid status
-                    try {
-                        await EmailService.getInstance().sendPaymentIssueAlertEmail({
-                            type: 'CRYPTO_PAYMENT_PARTIALLY_PAID_SYNC',
-                            details: {
-                                paymentId: payment.paymentId,
-                                orderId: updatedPayment.orderId,
+                    // CRITICAL: Only send emails if payment status was recently updated (within last hour)
+                    // This prevents duplicate emails from being sent every sync cycle
+                    const updatedAt = updatedPayment.updatedAt
+                    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+                    const wasRecentlyUpdated = updatedAt && updatedAt > oneHourAgo
+
+                    // Also check if previous status was different (status just changed)
+                    const previousStatus = payment.paymentStatus
+                    const statusJustChanged = previousStatus !== 'partially_paid'
+
+                    // Only send emails if status was recently updated OR status just changed
+                    if (wasRecentlyUpdated || statusJustChanged) {
+                        // Notify admin about partially_paid status
+                        try {
+                            await EmailService.getInstance().sendPaymentIssueAlertEmail({
+                                type: 'CRYPTO_PAYMENT_PARTIALLY_PAID_SYNC',
+                                details: {
+                                    paymentId: payment.paymentId,
+                                    orderId: updatedPayment.orderId,
+                                    actuallyPaid: actuallyPaid,
+                                    payAmount: payAmount,
+                                    shortfall: shortfall,
+                                    shortfallPercent: `${shortfallPercent}%`,
+                                    payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency,
+                                    userId: updatedPayment.userId,
+                                    userEmail: updatedPayment.user.email,
+                                    tier: updatedPayment.tier,
+                                    note: 'Payment synced from NowPayments API - status is partially_paid',
+                                    actionRequired: 'Review payment. If user paid full amount, manually complete payment via /api/admin/payments/complete-partial-payment',
+                                },
+                            })
+                        } catch (emailError) {
+                            logger.error('Failed to notify admin about partially_paid status:', emailError)
+                        }
+
+                        // Send partial payment email to user
+                        if (updatedPayment.user.email) {
+                            const emailService = EmailService.getInstance()
+                            emailService.sendPartialPaymentEmail({
+                                email: updatedPayment.user.email,
+                                name: undefined,
+                                tier: updatedPayment.tier,
+                                requestedAmount: payAmount,
                                 actuallyPaid: actuallyPaid,
-                                payAmount: payAmount,
+                                payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency || 'USD',
                                 shortfall: shortfall,
                                 shortfallPercent: `${shortfallPercent}%`,
-                                payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency,
-                                userId: updatedPayment.userId,
-                                userEmail: updatedPayment.user.email,
-                                tier: updatedPayment.tier,
-                                note: 'Payment synced from NowPayments API - status is partially_paid',
-                                actionRequired: 'Review payment. If user paid full amount, manually complete payment via /api/admin/payments/complete-partial-payment',
-                            },
-                        })
-                    } catch (emailError) {
-                        logger.error('Failed to notify admin about partially_paid status:', emailError)
-                    }
-
-                    // Send partial payment email to user
-                    if (updatedPayment.user.email) {
-                        const emailService = EmailService.getInstance()
-                        emailService.sendPartialPaymentEmail({
-                            email: updatedPayment.user.email,
-                            name: undefined,
-                            tier: updatedPayment.tier,
-                            requestedAmount: payAmount,
-                            actuallyPaid: actuallyPaid,
-                            payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency || 'USD',
-                            shortfall: shortfall,
-                            shortfallPercent: `${shortfallPercent}%`,
-                            paymentId: payment.paymentId || '',
-                            orderId: updatedPayment.orderId || '',
-                        }).catch((error) => {
-                            logger.error('Failed to send partial payment email to user:', error)
+                                paymentId: payment.paymentId || '',
+                                orderId: updatedPayment.orderId || '',
+                            }).catch((error) => {
+                                logger.error('Failed to send partial payment email to user:', error)
+                            })
+                        }
+                    } else {
+                        // Status is partially_paid but was updated more than an hour ago - skip email sending
+                        logger.debug('Skipping partial payment email - status unchanged for more than 1 hour', {
+                            paymentId: payment.paymentId,
+                            updatedAt: updatedAt,
+                            previousStatus,
                         })
                     }
 
