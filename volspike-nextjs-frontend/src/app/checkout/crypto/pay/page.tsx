@@ -742,7 +742,9 @@ export default function CryptoPaymentPage() {
     }
 
     setPolling(true)
-    const interval = setInterval(async () => {
+    let intervalId: NodeJS.Timeout | null = null
+    
+    const pollPaymentStatus = async () => {
       try {
         const authToken = (session as any)?.accessToken || session.user.id
         // Use status endpoint which triggers upgrade automatically if finished
@@ -765,8 +767,14 @@ export default function CryptoPaymentPage() {
           // If payment is finished/confirmed and user was upgraded, redirect immediately
           if ((data.status === 'finished' || data.status === 'confirmed') && data.upgraded) {
             // Stop polling immediately
-            clearInterval(interval)
+            if (intervalId) {
+              clearInterval(intervalId)
+              intervalId = null
+            }
             setPolling(false)
+            
+            // Stop timer countdown
+            setTimeRemaining(null)
             
             // Refresh session to get new tier
             await updateSession()
@@ -806,10 +814,16 @@ export default function CryptoPaymentPage() {
         console.error('[CryptoPaymentPage] Polling error:', err)
         // Don't show error toast for polling failures
       }
-    }, 5000) // Poll every 5 seconds for faster feedback
+    }
+    
+    // Start polling immediately, then every 5 seconds
+    pollPaymentStatus() // Immediate check
+    intervalId = setInterval(pollPaymentStatus, 5000) // Poll every 5 seconds for faster feedback
 
     return () => {
-      clearInterval(interval)
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
       setPolling(false)
     }
   }, [paymentDetails, session, paymentId, router, polling, updateSession])
