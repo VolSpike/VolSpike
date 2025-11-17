@@ -10,6 +10,7 @@ import { Loader2, Copy, Check, AlertCircle, ExternalLink, QrCode, Clock } from '
 import { cn } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import QRCode from 'qrcode'
+import { PaymentProgress } from '@/components/payment-progress'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -594,6 +595,8 @@ export default function CryptoPaymentPage() {
               <span className="font-medium">Live status</span>
             </div>
           </div>
+
+          <PaymentProgress status={paymentDetails.paymentStatus} isExpired={isExpired} />
 
           <Card className="relative z-0 overflow-hidden border-border/70 bg-gradient-to-b from-background via-background/95 to-background">
             <CardHeader className="pb-5">
