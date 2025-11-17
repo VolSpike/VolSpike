@@ -103,7 +103,7 @@ export async function syncPendingPayments() {
                             tier: updatedPayment.tier,
                             requestedAmount: payAmount,
                             actuallyPaid: actuallyPaid,
-                            payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency,
+                            payCurrency: paymentStatus.pay_currency || updatedPayment.payCurrency || 'USD',
                             shortfall: shortfall,
                             shortfallPercent: `${shortfallPercent}%`,
                             paymentId: payment.paymentId || '',
