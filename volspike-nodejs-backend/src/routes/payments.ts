@@ -928,32 +928,48 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 if (minAmount) {
                     // Add 20% buffer to account for network fees and ensure we're well above minimum
                     // Network fees can reduce received amount, so we need extra buffer
-                    priceAmount = Math.ceil(minAmount * 1.2 * 100) / 100
+                    // CRITICAL: Always ensure buffer is applied, even if minAmount is already high
+                    const bufferedAmount = minAmount * 1.2
+                    priceAmount = Math.ceil(bufferedAmount * 100) / 100
+                    
+                    // Ensure we're at least $0.10 above minimum to account for buffer
+                    if (priceAmount <= minAmount) {
+                        priceAmount = Math.ceil((minAmount + 0.10) * 100) / 100
+                    }
+                    
                     logger.info('Calculated test amount from minimum with network fee buffer', {
                         currency: payCurrency,
                         minAmount,
                         buffer: '20%',
+                        bufferedAmount: minAmount * 1.2,
                         priceAmount,
+                        bufferApplied: priceAmount > minAmount,
                         note: 'Increased buffer to account for network fees that reduce received amount',
                     })
                 } else {
-                    // Fallback to safe default if unable to fetch minimum
-                    priceAmount = 2.0
-                    logger.warn('Unable to fetch minimum amount, using fallback', {
+                    // Fallback: Use $2.00 base + 20% buffer = $2.40
+                    const fallbackMin = 2.0
+                    priceAmount = Math.ceil(fallbackMin * 1.2 * 100) / 100
+                    logger.warn('Unable to fetch minimum amount, using fallback with buffer', {
                         currency: payCurrency,
-                        fallbackAmount: priceAmount,
+                        fallbackMin,
+                        buffer: '20%',
+                        priceAmount,
                     })
                 }
             } catch (minAmountError) {
-                logger.error('Error fetching minimum amount, using fallback', {
+                logger.error('Error fetching minimum amount, using fallback with buffer', {
                     error: minAmountError,
                     currency: payCurrency,
                 })
-                priceAmount = 2.0 // Safe fallback
+                // Fallback: Use $2.00 base + 20% buffer = $2.40
+                const fallbackMin = 2.0
+                priceAmount = Math.ceil(fallbackMin * 1.2 * 100) / 100
             }
         } else if (!priceAmount) {
-            // No currency selected, use safe default
-            priceAmount = 2.0
+            // No currency selected, use safe default with buffer
+            const fallbackMin = 2.0
+            priceAmount = Math.ceil(fallbackMin * 1.2 * 100) / 100
         }
 
         logger.info('Test checkout parameters', {
@@ -1019,14 +1035,21 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 if (minAmount && (!priceAmount || priceAmount < minAmount)) {
                     // Add 20% buffer to account for network fees and ensure we're well above minimum
                     // Network fees can reduce received amount, so we need extra buffer
-                    const calculatedAmount = Math.ceil(minAmount * 1.2 * 100) / 100
-                    priceAmount = calculatedAmount
+                    // CRITICAL: Always ensure buffer is applied, even if minAmount is already high
+                    const bufferedAmount = minAmount * 1.2
+                    const calculatedAmount = Math.ceil(bufferedAmount * 100) / 100
+                    
+                    // Ensure we're at least $0.10 above minimum to account for buffer
+                    priceAmount = calculatedAmount > minAmount ? calculatedAmount : Math.ceil((minAmount + 0.10) * 100) / 100
+                    
                     logger.info('Updated price amount based on minimum with network fee buffer', {
                         currency: finalPayCurrency,
                         minAmount,
                         buffer: '20%',
+                        bufferedAmount: minAmount * 1.2,
                         calculatedAmount,
                         finalAmount: priceAmount,
+                        bufferApplied: priceAmount > minAmount,
                         note: 'Increased buffer to account for network fees that reduce received amount',
                     })
                 }
