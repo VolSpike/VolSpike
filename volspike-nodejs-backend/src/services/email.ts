@@ -544,6 +544,205 @@ Need help? Contact us at support@volspike.com
     }
 
     /**
+     * Send beautiful payment confirmation email to user
+     */
+    async sendPaymentConfirmationEmail(data: PaymentConfirmationEmailData): Promise<boolean> {
+        try {
+            if (!process.env.SENDGRID_API_KEY) {
+                logger.error('SENDGRID_API_KEY is not set in environment variables')
+                return false
+            }
+
+            const tierName = data.tier.toUpperCase()
+            const subject = `✅ Payment Confirmed - Welcome to ${tierName} Tier!`
+            const dashboardUrl = `${this.baseUrl}/dashboard`
+            const safeDashboardUrl = dashboardUrl.replace(/"/g, '&quot;')
+
+            const msg: any = {
+                to: data.email,
+                from: {
+                    email: this.fromEmail,
+                    name: 'VolSpike Team'
+                },
+                replyTo: 'support@volspike.com',
+                subject: subject,
+                html: this.getPaymentConfirmationEmailHTML(data, safeDashboardUrl),
+                text: this.getPaymentConfirmationEmailText(data, dashboardUrl),
+                categories: ['payment-confirmation'],
+                customArgs: {
+                    type: 'payment-confirmation',
+                    tier: data.tier,
+                    paymentId: data.paymentId,
+                    timestamp: Date.now().toString()
+                }
+            }
+
+            await mail.send(msg)
+            logger.info(`Payment confirmation email sent to ${data.email} (${tierName} tier)`)
+            return true
+        } catch (error) {
+            logger.error('Failed to send payment confirmation email:', error)
+            return false
+        }
+    }
+
+    /**
+     * HTML template for payment confirmation email
+     */
+    private getPaymentConfirmationEmailHTML(data: PaymentConfirmationEmailData, safeDashboardUrl: string): string {
+        const safeName = (data.name || 'there').replace(/[<>]/g, '')
+        const tierName = data.tier.toUpperCase()
+        const amountDisplay = data.actuallyPaid 
+            ? `${data.actuallyPaid} ${data.actuallyPaidCurrency || data.payCurrency.toUpperCase()}`
+            : `${data.amountUsd} USD`
+        const expiresDate = new Date(data.expiresAt).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        })
+
+        return `
+<!doctype html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+  <title>Payment Confirmed - Welcome to ${tierName} Tier!</title>
+  <style>
+    img { -ms-interpolation-mode:bicubic; }
+    @media only screen and (max-width:600px){ .container{ width:100% !important; } }
+  </style>
+  <!--[if mso]>
+  <style type="text/css"> body, table, td {font-family: Arial, sans-serif !important;} </style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;">
+  <div style="display:none;font-size:1px;color:#fff;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+    Your payment has been confirmed! Welcome to ${tierName} Tier. Your subscription is active until ${expiresDate}.
+  </div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;">
+    <tr><td align="center" style="padding:24px;">
+      <table role="presentation" width="600" class="container" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
+        <tr>
+          <td align="center" style="padding:32px;background:linear-gradient(135deg, #0ea371 0%, #059669 100%);border-radius:12px 12px 0 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td align="center" style="padding-bottom:12px;">
+                  <img src="https://volspike.com/email/volspike-badge@2x.png" width="80" height="80" alt="VolSpike" style="display:block;margin:0 auto;border:0;outline:none;text-decoration:none;height:80px;width:80px;line-height:100%;-ms-interpolation-mode:bicubic;">
+                </td>
+              </tr>
+            </table>
+            <div style="font:700 28px/1.2 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;margin-top:12px;">✅ Payment Confirmed!</div>
+            <div style="font:600 18px/1.3 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff;margin-top:8px;opacity:0.95;">Welcome to ${tierName} Tier</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#334155;">
+            <p style="margin:0 0 20px;">Hi ${safeName},</p>
+            <p style="margin:0 0 24px;">Great news! Your payment has been successfully processed and confirmed. Your <strong style="color:#0f172a;">${tierName} Tier</strong> subscription is now active.</p>
+            
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:24px 0;">
+              <div style="font:600 16px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;margin:0 0 16px;">Payment Details:</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font:14px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#334155;">
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;">Amount Paid:</td>
+                  <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${amountDisplay}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;">Subscription Tier:</td>
+                  <td align="right" style="padding:8px 0;font-weight:600;color:#0ea371;">${tierName}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;">Valid Until:</td>
+                  <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${expiresDate}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;">Payment ID:</td>
+                  <td align="right" style="padding:8px 0;font-family:monospace;font-size:12px;color:#64748b;">${data.paymentId.slice(-8)}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="background:#f0fdf4;border-left:4px solid #22c55e;padding:20px;margin:24px 0;border-radius:4px;">
+              <div style="font:600 18px/1.3 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a;margin:0 0 12px;">🎉 What's Next?</div>
+              <p style="margin:0;color:#334155;">Your ${tierName} Tier features are now unlocked! Access real-time market data, advanced analytics, and premium alerts.</p>
+            </div>
+
+            <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin:32px auto;">
+              <tr><td align="center">
+                <!--[if mso]>
+                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${safeDashboardUrl}"
+                  style="height:52px;v-text-anchor:middle;width:300px;" arcsize="10%" stroke="f" fillcolor="#059669">
+                  <w:anchorlock/>
+                  <center style="color:#ffffff;font-family:Arial, sans-serif;font-size:16px;font-weight:600;">
+                    Go to Dashboard
+                  </center>
+                </v:roundrect>
+                <![endif]-->
+                <!--[if !mso]><!-- -->
+                <a href="${safeDashboardUrl}" target="_blank" style="display:block;background:linear-gradient(135deg, #0ea371 0%, #059669 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:600;font-size:16px;line-height:20px;text-align:center;box-shadow:0 4px 6px rgba(5, 150, 105, 0.2);">
+                  Go to Dashboard →
+                </a>
+                <!--<![endif]-->
+              </td></tr>
+            </table>
+
+            <p style="margin:24px 0 0;color:#64748b;font-size:14px;">Questions about your payment? Contact us at <a href="mailto:support@volspike.com" style="color:#059669;text-decoration:none;">support@volspike.com</a></p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:20px;background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 12px 12px;">
+            <div style="font:14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#64748b;">© ${new Date().getFullYear()} VolSpike • Need help? <a href="mailto:support@volspike.com" style="color:#059669;text-decoration:none;">support@volspike.com</a></div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+        `
+    }
+
+    /**
+     * Text template for payment confirmation email
+     */
+    private getPaymentConfirmationEmailText(data: PaymentConfirmationEmailData, dashboardUrl: string): string {
+        const tierName = data.tier.toUpperCase()
+        const amountDisplay = data.actuallyPaid 
+            ? `${data.actuallyPaid} ${data.actuallyPaidCurrency || data.payCurrency.toUpperCase()}`
+            : `${data.amountUsd} USD`
+        const expiresDate = new Date(data.expiresAt).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        })
+
+        return `Payment Confirmed - Welcome to ${tierName} Tier!
+
+Hi ${data.name || 'there'},
+
+Great news! Your payment has been successfully processed and confirmed. Your ${tierName} Tier subscription is now active.
+
+Payment Details:
+- Amount Paid: ${amountDisplay}
+- Subscription Tier: ${tierName}
+- Valid Until: ${expiresDate}
+- Payment ID: ${data.paymentId}
+
+What's Next?
+Your ${tierName} Tier features are now unlocked! Access real-time market data, advanced analytics, and premium alerts.
+
+Go to Dashboard: ${dashboardUrl}
+
+Questions about your payment? Contact us at support@volspike.com
+
+© ${new Date().getFullYear()} VolSpike
+        `
+    }
+
+    /**
      * Send an alert to the site owner when a payment-related issue occurs
      * (e.g. webhook failure, missing payment record, tier mismatch).
      *
