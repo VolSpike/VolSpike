@@ -820,9 +820,7 @@ export function MarketTable({
                 )}
 
                 {canScroll && !atBottom && (
-                    <div className="pointer-events-none absolute bottom-2 right-3 z-10 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">
-                        <span className="hidden sm:inline">Scroll for full market list</span>
-                        <span className="sm:hidden">Scroll markets</span>
+                    <div className="pointer-events-none absolute bottom-2 right-3 z-10 flex items-center justify-center rounded-full bg-background/80 p-1.5 text-muted-foreground shadow-sm">
                         <ArrowDown className="h-3 w-3" />
                     </div>
                 )}

@@ -447,9 +447,44 @@ export default function CryptoPaymentPage() {
   const usdAmount = paymentDetails.priceAmount
 
   return (
-    <div className="min-h-screen bg-background relative">
-      <Header />
-      <main className="container mx-auto px-4 py-12 max-w-2xl relative z-0">
+    <>
+      {/* Diagnostic overlay - only in dev mode with debug param */}
+      {debugMode && typeof window !== 'undefined' && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 99999,
+            pointerEvents: 'none',
+            backgroundColor: 'rgba(255, 0, 0, 0.1)',
+            border: '2px solid red',
+          }}
+          onClick={(e) => {
+            e.stopPropagation()
+            const element = document.elementFromPoint(e.clientX, e.clientY)
+            console.log('🔍 Click intercepted at:', {
+              x: e.clientX,
+              y: e.clientY,
+              element,
+              elementTag: element?.tagName,
+              elementClasses: element?.className,
+              elementZIndex: element ? window.getComputedStyle(element).zIndex : null,
+              elementPointerEvents: element ? window.getComputedStyle(element).pointerEvents : null,
+              allElementsAtPoint: document.elementsFromPoint(e.clientX, e.clientY),
+            })
+          }}
+        >
+          <div style={{ position: 'absolute', top: 10, left: 10, background: 'red', color: 'white', padding: '10px', zIndex: 100000 }}>
+            DEBUG MODE: Click anywhere to see what element receives the click
+          </div>
+        </div>
+      )}
+      <div className="min-h-screen bg-background relative">
+        <Header />
+        <main className="container mx-auto px-4 py-12 max-w-2xl relative z-0">
         <Card className="relative z-0">
           <CardHeader>
             <div className="flex items-center justify-between">
