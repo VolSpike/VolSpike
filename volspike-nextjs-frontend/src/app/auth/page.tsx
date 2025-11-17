@@ -57,36 +57,74 @@ function AuthPageContent() {
     const isAdminMode = searchParams?.get('mode') === 'admin'
     const nextUrl = searchParams?.get('next') || (isAdminMode ? '/admin' : '/dashboard')
 
-    // Check if user is already logged in and is admin - redirect immediately
-    // SECURITY: Only redirect if role is explicitly 'ADMIN', not just authenticated
+    // CRITICAL: Check if user is already logged in after OAuth callback
+    // This handles both admin and regular users
     useEffect(() => {
-        if (isAdminMode && status === 'authenticated') {
+        // Wait for session to load
+        if (status === 'loading') {
+            console.log('[AuthPage] Session status: loading, waiting...')
+            return
+        }
+
+        // Check if user is authenticated
+        if (status === 'authenticated' && session?.user) {
+            console.log('[AuthPage] User authenticated, checking redirect:', {
+                isAdminMode,
+                userRole: session.user.role,
+                userEmail: session.user.email,
+                nextUrl,
+                currentPath: pathname,
+            })
+
             // Give session a moment to fully establish after OAuth callback
             const checkAndRedirect = async () => {
                 // Refresh session to get latest role data
-                await new Promise(resolve => setTimeout(resolve, 300))
+                await new Promise(resolve => setTimeout(resolve, 500))
 
                 // Check session again after refresh
-                const response = await fetch('/api/auth/session')
+                const response = await fetch('/api/auth/session', { credentials: 'include' })
                 const latestSession = await response.json().catch(() => null)
                 const userRole = latestSession?.user?.role || session?.user?.role
+                const userEmail = latestSession?.user?.email || session?.user?.email
 
-                // SECURITY: Strict check - only 'ADMIN' role (case-sensitive) allows access
-                if (userRole === 'ADMIN') {
-                    console.log('[AuthPage] Admin session confirmed, redirecting to', nextUrl)
-                    router.push(nextUrl)
-                    router.refresh()
-                } else if (latestSession?.user || session?.user) {
-                    // User is logged in but NOT admin - show error and stay on auth page
-                    console.log('[AuthPage] ⚠️ SECURITY: User logged in but not admin. Email:', latestSession?.user?.email || session?.user?.email, 'Role:', userRole)
-                    setInitialAuthError('Access denied. Your account does not have administrator privileges. Please contact support if you believe this is an error.')
-                    // Do NOT redirect - keep them on auth page
+                console.log('[AuthPage] Session check after refresh:', {
+                    hasLatestSession: !!latestSession?.user,
+                    userRole,
+                    userEmail,
+                    isAdminMode,
+                    nextUrl,
+                })
+
+                // If admin mode, check for ADMIN role
+                if (isAdminMode) {
+                    // SECURITY: Strict check - only 'ADMIN' role (case-sensitive) allows access
+                    if (userRole === 'ADMIN') {
+                        console.log('[AuthPage] ✅ Admin session confirmed, redirecting to', nextUrl)
+                        router.push(nextUrl)
+                        router.refresh()
+                    } else {
+                        // User is logged in but NOT admin - show error and stay on auth page
+                        console.log('[AuthPage] ⚠️ SECURITY: User logged in but not admin. Email:', userEmail, 'Role:', userRole)
+                        setInitialAuthError('Access denied. Your account does not have administrator privileges. Please contact support if you believe this is an error.')
+                        // Do NOT redirect - keep them on auth page
+                    }
+                } else {
+                    // Regular user - redirect to dashboard
+                    if (userRole && userRole !== 'ADMIN') {
+                        console.log('[AuthPage] ✅ Regular user authenticated, redirecting to dashboard')
+                        router.push('/dashboard')
+                        router.refresh()
+                    } else if (!userRole) {
+                        console.log('[AuthPage] ⚠️ User authenticated but no role found, staying on auth page')
+                    }
                 }
             }
 
             checkAndRedirect()
+        } else if (status === 'unauthenticated') {
+            console.log('[AuthPage] User not authenticated, staying on auth page')
         }
-    }, [isAdminMode, status, session, router, nextUrl])
+    }, [isAdminMode, status, session, router, nextUrl, pathname])
 
     // Wallet authentication hooks
     const { isSigning, isAuthenticating, error: walletError, signInWithWallet } = useWalletAuth()

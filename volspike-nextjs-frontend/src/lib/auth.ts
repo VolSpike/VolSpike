@@ -171,6 +171,33 @@ export const authConfig: NextAuthConfig = {
     },
     secret: process.env.NEXTAUTH_SECRET,
     callbacks: {
+        // CRITICAL: Handle redirects after OAuth sign-in
+        // This ensures admin users are redirected to /admin, not back to /auth
+        async redirect({ url, baseUrl }: any) {
+            console.log('[NextAuth] Redirect callback triggered:', {
+                url,
+                baseUrl,
+                isRelative: url?.startsWith('/'),
+                isSameOrigin: url?.startsWith(baseUrl),
+                fullUrl: url,
+            })
+
+            // If url is relative, it's safe to redirect
+            if (url?.startsWith('/')) {
+                console.log('[NextAuth] ✅ Redirecting to relative URL:', url)
+                return url
+            }
+
+            // If url is same origin, redirect to it
+            if (url?.startsWith(baseUrl)) {
+                console.log('[NextAuth] ✅ Redirecting to same-origin URL:', url)
+                return url
+            }
+
+            // Default: redirect to base URL (home page)
+            console.log('[NextAuth] ✅ Redirecting to base URL:', baseUrl)
+            return baseUrl
+        },
         async jwt({ token, user, account, trigger }: any) {
             if (user) {
                 token.id = user.id
@@ -489,12 +516,23 @@ export const authConfig: NextAuthConfig = {
                     session.user.image = token.image
                 }
                 session.accessToken = token.accessToken
-                console.log(`[Auth] Session callback - User: ${token.email}, role: ${token.role}, tier: ${session.user.tier}, hasAccessToken: ${!!token.accessToken}, image: ${token.image ? 'present' : 'missing'}`)
+                
+                console.log(`[Auth] Session callback - User: ${token.email}, role: ${token.role}, tier: ${session.user.tier}, hasAccessToken: ${!!token.accessToken}, image: ${token.image ? 'present' : 'missing'}`, {
+                    userId: token.id,
+                    email: token.email,
+                    role: token.role,
+                    tier: token.tier,
+                    status: token.status,
+                    hasAccessToken: !!token.accessToken,
+                    authMethod: token.authMethod,
+                })
             } else {
                 console.error('[Auth] Session callback: token or session.user missing', {
                     hasToken: !!token,
                     hasSession: !!session,
                     hasSessionUser: !!session?.user,
+                    tokenKeys: token ? Object.keys(token) : [],
+                    sessionKeys: session ? Object.keys(session) : [],
                 })
             }
             return session
