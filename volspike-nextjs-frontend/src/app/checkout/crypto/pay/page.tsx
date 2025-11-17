@@ -695,7 +695,7 @@ export default function CryptoPaymentPage() {
   useEffect(() => {
     if (!paymentDetails || !session?.user) return
     
-    // If payment is confirmed/finished and user tier matches payment tier, redirect
+    // If payment is confirmed/finished and user tier matches payment tier, redirect immediately
     const isPaymentComplete = paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'confirmed'
     const isUserUpgraded = session.user.tier === paymentDetails.tier
     
@@ -706,11 +706,14 @@ export default function CryptoPaymentPage() {
         paymentTier: paymentDetails.tier,
       })
       
+      // Stop timer countdown
+      setTimeRemaining(null)
+      
+      // Show success message and redirect immediately
       toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
       
-      setTimeout(() => {
-        router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
-      }, 2000)
+      // Redirect immediately (no delay)
+      router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
     }
   }, [paymentDetails, session?.user, router])
 
@@ -738,6 +741,7 @@ export default function CryptoPaymentPage() {
 
         if (response.ok) {
           const data = await response.json()
+          
           // Update payment details with status info
           setPaymentDetails((prev) => prev ? { 
             ...prev, 
@@ -745,17 +749,20 @@ export default function CryptoPaymentPage() {
             // Keep other fields from prev
           } : null)
 
-          // If payment is finished/confirmed and user was upgraded, redirect to success page
+          // If payment is finished/confirmed and user was upgraded, redirect immediately
           if ((data.status === 'finished' || data.status === 'confirmed') && data.upgraded) {
+            // Stop polling immediately
+            clearInterval(interval)
+            setPolling(false)
+            
             // Refresh session to get new tier
             await updateSession()
             
-            // Show success message before redirect
-            toast.success(`Payment confirmed! Upgrading to ${paymentDetails.tier.toUpperCase()} tier...`, { duration: 3000 })
+            // Show success message and redirect immediately
+            toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 3000 })
             
-            setTimeout(() => {
-              router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
-            }, 2000)
+            // Redirect immediately (no delay)
+            router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
             return // Stop polling after redirect
           } else if (data.status === 'finished' || data.status === 'confirmed') {
             // Payment finished/confirmed - refresh session to check if user was upgraded
@@ -765,6 +772,8 @@ export default function CryptoPaymentPage() {
             console.log('[CryptoPaymentPage] Payment confirmed, checking user tier after session refresh', {
               paymentStatus: data.status,
               upgraded: data.upgraded,
+              userTier: data.userTier,
+              targetTier: data.targetTier,
             })
           } else if (data.status === 'partially_paid') {
             // Update payment details to show partially_paid status
