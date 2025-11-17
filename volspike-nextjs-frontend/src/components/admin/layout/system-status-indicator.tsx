@@ -26,7 +26,8 @@ export function SystemStatusIndicator() {
     useEffect(() => {
         const checkHealth = async () => {
             try {
-                const token = (session as any)?.accessToken as string | undefined
+                // Get accessToken from session (could be in session.accessToken or session.user.id)
+                const token = ((session as any)?.accessToken || session?.user?.id) as string | undefined
                 if (!token) {
                     setStatus('unknown')
                     return

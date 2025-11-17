@@ -991,84 +991,84 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
             }
 
-        // CRITICAL FIX: Map to NowPayments format using currency mapper
-        // Payment API requires proper format (e.g., usdt_sol, not usdtsol)
-        try {
-            // Import currency mapper
-            const { mapCurrencyToNowPayments, isSupportedCurrency, getCurrencyDisplayName, getCurrencyNetwork } = await import('../services/currency-mapper')
-
-            // Validate currency is supported in our system
-            if (!isSupportedCurrency(payCurrency)) {
-                logger.error('Unsupported currency code requested in test checkout', {
-                    payCurrency,
-                    supportedCurrencies: ['usdtsol', 'usdterc20', 'usdce', 'sol', 'btc', 'eth'],
-                })
-                throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
-            }
-
-            // Fetch available currencies from NowPayments to validate and map
-            logger.info('Fetching available currencies from NowPayments for test checkout', {
-                requestedCurrency: payCurrency,
-                displayName: getCurrencyDisplayName(payCurrency),
-                network: getCurrencyNetwork(payCurrency),
-            })
-
+            // CRITICAL FIX: Map to NowPayments format using currency mapper
+            // Payment API requires proper format (e.g., usdt_sol, not usdtsol)
             try {
-                const availableCurrencies = await nowpayments.getAvailableCurrencies()
+                // Import currency mapper
+                const { mapCurrencyToNowPayments, isSupportedCurrency, getCurrencyDisplayName, getCurrencyNetwork } = await import('../services/currency-mapper')
 
-                if (!availableCurrencies || availableCurrencies.length === 0) {
-                    logger.warn('NowPayments returned empty currency list, using mapped code without validation', {
+                // Validate currency is supported in our system
+                if (!isSupportedCurrency(payCurrency)) {
+                    logger.error('Unsupported currency code requested in test checkout', {
                         payCurrency,
+                        supportedCurrencies: ['usdtsol', 'usdterc20', 'usdce', 'sol', 'btc', 'eth'],
                     })
-                    // Fall back to mapped code without validation
-                    mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
-                } else {
-                    // Map to NowPayments code with validation
-                    mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
-
-                    if (!mappedPayCurrency) {
-                        logger.error('Failed to map currency code to NowPayments format in test checkout', {
-                            payCurrency,
-                            displayName: getCurrencyDisplayName(payCurrency),
-                            network: getCurrencyNetwork(payCurrency),
-                            availableCurrencies: availableCurrencies.slice(0, 50),
-                            availableCount: availableCurrencies.length,
-                        })
-                        throw new Error(`Currency ${getCurrencyDisplayName(payCurrency)} on ${getCurrencyNetwork(payCurrency)} is not available. Please select a different currency.`)
-                    }
-
-                    logger.info('Currency code mapped successfully for test checkout', {
-                        ourCode: payCurrency,
-                        nowpaymentsCode: mappedPayCurrency,
-                        displayName: getCurrencyDisplayName(payCurrency),
-                        network: getCurrencyNetwork(payCurrency),
-                    })
+                    throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
                 }
-            } catch (error) {
-                logger.error('Error validating currency code in test checkout', {
-                    error: error instanceof Error ? error.message : String(error),
-                    payCurrency,
+
+                // Fetch available currencies from NowPayments to validate and map
+                logger.info('Fetching available currencies from NowPayments for test checkout', {
+                    requestedCurrency: payCurrency,
                     displayName: getCurrencyDisplayName(payCurrency),
                     network: getCurrencyNetwork(payCurrency),
                 })
-                // Re-throw validation errors
-                if (error instanceof Error && (error.message.includes('Unsupported') || error.message.includes('not available'))) {
-                    throw error
+
+                try {
+                    const availableCurrencies = await nowpayments.getAvailableCurrencies()
+
+                    if (!availableCurrencies || availableCurrencies.length === 0) {
+                        logger.warn('NowPayments returned empty currency list, using mapped code without validation', {
+                            payCurrency,
+                        })
+                        // Fall back to mapped code without validation
+                        mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
+                    } else {
+                        // Map to NowPayments code with validation
+                        mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
+
+                        if (!mappedPayCurrency) {
+                            logger.error('Failed to map currency code to NowPayments format in test checkout', {
+                                payCurrency,
+                                displayName: getCurrencyDisplayName(payCurrency),
+                                network: getCurrencyNetwork(payCurrency),
+                                availableCurrencies: availableCurrencies.slice(0, 50),
+                                availableCount: availableCurrencies.length,
+                            })
+                            throw new Error(`Currency ${getCurrencyDisplayName(payCurrency)} on ${getCurrencyNetwork(payCurrency)} is not available. Please select a different currency.`)
+                        }
+
+                        logger.info('Currency code mapped successfully for test checkout', {
+                            ourCode: payCurrency,
+                            nowpaymentsCode: mappedPayCurrency,
+                            displayName: getCurrencyDisplayName(payCurrency),
+                            network: getCurrencyNetwork(payCurrency),
+                        })
+                    }
+                } catch (error) {
+                    logger.error('Error validating currency code in test checkout', {
+                        error: error instanceof Error ? error.message : String(error),
+                        payCurrency,
+                        displayName: getCurrencyDisplayName(payCurrency),
+                        network: getCurrencyNetwork(payCurrency),
+                    })
+                    // Re-throw validation errors
+                    if (error instanceof Error && (error.message.includes('Unsupported') || error.message.includes('not available'))) {
+                        throw error
+                    }
+                    // For API errors, try to use mapped code without validation
+                    logger.warn('Currency validation API call failed, using mapped code without validation', {
+                        payCurrency,
+                        error: error instanceof Error ? error.message : String(error),
+                    })
+                    mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
                 }
-                // For API errors, try to use mapped code without validation
-                logger.warn('Currency validation API call failed, using mapped code without validation', {
+            } catch (currencyMappingError) {
+                logger.error('Currency mapping error in test checkout', {
+                    error: currencyMappingError instanceof Error ? currencyMappingError.message : String(currencyMappingError),
                     payCurrency,
-                    error: error instanceof Error ? error.message : String(error),
                 })
-                mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
+                throw currencyMappingError // Re-throw to fail fast
             }
-        } catch (currencyMappingError) {
-            logger.error('Currency mapping error in test checkout', {
-                error: currencyMappingError instanceof Error ? currencyMappingError.message : String(currencyMappingError),
-                payCurrency,
-            })
-            throw currencyMappingError // Re-throw to fail fast
-        }
         }
 
         // Use mapped currency or default to USDT on Solana (proper format: usdt_sol)

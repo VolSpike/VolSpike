@@ -20,24 +20,43 @@ export default function AdminDashboardClient() {
 
     useEffect(() => {
         const fetchMetrics = async () => {
-            if (!session?.accessToken) {
+            // Get accessToken from session (could be in session.accessToken or session.user.id)
+            const accessToken = (session as any)?.accessToken || session?.user?.id
+            
+            if (!accessToken) {
+                console.error('[AdminDashboard] No access token in session', {
+                    hasSession: !!session,
+                    sessionKeys: session ? Object.keys(session) : [],
+                    userKeys: session?.user ? Object.keys(session.user) : [],
+                })
+                setError('Authentication required. Please sign in again.')
                 setLoading(false)
                 return
             }
 
             try {
-                adminAPI.setAccessToken(session.accessToken as string)
+                adminAPI.setAccessToken(accessToken as string)
                 const data = await adminAPI.getSystemMetrics('30d')
                 setMetrics(data)
-            } catch (err) {
+            } catch (err: any) {
                 console.error('[AdminDashboard] Failed to fetch metrics:', err)
-                setError('Failed to load dashboard metrics')
+                // Check if it's an authentication error
+                if (err?.status === 401 || err?.message?.includes('Authentication') || err?.message?.includes('Unauthorized')) {
+                    setError('Authentication failed. Please sign out and sign in again.')
+                } else {
+                    setError('Failed to load dashboard metrics')
+                }
             } finally {
                 setLoading(false)
             }
         }
 
-        fetchMetrics()
+        if (session) {
+            fetchMetrics()
+        } else {
+            setLoading(false)
+            setError('Please sign in to access the admin dashboard')
+        }
     }, [session])
 
     if (loading) {
