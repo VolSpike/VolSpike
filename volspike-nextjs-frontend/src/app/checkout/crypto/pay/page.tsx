@@ -84,6 +84,36 @@ export default function CryptoPaymentPage() {
       // Log immediately and after a short delay (to catch async rendering)
       logDebugInfo()
       setTimeout(logDebugInfo, 1000)
+
+      setTimeout(() => {
+        const headerLink = document.querySelector('header nav a[href="/pricing"]') as HTMLElement | null
+        if (headerLink) {
+          const rect = headerLink.getBoundingClientRect()
+          const el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+          console.log('🔍 [Debug] Header Pricing elementFromPoint:', {
+            target: el,
+            targetTag: el?.tagName,
+            targetClasses: el?.className,
+            targetZIndex: el ? window.getComputedStyle(el).zIndex : null,
+            headerRect: rect,
+            headerPointerEvents: window.getComputedStyle(headerLink).pointerEvents,
+          })
+        }
+
+        const footerLink = document.querySelector('footer a[href="/legal/privacy"]') as HTMLElement | null
+        if (footerLink) {
+          const rect = footerLink.getBoundingClientRect()
+          const el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+          console.log('🔍 [Debug] Footer Privacy elementFromPoint:', {
+            target: el,
+            targetTag: el?.tagName,
+            targetClasses: el?.className,
+            targetZIndex: el ? window.getComputedStyle(el).zIndex : null,
+            footerRect: rect,
+            footerPointerEvents: window.getComputedStyle(footerLink).pointerEvents,
+          })
+        }
+      }, 1500)
     }
   }, [debugMode])
 
