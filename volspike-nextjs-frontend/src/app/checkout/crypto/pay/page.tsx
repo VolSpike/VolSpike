@@ -619,8 +619,14 @@ export default function CryptoPaymentPage() {
         const data = await response.json()
         setPaymentDetails(data)
 
-        // Set timer (15 minutes)
-        setTimeRemaining(15 * 60)
+        // Set timer (15 minutes) - but only if payment is not already confirmed
+        // Don't reset timer if payment is already finished/confirmed
+        if (data.paymentStatus !== 'finished' && data.paymentStatus !== 'confirmed') {
+          setTimeRemaining(15 * 60)
+        } else {
+          // Payment already confirmed - stop timer
+          setTimeRemaining(null)
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load payment details'
         console.error('[CryptoPaymentPage] Error:', err)
@@ -717,13 +723,20 @@ export default function CryptoPaymentPage() {
     }
   }, [paymentDetails, session?.user, router])
 
-  // Poll payment status (every 10 seconds)
+  // Poll payment status (every 5 seconds)
   // Uses status endpoint which automatically triggers upgrade if payment is finished
   useEffect(() => {
     if (!paymentDetails || !session?.user || polling) return
 
-    // Continue polling even if confirmed/finished to check for upgrades
-    // Only stop if payment failed
+    // Stop polling if payment is confirmed AND user is already upgraded
+    const isPaymentComplete = paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'confirmed'
+    const isUserUpgraded = session.user.tier === paymentDetails.tier
+    if (isPaymentComplete && isUserUpgraded) {
+      // Payment complete and user upgraded - redirect will be handled by the upgrade check effect
+      return
+    }
+
+    // Stop polling if payment failed
     if (paymentDetails.paymentStatus === 'failed') {
       return
     }
