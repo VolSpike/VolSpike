@@ -1764,8 +1764,8 @@ auth.get('/me', async (c) => {
         })
 
         if (!user) {
-            logger.warn(`[Auth] /me user not found for ID: ${userId}`)
-            return c.json({ error: 'User not found' }, 401)
+            logger.warn(`[Auth] /me user not found for ID: ${userId} - user was deleted`)
+            return c.json({ error: 'User not found' }, 404) // Return 404 for deleted users
         }
 
         // Return user data with passwordChangedAt for session validation

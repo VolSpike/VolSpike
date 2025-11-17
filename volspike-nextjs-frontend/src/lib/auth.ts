@@ -214,6 +214,8 @@ export const authConfig: NextAuthConfig = {
                         },
                     })
 
+                    console.log(`[Auth] JWT callback - fetching user data, status: ${response.status}`)
+                    
                     if (response.ok) {
                         const { user: dbUser } = await response.json()
 
@@ -256,13 +258,19 @@ export const authConfig: NextAuthConfig = {
                             }
                         } else {
                             // User not found in database - account was deleted
-                            console.log(`[Auth] ⚠️ User not found in database - account was deleted - invalidating session`)
+                            console.error(`[Auth] ⚠️ User not found in database response - account was deleted - invalidating session`)
                             return null // Return null to invalidate the session
                         }
-                    } else if (response.status === 404) {
+                    } else if (response.status === 404 || response.status === 401) {
                         // User not found - account was deleted
-                        console.log(`[Auth] ⚠️ User not found (404) - account was deleted - invalidating session`)
-                        return null // Return null to invalidate the session
+                        // Check error message to confirm it's a "user not found" error
+                        const errorData = await response.json().catch(() => ({ error: 'User not found' }))
+                        if (response.status === 404 || errorData.error?.toLowerCase().includes('not found')) {
+                            console.error(`[Auth] ⚠️ User not found (${response.status}) - account was deleted - invalidating session`)
+                            return null // Return null to invalidate the session
+                        }
+                        // If it's a 401 but not "not found", might be auth error - don't invalidate yet
+                        console.warn(`[Auth] Non-404/401 error or unclear error message, status: ${response.status}`)
                     } else if ((response.status === 401 || response.status === 404) && token.oauthProvider === 'google' && token.oauthProviderAccountId && token.email) {
                         // Self-heal: if /me says user not found but we have Google identity,
                         // create/link the account now using the saved providerAccountId.
