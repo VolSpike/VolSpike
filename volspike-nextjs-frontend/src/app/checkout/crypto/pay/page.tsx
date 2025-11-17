@@ -41,6 +41,52 @@ export default function CryptoPaymentPage() {
   const [polling, setPolling] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
 
+  // Debug: Log page structure on mount
+  useEffect(() => {
+    if (debugMode) {
+      const logDebugInfo = () => {
+        const header = document.querySelector('header')
+        const footer = document.querySelector('footer')
+        const main = document.querySelector('main')
+        
+        console.log('🔍 [CryptoPaymentPage] Page structure debug:', {
+          header: header ? {
+            element: header,
+            zIndex: window.getComputedStyle(header).zIndex,
+            pointerEvents: window.getComputedStyle(header).pointerEvents,
+            position: window.getComputedStyle(header).position,
+          } : null,
+          footer: footer ? {
+            element: footer,
+            zIndex: window.getComputedStyle(footer).zIndex,
+            pointerEvents: window.getComputedStyle(footer).pointerEvents,
+            position: window.getComputedStyle(footer).position,
+          } : null,
+          main: main ? {
+            element: main,
+            zIndex: window.getComputedStyle(main).zIndex,
+          } : null,
+          headerLinks: Array.from(document.querySelectorAll('header a')).map(a => ({
+            href: (a as HTMLAnchorElement).href,
+            text: a.textContent?.trim(),
+            pointerEvents: window.getComputedStyle(a).pointerEvents,
+            zIndex: window.getComputedStyle(a).zIndex,
+          })),
+          footerLinks: Array.from(document.querySelectorAll('footer a')).map(a => ({
+            href: (a as HTMLAnchorElement).href,
+            text: a.textContent?.trim(),
+            pointerEvents: window.getComputedStyle(a).pointerEvents,
+            zIndex: window.getComputedStyle(a).zIndex,
+          })),
+        })
+      }
+      
+      // Log immediately and after a short delay (to catch async rendering)
+      logDebugInfo()
+      setTimeout(logDebugInfo, 1000)
+    }
+  }, [debugMode])
+
   // Generate Solana Pay URI (standard format that Phantom recognizes)
   // Solana Pay spec: solana:<address>?amount=<decimal>&spl-token=<mint>&label=<label>&message=<message>
   // IMPORTANT: Phantom recognizes the standard solana: URI scheme - use decimal amounts for better compatibility
