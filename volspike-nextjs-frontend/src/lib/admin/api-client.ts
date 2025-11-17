@@ -337,6 +337,13 @@ class AdminAPIClient {
         })
     }
 
+    async syncFromNowPayments(paymentId: string, reason?: string): Promise<any> {
+        return this.request<any>('/api/admin/payments/sync-from-nowpayments', {
+            method: 'POST',
+            body: JSON.stringify({ paymentId, reason }),
+        })
+    }
+
     async createPaymentFromNowPayments(data: {
         userId: string
         paymentId?: string

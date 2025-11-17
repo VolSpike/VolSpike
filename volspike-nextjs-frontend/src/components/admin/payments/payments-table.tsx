@@ -193,6 +193,19 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
         }
     }
 
+    const handleSyncFromNowPayments = async (paymentId: string) => {
+        setIsProcessing(true)
+        try {
+            await adminAPI.syncFromNowPayments(paymentId)
+            toast.success('Payment synced from NowPayments and user upgraded if needed')
+            router.refresh()
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to sync from NowPayments')
+        } finally {
+            setIsProcessing(false)
+        }
+    }
+
     const getStatusBadge = (status: string | null) => {
         if (!status) return <Badge variant="outline">Unknown</Badge>
         const config = statusConfig[status] || { label: status, variant: 'outline' as const, icon: AlertTriangle }
@@ -353,6 +366,15 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                         </>
+                                                    )}
+                                                    {payment.paymentId && (
+                                                        <DropdownMenuItem
+                                                            onClick={() => handleSyncFromNowPayments(payment.id)}
+                                                            disabled={isProcessing}
+                                                        >
+                                                            <RefreshCw className="h-4 w-4 mr-2" />
+                                                            Sync from NowPayments
+                                                        </DropdownMenuItem>
                                                     )}
                                                     {payment.paymentStatus !== 'finished' && (
                                                         <DropdownMenuItem
