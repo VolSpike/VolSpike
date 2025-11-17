@@ -190,8 +190,86 @@ adminPaymentRoutes.post('/complete-partial-payment', async (c) => {
             return c.json({ error: 'Payment not found' }, 404)
         }
 
+        // If payment is already finished but user not upgraded, upgrade them
+        if (payment.paymentStatus === 'finished' && payment.user.tier !== payment.tier) {
+            logger.info('Payment already finished but user not upgraded - upgrading now', {
+                paymentId,
+                userId: payment.userId,
+                currentTier: payment.user.tier,
+                targetTier: payment.tier,
+            })
+            
+            const previousTier = payment.user.tier
+            
+            // Upgrade user tier
+            await prisma.user.update({
+                where: { id: payment.userId },
+                data: { tier: payment.tier },
+            })
+            
+            // Ensure expiresAt is set
+            if (!payment.expiresAt) {
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 30)
+                await prisma.cryptoPayment.update({
+                    where: { id: paymentId },
+                    data: { expiresAt },
+                })
+            }
+            
+            // Create audit log
+            await prisma.auditLog.create({
+                data: {
+                    actorUserId: adminUser.id,
+                    action: 'MANUAL_PAYMENT_COMPLETE',
+                    targetType: 'CRYPTO_PAYMENT',
+                    targetId: paymentId,
+                    oldValues: { tier: previousTier },
+                    newValues: { tier: payment.tier, reason: reason || 'Payment was finished but user not upgraded - admin fixed' },
+                    metadata: {
+                        adminEmail: adminUser.email,
+                        userEmail: payment.user.email,
+                        paymentId: payment.paymentId,
+                        orderId: payment.orderId,
+                    },
+                },
+            })
+            
+            // Send email notification
+            const { EmailService } = await import('../../services/email')
+            const emailService = EmailService.getInstance()
+            if (payment.user.email && previousTier !== payment.tier) {
+                emailService.sendTierUpgradeEmail({
+                    email: payment.user.email,
+                    name: undefined,
+                    newTier: payment.tier,
+                    previousTier: previousTier,
+                }).catch((error) => {
+                    logger.error('Failed to send tier upgrade email:', error)
+                })
+            }
+            
+            return c.json({
+                success: true,
+                message: 'User upgraded (payment was already finished)',
+                payment: {
+                    id: payment.id,
+                    paymentId: payment.paymentId,
+                    orderId: payment.orderId,
+                    status: 'finished',
+                    tier: payment.tier,
+                },
+                user: {
+                    id: payment.user.id,
+                    email: payment.user.email,
+                    previousTier,
+                    newTier: payment.tier,
+                },
+            })
+        }
+        
         if (payment.paymentStatus === 'finished') {
-            return c.json({ error: 'Payment is already finished' }, 400)
+            return c.json({ error: 'Payment is already finished and user is already upgraded' }, 400)
         }
 
         const previousTier = payment.user.tier
