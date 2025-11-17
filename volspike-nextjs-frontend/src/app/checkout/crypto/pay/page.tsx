@@ -556,7 +556,6 @@ export default function CryptoPaymentPage() {
             border: '2px solid red',
           }}
           onClick={(e) => {
-            e.stopPropagation()
             const element = document.elementFromPoint(e.clientX, e.clientY)
             console.log('🔍 Click intercepted at:', {
               x: e.clientX,
@@ -879,9 +878,7 @@ export default function CryptoPaymentPage() {
                       </div>
                     </div>
                     <Button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
+                      onClick={() => {
                         // Redirect to pricing or test payment page
                         const tier = paymentDetails?.tier || 'pro'
                         router.push(`/pricing?tier=${tier}`)
@@ -901,11 +898,7 @@ export default function CryptoPaymentPage() {
                 <>
                   {/* Primary: Open in Phantom (uses Solana Pay URI) */}
                   <Button
-                    onClick={(e) => {
-                      // Prevent any default behavior that might block navigation
-                      e.preventDefault()
-                      e.stopPropagation()
-                      
+                    onClick={() => {
                       // Use Solana Pay URI (Phantom recognizes this format)
                       if (solanaUri) {
                         console.log('[CryptoPaymentPage] Opening Solana Pay URI in Phantom:', {
@@ -958,9 +951,7 @@ export default function CryptoPaymentPage() {
                   
                   {/* Secondary: Copy address for manual entry */}
                   <Button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
+                    onClick={() => {
                       if (paymentDetails?.payAddress) {
                         copyToClipboard(paymentDetails.payAddress, 'address')
                         toast.success('Address copied! Paste it in Phantom wallet manually.')
@@ -981,9 +972,7 @@ export default function CryptoPaymentPage() {
               )}
               
               <Button
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
+                onClick={() => {
                   router.push('/pricing')
                 }}
                 variant="ghost"
