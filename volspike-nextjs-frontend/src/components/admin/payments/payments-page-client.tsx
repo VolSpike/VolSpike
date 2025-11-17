@@ -8,11 +8,12 @@ import { adminAPI } from '@/lib/admin/api-client'
 import { Loader2, AlertCircle, Plus, CreditCard, RefreshCw, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { useAutoSyncPayments } from '@/hooks/use-auto-sync-payments'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { toast } from 'react-hot-toast'
 
 interface PaymentsPageClientProps {
     initialData: any
@@ -127,7 +128,7 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
                             <span className="text-xs text-muted-foreground ml-1.5">payments</span>
                         </div>
                     )}
-                    
+
                     {/* Auto-sync status indicator */}
                     {autoSyncEnabled && paymentsToSyncCount > 0 && (
                         <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-1.5 backdrop-blur-sm">
@@ -159,7 +160,7 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
                             </div>
                         </div>
                     )}
-                    
+
                     {syncCount > 0 && (
                         <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5">
                             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -184,7 +185,7 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
                             Auto-sync
                         </Label>
                     </div>
-                    
+
                     {/* Manual sync button */}
                     {paymentsToSyncCount > 0 && (
                         <Button
@@ -203,7 +204,7 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
                             <span className="hidden sm:inline">Sync Now</span>
                         </Button>
                     )}
-                    
+
                     <Button
                         onClick={() => setCreateDialogOpen(true)}
                         className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all"
