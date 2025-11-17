@@ -835,22 +835,52 @@ export default function CryptoPaymentPage() {
     return 'Unknown'
   }
 
-  const getFriendlyStatus = (status: string | undefined | null): { label: string; tone: 'default' | 'success' | 'warning' | 'danger' } => {
-    if (!status) return { label: 'Waiting for payment', tone: 'default' }
+  const getFriendlyStatus = (status: string | undefined | null): { label: string; tone: 'default' | 'success' | 'warning' | 'danger'; description?: string } => {
+    if (!status) return { label: 'Waiting for payment', tone: 'default', description: 'Scan the QR code or copy the address to send payment' }
     const normalized = status.toLowerCase()
     if (normalized === 'finished' || normalized === 'confirmed') {
-      return { label: 'Payment confirmed on-chain', tone: 'success' }
+      return { 
+        label: 'Payment confirmed on-chain', 
+        tone: 'success',
+        description: 'Your payment has been received and confirmed. Upgrading your account...'
+      }
     }
     if (normalized === 'failed' || normalized === 'expired' || normalized === 'refunded') {
-      return { label: 'Payment could not be completed', tone: 'danger' }
+      return { 
+        label: 'Payment could not be completed', 
+        tone: 'danger',
+        description: 'Please create a new payment to try again'
+      }
     }
     if (normalized === 'partially_paid') {
-      return { label: 'Partially paid - Waiting for full confirmation', tone: 'warning' }
+      return { 
+        label: 'Payment received - Processing', 
+        tone: 'warning',
+        description: 'We received your payment but it\'s slightly less than requested. Waiting for confirmations...'
+      }
     }
-    if (normalized === 'confirming' || normalized === 'sending') {
-      return { label: 'Waiting for blockchain confirmations', tone: 'warning' }
+    if (normalized === 'waiting') {
+      return { 
+        label: 'Waiting for payment', 
+        tone: 'default',
+        description: 'Scan the QR code or copy the address to send payment'
+      }
     }
-    return { label: 'Waiting for payment', tone: 'default' }
+    if (normalized === 'confirming') {
+      return { 
+        label: 'Confirming payment...', 
+        tone: 'default',
+        description: 'Your payment is being confirmed on the blockchain. This usually takes a few seconds.'
+      }
+    }
+    if (normalized === 'sending') {
+      return { 
+        label: 'Processing payment...', 
+        tone: 'default',
+        description: 'Your payment is being processed. Please wait...'
+      }
+    }
+    return { label: `Status: ${status}`, tone: 'default', description: 'Checking payment status...' }
   }
 
   if (loading) {
