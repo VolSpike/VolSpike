@@ -2314,6 +2314,24 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
             paymentStatus: paymentStatus.payment_status,
         })
 
+        // Calculate buffer percentage for display
+        // If priceAmount includes buffer, show it; otherwise calculate from minimum
+        let bufferInfo = null
+        if (paymentStatus.price_amount && cryptoPayment.payAmount) {
+            // Check if priceAmount is higher than stored payAmount (which might be minimum)
+            // Buffer is typically 20% = 1.2x multiplier
+            const bufferMultiplier = paymentStatus.price_amount / (cryptoPayment.payAmount || paymentStatus.price_amount)
+            if (bufferMultiplier >= 1.15) { // At least 15% buffer
+                const bufferPercent = ((bufferMultiplier - 1) * 100).toFixed(0)
+                bufferInfo = {
+                    applied: true,
+                    percentage: `${bufferPercent}%`,
+                    baseAmount: cryptoPayment.payAmount,
+                    bufferedAmount: paymentStatus.price_amount,
+                }
+            }
+        }
+
         return c.json({
             paymentId: paymentStatus.payment_id,
             payAddress: paymentStatus.pay_address,
@@ -2324,6 +2342,7 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
             paymentStatus: paymentStatus.payment_status,
             orderId: paymentStatus.order_id,
             tier: cryptoPayment.tier,
+            bufferInfo, // Include buffer info for frontend display
         })
     } catch (error: any) {
         const message = error instanceof Error ? error.message : 'Unknown error'

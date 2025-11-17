@@ -24,6 +24,12 @@ interface PaymentDetails {
   paymentStatus: string
   orderId: string
   tier: string
+  bufferInfo?: {
+    applied: boolean
+    percentage: string
+    baseAmount: number
+    bufferedAmount: number
+  } | null
 }
 
 export default function CryptoPaymentPage() {
@@ -200,12 +206,13 @@ export default function CryptoPaymentPage() {
         // SOL: up to 9 decimals, remove trailing zeros
         amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
       } else if (isUSDT) {
-        // USDT: 6 decimals, remove trailing zeros
-        amountDecimal = paymentDetails.payAmount.toFixed(6).replace(/\.?0+$/, '')
+        // USDT: Use full precision (up to 9 decimals) to prevent truncation issues
+        // iPhone camera scanner may truncate, so we need maximum precision
+        amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
         splTokenMint = SPL_TOKEN_MINTS.usdt
       } else if (isUSDC) {
-        // USDC: 6 decimals, remove trailing zeros
-        amountDecimal = paymentDetails.payAmount.toFixed(6).replace(/\.?0+$/, '')
+        // USDC: Use full precision (up to 9 decimals) to prevent truncation issues
+        amountDecimal = paymentDetails.payAmount.toFixed(9).replace(/\.?0+$/, '')
         splTokenMint = SPL_TOKEN_MINTS.usdc
       } else {
         // For other tokens, use raw decimal string
@@ -918,17 +925,19 @@ export default function CryptoPaymentPage() {
                         <p className="flex items-start gap-2">
                           <span className="font-bold text-sec-500">Option A:</span>
                           <span>
-                            <strong>Use Phantom&apos;s built-in scanner</strong> (Recommended):
+                            <strong>iPhone Camera</strong> (Easiest & Preferred):
                             <br />
-                            <span className="text-[11px]">Open Phantom → Tap &quot;Send&quot; → Tap QR icon → Scan this code</span>
+                            <span className="text-[11px]">Open Camera app → Point at QR code → Tap notification banner → Phantom opens with prepopulated payment</span>
+                            <br />
+                            <span className="text-[11px] text-muted-foreground">Android: Open Phantom app → Tap &quot;Scan&quot; → Point at QR code</span>
                           </span>
                         </p>
                         <p className="flex items-start gap-2">
                           <span className="font-bold text-sec-500">Option B:</span>
                           <span>
-                            <strong>iPhone Camera:</strong> Open Camera app, point at QR code, tap notification banner
+                            <strong>Use Phantom&apos;s built-in scanner:</strong>
                             <br />
-                            <strong>Android:</strong> Open Phantom app, tap &quot;Scan&quot;, point at QR code
+                            <span className="text-[11px]">Open Phantom → Tap &quot;Send&quot; → Tap QR icon → Scan this code</span>
                           </span>
                         </p>
                         <p className="flex items-start gap-2">
@@ -961,7 +970,7 @@ export default function CryptoPaymentPage() {
                         Open Phantom & Use Scanner
                       </Button>
                       <p className="text-[11px] text-muted-foreground">
-                        💡 <strong>Best method:</strong> Use Phantom&apos;s built-in scanner (Option A) for the most reliable experience.
+                        💡 <strong>Best method:</strong> Use iPhone Camera (Option A) for the easiest and most reliable experience.
                       </p>
                     </div>
                   </div>
