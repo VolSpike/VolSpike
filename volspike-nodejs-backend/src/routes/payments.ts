@@ -921,55 +921,44 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         let priceAmount = testAmount
         const nowpayments = NowPaymentsService.getInstance()
 
-        // If no test amount provided, fetch minimum for selected currency
+        // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher)
+        // Buffer will be applied to QR code amount (pay_amount), not invoice amount
+        // This ensures NowPayments recognizes payment as fully paid
         if (!priceAmount && payCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
                 if (minAmount) {
-                    // Add 20% buffer to account for network fees and ensure we're well above minimum
-                    // Network fees can reduce received amount, so we need extra buffer
-                    // CRITICAL: Always ensure buffer is applied, even if minAmount is already high
-                    const bufferedAmount = minAmount * 1.2
-                    priceAmount = Math.ceil(bufferedAmount * 100) / 100
+                    // Use minimum amount or $2.00, whichever is higher (no buffer on invoice)
+                    priceAmount = Math.max(minAmount, 2.0)
+                    // Round to 2 decimals
+                    priceAmount = Math.ceil(priceAmount * 100) / 100
 
-                    // Ensure we're at least $0.10 above minimum to account for buffer
-                    if (priceAmount <= minAmount) {
-                        priceAmount = Math.ceil((minAmount + 0.10) * 100) / 100
-                    }
-
-                    logger.info('Calculated test amount from minimum with network fee buffer', {
+                    logger.info('Set invoice amount to base amount (no buffer)', {
                         currency: payCurrency,
                         minAmount,
-                        buffer: '20%',
-                        bufferedAmount: minAmount * 1.2,
-                        priceAmount,
-                        bufferApplied: priceAmount > minAmount,
-                        note: 'Increased buffer to account for network fees that reduce received amount',
+                        invoiceAmount: priceAmount,
+                        note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
                     })
                 } else {
-                    // Fallback: Use $2.00 base + 20% buffer = $2.40
-                    const fallbackMin = 2.0
-                    priceAmount = Math.ceil(fallbackMin * 1.2 * 100) / 100
-                    logger.warn('Unable to fetch minimum amount, using fallback with buffer', {
+                    // Fallback: Use exactly $2.00 (no buffer)
+                    priceAmount = 2.0
+                    logger.warn('Unable to fetch minimum amount, using $2.00 base', {
                         currency: payCurrency,
-                        fallbackMin,
-                        buffer: '20%',
-                        priceAmount,
+                        invoiceAmount: priceAmount,
+                        note: 'Buffer will be applied to QR code amount',
                     })
                 }
             } catch (minAmountError) {
-                logger.error('Error fetching minimum amount, using fallback with buffer', {
+                logger.error('Error fetching minimum amount, using $2.00 base', {
                     error: minAmountError,
                     currency: payCurrency,
                 })
-                // Fallback: Use $2.00 base + 20% buffer = $2.40
-                const fallbackMin = 2.0
-                priceAmount = Math.ceil(fallbackMin * 1.2 * 100) / 100
+                // Fallback: Use exactly $2.00 (no buffer)
+                priceAmount = 2.0
             }
         } else if (!priceAmount) {
-            // No currency selected, use safe default with buffer
-            const fallbackMin = 2.0
-            priceAmount = Math.ceil(fallbackMin * 1.2 * 100) / 100
+            // No currency selected, use exactly $2.00 (no buffer)
+            priceAmount = 2.0
         }
 
         logger.info('Test checkout parameters', {
@@ -1113,7 +1102,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 const bufferedAmount = roundedUp * 1.001
                 // Round UP again to ensure we're always above invoice
                 payAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
-                
+
                 logger.info('Applied decimal precision fix and buffer to pay_amount', {
                     originalPayAmount: payment.pay_amount,
                     roundedUpTo6Decimals: roundedUp,
@@ -1462,25 +1451,29 @@ payments.post('/nowpayments/checkout', async (c) => {
             const payCurrency = payment.pay_currency
 
             // CRITICAL FIX: Round UP pay_amount to 6 decimals and add buffer for USDT/USDC
-            // This ensures QR code amount is HIGHER than invoice amount, preventing partial payments
+            // Invoice: $2.00 USD → NowPayments converts to ~1.99386686 USDT (8 decimals)
+            // QR Code: Round UP to 6 decimals + 0.1% buffer = 1.995761 USDT
+            // User pays: 1.995761 USDT > Invoice (1.99386686) = Fully paid ✅
+            // This ensures NowPayments recognizes payment as fully paid while covering network fees
             const isUSDT = payCurrency?.toLowerCase().includes('usdt')
             const isUSDC = payCurrency?.toLowerCase().includes('usdc')
             if ((isUSDT || isUSDC) && typeof payAmount === 'number') {
-                // Round UP to 6 decimals (ceiling function)
+                // Round UP to 6 decimals (ceiling function) - ensures we're at least equal to invoice
                 const roundedUp = Math.ceil(payAmount * 1000000) / 1000000
                 // Add 0.1% buffer for network fees and decimal precision
                 const bufferedAmount = roundedUp * 1.001
-                // Round UP again to ensure we're always above invoice
+                // Round UP again to ensure we're always above invoice amount
                 payAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
-                
-                logger.info('Applied decimal precision fix and buffer to pay_amount', {
+
+                logger.info('Applied decimal precision fix and buffer to QR code amount', {
+                    invoiceUSD: priceAmount,
                     originalPayAmount: payment.pay_amount,
                     roundedUpTo6Decimals: roundedUp,
                     bufferedAmount: bufferedAmount,
                     finalPayAmount: payAmount,
                     increase: payAmount - payment.pay_amount,
                     increasePercent: ((payAmount - payment.pay_amount) / payment.pay_amount * 100).toFixed(4) + '%',
-                    note: 'QR code will show this higher amount, ensuring full payment even after network fees',
+                    note: 'QR code shows higher amount than invoice, ensuring NowPayments recognizes full payment',
                 })
             }
 
