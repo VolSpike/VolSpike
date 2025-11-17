@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Pay QR Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #14F195;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #14F195;
+        }
+        button {
+            background: linear-gradient(135deg, #14F195, #9945FF);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        #qrcode {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .url-display {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 6px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            border-left: 4px solid #14F195;
+        }
+        .info-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .info-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Solana Pay QR Generator</h1>
+        <p class="subtitle">Create QR codes for Phantom, Solflare, and other Solana wallets</p>
+
+        <div class="form-group">
+            <label for="recipient">Recipient Address *</label>
+            <input 
+                type="text" 
+                id="recipient" 
+                placeholder="e.g., 7v91N7iZ9mNicL8WfG6cgSCKyRXydQjLh6UYBWwm6y1Q"
+                value="7v91N7iZ9mNicL8WfG6cgSCKyRXydQjLh6UYBWwm6y1Q"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="amount">Amount (Optional)</label>
+            <input 
+                type="number" 
+                id="amount" 
+                placeholder="e.g., 1.5" 
+                step="0.000000001"
+                value="0.1"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="token">Token (Optional)</label>
+            <select id="token">
+                <option value="">SOL (Native)</option>
+                <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
+                <option value="Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB">USDT</option>
+                <option value="custom">Custom SPL Token</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="customTokenGroup" style="display:none;">
+            <label for="customToken">Custom Token Mint Address</label>
+            <input 
+                type="text" 
+                id="customToken" 
+                placeholder="Enter SPL token mint address"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="label">Label (Optional)</label>
+            <input 
+                type="text" 
+                id="label" 
+                placeholder="e.g., Store Purchase"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="message">Message/Memo (Optional)</label>
+            <input 
+                type="text" 
+                id="message" 
+                placeholder="e.g., Order #12345"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="reference">Reference (Optional)</label>
+            <input 
+                type="text" 
+                id="reference" 
+                placeholder="Unique reference key for tracking"
+            >
+        </div>
+
+        <button onclick="generateQR()">Generate QR Code</button>
+
+        <div id="qrcode"></div>
+        <div id="urlDisplay"></div>
+        <div id="error"></div>
+
+        <div class="info-box">
+            <h3>📱 How it works:</h3>
+            <ul>
+                <li><strong>Solana Pay URL Format:</strong> solana:&lt;recipient&gt;?amount=&lt;amount&gt;&spl-token=&lt;mint&gt;</li>
+                <li><strong>Supported Wallets:</strong> Phantom, Solflare, Backpack, Glow, and more</li>
+                <li><strong>Amount:</strong> Optional, in base units (SOL or tokens)</li>
+                <li><strong>SPL Token:</strong> Specify mint address for USDC, USDT, or custom tokens</li>
+                <li><strong>Reference:</strong> Used for transaction tracking and verification</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Show/hide custom token input
+        document.getElementById('token').addEventListener('change', function() {
+            const customGroup = document.getElementById('customTokenGroup');
+            if (this.value === 'custom') {
+                customGroup.style.display = 'block';
+            } else {
+                customGroup.style.display = 'none';
+            }
+        });
+
+        function generateQR() {
+            // Clear previous QR code and messages
+            document.getElementById('qrcode').innerHTML = '';
+            document.getElementById('urlDisplay').innerHTML = '';
+            document.getElementById('error').innerHTML = '';
+
+            // Get form values
+            const recipient = document.getElementById('recipient').value.trim();
+            const amount = document.getElementById('amount').value.trim();
+            const tokenSelect = document.getElementById('token').value;
+            const customToken = document.getElementById('customToken').value.trim();
+            const label = document.getElementById('label').value.trim();
+            const message = document.getElementById('message').value.trim();
+            const reference = document.getElementById('reference').value.trim();
+
+            // Validate recipient address
+            if (!recipient) {
+                showError('Recipient address is required');
+                return;
+            }
+
+            // Basic Solana address validation (base58, ~32-44 chars)
+            if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(recipient)) {
+                showError('Invalid Solana address format');
+                return;
+            }
+
+            // Build Solana Pay URL
+            let url = `solana:${recipient}`;
+            const params = new URLSearchParams();
+
+            // Add amount if provided
+            if (amount && parseFloat(amount) > 0) {
+                params.append('amount', amount);
+            }
+
+            // Add SPL token if selected
+            let tokenMint = tokenSelect === 'custom' ? customToken : tokenSelect;
+            if (tokenMint) {
+                if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(tokenMint)) {
+                    showError('Invalid token mint address format');
+                    return;
+                }
+                params.append('spl-token', tokenMint);
+            }
+
+            // Add label if provided
+            if (label) {
+                params.append('label', encodeURIComponent(label));
+            }
+
+            // Add message/memo if provided
+            if (message) {
+                params.append('message', encodeURIComponent(message));
+            }
+
+            // Add reference if provided
+            if (reference) {
+                params.append('reference', reference);
+            }
+
+            // Construct final URL
+            const queryString = params.toString();
+            if (queryString) {
+                url += '?' + queryString;
+            }
+
+            // Display the URL
+            document.getElementById('urlDisplay').innerHTML = `
+                <strong>Solana Pay URL:</strong><br>
+                <div style="margin-top: 10px;">${url}</div>
+            `;
+
+            // Generate QR code
+            try {
+                new QRCode(document.getElementById('qrcode'), {
+                    text: url,
+                    width: 256,
+                    height: 256,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            } catch (e) {
+                showError('Failed to generate QR code: ' + e.message);
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('error').innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Generate QR on page load with default values
+        window.onload = function() {
+            generateQR();
+        };
+    </script>
+</body>
+</html>
