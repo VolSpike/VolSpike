@@ -436,6 +436,170 @@ adminPaymentRoutes.post('/manual-upgrade', async (c) => {
     }
 })
 
+// POST /api/admin/payments/sync-from-nowpayments - Sync payment status from NowPayments and upgrade if needed
+adminPaymentRoutes.post('/sync-from-nowpayments', async (c) => {
+    try {
+        const adminUser = c.get('adminUser')
+        if (!adminUser) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+        const body = await c.req.json()
+        const { paymentId, reason } = z.object({
+            paymentId: z.string(), // Database payment ID (UUID)
+            reason: z.string().optional(),
+        }).parse(body)
+
+        // Get payment from database
+        const payment = await prisma.cryptoPayment.findUnique({
+            where: { id: paymentId },
+            include: { user: true },
+        })
+
+        if (!payment) {
+            return c.json({ error: 'Payment not found' }, 404)
+        }
+
+        if (!payment.paymentId) {
+            return c.json({ error: 'Payment does not have a NowPayments payment ID' }, 400)
+        }
+
+        // Fetch current status from NowPayments API
+        const { NowPaymentsService } = await import('../../services/nowpayments')
+        const nowpayments = NowPaymentsService.getInstance()
+        const paymentStatus = await nowpayments.getPaymentStatus(payment.paymentId)
+
+        logger.info('Syncing payment status from NowPayments', {
+            paymentId: payment.id,
+            nowpaymentsPaymentId: payment.paymentId,
+            currentDbStatus: payment.paymentStatus,
+            nowpaymentsStatus: paymentStatus.payment_status,
+            userTier: payment.user.tier,
+            targetTier: payment.tier,
+        })
+
+        // Update database with latest status from NowPayments
+        const updatedPayment = await prisma.cryptoPayment.update({
+            where: { id: paymentId },
+            data: {
+                paymentStatus: paymentStatus.payment_status,
+                actuallyPaid: paymentStatus.actually_paid,
+                actuallyPaidCurrency: paymentStatus.pay_currency,
+                updatedAt: new Date(),
+                ...(paymentStatus.payment_status === 'finished' && { paidAt: new Date() }),
+            },
+            include: { user: true },
+        })
+
+        // If status is "finished" but user wasn't upgraded yet, trigger upgrade
+        if (paymentStatus.payment_status === 'finished' && updatedPayment.user.tier !== updatedPayment.tier) {
+            logger.info('🔄 Payment is finished in NowPayments but user not upgraded - upgrading now', {
+                paymentId: payment.id,
+                nowpaymentsPaymentId: payment.paymentId,
+                userId: updatedPayment.userId,
+                currentTier: updatedPayment.user.tier,
+                targetTier: updatedPayment.tier,
+            })
+
+            const previousTier = updatedPayment.user.tier
+            const expiresAt = new Date()
+            expiresAt.setDate(expiresAt.getDate() + 30)
+
+            await prisma.$transaction(async (tx) => {
+                await tx.user.update({
+                    where: { id: updatedPayment.userId },
+                    data: { tier: updatedPayment.tier },
+                })
+
+                await tx.cryptoPayment.update({
+                    where: { id: updatedPayment.id },
+                    data: {
+                        expiresAt,
+                        paidAt: new Date(),
+                    },
+                })
+            })
+
+            // Send email notification
+            const { EmailService } = await import('../../services/email')
+            const emailService = EmailService.getInstance()
+            if (updatedPayment.user.email && previousTier !== updatedPayment.tier) {
+                emailService.sendTierUpgradeEmail({
+                    email: updatedPayment.user.email,
+                    name: undefined,
+                    newTier: updatedPayment.tier,
+                    previousTier: previousTier,
+                }).catch((error) => {
+                    logger.error('Failed to send tier upgrade email:', error)
+                })
+            }
+
+            // Create audit log
+            await prisma.auditLog.create({
+                data: {
+                    actorUserId: adminUser.id,
+                    action: 'MANUAL_PAYMENT_SYNC',
+                    targetType: 'CRYPTO_PAYMENT',
+                    targetId: paymentId,
+                    oldValues: { 
+                        paymentStatus: payment.paymentStatus,
+                        tier: previousTier,
+                    },
+                    newValues: { 
+                        paymentStatus: 'finished',
+                        tier: updatedPayment.tier,
+                        reason: reason || 'Synced from NowPayments dashboard - status changed to finished',
+                    },
+                    metadata: {
+                        adminEmail: adminUser.email,
+                        userEmail: updatedPayment.user.email,
+                        paymentId: payment.paymentId,
+                        orderId: payment.orderId,
+                        expiresAt,
+                    },
+                },
+            })
+
+            logger.info(`✅ User upgraded after syncing from NowPayments: ${updatedPayment.user.email} ${previousTier} → ${updatedPayment.tier}`)
+
+            return c.json({
+                success: true,
+                message: 'Payment synced from NowPayments and user upgraded',
+                payment: {
+                    id: updatedPayment.id,
+                    paymentId: updatedPayment.paymentId,
+                    orderId: updatedPayment.orderId,
+                    status: paymentStatus.payment_status,
+                    previousStatus: payment.paymentStatus,
+                    tier: updatedPayment.tier,
+                },
+                user: {
+                    id: updatedPayment.user.id,
+                    email: updatedPayment.user.email,
+                    previousTier,
+                    newTier: updatedPayment.tier,
+                },
+            })
+        }
+
+        return c.json({
+            success: true,
+            message: 'Payment synced from NowPayments',
+            payment: {
+                id: updatedPayment.id,
+                paymentId: updatedPayment.paymentId,
+                status: paymentStatus.payment_status,
+                previousStatus: payment.paymentStatus,
+                userTier: updatedPayment.user.tier,
+                targetTier: updatedPayment.tier,
+                upgraded: paymentStatus.payment_status === 'finished' && updatedPayment.user.tier === updatedPayment.tier,
+            },
+        })
+    } catch (error) {
+        logger.error('Sync from NowPayments error:', error)
+        return c.json({ error: 'Failed to sync payment from NowPayments' }, 500)
+    }
+})
+
 // POST /api/admin/payments/:paymentId/retry-webhook - Retry webhook processing
 adminPaymentRoutes.post('/:paymentId/retry-webhook', async (c) => {
     try {
