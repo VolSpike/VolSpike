@@ -754,7 +754,7 @@ export default function CryptoPaymentPage() {
             toast.success(`Payment confirmed! Upgrading to ${paymentDetails.tier.toUpperCase()} tier...`, { duration: 3000 })
             
             setTimeout(() => {
-              router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
+              router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}&paymentId=${paymentDetails.paymentId}`)
             }, 2000)
             return // Stop polling after redirect
           } else if (data.status === 'finished' || data.status === 'confirmed') {

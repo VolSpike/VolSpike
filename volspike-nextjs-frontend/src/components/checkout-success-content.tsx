@@ -13,14 +13,67 @@ export function CheckoutSuccessContent() {
     const searchParams = useSearchParams()
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [hasRefreshed, setHasRefreshed] = useState(false)
+    const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
+    const [isCheckingPayment, setIsCheckingPayment] = useState(false)
 
     // Check if this is a crypto payment
     const paymentType = searchParams.get('payment') // 'crypto' or null
     const tierParam = searchParams.get('tier') // 'pro' or 'elite'
+    const paymentId = searchParams.get('paymentId') // NowPayments payment ID
 
     // Get current tier from session (will update when session updates)
     const currentTier = session?.user?.tier || 'free'
     const isPro = currentTier === 'pro' || currentTier === 'elite'
+
+    // Check payment status if paymentId is available
+    useEffect(() => {
+        if (!paymentId || paymentType !== 'crypto' || isPro) {
+            return
+        }
+
+        const checkPaymentStatus = async () => {
+            try {
+                setIsCheckingPayment(true)
+                const authToken = (session as any)?.accessToken
+                if (!authToken) return
+
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                const response = await fetch(`${API_URL}/api/payments/nowpayments/status/${paymentId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                    },
+                })
+
+                if (response.ok) {
+                    const data = await response.json()
+                    setPaymentStatus(data.status || data.paymentStatus)
+                    
+                    // If payment is confirmed, refresh session to check for upgrade
+                    if (data.status === 'finished' || data.status === 'confirmed') {
+                        await update()
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to check payment status:', error)
+            } finally {
+                setIsCheckingPayment(false)
+            }
+        }
+
+        // Check immediately
+        checkPaymentStatus()
+
+        // Poll every 5 seconds if payment is not confirmed
+        const pollInterval = setInterval(() => {
+            if (paymentStatus !== 'finished' && paymentStatus !== 'confirmed' && !isPro) {
+                checkPaymentStatus()
+            } else {
+                clearInterval(pollInterval)
+            }
+        }, 5000)
+
+        return () => clearInterval(pollInterval)
+    }, [paymentId, paymentType, isPro, session, update, paymentStatus])
 
     // Auto-refresh session on mount if tier is free (to pick up any recent updates)
     useEffect(() => {
@@ -138,7 +191,7 @@ export function CheckoutSuccessContent() {
                 </div>
                 <h1 className="text-2xl font-bold mb-2">Payment Successful</h1>
                 
-                {paymentType === 'crypto' && (
+                {paymentType === 'crypto' && !isPro && paymentStatus !== 'finished' && paymentStatus !== 'confirmed' && (
                     <div className="mb-6 p-5 rounded-xl bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-transparent border border-blue-500/20 shadow-sm">
                         <div className="flex items-start gap-4">
                             <div className="p-2.5 rounded-lg bg-blue-500/20 flex-shrink-0">
@@ -153,7 +206,13 @@ export function CheckoutSuccessContent() {
                                 </p>
                                 <div className="flex items-center gap-2 text-xs text-blue-600/80 dark:text-blue-400/80">
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    <span>Waiting for blockchain confirmation...</span>
+                                    <span>
+                                        {paymentStatus === 'partially_paid' 
+                                            ? 'Payment received, waiting for full confirmation...'
+                                            : paymentStatus === 'confirming' || paymentStatus === 'sending'
+                                            ? 'Confirming on blockchain...'
+                                            : 'Waiting for blockchain confirmation...'}
+                                    </span>
                                 </div>
                             </div>
                         </div>
