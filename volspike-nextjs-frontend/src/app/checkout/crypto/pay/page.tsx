@@ -1336,28 +1336,6 @@ export default function CryptoPaymentPage() {
                 </div>
               )}
 
-              {/* Payment Address */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Payment address</label>
-                <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 p-3">
-                  <code className="flex-1 break-all font-mono text-xs">
-                    {paymentDetails.payAddress}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(paymentDetails.payAddress, 'address')}
-                    className="h-8 w-8 flex-shrink-0 p-0"
-                  >
-                    {copied === 'address' ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
               {/* Payment Info */}
               <div className="space-y-1 rounded-xl border border-sec-500/25 bg-sec-500/5 p-4">
                 <p className="text-sm font-semibold text-sec-300">
