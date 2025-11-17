@@ -2399,14 +2399,14 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
             // So the USD equivalent of QR code is: invoice * 1.20 = $2.40
             const baseAmount = paymentStatus.price_amount // $2.00 (invoice amount)
             const bufferedAmount = baseAmount * 1.20 // $2.40 (QR code amount with 20% buffer)
-            
+
             bufferInfo = {
                 applied: true,
                 percentage: '20%',
                 baseAmount: Math.round(baseAmount * 100) / 100, // Round to 2 decimals
                 bufferedAmount: Math.round(bufferedAmount * 100) / 100, // Round to 2 decimals
             }
-            
+
             logger.info('Calculated buffer info for display', {
                 paymentId,
                 invoiceAmount: baseAmount,
@@ -2416,28 +2416,52 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
             })
         }
 
-        // CRITICAL: For USDT/USDC, use 6 decimals (token standard)
-        // For other tokens, preserve full precision
+        // CRITICAL: Apply 20% buffer to pay_amount for USDT/USDC (same as when creating payment)
+        // NowPayments returns the original amount, but QR code should show buffered amount
+        let finalPayAmount = paymentStatus.pay_amount
         const isUSDT = paymentStatus.pay_currency?.toLowerCase().includes('usdt')
         const isUSDC = paymentStatus.pay_currency?.toLowerCase().includes('usdc')
-        const payAmountString = typeof paymentStatus.pay_amount === 'string'
-            ? paymentStatus.pay_amount
+        
+        if ((isUSDT || isUSDC) && typeof finalPayAmount === 'number') {
+            // Round UP to 6 decimals (ceiling function) - ensures we're at least equal to invoice
+            const roundedUp = Math.ceil(finalPayAmount * 1000000) / 1000000
+            // Add 20% buffer for network fees (same as when creating payment)
+            const bufferedAmount = roundedUp * 1.20
+            // Round UP again to ensure we're always above invoice amount
+            finalPayAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
+            
+            logger.info('Applied 20% buffer to pay_amount for QR code', {
+                originalPayAmount: paymentStatus.pay_amount,
+                roundedUpTo6Decimals: roundedUp,
+                bufferedAmount: bufferedAmount,
+                finalPayAmount: finalPayAmount,
+                increase: finalPayAmount - paymentStatus.pay_amount,
+                increasePercent: '20%',
+                note: 'QR code will show buffered amount, ensuring NowPayments recognizes full payment',
+            })
+        }
+        
+        // Format payAmountString with correct precision
+        const payAmountString = typeof finalPayAmount === 'string'
+            ? finalPayAmount
             : (isUSDT || isUSDC)
-                ? paymentStatus.pay_amount.toFixed(6).replace(/\.?0+$/, '')
-                : paymentStatus.pay_amount.toFixed(9).replace(/\.?0+$/, '')
+                ? finalPayAmount.toFixed(6).replace(/\.?0+$/, '')
+                : finalPayAmount.toFixed(9).replace(/\.?0+$/, '')
 
-        logger.info('Returning payment details with preserved precision', {
+        logger.info('Returning payment details with buffered amount', {
             paymentId: paymentStatus.payment_id,
-            payAmountNumber: paymentStatus.pay_amount,
+            originalPayAmount: paymentStatus.pay_amount,
+            bufferedPayAmount: finalPayAmount,
             payAmountString,
             decimalPlaces: payAmountString.includes('.') ? payAmountString.split('.')[1].length : 0,
+            bufferApplied: finalPayAmount !== paymentStatus.pay_amount,
         })
 
         return c.json({
             paymentId: paymentStatus.payment_id,
             payAddress: paymentStatus.pay_address,
-            payAmount: paymentStatus.pay_amount, // Keep as number for backward compatibility
-            payAmountString, // Add string version for full precision
+            payAmount: finalPayAmount, // Buffered amount for QR code
+            payAmountString, // String version with full precision
             payCurrency: paymentStatus.pay_currency,
             priceAmount: paymentStatus.price_amount,
             priceCurrency: paymentStatus.price_currency,
