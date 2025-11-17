@@ -268,7 +268,7 @@ export default function CryptoPaymentPage() {
           uri: solanaPayUri,
           length: solanaPayUri.length,
           preview: solanaPayUri.substring(0, 80) + '...',
-          params: Object.fromEntries(params),
+        params: Object.fromEntries(params),
           recommendedFor: 'QR codes (iOS camera scanner)',
         },
         phantomUniversalLinkUri: {
@@ -304,14 +304,14 @@ export default function CryptoPaymentPage() {
     }
   }, [paymentDetails])
 
-  // Generate QR code using Phantom universal link (best for iOS camera scanner)
-  // iOS camera scanner handles HTTPS universal links better than custom solana: URI schemes
-  // Universal links are designed to work seamlessly with iOS and properly pass parameters to apps
+  // Generate QR code using Solana Pay URI (works best with Phantom's in-app scanner)
+  // iOS camera scanner has issues with both formats, so we prioritize Solana Pay URI
+  // Users should use Phantom's built-in scanner for best results
   useEffect(() => {
-    // Prioritize Phantom universal link for QR codes - iOS camera scanner handles HTTPS universal links best
-    // The universal link format ensures iOS properly passes all parameters to Phantom
-    // Fallback to Solana Pay URI if universal link not available
-    const uriForQR = phantomUniversalLink || solanaUri
+    // Use Solana Pay URI for QR codes - works best with Phantom's in-app scanner
+    // Universal links don't work reliably with iOS camera scanner
+    // Fallback to universal link if Solana Pay URI not available
+    const uriForQR = solanaUri || phantomUniversalLink
     
     if (!uriForQR) {
       console.warn('[CryptoPaymentPage] No URI available for QR code generation', {
@@ -326,21 +326,22 @@ export default function CryptoPaymentPage() {
       return
     }
 
-    const usingPhantomUniversalLink = !!phantomUniversalLink
+    const usingSolanaPayUri = !!solanaUri
     console.log('[CryptoPaymentPage] Generating QR code', {
-      usingPhantomUniversalLink,
-      usingSolanaPayUri: !usingPhantomUniversalLink,
+      usingSolanaPayUri,
+      usingPhantomUniversalLink: !usingSolanaPayUri,
       uri: uriForQR,
       uriLength: uriForQR.length,
       uriPreview: uriForQR.substring(0, 100) + '...',
       fullUri: uriForQR,
       // Show what will happen when scanned
-      expectedBehavior: usingPhantomUniversalLink 
-        ? 'iOS camera scanner will recognize HTTPS universal link and open Phantom with prepopulated transaction' 
-        : 'Will use Solana Pay URI format (fallback)',
-      recommendation: usingPhantomUniversalLink 
-        ? '✅ Using Phantom universal link - best for iOS camera scanning (HTTPS universal links work seamlessly)' 
-        : '⚠️ Using Solana Pay URI - iOS may not handle custom URI schemes as well',
+      expectedBehavior: usingSolanaPayUri 
+        ? 'Solana Pay URI format - works best with Phantom\'s in-app scanner' 
+        : 'Using Phantom universal link format (fallback)',
+      recommendation: usingSolanaPayUri 
+        ? '✅ Using Solana Pay URI - recommended for Phantom\'s built-in scanner' 
+        : '⚠️ Using Phantom universal link - may work but Solana Pay URI is preferred',
+      note: 'iOS camera scanner has issues with both formats. Users should use Phantom\'s in-app scanner for best results.',
     })
 
     QRCode.toDataURL(uriForQR, {
@@ -356,24 +357,25 @@ export default function CryptoPaymentPage() {
         console.log('[CryptoPaymentPage] QR code generated successfully', {
           uriLength: uriForQR.length,
           qrCodeSize: url.length,
-          uriType: usingPhantomUniversalLink ? 'phantom-universal-link' : 'solana-pay',
+          uriType: usingSolanaPayUri ? 'solana-pay' : 'phantom-universal-link',
           encodedUri: uriForQR,
-          usingPhantomUniversalLink,
+          usingSolanaPayUri,
           // Parse and log the URI structure for debugging
-          parsedUri: usingPhantomUniversalLink ? {
+          parsedUri: usingSolanaPayUri ? {
+            scheme: 'solana',
+            address: paymentDetails?.payAddress,
+            params: Object.fromEntries(new URLSearchParams(uriForQR.split('?')[1] || '')),
+          } : {
             scheme: 'https',
             domain: 'phantom.app',
             path: '/ul/v1/transfer',
             params: Object.fromEntries(new URLSearchParams(uriForQR.split('?')[1] || '')),
-          } : {
-            scheme: 'solana',
-            address: paymentDetails?.payAddress,
-            params: Object.fromEntries(new URLSearchParams(uriForQR.split('?')[1] || '')),
           },
-          // iOS compatibility check
-          iosCompatibility: usingPhantomUniversalLink 
-            ? '✅ Excellent - iOS camera scanner natively supports HTTPS universal links and properly passes parameters'
-            : '⚠️ Good - Solana Pay URI may work but universal links are preferred for iOS',
+          // Compatibility check
+          compatibility: usingSolanaPayUri 
+            ? '✅ Best for Phantom\'s in-app scanner - Solana Pay URI is the standard format'
+            : '⚠️ Fallback format - Solana Pay URI preferred',
+          recommendation: 'Use Phantom\'s built-in scanner (Send → QR icon) for most reliable results',
         })
         setQrCodeDataUrl(url)
       })
@@ -818,36 +820,57 @@ export default function CryptoPaymentPage() {
                       />
                     </div>
                   </div>
-                  <div className="text-center space-y-2 max-w-sm">
+                  <div className="text-center space-y-3 max-w-sm">
                     <div className="space-y-1.5 text-xs text-muted-foreground">
                       <p className="font-semibold text-foreground mb-2">How to scan:</p>
                       <div className="space-y-1.5 text-left">
                         <p className="flex items-start gap-2">
-                          <span className="font-bold text-sec-500">1.</span>
+                          <span className="font-bold text-sec-500">Option A:</span>
                           <span>
-                            <strong>iPhone:</strong> Open Camera app, point at QR code, tap the notification banner that appears.
+                            <strong>Use Phantom&apos;s built-in scanner</strong> (Recommended):
                             <br />
-                            <strong>Android:</strong> Open Phantom app, tap <span className="font-medium text-foreground">Scan</span>, point at QR code.
+                            <span className="text-[11px]">Open Phantom → Tap &quot;Send&quot; → Tap QR icon → Scan this code</span>
                           </span>
                         </p>
                         <p className="flex items-start gap-2">
-                          <span className="font-bold text-sec-500">2.</span>
+                          <span className="font-bold text-sec-500">Option B:</span>
                           <span>
-                            Phantom will open with the <span className="font-medium text-foreground">address and amount pre-filled</span>. Just review and confirm.
+                            <strong>iPhone Camera:</strong> Open Camera app, point at QR code, tap notification banner
+                            <br />
+                            <strong>Android:</strong> Open Phantom app, tap &quot;Scan&quot;, point at QR code
                           </span>
                         </p>
                         <p className="flex items-start gap-2">
-                          <span className="font-bold text-sec-500">3.</span>
+                          <span className="font-bold text-sec-500">Option C:</span>
                           <span>
-                            If another wallet opens instead, close it and use{' '}
-                            <span className="font-medium text-foreground">&quot;Open in Phantom Wallet&quot;</span> button below.
+                            <strong>Manual entry:</strong> Copy address and amount below, paste into Phantom manually
                           </span>
                         </p>
                       </div>
                     </div>
-                    <div className="pt-2 border-t border-border/30">
+                    <div className="pt-2 border-t border-border/30 space-y-2">
+                      <Button
+                        onClick={() => {
+                          // Open Phantom app - user can then use the scanner
+                          const targetUri = phantomDeepLink || phantomUniversalLink || solanaUri
+                          if (targetUri) {
+                            try {
+                              window.open(targetUri, '_blank', 'noopener,noreferrer')
+                              toast.success('Opening Phantom... Use the Send → QR scanner to scan the code above', { duration: 5000 })
+                            } catch (err) {
+                              toast.error('Please open Phantom manually and use the scanner')
+                            }
+                          }
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                      >
+                        <QrCode className="mr-2 h-3.5 w-3.5" />
+                        Open Phantom & Use Scanner
+                      </Button>
                       <p className="text-[11px] text-muted-foreground">
-                        💡 <strong>Tip:</strong> On iPhone, iOS Camera automatically detects QR codes and shows a notification banner. Tap it to open Phantom directly.
+                        💡 <strong>Best method:</strong> Use Phantom&apos;s built-in scanner (Option A) for the most reliable experience.
                       </p>
                     </div>
                   </div>
@@ -868,38 +891,38 @@ export default function CryptoPaymentPage() {
                             <p className="text-xs font-medium text-muted-foreground">
                               QR Code Format
                             </p>
-                            {phantomUniversalLink && (
+                            {solanaUri && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-600 dark:text-green-400">
                                 <span>✓</span>
-                                <span>Phantom Universal Link</span>
+                                <span>Solana Pay URI</span>
                               </span>
                             )}
-                            {!phantomUniversalLink && solanaUri && (
+                            {!solanaUri && phantomUniversalLink && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-medium text-yellow-600 dark:text-yellow-400">
                                 <span>⚠</span>
-                                <span>Solana Pay URI</span>
+                                <span>Phantom Universal Link</span>
                               </span>
                             )}
                           </div>
                           <div className="rounded border border-border/30 bg-muted/30 p-2">
                             <code className="break-all text-xs font-mono text-foreground">
-                              {phantomUniversalLink || solanaUri}
+                              {solanaUri || phantomUniversalLink}
                             </code>
                           </div>
-                          {phantomUniversalLink && (
+                          {solanaUri && (
                             <div className="mt-2 space-y-1">
                               <p className="text-xs text-green-600 dark:text-green-400">
-                                ✅ <strong>Optimal for iOS:</strong> Using Phantom universal link format (HTTPS). iOS camera scanner handles universal links seamlessly and properly passes all parameters to Phantom.
+                                ✅ <strong>Optimal format:</strong> Using Solana Pay URI format. This works best with Phantom&apos;s built-in scanner.
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Universal links (<code className="rounded bg-muted px-1 py-0.5 text-[10px]">https://phantom.app/ul/v1/transfer</code>) are designed specifically for iOS deep linking and ensure parameters are correctly passed to the app.
+                                Solana Pay URI (<code className="rounded bg-muted px-1 py-0.5 text-[10px]">solana:...</code>) is the standard format for Solana payments and works reliably with Phantom&apos;s in-app scanner.
                               </p>
                             </div>
                           )}
-                          {!phantomUniversalLink && solanaUri && (
+                          {!solanaUri && phantomUniversalLink && (
                             <div className="mt-2 space-y-1">
                               <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                                ⚠️ <strong>Fallback format:</strong> Using Solana Pay URI. iOS may not handle custom URI schemes as reliably as universal links.
+                                ⚠️ <strong>Fallback format:</strong> Using Phantom universal link. Solana Pay URI is preferred for best compatibility.
                               </p>
                             </div>
                           )}
@@ -914,13 +937,13 @@ export default function CryptoPaymentPage() {
                             <pre className="max-h-40 overflow-auto text-xs font-mono">
                               {JSON.stringify(
                                 {
-                                  uri: phantomUniversalLink || solanaUri,
-                                  type: phantomUniversalLink ? 'phantom-universal-link' : 'solana-pay',
+                                  uri: solanaUri || phantomUniversalLink,
+                                  type: solanaUri ? 'solana-pay' : 'phantom-universal-link',
                                   params: Object.fromEntries(
-                                    new URLSearchParams(
+                                  new URLSearchParams(
                                       (solanaUri || phantomUniversalLink || '').split('?')[1] || ''
-                                    )
-                                  ),
+                                  )
+                                ),
                                   paymentDetails: {
                                     address: paymentDetails?.payAddress,
                                     amount: paymentDetails?.payAmount,
@@ -942,18 +965,18 @@ export default function CryptoPaymentPage() {
                           </p>
                           <div className="flex flex-col gap-2">
                             {solanaUri && (
-                              <Button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(solanaUri)
+                          <Button
+                            onClick={() => {
+                                navigator.clipboard.writeText(solanaUri)
                                   toast.success('Solana Pay URI copied! Paste into Phantom or test scanner.')
-                                }}
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                              >
-                                <Copy className="mr-2 h-3 w-3" />
-                                Copy Solana Pay URI
-                              </Button>
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                          >
+                            <Copy className="mr-2 h-3 w-3" />
+                            Copy Solana Pay URI
+                          </Button>
                             )}
                             {phantomUniversalLink && (
                               <Button
