@@ -11,6 +11,7 @@ import { Loader2, CheckCircle2, XCircle, Coins, AlertTriangle, Sparkles } from '
 import { HeaderWithBanner } from '@/components/header-with-banner'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
 import { PaymentErrorDisplay } from '@/components/payment-error-display'
+import { SolanaPayQRGenerator } from '@/components/solana-pay-qr-generator'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -290,6 +291,15 @@ export default function TestCryptoPaymentPage() {
                         )}
                     </CardContent>
                 </Card>
+
+                {/* QR Code Generator Tool */}
+                <div className="mt-8">
+                    <SolanaPayQRGenerator
+                        defaultRecipient="7v91N7iZ9mNicL8WfG6cgSCKyRXydQjLh6UYBWwm6y1Q"
+                        defaultAmount="0.1"
+                        defaultToken="Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+                    />
+                </div>
             </main>
         </div>
     )
