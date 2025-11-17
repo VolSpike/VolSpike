@@ -97,17 +97,36 @@ export async function syncPendingPayments() {
 
                     upgraded++
 
-                    // Send email notification
+                    // Send payment confirmation email to user (non-blocking)
                     const emailService = EmailService.getInstance()
-                    if (updatedPayment.user.email && previousTier !== updatedPayment.tier) {
-                        emailService.sendTierUpgradeEmail({
+                    if (updatedPayment.user.email) {
+                        // Send beautiful payment confirmation email
+                        emailService.sendPaymentConfirmationEmail({
                             email: updatedPayment.user.email,
                             name: undefined,
-                            newTier: updatedPayment.tier,
-                            previousTier: previousTier,
+                            tier: updatedPayment.tier,
+                            amountUsd: updatedPayment.payAmount,
+                            payCurrency: updatedPayment.payCurrency,
+                            actuallyPaid: paymentStatus.actually_paid,
+                            actuallyPaidCurrency: paymentStatus.pay_currency,
+                            paymentId: payment.paymentId || '',
+                            orderId: updatedPayment.orderId || '',
+                            expiresAt,
                         }).catch((error) => {
-                            logger.error('Failed to send tier upgrade email:', error)
+                            logger.error('Failed to send payment confirmation email:', error)
                         })
+
+                        // Also send tier upgrade email if tier changed
+                        if (previousTier !== updatedPayment.tier) {
+                            emailService.sendTierUpgradeEmail({
+                                email: updatedPayment.user.email,
+                                name: undefined,
+                                newTier: updatedPayment.tier,
+                                previousTier: previousTier,
+                            }).catch((error) => {
+                                logger.error('Failed to send tier upgrade email:', error)
+                            })
+                        }
                     }
 
                     // Notify admin

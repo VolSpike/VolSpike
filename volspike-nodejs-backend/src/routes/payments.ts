@@ -2258,17 +2258,36 @@ payments.post('/nowpayments/webhook', async (c) => {
                     orderId: order_id,
                 })
 
-                // Send email notification (non-blocking)
+                // Send payment confirmation email to user (non-blocking)
                 const emailService = EmailService.getInstance()
-                if (cryptoPayment.user.email && previousTier !== cryptoPayment.tier) {
-                    emailService.sendTierUpgradeEmail({
+                if (cryptoPayment.user.email) {
+                    // Send beautiful payment confirmation email
+                    emailService.sendPaymentConfirmationEmail({
                         email: cryptoPayment.user.email,
                         name: undefined,
-                        newTier: cryptoPayment.tier,
-                        previousTier: previousTier,
+                        tier: cryptoPayment.tier,
+                        amountUsd: cryptoPayment.payAmount,
+                        payCurrency: cryptoPayment.payCurrency,
+                        actuallyPaid: data.actually_paid ? Number(data.actually_paid) : cryptoPayment.actuallyPaid,
+                        actuallyPaidCurrency: data.pay_currency || data.actually_paid_currency || cryptoPayment.actuallyPaidCurrency,
+                        paymentId: payment_id || cryptoPayment.paymentId || '',
+                        orderId: order_id || cryptoPayment.orderId || '',
+                        expiresAt,
                     }).catch((error) => {
-                        logger.error('Failed to send tier upgrade email (non-critical):', error)
+                        logger.error('Failed to send payment confirmation email (non-critical):', error)
                     })
+
+                    // Also send tier upgrade email if tier changed
+                    if (previousTier !== cryptoPayment.tier) {
+                        emailService.sendTierUpgradeEmail({
+                            email: cryptoPayment.user.email,
+                            name: undefined,
+                            newTier: cryptoPayment.tier,
+                            previousTier: previousTier,
+                        }).catch((error) => {
+                            logger.error('Failed to send tier upgrade email (non-critical):', error)
+                        })
+                    }
                 }
 
                 // Broadcast tier change via WebSocket (non-blocking)
@@ -2281,7 +2300,7 @@ payments.post('/nowpayments/webhook', async (c) => {
                     }
                 }
 
-                // Notify admin (non-blocking)
+                // Notify admin IMMEDIATELY when payment is confirmed (non-blocking)
                 notifyAdminPaymentSuccess('CRYPTO_PAYMENT_FINISHED', {
                     paymentId: payment_id || cryptoPayment.paymentId,
                     invoiceId: invoice_id || cryptoPayment.invoiceId,
@@ -2291,10 +2310,12 @@ payments.post('/nowpayments/webhook', async (c) => {
                     userEmail: cryptoPayment.user.email,
                     amountUsd: cryptoPayment.payAmount,
                     payCurrency: cryptoPayment.payCurrency,
-                    actuallyPaid: cryptoPayment.actuallyPaid,
-                    actuallyPaidCurrency: cryptoPayment.actuallyPaidCurrency,
+                    actuallyPaid: data.actually_paid ? Number(data.actually_paid) : cryptoPayment.actuallyPaid,
+                    actuallyPaidCurrency: data.pay_currency || data.actually_paid_currency || cryptoPayment.actuallyPaidCurrency,
                     expiresAt,
                     lookupMethod,
+                    previousTier,
+                    newTier: cryptoPayment.tier,
                 }).catch((error) => {
                     logger.error('Failed to notify admin (non-critical):', error)
                 })

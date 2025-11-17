@@ -54,6 +54,19 @@ interface PaymentIssueAlertData {
     details: Record<string, any>
 }
 
+interface PaymentConfirmationEmailData {
+    email: string
+    name?: string
+    tier: string
+    amountUsd: number
+    payCurrency: string
+    actuallyPaid: number | null
+    actuallyPaidCurrency: string | null
+    paymentId: string
+    orderId: string
+    expiresAt: Date
+}
+
 export class EmailService {
     private static instance: EmailService
     private fromEmail: string
