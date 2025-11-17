@@ -1,0 +1,165 @@
+import { prisma } from '../index'
+import { createLogger } from '../lib/logger'
+import { NowPaymentsService } from './nowpayments'
+import { EmailService } from './email'
+
+const logger = createLogger()
+
+/**
+ * Sync payment statuses from NowPayments API
+ * Should be called periodically (e.g., every 30 seconds)
+ * This ensures users get upgraded even if webhooks are delayed or missed
+ */
+export async function syncPendingPayments() {
+    try {
+        const nowpayments = NowPaymentsService.getInstance()
+
+        // Find all pending payments (not finished/failed/confirmed)
+        const pendingPayments = await prisma.cryptoPayment.findMany({
+            where: {
+                paymentId: { not: null },
+                paymentStatus: {
+                    notIn: ['finished', 'confirmed', 'failed', 'refunded', 'expired'],
+                },
+            },
+            include: { user: true },
+            take: 100, // Sync up to 100 payments at a time
+        })
+
+        if (pendingPayments.length === 0) {
+            return {
+                checked: 0,
+                synced: 0,
+                upgraded: 0,
+            }
+        }
+
+        logger.info(`🔄 Syncing ${pendingPayments.length} pending payments from NowPayments`)
+
+        let synced = 0
+        let upgraded = 0
+
+        // Sync payments sequentially to avoid rate limits
+        for (const payment of pendingPayments) {
+            if (!payment.paymentId) continue
+
+            try {
+                // Fetch latest status from NowPayments
+                const paymentStatus = await nowpayments.getPaymentStatus(payment.paymentId)
+
+                // Update database with latest status
+                const updatedPayment = await prisma.cryptoPayment.update({
+                    where: { id: payment.id },
+                    data: {
+                        paymentStatus: paymentStatus.payment_status,
+                        actuallyPaid: paymentStatus.actually_paid,
+                        actuallyPaidCurrency: paymentStatus.pay_currency,
+                        updatedAt: new Date(),
+                        ...((paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') && {
+                            paidAt: new Date(),
+                        }),
+                    },
+                    include: { user: true },
+                })
+
+                synced++
+
+                // If payment is finished/confirmed but user wasn't upgraded yet, trigger upgrade
+                if (
+                    (paymentStatus.payment_status === 'finished' || paymentStatus.payment_status === 'confirmed') &&
+                    updatedPayment.user.tier !== updatedPayment.tier
+                ) {
+                    logger.info('🔄 Payment confirmed but user not upgraded - upgrading now', {
+                        paymentId: payment.paymentId,
+                        userId: updatedPayment.userId,
+                        currentTier: updatedPayment.user.tier,
+                        targetTier: updatedPayment.tier,
+                    })
+
+                    const previousTier = updatedPayment.user.tier
+                    const expiresAt = new Date()
+                    expiresAt.setDate(expiresAt.getDate() + 30)
+
+                    await prisma.$transaction(async (tx) => {
+                        await tx.user.update({
+                            where: { id: updatedPayment.userId },
+                            data: { tier: updatedPayment.tier },
+                        })
+
+                        await tx.cryptoPayment.update({
+                            where: { id: updatedPayment.id },
+                            data: {
+                                expiresAt,
+                                paidAt: new Date(),
+                            },
+                        })
+                    })
+
+                    upgraded++
+
+                    // Send email notification
+                    const emailService = EmailService.getInstance()
+                    if (updatedPayment.user.email && previousTier !== updatedPayment.tier) {
+                        emailService.sendTierUpgradeEmail({
+                            email: updatedPayment.user.email,
+                            name: undefined,
+                            newTier: updatedPayment.tier,
+                            previousTier: previousTier,
+                        }).catch((error) => {
+                            logger.error('Failed to send tier upgrade email:', error)
+                        })
+                    }
+
+                    // Notify admin
+                    try {
+                        await EmailService.getInstance().sendPaymentIssueAlertEmail({
+                            type: 'CRYPTO_PAYMENT_FINISHED_SYNC',
+                            details: {
+                                paymentId: payment.paymentId,
+                                orderId: updatedPayment.orderId,
+                                tier: updatedPayment.tier,
+                                userId: updatedPayment.userId,
+                                userEmail: updatedPayment.user.email,
+                                amountUsd: updatedPayment.payAmount,
+                                payCurrency: updatedPayment.payCurrency,
+                                actuallyPaid: paymentStatus.actually_paid,
+                                actuallyPaidCurrency: paymentStatus.pay_currency,
+                                expiresAt,
+                                note: 'Payment synced from NowPayments API and user upgraded',
+                            },
+                        })
+                    } catch (emailError) {
+                        logger.error('Failed to notify admin (non-critical):', emailError)
+                    }
+
+                    logger.info(`✅ User ${updatedPayment.userId} upgraded to ${updatedPayment.tier} via payment sync`)
+                }
+
+                // Small delay between syncs to avoid rate limits
+                await new Promise((resolve) => setTimeout(resolve, 500))
+            } catch (error: any) {
+                logger.error(`Failed to sync payment ${payment.paymentId}:`, {
+                    error: error.message,
+                    paymentId: payment.paymentId,
+                })
+                // Continue with next payment
+            }
+        }
+
+        logger.info(`✅ Payment sync completed: ${synced} synced, ${upgraded} users upgraded`)
+
+        return {
+            checked: pendingPayments.length,
+            synced,
+            upgraded,
+        }
+    } catch (error) {
+        logger.error('❌ Payment sync failed:', error)
+        return {
+            checked: 0,
+            synced: 0,
+            upgraded: 0,
+        }
+    }
+}
+

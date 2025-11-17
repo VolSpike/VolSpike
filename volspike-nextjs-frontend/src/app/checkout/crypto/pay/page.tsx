@@ -784,7 +784,7 @@ export default function CryptoPaymentPage() {
         console.error('[CryptoPaymentPage] Polling error:', err)
         // Don't show error toast for polling failures
       }
-    }, 10000) // Poll every 10 seconds
+    }, 5000) // Poll every 5 seconds for faster feedback
 
     return () => {
       clearInterval(interval)
@@ -1113,8 +1113,13 @@ export default function CryptoPaymentPage() {
                     {friendlyStatus.label}
                   </span>
                 </div>
+                {friendlyStatus.description && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {friendlyStatus.description}
+                  </p>
+                )}
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  This page auto-updates. You can safely switch apps while waiting for confirmations.
+                  This page auto-updates every 5 seconds. You can safely switch apps while waiting for confirmations.
                 </p>
               </div>
 

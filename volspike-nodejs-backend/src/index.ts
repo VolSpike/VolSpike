@@ -19,6 +19,7 @@ import renewalRoutes from './routes/renewal'
 import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
 import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
+import { syncPendingPayments } from './services/payment-sync'
 import type { AppBindings, AppVariables } from './types/hono'
 
 // Initialize Prisma
@@ -285,11 +286,27 @@ io.on('connection', (socket) => {
 logger.info('ℹ️  Using in-memory Socket.IO adapter')
 
 // ============================================
-// SCHEDULED TASKS - Renewal Reminders & Expiration Checks
+// SCHEDULED TASKS - Renewal Reminders & Expiration Checks & Payment Sync
 // ============================================
 
 // Only run scheduled tasks in production (not in development to avoid conflicts)
-if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
+// NOTE: Payment sync runs regardless of NODE_ENV to ensure users get upgraded immediately
+if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
+    // Payment sync: Every 30 seconds (critical for real-time user upgrades)
+    // Runs in both development and production to ensure immediate upgrades
+    const PAYMENT_SYNC_INTERVAL = 30 * 1000 // 30 seconds in milliseconds
+    
+    setInterval(async () => {
+        try {
+            const result = await syncPendingPayments()
+            if (result.synced > 0 || result.upgraded > 0) {
+                logger.info(`✅ Payment sync completed: ${result.synced} synced, ${result.upgraded} users upgraded`)
+            }
+        } catch (error) {
+            logger.error('❌ Scheduled payment sync failed:', error)
+        }
+    }, PAYMENT_SYNC_INTERVAL)
+
     // Renewal reminder check: Every 6 hours
     const RENEWAL_CHECK_INTERVAL = 6 * 60 * 60 * 1000 // 6 hours in milliseconds
     
@@ -319,6 +336,10 @@ if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SCHEDULED_TASKS 
     // Run initial checks after 2 minutes (to allow server and database to fully start)
     setTimeout(async () => {
         try {
+            logger.info('🔄 Running initial payment sync')
+            const paymentResult = await syncPendingPayments()
+            logger.info(`✅ Initial payment sync completed: ${paymentResult.synced} synced, ${paymentResult.upgraded} users upgraded`)
+            
             logger.info('🔄 Running initial renewal reminder check')
             const reminderResult = await checkAndSendRenewalReminders()
             logger.info(`✅ Initial renewal reminder check completed: ${reminderResult.sent} reminders sent, ${reminderResult.checked} subscriptions checked`)
@@ -334,7 +355,7 @@ if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SCHEDULED_TASKS 
         }
     }, 120000) // 2 minute delay to ensure database is ready
 
-    logger.info('✅ Scheduled tasks initialized (renewal reminders every 6h, expiration checks daily)')
+    logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
 } else {
     logger.info('ℹ️ Scheduled tasks disabled (set ENABLE_SCHEDULED_TASKS=true in production to enable)')
 }
