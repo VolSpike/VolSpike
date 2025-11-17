@@ -348,12 +348,17 @@ adminUserRoutes.get('/', async (c) => {
             let paymentMethod: 'stripe' | 'crypto' | null = null
             let subscriptionExpiresAt: Date | null = null
             let subscriptionMethod: 'stripe' | 'crypto' | null = null
+            let cryptoCurrency: string | null = null // Currency used for crypto payment
             
             // Get crypto subscription expiration (from batched fetch)
             const cryptoExpiration = cryptoPaymentsMap.get(user.id)
             if (cryptoExpiration) {
                 subscriptionExpiresAt = cryptoExpiration
                 subscriptionMethod = 'crypto'
+                // Get currency from crypto payment
+                if (hasCryptoPayment && user.cryptoPayments && user.cryptoPayments.length > 0) {
+                    cryptoCurrency = user.cryptoPayments[0].actuallyPaidCurrency || null
+                }
             }
             
             // Get Stripe subscription expiration (from batched fetch)
@@ -400,6 +405,7 @@ adminUserRoutes.get('/', async (c) => {
                 paymentMethod,
                 subscriptionExpiresAt,
                 subscriptionMethod,
+                cryptoCurrency, // Currency used for crypto payment (e.g., 'usdt_sol', 'eth')
                 cryptoPayments: undefined, // Remove from response
             }
         })

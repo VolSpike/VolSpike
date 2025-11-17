@@ -18,6 +18,7 @@ export interface AdminUser {
     paymentMethod?: 'stripe' | 'crypto' | null
     subscriptionExpiresAt?: Date | null
     subscriptionMethod?: 'stripe' | 'crypto' | null
+    cryptoCurrency?: string | null // Currency used for crypto payment (e.g., 'usdt_sol', 'eth')
     notes?: string | null
     twoFactorEnabled: boolean
 }

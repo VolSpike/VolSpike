@@ -200,7 +200,7 @@ export function Dashboard() {
     )
 
     return (
-        <div className="flex-1 bg-background relative min-h-screen">
+        <div className="flex-1 bg-background relative">
             <BackgroundPattern />
             
             {/* Vibrant multi-layered gradient overlays for depth and color */}

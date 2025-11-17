@@ -991,31 +991,89 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
             }
 
-            // Map to NowPayments format
-            // For invoice API, we need alphanumeric codes only (no underscores/dashes)
-            // Use direct alphanumeric mapping (simpler and faster - no API call needed)
-            try {
-                // Our codes are already alphanumeric: usdtsol, usdterc20, usdce, sol, btc, eth
-                // NowPayments invoice API accepts these directly
-                mappedPayCurrency = payCurrency.toLowerCase()
+        // CRITICAL FIX: Map to NowPayments format using currency mapper
+        // Payment API requires proper format (e.g., usdt_sol, not usdtsol)
+        try {
+            // Import currency mapper
+            const { mapCurrencyToNowPayments, isSupportedCurrency, getCurrencyDisplayName, getCurrencyNetwork } = await import('../services/currency-mapper')
 
-                logger.info('Using alphanumeric currency code for invoice API', {
-                    ourCode: payCurrency,
-                    nowpaymentsCode: mappedPayCurrency,
-                })
-            } catch (currencyMappingError) {
-                logger.error('Currency mapping error, using direct fallback', {
-                    error: currencyMappingError instanceof Error ? currencyMappingError.message : String(currencyMappingError),
+            // Validate currency is supported in our system
+            if (!isSupportedCurrency(payCurrency)) {
+                logger.error('Unsupported currency code requested in test checkout', {
                     payCurrency,
+                    supportedCurrencies: ['usdtsol', 'usdterc20', 'usdce', 'sol', 'btc', 'eth'],
                 })
-                // Fallback: use alphanumeric version of our code
-                mappedPayCurrency = payCurrency.toLowerCase()
+                throw new Error(`Unsupported currency: ${payCurrency}. Please select a supported currency.`)
             }
+
+            // Fetch available currencies from NowPayments to validate and map
+            logger.info('Fetching available currencies from NowPayments for test checkout', {
+                requestedCurrency: payCurrency,
+                displayName: getCurrencyDisplayName(payCurrency),
+                network: getCurrencyNetwork(payCurrency),
+            })
+
+            try {
+                const availableCurrencies = await nowpayments.getAvailableCurrencies()
+
+                if (!availableCurrencies || availableCurrencies.length === 0) {
+                    logger.warn('NowPayments returned empty currency list, using mapped code without validation', {
+                        payCurrency,
+                    })
+                    // Fall back to mapped code without validation
+                    mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
+                } else {
+                    // Map to NowPayments code with validation
+                    mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, availableCurrencies)
+
+                    if (!mappedPayCurrency) {
+                        logger.error('Failed to map currency code to NowPayments format in test checkout', {
+                            payCurrency,
+                            displayName: getCurrencyDisplayName(payCurrency),
+                            network: getCurrencyNetwork(payCurrency),
+                            availableCurrencies: availableCurrencies.slice(0, 50),
+                            availableCount: availableCurrencies.length,
+                        })
+                        throw new Error(`Currency ${getCurrencyDisplayName(payCurrency)} on ${getCurrencyNetwork(payCurrency)} is not available. Please select a different currency.`)
+                    }
+
+                    logger.info('Currency code mapped successfully for test checkout', {
+                        ourCode: payCurrency,
+                        nowpaymentsCode: mappedPayCurrency,
+                        displayName: getCurrencyDisplayName(payCurrency),
+                        network: getCurrencyNetwork(payCurrency),
+                    })
+                }
+            } catch (error) {
+                logger.error('Error validating currency code in test checkout', {
+                    error: error instanceof Error ? error.message : String(error),
+                    payCurrency,
+                    displayName: getCurrencyDisplayName(payCurrency),
+                    network: getCurrencyNetwork(payCurrency),
+                })
+                // Re-throw validation errors
+                if (error instanceof Error && (error.message.includes('Unsupported') || error.message.includes('not available'))) {
+                    throw error
+                }
+                // For API errors, try to use mapped code without validation
+                logger.warn('Currency validation API call failed, using mapped code without validation', {
+                    payCurrency,
+                    error: error instanceof Error ? error.message : String(error),
+                })
+                mappedPayCurrency = mapCurrencyToNowPayments(payCurrency, [])
+            }
+        } catch (currencyMappingError) {
+            logger.error('Currency mapping error in test checkout', {
+                error: currencyMappingError instanceof Error ? currencyMappingError.message : String(currencyMappingError),
+                payCurrency,
+            })
+            throw currencyMappingError // Re-throw to fail fast
+        }
         }
 
-        // Use mapped currency or default to USDT on Solana (alphanumeric format for invoice API)
+        // Use mapped currency or default to USDT on Solana (proper format: usdt_sol)
         // This ensures we only show supported currencies, not all 300+ NowPayments currencies
-        const finalPayCurrency: string = mappedPayCurrency || 'usdtsol'
+        const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
 
         // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher) - NO buffer on invoice
         // Buffer will be applied to QR code amount (pay_amount), not invoice amount
@@ -1159,8 +1217,8 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                         paymentUrl: `${frontendUrl}/checkout/crypto/pay?paymentId=${paymentId}`,
                         payAddress: payAddress,
                         payAmount: priceAmount,
-                        payCurrency: 'usd',
-                        actuallyPaidCurrency: payCurrencyFromPayment,
+                        payCurrency: payCurrencyFromPayment || finalPayCurrency, // CRITICAL FIX: Store actual crypto currency, not 'usd'
+                        actuallyPaidCurrency: payCurrencyFromPayment || finalPayCurrency,
                     },
                 })
 

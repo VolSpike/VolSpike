@@ -755,7 +755,7 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                                 <Zap className="h-3 w-3 text-purple-500 dark:text-purple-400" />
                                                             )}
                                                             <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                                                                {user.subscriptionMethod === 'stripe' ? 'Stripe' : 'Crypto'}
+                                                                {user.subscriptionMethod === 'stripe' ? 'Stripe' : user.cryptoCurrency ? `Crypto (${formatCryptoCurrency(user.cryptoCurrency)})` : 'Crypto'}
                                                             </span>
                                                         </div>
                                                     )}
