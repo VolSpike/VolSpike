@@ -578,6 +578,9 @@ export default function CryptoPaymentPage() {
             // Refresh session to get new tier
             await updateSession()
             
+            // Show success message before redirect
+            toast.success(`Payment confirmed! Upgrading to ${paymentDetails.tier.toUpperCase()} tier...`, { duration: 3000 })
+            
             setTimeout(() => {
               router.push(`/checkout/success?payment=crypto&tier=${paymentDetails.tier}`)
             }, 2000)
@@ -587,6 +590,12 @@ export default function CryptoPaymentPage() {
             
             // Show success message
             toast.success('Payment confirmed! Upgrading your account...', { duration: 5000 })
+          } else if (data.status === 'partially_paid') {
+            // Show informative message about partially_paid status
+            toast('Payment received! Waiting for blockchain confirmations...', {
+              icon: '⏳',
+              duration: 5000,
+            })
           }
         }
       } catch (err) {
@@ -652,6 +661,9 @@ export default function CryptoPaymentPage() {
     }
     if (normalized === 'failed' || normalized === 'expired' || normalized === 'refunded') {
       return { label: 'Payment could not be completed', tone: 'danger' }
+    }
+    if (normalized === 'partially_paid') {
+      return { label: 'Payment received, confirming on blockchain', tone: 'warning' }
     }
     if (normalized === 'confirming' || normalized === 'sending') {
       return { label: 'Waiting for blockchain confirmations', tone: 'warning' }
