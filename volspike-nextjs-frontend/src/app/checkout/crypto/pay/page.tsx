@@ -339,11 +339,24 @@ export default function CryptoPaymentPage() {
       // Parse the URI to verify amount is preserved correctly
       const uriParams = new URLSearchParams(solanaPayUri.split('?')[1] || '')
       const uriAmount = uriParams.get('amount')
+      const uriSplToken = uriParams.get('spl-token')
+      
+      // CRITICAL: Validate URI format for Phantom compatibility
+      // Phantom requires:
+      // 1. Amount with correct decimal places (6 for USDT/USDC, 9 for SOL)
+      // 2. Valid Solana address (32-44 base58 chars)
+      // 3. Valid SPL token mint (if token payment)
+      // 4. No invalid characters in parameters
+      
+      const expectedDecimals = isSOL ? 9 : (isUSDT || isUSDC ? 6 : undefined)
+      const actualDecimals = uriAmount?.includes('.') ? uriAmount.split('.')[1].length : 0
+      const decimalsValid = expectedDecimals === undefined || actualDecimals <= expectedDecimals
       
       // Comprehensive debug logging
       console.log('[CryptoPaymentPage] ✅ Generated Solana Pay URI:', {
         fullUri: solanaPayUri,
         address: paymentDetails.payAddress,
+        addressValid,
         originalAmount: paymentDetails.payAmount,
         formattedAmount: amountDecimal,
         amountInParams: amountParam,
@@ -351,7 +364,11 @@ export default function CryptoPaymentPage() {
         amountPreserved: uriAmount === amountDecimal,
         currency: currency,
         isSOL: isSOL,
+        isUSDT,
+        isUSDC,
         splToken: splTokenMint || 'none (native SOL)',
+        splTokenInURI: uriSplToken,
+        splTokenMatches: uriSplToken === splTokenMint,
         paramsObject: Object.fromEntries(params),
         uriLength: solanaPayUri.length,
         // Validation checks
@@ -364,24 +381,42 @@ export default function CryptoPaymentPage() {
         orderId: paymentDetails.orderId,
         referenceIncluded: params.has('reference'),
         // Amount precision check
+        expectedDecimals,
+        actualDecimals,
+        decimalsValid,
         originalDecimalPlaces: paymentDetails.payAmount.toString().includes('.') 
           ? paymentDetails.payAmount.toString().split('.')[1].length 
           : 0,
         formattedDecimalPlaces: amountDecimal.includes('.') 
           ? amountDecimal.split('.')[1].length 
           : 0,
-        uriDecimalPlaces: uriAmount?.includes('.') 
-          ? uriAmount.split('.')[1].length 
-          : 0,
+        uriDecimalPlaces: actualDecimals,
+        // Phantom compatibility warnings
+        warnings: [
+          !addressValid && '⚠️ Address format may be invalid',
+          !decimalsValid && `⚠️ Amount has ${actualDecimals} decimals, expected max ${expectedDecimals}`,
+          uriAmount !== amountDecimal && '⚠️ Amount changed during URI encoding',
+          splTokenMint && uriSplToken !== splTokenMint && '⚠️ SPL token mismatch',
+        ].filter(Boolean),
       })
       
-      // CRITICAL: Warn if amount precision was lost
+      // CRITICAL: Warn if amount precision was lost or exceeds token decimals
       if (uriAmount && uriAmount !== amountDecimal) {
         console.error('[CryptoPaymentPage] ⚠️ Amount precision lost in URI!', {
           original: paymentDetails.payAmount,
           formatted: amountDecimal,
           inURI: uriAmount,
           difference: parseFloat(amountDecimal) - parseFloat(uriAmount || '0'),
+        })
+      }
+      
+      if (!decimalsValid) {
+        console.error('[CryptoPaymentPage] ❌ Amount has too many decimals for token!', {
+          token: currency,
+          expectedMaxDecimals: expectedDecimals,
+          actualDecimals,
+          amount: uriAmount,
+          note: 'This will cause Phantom to fail with "Failed to generate a valid transaction"',
         })
       }
       
