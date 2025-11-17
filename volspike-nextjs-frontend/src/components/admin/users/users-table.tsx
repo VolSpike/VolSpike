@@ -78,6 +78,30 @@ interface UsersTableProps {
     currentQuery: any
 }
 
+// Format crypto currency for display (e.g., 'usdt_sol' -> 'USDT on SOL')
+function formatCryptoCurrency(currency: string | null | undefined): string {
+    if (!currency) return 'Unknown'
+    
+    const upper = currency.toUpperCase()
+    
+    // Handle common formats
+    if (upper.includes('USDT') && (upper.includes('SOL') || upper.includes('_SOL'))) {
+        return 'USDT on SOL'
+    }
+    if (upper.includes('USDT') && (upper.includes('ERC20') || upper.includes('ETH'))) {
+        return 'USDT on ETH'
+    }
+    if (upper.includes('USDC') && (upper.includes('ERC20') || upper.includes('ETH'))) {
+        return 'USDC on ETH'
+    }
+    if (upper === 'SOL') return 'SOL'
+    if (upper === 'ETH') return 'ETH'
+    if (upper === 'BTC') return 'BTC'
+    
+    // Fallback: format nicely
+    return upper.replace(/_/g, ' ').replace(/-/g, ' ')
+}
+
 export function UsersTable({ users, pagination, currentQuery }: UsersTableProps) {
     const router = useRouter()
     const { data: session } = useSession()
