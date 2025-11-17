@@ -38,7 +38,7 @@ export function Footer() {
     const isDarkMode = forceDarkForRoute || (mounted ? resolvedTheme === 'dark' : false)
 
     const footerClasses = cn(
-        'border-t backdrop-blur transition-colors duration-200',
+        'border-t backdrop-blur transition-colors duration-200 relative z-[100]',
         isDarkMode
             ? 'border-white/10 bg-slate-950/90 text-slate-200'
             : 'border-slate-200 bg-white/90 text-slate-800'
