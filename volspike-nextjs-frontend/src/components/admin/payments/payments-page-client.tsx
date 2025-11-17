@@ -42,7 +42,8 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
         setError(null)
     }, [initialData, queryKey])
 
-    // Auto-sync payments from NowPayments
+    // Auto-sync payments from NowPayments (only when on this page)
+    // Note: Global background sync runs via AdminBackgroundSync component
     const { syncingPayments, lastSyncTime, syncCount, paymentsToSyncCount, syncAllPayments } =
         useAutoSyncPayments({
             payments: paymentsData?.payments || [],
@@ -129,32 +130,17 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
                         </div>
                     )}
 
-                    {/* Auto-sync status indicator */}
+                    {/* Auto-sync status indicator - stable, no flickering */}
                     {autoSyncEnabled && paymentsToSyncCount > 0 && (
                         <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-3 py-1.5 backdrop-blur-sm">
-                            <div className="relative">
-                                <RefreshCw
-                                    className={cn(
-                                        'h-3.5 w-3.5 transition-all',
-                                        syncingPayments.size > 0 && 'animate-spin text-sec-500'
-                                    )}
-                                />
-                                {syncingPayments.size > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sec-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-sec-500"></span>
-                                    </span>
-                                )}
-                            </div>
+                            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
                             <div className="flex flex-col">
                                 <span className="text-[11px] font-medium text-foreground">
-                                    Auto-syncing {paymentsToSyncCount} payment{paymentsToSyncCount !== 1 ? 's' : ''}
+                                    {paymentsToSyncCount} payment{paymentsToSyncCount !== 1 ? 's' : ''} syncing in background
                                 </span>
                                 {lastSyncTime && (
                                     <span className="text-[10px] text-muted-foreground">
-                                        {syncingPayments.size > 0
-                                            ? 'Syncing now...'
-                                            : `Synced ${formatDistanceToNow(lastSyncTime, { addSuffix: true })}`}
+                                        Last synced {formatDistanceToNow(lastSyncTime, { addSuffix: true })}
                                     </span>
                                 )}
                             </div>
