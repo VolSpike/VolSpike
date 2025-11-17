@@ -58,10 +58,11 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                 <nav className="hidden md:flex items-center gap-1 ml-8">
                     <Link
                         href="/pricing"
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${pathname === '/pricing'
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative pointer-events-auto ${pathname === '/pricing'
                             ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                             }`}
+                        style={{ zIndex: 101 }}
                     >
                         {pathname === '/pricing' && (
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
@@ -70,10 +71,11 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                     </Link>
                     <Link
                         href="/dashboard"
-                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${(pathname === '/dashboard' || pathname === '/')
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative pointer-events-auto ${(pathname === '/dashboard' || pathname === '/')
                             ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                             }`}
+                        style={{ zIndex: 101 }}
                     >
                         {(pathname === '/dashboard' || pathname === '/') && (
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />

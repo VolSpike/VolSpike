@@ -899,7 +899,8 @@ export default function CryptoPaymentPage() {
           </CardContent>
         </Card>
       </main>
-    </div>
+      </div>
+    </>
   )
 }
 

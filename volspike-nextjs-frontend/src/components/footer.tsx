@@ -88,7 +88,11 @@ export function Footer() {
                             <ul className="mt-3 space-y-2">
                                 {primaryLinks.map((link) => (
                                     <li key={link.href}>
-                                        <Link href={link.href} className={linkClass}>
+                                        <Link 
+                                            href={link.href} 
+                                            className={cn(linkClass, 'pointer-events-auto')}
+                                            style={{ zIndex: 101 }}
+                                        >
                                             {link.label}
                                         </Link>
                                     </li>
@@ -102,7 +106,11 @@ export function Footer() {
                             <ul className="mt-3 space-y-2">
                                 {secondaryLinks.map((link) => (
                                     <li key={link.href}>
-                                        <Link href={link.href} className={linkClass}>
+                                        <Link 
+                                            href={link.href} 
+                                            className={cn(linkClass, 'pointer-events-auto')}
+                                            style={{ zIndex: 101 }}
+                                        >
                                             {link.label}
                                         </Link>
                                     </li>
