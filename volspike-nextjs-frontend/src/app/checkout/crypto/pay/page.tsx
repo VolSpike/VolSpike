@@ -172,9 +172,9 @@ export default function CryptoPaymentPage() {
     }
   }, [debugMode])
 
-  // Generate Solana Pay URI (standard format that Phantom recognizes)
+  // Generate Solana Pay URI (wallet-agnostic transfer request)
   // Solana Pay spec: solana:<address>?amount=<decimal>&spl-token=<mint>&label=<label>&message=<message>
-  // IMPORTANT: Phantom's QR scanner expects the solana: URI with DECIMAL amounts (not lamports)
+  // IMPORTANT: This is the only officially documented, QR-friendly payment format that Phantom supports.
   const { solanaUri, phantomDeepLink, phantomUniversalLink } = useMemo(() => {
     if (!paymentDetails?.payAddress || !paymentDetails?.payAmount) {
       return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null }
@@ -213,9 +213,8 @@ export default function CryptoPaymentPage() {
         amountDecimal = paymentDetails.payAmount.toString()
       }
 
-      // Build Solana Pay URI (standard format - Phantom recognizes this)
-      // IMPORTANT: iOS camera scanner works best with solana: URI format
-      // This is the preferred format for QR codes as it's universally supported
+      // Build Solana Pay URI (standard format - supported by Phantom and other wallets)
+      // This will be our **primary** QR payload for one-tap payments.
       const params = new URLSearchParams()
       
       // Decimal amount in token units
@@ -227,9 +226,9 @@ export default function CryptoPaymentPage() {
       }
       
       // Optional metadata (helps with UX)
-      // URL encode to ensure proper formatting
-      params.set('label', encodeURIComponent('VolSpike Payment'))
-      params.set('message', encodeURIComponent(`Upgrade to ${paymentDetails.tier.toUpperCase()} tier`))
+      // Let URLSearchParams handle encoding – pass plain strings here.
+      params.set('label', 'VolSpike Payment')
+      params.set('message', `Upgrade to ${paymentDetails.tier.toUpperCase()} tier`)
       
       // Reference for tracking (optional) - must be a valid PublicKey base58 string
       // Only include if orderId is a valid base58 string (44 chars typical for Solana addresses)
@@ -240,7 +239,7 @@ export default function CryptoPaymentPage() {
       const solanaPayUri = `solana:${paymentDetails.payAddress}?${params.toString()}`
       
       // Debug: Log the exact URI being generated
-      console.log('[CryptoPaymentPage] Generated Solana Pay URI:', {
+      console.log('[CryptoPaymentPage] Generated Solana Pay URI (Solana Pay transfer request):', {
         fullUri: solanaPayUri,
         address: paymentDetails.payAddress,
         amount: amountDecimal,
@@ -254,11 +253,10 @@ export default function CryptoPaymentPage() {
         hasSplToken: params.has('spl-token'),
       })
       
-      // Phantom universal link (for QR codes and button clicks - ensures Phantom opens directly)
-      // Format per official docs: https://phantom.app/ul/v1/send?recipient=<address>&amount=<decimal>
-      // Reference: https://docs.phantom.com/phantom-deeplinks/deeplinks-ios-and-android
-      // IMPORTANT: Universal links should NOT include label, message, or reference - those only work in Solana Pay URIs
-      // Use decimal amounts for Phantom universal links (Phantom handles conversion)
+      // Phantom universal link (EXPERIMENTAL – not used for QR, may be used for future UX)
+      // NOTE: Phantom does not currently document a "send" or "transfer" method; official deeplinks
+      // are connect / signMessage / browse / fungible / swap. We keep this here only for potential
+      // future experiments and logging, but do **not** rely on it for payment flows.
       const phantomParams = new URLSearchParams()
       phantomParams.set('recipient', paymentDetails.payAddress)
       phantomParams.set('amount', amountDecimal) // Use the same decimal format as Solana Pay
@@ -273,8 +271,7 @@ export default function CryptoPaymentPage() {
       // Optional memo parameter (per Phantom docs)
       // phantomParams.set('memo', `Upgrade to ${paymentDetails.tier.toUpperCase()} tier`)
       
-      // Universal link (for QR codes and button clicks - opens Phantom app directly)
-      // Using /send method per official Phantom documentation
+      // Universal link (for logging / potential future use, not primary payment path)
       const phantomUniversalLinkUri = `https://phantom.app/ul/v1/send?${phantomParams.toString()}`
       // Deep link (fallback for direct button clicks)
       const phantomDeepLinkUri = phantomUniversalLinkUri.replace('https://phantom.app/ul/', 'phantom://ul/')
@@ -329,17 +326,13 @@ export default function CryptoPaymentPage() {
     }
   }, [paymentDetails])
 
-  // Generate QR code - try Phantom universal link first (works best with Phantom's scanner)
-  // If that's not available, fall back to Solana Pay URI
-  // Phantom's scanner handles universal links more reliably than solana: URIs
+  // Generate QR code – **Solana Pay transfer URL only**
+  // This is the wallet-agnostic, officially documented way to trigger a prefilled payment.
   useEffect(() => {
-    // Prioritize Phantom universal link for QR codes - Phantom's scanner handles this format best
-    // Universal links are specifically designed for Phantom and work reliably with their scanner
-    // Fallback to Solana Pay URI if universal link not available
-    const uriForQR = phantomUniversalLink || solanaUri
+    const uriForQR = solanaUri
     
     if (!uriForQR) {
-      console.warn('[CryptoPaymentPage] No URI available for QR code generation', {
+      console.warn('[CryptoPaymentPage] No Solana Pay URI available for QR code generation', {
         hasSolanaUri: !!solanaUri,
         hasPhantomLink: !!phantomUniversalLink,
         paymentDetails: paymentDetails ? {
@@ -351,7 +344,7 @@ export default function CryptoPaymentPage() {
       return
     }
 
-    const usingPhantomLink = !!phantomUniversalLink
+    const usingPhantomLink = false
     console.log('[CryptoPaymentPage] Generating QR code', {
       usingPhantomUniversalLink: usingPhantomLink,
       usingSolanaPayUri: !usingPhantomLink,
@@ -360,13 +353,9 @@ export default function CryptoPaymentPage() {
       uriPreview: uriForQR.substring(0, 150) + (uriForQR.length > 150 ? '...' : ''),
       fullUri: uriForQR,
       // Show what will happen when scanned
-      expectedBehavior: usingPhantomLink 
-        ? 'Phantom universal link format - designed specifically for Phantom\'s scanner' 
-        : 'Solana Pay URI format (fallback)',
-      recommendation: usingPhantomLink 
-        ? '✅ Using Phantom universal link - best format for Phantom\'s built-in scanner' 
-        : '⚠️ Using Solana Pay URI - Phantom universal link is preferred',
-      note: 'Phantom\'s scanner handles universal links (https://phantom.app/ul/v1/transfer) most reliably.',
+      expectedBehavior: 'Solana Pay transfer URL – supported by Phantom and other Solana wallets',
+      recommendation: '✅ Using Solana Pay URI as QR payload (wallet-agnostic, spec-compliant)',
+      note: 'If multiple wallets are installed, the OS will offer a chooser for the solana: link.',
       // Parse and show parameters for debugging
       parsedParams: uriForQR.includes('?') ? Object.fromEntries(
         new URLSearchParams(uriForQR.split('?')[1] || '')
@@ -1148,36 +1137,34 @@ export default function CryptoPaymentPage() {
                 </>
               ) : (
                 <>
-                  {/* Primary: Open in Phantom (prefers deep link, falls back to Solana Pay URI) */}
+                  {/* Primary: Open in wallet (Solana Pay URI) */}
                   <Button
                     onClick={() => {
-                      const targetUri = phantomDeepLink || solanaUri || phantomUniversalLink
-                      if (targetUri) {
-                        console.log('[CryptoPaymentPage] Opening Phantom from button:', {
+                      if (solanaUri) {
+                        console.log('[CryptoPaymentPage] Opening Solana Pay URI from button:', {
                           solanaUri,
                           phantomUniversalLink,
                           phantomDeepLink,
-                          targetUri,
                           timestamp: new Date().toISOString(),
                         })
                         
-                        // Use window.open instead of window.location.href to avoid blocking navigation
-                        // This allows the page to remain interactive while opening the wallet
+                        // Use window.open instead of window.location.href to avoid blocking navigation.
+                        // The OS will route the solana: URI to the user’s preferred Solana wallet (Phantom, etc.)
                         try {
-                          const opened = window.open(targetUri, '_blank', 'noopener,noreferrer')
+                          const opened = window.open(solanaUri, '_blank', 'noopener,noreferrer')
                           if (!opened) {
                             console.warn('[CryptoPaymentPage] Popup blocked, trying direct navigation', {
-                              targetUri,
+                              solanaUri,
                             })
-                            window.location.href = targetUri
+                            window.location.href = solanaUri
                           }
                         } catch (err) {
-                          console.error('[CryptoPaymentPage] Error opening wallet:', err)
+                          console.error('[CryptoPaymentPage] Error opening wallet via Solana Pay URI:', err)
                           toast.error('Failed to open wallet. Please copy the address manually.')
                         }
                       } else {
                         toast.error('Payment details not available')
-                        console.error('[CryptoPaymentPage] No Solana Pay URI available')
+                        console.error('[CryptoPaymentPage] No Solana Pay URI available for button click')
                       }
                     }}
                     className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white shadow-lg"
