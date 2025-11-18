@@ -46,9 +46,10 @@ export default function CryptoPaymentPage() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
   const [copied, setCopied] = useState<'address' | 'amount' | null>(null)
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
-  const [polling, setPolling] = useState(false)
   const [isExpired, setIsExpired] = useState(false)
   const isRedirectingRef = useRef(false) // Prevent multiple redirect attempts
+  const pollingRef = useRef(false) // Track polling without triggering re-renders
+  const hasFetchedPaymentRef = useRef(false) // Ensure we only fetch details once per page load
 
   const safeNavigate = useCallback(
     (href: string, source: string) => {
@@ -600,6 +601,12 @@ export default function CryptoPaymentPage() {
       return
     }
 
+    // Avoid refetching and resetting the timer whenever the session object changes.
+    if (hasFetchedPaymentRef.current) {
+      return
+    }
+    hasFetchedPaymentRef.current = true
+
     const fetchPaymentDetails = async () => {
       try {
         setLoading(true)
@@ -720,9 +727,7 @@ export default function CryptoPaymentPage() {
       
       // Stop timer countdown
       setTimeRemaining(null)
-      
-      // Stop polling if still running
-      setPolling(false)
+      pollingRef.current = false
       
       // Show success message only once
       toast.success(`Payment confirmed! You've been upgraded to ${paymentDetails.tier.toUpperCase()} tier.`, { duration: 2000 })
@@ -747,7 +752,7 @@ export default function CryptoPaymentPage() {
   // Poll payment status (every 5 seconds)
   // Uses status endpoint which automatically triggers upgrade if payment is finished
   useEffect(() => {
-    if (!paymentDetails || !session?.user || polling) return
+    if (!paymentDetails || !session?.user || isRedirectingRef.current || pollingRef.current) return
 
     // Stop polling if payment is confirmed AND user is already upgraded
     const isPaymentComplete = paymentDetails.paymentStatus === 'finished' || paymentDetails.paymentStatus === 'confirmed'
@@ -763,7 +768,7 @@ export default function CryptoPaymentPage() {
       return
     }
 
-    setPolling(true)
+    pollingRef.current = true
     let intervalId: NodeJS.Timeout | null = null
     
     const pollPaymentStatus = async () => {
@@ -800,7 +805,7 @@ export default function CryptoPaymentPage() {
                 clearInterval(intervalId)
                 intervalId = null
               }
-              setPolling(false)
+              pollingRef.current = false
               
               // Stop timer countdown
               setTimeRemaining(null)
@@ -857,6 +862,8 @@ export default function CryptoPaymentPage() {
           }
         }
       } catch (err) {
+        // Network errors or backend hiccups during polling should not spam the console
+        // or create runaway request loops.
         console.error('[CryptoPaymentPage] Polling error:', err)
         // Don't show error toast for polling failures
       }
@@ -870,9 +877,9 @@ export default function CryptoPaymentPage() {
       if (intervalId) {
         clearInterval(intervalId)
       }
-      setPolling(false)
+      pollingRef.current = false
     }
-  }, [paymentDetails, session, paymentId, router, polling, updateSession])
+  }, [paymentDetails, session, paymentId, router, updateSession])
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
