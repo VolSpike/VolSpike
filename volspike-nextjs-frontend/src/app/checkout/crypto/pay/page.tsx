@@ -51,6 +51,17 @@ export default function CryptoPaymentPage() {
   const pollingRef = useRef(false) // Track polling without triggering re-renders
   const hasFetchedPaymentRef = useRef(false) // Ensure we only fetch details once per page load
 
+  // Debug helpers – only log noisier diagnostics when debugMode is enabled
+  const debugLog = (...args: any[]) => {
+    if (debugMode) console.log(...args)
+  }
+  const debugWarn = (...args: any[]) => {
+    if (debugMode) console.warn(...args)
+  }
+  const debugError = (...args: any[]) => {
+    if (debugMode) console.error(...args)
+  }
+
   const safeNavigate = useCallback(
     (href: string, source: string) => {
       const isDebug =
@@ -62,7 +73,7 @@ export default function CryptoPaymentPage() {
         typeof window !== 'undefined' ? window.location.href : null
 
       if (isDebug) {
-        console.log('[CryptoPaymentPage] safeNavigate start', {
+        debugLog('[CryptoPaymentPage] safeNavigate start', {
           href,
           source,
           beforeHref,
@@ -73,7 +84,7 @@ export default function CryptoPaymentPage() {
         router.push(href)
       } catch (error) {
         if (isDebug) {
-          console.error('[CryptoPaymentPage] safeNavigate router.push error', {
+          debugError('[CryptoPaymentPage] safeNavigate router.push error', {
             href,
             source,
             error,
@@ -90,7 +101,7 @@ export default function CryptoPaymentPage() {
           const afterHref = window.location.href
           if (beforeHref && afterHref === beforeHref) {
             if (isDebug) {
-              console.warn('[CryptoPaymentPage] safeNavigate fallback triggered', {
+              debugWarn('[CryptoPaymentPage] safeNavigate fallback triggered', {
                 href,
                 source,
                 beforeHref,
@@ -113,7 +124,7 @@ export default function CryptoPaymentPage() {
         const footer = document.querySelector('footer')
         const main = document.querySelector('main')
         
-        console.log('🔍 [CryptoPaymentPage] Page structure debug:', {
+        debugLog('🔍 [CryptoPaymentPage] Page structure debug:', {
           header: header ? {
             element: header,
             zIndex: window.getComputedStyle(header).zIndex,
@@ -154,7 +165,7 @@ export default function CryptoPaymentPage() {
         if (headerLink) {
           const rect = headerLink.getBoundingClientRect()
           const el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
-          console.log('🔍 [Debug] Header Pricing elementFromPoint:', {
+          debugLog('🔍 [Debug] Header Pricing elementFromPoint:', {
             target: el,
             targetTag: el?.tagName,
             targetClasses: el?.className,
@@ -168,7 +179,7 @@ export default function CryptoPaymentPage() {
         if (footerLink) {
           const rect = footerLink.getBoundingClientRect()
           const el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
-          console.log('🔍 [Debug] Footer Privacy elementFromPoint:', {
+          debugLog('🔍 [Debug] Footer Privacy elementFromPoint:', {
             target: el,
             targetTag: el?.tagName,
             targetClasses: el?.className,
@@ -216,7 +227,7 @@ export default function CryptoPaymentPage() {
           // Parse and limit to 6 decimals (USDT standard)
           const parsed = parseFloat(paymentDetails.payAmountString)
           amountDecimal = parsed.toFixed(6).replace(/\.?0+$/, '')
-          console.log('[CryptoPaymentPage] USDT amount formatting (6 decimals):', {
+          debugLog('[CryptoPaymentPage] USDT amount formatting (6 decimals):', {
             payAmountString: paymentDetails.payAmountString,
             payAmountNumber: paymentDetails.payAmount,
             formatted: amountDecimal,
@@ -226,7 +237,7 @@ export default function CryptoPaymentPage() {
         } else {
           // Fallback: Use number version with 6 decimals (USDT standard)
           amountDecimal = paymentDetails.payAmount.toFixed(6).replace(/\.?0+$/, '')
-          console.warn('[CryptoPaymentPage] payAmountString not available, using number version (6 decimals):', {
+          debugWarn('[CryptoPaymentPage] payAmountString not available, using number version (6 decimals):', {
             payAmount: paymentDetails.payAmount,
             formatted: amountDecimal,
             note: 'USDT on Solana uses 6 decimals - using toFixed(6)',
@@ -251,7 +262,7 @@ export default function CryptoPaymentPage() {
       // CRITICAL: Validate amount is a valid positive number
       const parsedAmount = parseFloat(amountDecimal)
       if (isNaN(parsedAmount) || parsedAmount <= 0) {
-        console.error('[CryptoPaymentPage] Invalid amount:', {
+        debugError('[CryptoPaymentPage] Invalid amount:', {
           original: paymentDetails.payAmount,
           formatted: amountDecimal,
           parsed: parsedAmount,
@@ -268,7 +279,7 @@ export default function CryptoPaymentPage() {
       const solanaAddressRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
       const addressValid = solanaAddressRegex.test(paymentDetails.payAddress)
       
-      console.log('[CryptoPaymentPage] Address validation:', {
+      debugLog('[CryptoPaymentPage] Address validation:', {
         address: paymentDetails.payAddress,
         addressLength: paymentDetails.payAddress.length,
         isValid: addressValid,
@@ -278,7 +289,7 @@ export default function CryptoPaymentPage() {
       })
       
       if (!addressValid) {
-        console.error('[CryptoPaymentPage] ❌ Invalid Solana address format:', {
+        debugError('[CryptoPaymentPage] ❌ Invalid Solana address format:', {
           address: paymentDetails.payAddress,
           length: paymentDetails.payAddress.length,
           reason: 'Address does not match Solana base58 format (32-44 characters)',
@@ -318,7 +329,7 @@ export default function CryptoPaymentPage() {
           params.append('reference', paymentDetails.orderId)
         } else {
           // Log warning but don't break the payment flow
-          console.warn('[CryptoPaymentPage] Skipping invalid reference (not a valid Solana public key):', {
+          debugWarn('[CryptoPaymentPage] Skipping invalid reference (not a valid Solana public key):', {
             orderId: paymentDetails.orderId,
             reason: 'OrderId is not a valid Solana base58 public key format',
             note: 'Reference is optional - payment will work without it',
@@ -329,7 +340,7 @@ export default function CryptoPaymentPage() {
       // CRITICAL: Verify amount parameter before building URI
       const amountParam = params.get('amount')
       if (!amountParam || amountParam !== amountDecimal) {
-        console.error('[CryptoPaymentPage] ❌ Amount parameter mismatch!', {
+        debugError('[CryptoPaymentPage] ❌ Amount parameter mismatch!', {
           expected: amountDecimal,
           actual: amountParam,
           paramsString: params.toString(),
@@ -355,7 +366,7 @@ export default function CryptoPaymentPage() {
       const decimalsValid = expectedDecimals === undefined || actualDecimals <= expectedDecimals
       
       // Comprehensive debug logging
-      console.log('[CryptoPaymentPage] ✅ Generated Solana Pay URI:', {
+      debugLog('[CryptoPaymentPage] ✅ Generated Solana Pay URI:', {
         fullUri: solanaPayUri,
         address: paymentDetails.payAddress,
         addressValid,
@@ -404,7 +415,7 @@ export default function CryptoPaymentPage() {
       
       // CRITICAL: Warn if amount precision was lost or exceeds token decimals
       if (uriAmount && uriAmount !== amountDecimal) {
-        console.error('[CryptoPaymentPage] ⚠️ Amount precision lost in URI!', {
+        debugError('[CryptoPaymentPage] ⚠️ Amount precision lost in URI!', {
           original: paymentDetails.payAmount,
           formatted: amountDecimal,
           inURI: uriAmount,
@@ -413,7 +424,7 @@ export default function CryptoPaymentPage() {
       }
       
       if (!decimalsValid) {
-        console.error('[CryptoPaymentPage] ❌ Amount has too many decimals for token!', {
+        debugError('[CryptoPaymentPage] ❌ Amount has too many decimals for token!', {
           token: currency,
           expectedMaxDecimals: expectedDecimals,
           actualDecimals,
@@ -426,13 +437,13 @@ export default function CryptoPaymentPage() {
       try {
         // This will throw if the URI is malformed
         const testUrl = new URL(solanaPayUri)
-        console.log('[CryptoPaymentPage] ✅ URI format validation passed:', {
+        debugLog('[CryptoPaymentPage] ✅ URI format validation passed:', {
           protocol: testUrl.protocol,
           pathname: testUrl.pathname,
           search: testUrl.search,
         })
       } catch (validationError) {
-        console.error('[CryptoPaymentPage] ❌ URI format validation failed:', validationError)
+        debugError('[CryptoPaymentPage] ❌ URI format validation failed:', validationError)
       }
       
       // Phantom universal link (EXPERIMENTAL – not used for QR, may be used for future UX)
@@ -459,7 +470,7 @@ export default function CryptoPaymentPage() {
       const phantomDeepLinkUri = phantomUniversalLinkUri.replace('https://phantom.app/ul/', 'phantom://ul/')
       
       // Comprehensive debug logging
-      console.log('[CryptoPaymentPage] Generated Payment URIs:', {
+      debugLog('[CryptoPaymentPage] Generated Payment URIs:', {
         payAddress: paymentDetails.payAddress,
         payAmount: paymentDetails.payAmount,
         payCurrency: paymentDetails.payCurrency,
@@ -503,7 +514,7 @@ export default function CryptoPaymentPage() {
         phantomUniversalLink: phantomUniversalLinkUri,
       }
     } catch (error) {
-      console.error('[CryptoPaymentPage] Error generating payment URIs:', error)
+      debugError('[CryptoPaymentPage] Error generating payment URIs:', error)
       return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null }
     }
   }, [paymentDetails])
@@ -514,7 +525,7 @@ export default function CryptoPaymentPage() {
     const uriForQR = solanaUri
     
     if (!uriForQR) {
-      console.warn('[CryptoPaymentPage] No Solana Pay URI available for QR code generation', {
+      debugWarn('[CryptoPaymentPage] No Solana Pay URI available for QR code generation', {
         hasSolanaUri: !!solanaUri,
         hasPhantomLink: !!phantomUniversalLink,
         paymentDetails: paymentDetails ? {
@@ -527,7 +538,7 @@ export default function CryptoPaymentPage() {
     }
 
     const usingPhantomLink = false
-    console.log('[CryptoPaymentPage] Generating QR code', {
+    debugLog('[CryptoPaymentPage] Generating QR code', {
       usingPhantomUniversalLink: usingPhantomLink,
       usingSolanaPayUri: !usingPhantomLink,
       uri: uriForQR,
@@ -554,7 +565,7 @@ export default function CryptoPaymentPage() {
       errorCorrectionLevel: 'M', // Medium error correction for better scanning
     })
       .then((url) => {
-        console.log('[CryptoPaymentPage] QR code generated successfully', {
+        debugLog('[CryptoPaymentPage] QR code generated successfully', {
           uriLength: uriForQR.length,
           qrCodeSize: url.length,
           uriType: usingPhantomLink ? 'phantom-universal-link' : 'solana-pay',
@@ -582,7 +593,7 @@ export default function CryptoPaymentPage() {
         setQrCodeDataUrl(url)
       })
       .catch((err) => {
-        console.error('[CryptoPaymentPage] QR code generation error:', {
+        debugError('[CryptoPaymentPage] QR code generation error:', {
           error: err,
           uri: uriForQR,
           uriLength: uriForQR.length,
