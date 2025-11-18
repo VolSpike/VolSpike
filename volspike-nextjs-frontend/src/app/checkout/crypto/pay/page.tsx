@@ -1074,6 +1074,10 @@ export default function CryptoPaymentPage() {
   const networkName = getNetworkName(paymentDetails.payCurrency)
   const usdAmount = paymentDetails.priceAmount
   const friendlyStatus = getFriendlyStatus(paymentDetails.paymentStatus)
+  const baseUsd = paymentDetails.bufferInfo?.baseAmount ?? usdAmount
+  const bufferedUsd = paymentDetails.bufferInfo?.bufferedAmount ?? usdAmount
+  const bufferPercent = paymentDetails.bufferInfo?.percentage ?? '20%'
+  const displayAmount = paymentDetails.payAmountString || paymentDetails.payAmount.toString()
 
   return (
     <>
@@ -1119,10 +1123,10 @@ export default function CryptoPaymentPage() {
                 Crypto checkout
               </p>
               <h1 className="text-2xl font-bold tracking-tight">
-                Scan &amp; confirm in Phantom
+                Scan to upgrade with crypto
               </h1>
               <p className="text-sm text-muted-foreground max-w-md">
-                Open Phantom on your phone, scan the QR code, and confirm. We&apos;ll upgrade your tier automatically once the payment lands on‑chain.
+                Use your phone&apos;s camera or Phantom wallet to scan the code and send one secure payment. Your VolSpike tier upgrades automatically after the transaction confirms.
               </p>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs">
@@ -1195,11 +1199,11 @@ export default function CryptoPaymentPage() {
                 {/* Amount Section */}
                 <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Amount to pay
+                    Crypto to send
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-3xl font-bold tabular-nums">
-                      {paymentDetails.payAmount.toFixed(8)}{' '}
+                      {displayAmount}{' '}
                       <span className="text-base font-semibold text-muted-foreground">
                         {currencyDisplay}
                       </span>
@@ -1217,9 +1221,15 @@ export default function CryptoPaymentPage() {
                       )}
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    ≈ ${usdAmount.toFixed(2)} USD · {networkName} network
-                  </p>
+                  {paymentDetails.bufferInfo?.applied ? (
+                    <p className="text-xs text-muted-foreground">
+                      Subscription: ${baseUsd.toFixed(2)} USD · You&apos;ll send ≈ ${bufferedUsd.toFixed(2)} in {currencyDisplay} on {networkName} to cover network and provider fees.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Total: ${usdAmount.toFixed(2)} USD in {currencyDisplay} on {networkName}.
+                    </p>
+                  )}
                 </div>
 
                 {/* Payment Address Section - Prominent */}
@@ -1227,10 +1237,12 @@ export default function CryptoPaymentPage() {
                   <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Payment address
                   </p>
-                  <div className="flex items-start gap-2">
-                    <code className="flex-1 break-all font-mono text-lg font-semibold leading-tight text-foreground">
-                      {paymentDetails.payAddress}
-                    </code>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 overflow-x-auto rounded-md bg-black/40 px-3 py-2">
+                      <code className="whitespace-nowrap font-mono text-sm font-semibold text-foreground">
+                        {paymentDetails.payAddress}
+                      </code>
+                    </div>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1255,16 +1267,16 @@ export default function CryptoPaymentPage() {
                 <AlertCircle className="h-4 w-4 shrink-0 text-sec-500 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-foreground">
-                    Amount includes network fee buffer
+                    One-time network fee buffer
                   </p>
                   <p className="text-[11px] leading-relaxed text-muted-foreground">
                     {paymentDetails.bufferInfo?.applied ? (
                       <>
-                        The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes a <strong>{paymentDetails.bufferInfo.percentage} buffer</strong> over the minimum (${paymentDetails.bufferInfo.baseAmount.toFixed(2)} base + ${(paymentDetails.bufferInfo.bufferedAmount - paymentDetails.bufferInfo.baseAmount).toFixed(2)} buffer). This ensures your payment completes successfully even if network fees are higher than expected. The crypto amount shown above (${paymentDetails.payAmount.toFixed(8)} {currencyDisplay}) is converted from this buffered USD amount.
+                        Base price is ${baseUsd.toFixed(2)} USD. We add a <strong>{bufferPercent} buffer</strong> (≈${bufferedUsd.toFixed(2)} total) to cover blockchain and provider fees so your payment doesn&apos;t fail when fees spike.
                       </>
                     ) : (
                       <>
-                        The payment amount includes a 20% buffer to cover blockchain network fees. The USD amount (${paymentDetails.priceAmount.toFixed(2)}) includes this buffer before conversion to crypto. This ensures your payment completes successfully even if fees are higher than expected. You&apos;ll only pay the actual amount sent, and any excess covers transaction costs.
+                        This crypto amount includes a small safety margin to cover blockchain and provider fees. It&apos;s a one-time adjustment for this payment, not a recurring platform fee.
                       </>
                     )}
                   </p>
@@ -1315,34 +1327,13 @@ export default function CryptoPaymentPage() {
                     </div>
                   </div>
                   <div className="text-center space-y-3 max-w-sm">
-                    <div className="space-y-1.5 text-xs text-muted-foreground">
-                      <p className="font-semibold text-foreground mb-2">How to scan:</p>
-                      <div className="space-y-1.5 text-left">
-                        <p className="flex items-start gap-2">
-                          <span className="font-bold text-sec-500">Option A:</span>
-                          <span>
-                            <strong>iPhone Camera</strong> (Easiest & Preferred):
-                            <br />
-                            <span className="text-[11px]">Open Camera app → Point at QR code → Tap notification banner → Phantom opens with prepopulated payment</span>
-                            <br />
-                            <span className="text-[11px] text-muted-foreground">Android: Open Phantom app → Tap &quot;Scan&quot; → Point at QR code</span>
-                          </span>
-                        </p>
-                        <p className="flex items-start gap-2">
-                          <span className="font-bold text-sec-500">Option B:</span>
-                          <span>
-                            <strong>Use Phantom&apos;s built-in scanner:</strong>
-                            <br />
-                            <span className="text-[11px]">Open Phantom → Tap &quot;Send&quot; → Tap QR icon → Scan this code</span>
-                          </span>
-                        </p>
-                        <p className="flex items-start gap-2">
-                          <span className="font-bold text-sec-500">Option C:</span>
-                          <span>
-                            <strong>Manual entry:</strong> Copy address and amount below, paste into Phantom manually
-                          </span>
-                        </p>
-                      </div>
+                    <div className="space-y-2 text-xs text-muted-foreground">
+                      <p className="font-semibold text-foreground">How to pay</p>
+                      <ol className="list-decimal list-inside space-y-1 text-left">
+                        <li>Open your phone&apos;s Camera app or Phantom wallet.</li>
+                        <li>Point it at this QR code.</li>
+                        <li>Confirm the pre-filled payment in your wallet.</li>
+                      </ol>
                     </div>
                     <div className="pt-2 border-t border-border/30 space-y-2">
                       <Button
