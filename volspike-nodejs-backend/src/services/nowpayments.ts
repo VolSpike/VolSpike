@@ -93,6 +93,43 @@ export class NowPaymentsService {
         API_URL,
       })
 
+      // Optional pre-flight check: log when our price_amount is too close to
+      // NowPayments' dynamic minimum. This does NOT block the request, but
+      // helps us debug "less than minimal" errors from their API.
+      try {
+        const preflightCurrencyTo = params.pay_currency || ''
+        if (preflightCurrencyTo) {
+          const preflightMin = await this.getMinimumAmount(
+            params.price_currency || 'usd',
+            preflightCurrencyTo
+          )
+
+        if (preflightMin && typeof preflightMin === 'number') {
+          const bufferPercent = ((params.price_amount / preflightMin - 1) * 100)
+          if (bufferPercent < 10) {
+            logger.warn('NowPayments pre-flight minimum check: price may be too close to minimum', {
+              priceAmount: params.price_amount,
+              minAmount: preflightMin,
+              payCurrency: params.pay_currency,
+              bufferPercent: bufferPercent.toFixed(2) + '%',
+            })
+          } else {
+            logger.info('NowPayments pre-flight minimum check: price comfortably above minimum', {
+              priceAmount: params.price_amount,
+              minAmount: preflightMin,
+              payCurrency: params.pay_currency,
+              bufferPercent: bufferPercent.toFixed(2) + '%',
+            })
+          }
+        }
+        }
+      } catch (preflightError: any) {
+        logger.warn('NowPayments pre-flight minimum check failed (non-fatal)', {
+          error: preflightError?.message || String(preflightError),
+          payCurrency: params.pay_currency,
+        })
+      }
+
       const response = await axios.post(
         `${API_URL}/payment`,
         params,
@@ -459,7 +496,9 @@ export class NowPaymentsService {
     }
 
     try {
-      // Map our currency codes to NowPayments format
+      // Map our currency codes to NowPayments format.
+      // NOTE: If callers already pass a NowPayments code (e.g. 'usdt_sol'),
+      // mapCurrencyToNowPayments will return null and we'll use the code as-is.
       const currencyMapper = await import('./currency-mapper')
       const mappedCurrency = currencyMapper.mapCurrencyToNowPayments(currencyTo, [])
       const payCurrency = mappedCurrency || currencyTo.toLowerCase()

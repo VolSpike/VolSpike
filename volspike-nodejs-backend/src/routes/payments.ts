@@ -995,13 +995,6 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             testAmount: z.number().min(0.01).max(10).optional(), // Optional - will be calculated from minimum
         }).parse(body)
 
-        // Base amount for test subscriptions (USD).
-        // We intentionally stay ~10% above NowPayments' dynamic minimums
-        // to avoid "less than minimal" edge cases due to rounding while
-        // keeping the advertised price around $2.00.
-        const TEST_BASE_AMOUNT_USD = 2.0
-        const TEST_MIN_MULTIPLIER = 1.1
-
         // Start with any explicit testAmount; we'll adjust from there as needed.
         let priceAmount = testAmount
         const nowpayments = NowPaymentsService.getInstance()
@@ -1114,46 +1107,72 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
 
         // Re-check minimum amount using the final mapped currency, and apply a
-        // 10% safety margin to avoid NowPayments "less than minimal" errors.
+        // 15% safety margin to avoid NowPayments "less than minimal" errors,
+        // while keeping a sensible floor for test payments.
         if (!testAmount && finalPayCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
 
                 if (typeof minAmount === 'number') {
-                    // Base amount must be at least:
-                    //   - dynamic minimum * TEST_MIN_MULTIPLIER (e.g. 1.1),
-                    //   - and our configured TEST_BASE_AMOUNT_USD (e.g. 2.0)
-                    const targetBase = Math.max(minAmount * TEST_MIN_MULTIPLIER, TEST_BASE_AMOUNT_USD)
+                    const lower = finalPayCurrency.toLowerCase()
+                    const isStableCoin = ['usdt', 'usdc', 'dai', 'busd'].some((code) =>
+                        lower.includes(code)
+                    )
+                    const baseMinimum = isStableCoin ? 2.0 : 5.0
+
+                    // Base must be at least 15% above NowPayments minimum and
+                    // not less than our configured floor.
+                    const targetBase = Math.max(minAmount * 1.15, baseMinimum)
                     priceAmount = Math.ceil(targetBase * 100) / 100
 
                     logger.info('Test checkout min-amount enforcement', {
                         currency: finalPayCurrency,
+                        isStableCoin,
+                        baseMinimum,
                         minAmount,
-                        multiplier: TEST_MIN_MULTIPLIER,
-                        baseAmount: TEST_BASE_AMOUNT_USD,
+                        bufferPercent: ((priceAmount / minAmount - 1) * 100).toFixed(1) + '%',
                         invoiceAmount: priceAmount,
-                        note: 'Using NowPayments min_amount * multiplier to stay safely above minimum',
+                        note: 'Using NowPayments min_amount * 1.15 with per-currency floor to stay safely above minimum',
                     })
                 } else if (!priceAmount) {
-                    priceAmount = TEST_BASE_AMOUNT_USD
+                    // If min-amount endpoint returned null/invalid, fall back to a
+                    // conservative default of $2 for stables, $5 for others.
+                    const lower = finalPayCurrency.toLowerCase()
+                    const isStableCoin = ['usdt', 'usdc', 'dai', 'busd'].some((code) =>
+                        lower.includes(code)
+                    )
+                    priceAmount = isStableCoin ? 2.0 : 5.0
+
                     logger.warn('Min-amount endpoint returned null/invalid value, using test base amount', {
                         currency: finalPayCurrency,
+                        isStableCoin,
                         baseAmount: priceAmount,
                     })
                 }
             } catch (minAmountError) {
+                const lower = finalPayCurrency.toLowerCase()
+                const isStableCoin = ['usdt', 'usdc', 'dai', 'busd'].some((code) =>
+                    lower.includes(code)
+                )
+                const baseAmount = isStableCoin ? 2.0 : 5.0
+
                 logger.warn('Could not fetch minimum amount for test checkout, using test base amount', {
                     error: minAmountError instanceof Error ? minAmountError.message : String(minAmountError),
                     currency: finalPayCurrency,
-                    baseAmount: TEST_BASE_AMOUNT_USD,
+                    isStableCoin,
+                    baseAmount,
                 })
                 if (!priceAmount) {
-                    priceAmount = TEST_BASE_AMOUNT_USD
+                    priceAmount = baseAmount
                 }
             }
         } else if (!priceAmount) {
-            // No explicit test amount set – fall back to base amount
-            priceAmount = TEST_BASE_AMOUNT_USD
+            // No explicit test amount set – fall back to stable-friendly default
+            const lower = finalPayCurrency.toLowerCase()
+            const isStableCoin = ['usdt', 'usdc', 'dai', 'busd'].some((code) =>
+                lower.includes(code)
+            )
+            priceAmount = isStableCoin ? 2.0 : 5.0
         }
 
         logger.info('Test checkout currency determined', {
