@@ -999,15 +999,15 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         let priceAmount = testAmount
         const nowpayments = NowPaymentsService.getInstance()
 
-        // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher)
+        // CRITICAL: Set invoice to exactly $2.10 (or minimum if higher)
         // Buffer will be applied to QR code amount (pay_amount), not invoice amount
         // This ensures NowPayments recognizes payment as fully paid
         if (!priceAmount && payCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
                 if (minAmount) {
-                    // Use minimum amount or $2.00, whichever is higher (no buffer on invoice)
-                    priceAmount = Math.max(minAmount, 2.0)
+                    // Use minimum amount or $2.10, whichever is higher (no buffer on invoice)
+                    priceAmount = Math.max(minAmount, 2.1)
                     // Round to 2 decimals
                     priceAmount = Math.ceil(priceAmount * 100) / 100
 
@@ -1018,25 +1018,25 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                         note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
                     })
                 } else {
-                    // Fallback: Use exactly $2.00 (no buffer)
-                    priceAmount = 2.0
-                    logger.warn('Unable to fetch minimum amount, using $2.00 base', {
+                    // Fallback: Use exactly $2.10 (no buffer)
+                    priceAmount = 2.1
+                    logger.warn('Unable to fetch minimum amount, using $2.10 base', {
                         currency: payCurrency,
                         invoiceAmount: priceAmount,
                         note: 'Buffer will be applied to QR code amount',
                     })
                 }
             } catch (minAmountError) {
-                logger.error('Error fetching minimum amount, using $2.00 base', {
+                logger.error('Error fetching minimum amount, using $2.10 base', {
                     error: minAmountError,
                     currency: payCurrency,
                 })
-                // Fallback: Use exactly $2.00 (no buffer)
-                priceAmount = 2.0
+                // Fallback: Use exactly $2.10 (no buffer)
+                priceAmount = 2.1
             }
         } else if (!priceAmount) {
-            // No currency selected, use exactly $2.00 (no buffer)
-            priceAmount = 2.0
+            // No currency selected, use exactly $2.10 (no buffer)
+            priceAmount = 2.1
         }
 
         logger.info('Test checkout parameters', {
@@ -1153,14 +1153,14 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         // This ensures we only show supported currencies, not all 300+ NowPayments currencies
         const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
 
-        // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher) - NO buffer on invoice
+        // CRITICAL: Set invoice to exactly $2.10 (or minimum if higher) - NO buffer on invoice
         // Buffer will be applied to QR code amount (pay_amount), not invoice amount
         if (!testAmount && finalPayCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
                 if (minAmount && (!priceAmount || priceAmount < minAmount)) {
-                    // Use minimum amount or $2.00, whichever is higher (no buffer on invoice)
-                    priceAmount = Math.max(minAmount, 2.0)
+                    // Use minimum amount or $2.10, whichever is higher (no buffer on invoice)
+                    priceAmount = Math.max(minAmount, 2.1)
                     // Round to 2 decimals
                     priceAmount = Math.ceil(priceAmount * 100) / 100
 
@@ -1171,21 +1171,21 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                         note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
                     })
                 } else if (!priceAmount) {
-                    // No amount set, use exactly $2.00
-                    priceAmount = 2.0
+                    // No amount set, use exactly $2.10
+                    priceAmount = 2.1
                 }
             } catch (minAmountError) {
-                logger.warn('Could not fetch minimum amount, using $2.00 base', {
+                logger.warn('Could not fetch minimum amount, using $2.10 base', {
                     error: minAmountError,
                     currency: finalPayCurrency,
                 })
                 if (!priceAmount) {
-                    priceAmount = 2.0
+                    priceAmount = 2.1
                 }
             }
         } else if (!priceAmount) {
-            // No currency selected, use exactly $2.00 (no buffer)
-            priceAmount = 2.0
+            // No currency selected, use exactly $2.10 (no buffer)
+            priceAmount = 2.1
         }
 
         logger.info('Test checkout currency determined', {
