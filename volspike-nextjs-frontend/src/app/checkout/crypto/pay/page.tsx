@@ -1073,7 +1073,16 @@ export default function CryptoPaymentPage() {
   const currencyDisplay = getCurrencyDisplayName(paymentDetails.payCurrency)
   const networkName = getNetworkName(paymentDetails.payCurrency)
   const usdAmount = paymentDetails.priceAmount
-  const friendlyStatus = getFriendlyStatus(paymentDetails.paymentStatus)
+  // If the local payment window has expired but the remote status is still
+  // "waiting", treat it as an expired session for UX purposes. This prevents
+  // us from telling the user to "Scan the QR code" while we simultaneously
+  // discourage sending funds to an old address.
+  const effectiveStatusForUi =
+    isExpired && (!paymentDetails.paymentStatus || paymentDetails.paymentStatus.toLowerCase() === 'waiting')
+      ? 'expired'
+      : paymentDetails.paymentStatus
+
+  const friendlyStatus = getFriendlyStatus(effectiveStatusForUi)
   const baseUsd = paymentDetails.bufferInfo?.baseAmount ?? usdAmount
   const bufferedUsd = paymentDetails.bufferInfo?.bufferedAmount ?? usdAmount
   const bufferPercent = paymentDetails.bufferInfo?.percentage ?? '5%'
@@ -1195,72 +1204,87 @@ export default function CryptoPaymentPage() {
 
             <CardContent className="space-y-6 pb-6">
               {/* Amount & Address - Prominent Display */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* Amount Section */}
-                <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Crypto to send
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-3xl font-bold tabular-nums">
-                      {displayAmount}{' '}
-                      <span className="text-base font-semibold text-muted-foreground">
-                        {currencyDisplay}
-                      </span>
+              {!isExpired ? (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Amount Section */}
+                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Crypto to send
                     </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(paymentDetails.payAmount.toString(), 'amount')}
-                      className="h-8 w-8 p-0"
-                    >
-                      {copied === 'amount' ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                  {paymentDetails.bufferInfo?.applied ? (
-                    <p className="text-xs text-muted-foreground">
-                      Subscription: ${baseUsd.toFixed(2)} USD · You&apos;ll send ≈ ${bufferedUsd.toFixed(2)} in {currencyDisplay} on {networkName} to cover network and provider fees.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Total: ${usdAmount.toFixed(2)} USD in {currencyDisplay} on {networkName}.
-                    </p>
-                  )}
-                </div>
-
-                {/* Payment Address Section - Prominent */}
-                <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Payment address
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 overflow-x-auto rounded-md bg-black/40 px-3 py-2">
-                      <code className="whitespace-nowrap font-mono text-sm font-semibold text-foreground">
-                        {paymentDetails.payAddress}
-                      </code>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <p className="text-3xl font-bold tabular-nums">
+                        {displayAmount}{' '}
+                        <span className="text-base font-semibold text-muted-foreground">
+                          {currencyDisplay}
+                        </span>
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(paymentDetails.payAmount.toString(), 'amount')}
+                        className="h-8 w-8 p-0"
+                      >
+                        {copied === 'amount' ? (
+                          <Check className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(paymentDetails.payAddress, 'address')}
-                      className="h-8 w-8 flex-shrink-0 p-0"
-                    >
-                      {copied === 'address' ? (
-                        <Check className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Copy className="h-5 w-5" />
-                      )}
-                    </Button>
+                    {paymentDetails.bufferInfo?.applied ? (
+                      <p className="text-xs text-muted-foreground">
+                        Subscription: ${baseUsd.toFixed(2)} USD · You&apos;ll send ≈ ${bufferedUsd.toFixed(2)} in {currencyDisplay} on {networkName} to cover network and provider fees.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Total: ${usdAmount.toFixed(2)} USD in {currencyDisplay} on {networkName}.
+                      </p>
+                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Send to this {networkName} address
+
+                  {/* Payment Address Section - Prominent */}
+                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Payment address
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 overflow-x-auto rounded-md bg-black/40 px-3 py-2">
+                        <code className="whitespace-nowrap font-mono text-sm font-semibold text-foreground">
+                          {paymentDetails.payAddress}
+                        </code>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(paymentDetails.payAddress, 'address')}
+                        className="h-8 w-8 flex-shrink-0 p-0"
+                      >
+                        {copied === 'address' ? (
+                          <Check className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Copy className="h-5 w-5" />
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Send to this {networkName} address
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
+                  <p className="text-xs uppercase tracking-[0.18em] text-destructive">
+                    Payment window expired
+                  </p>
+                  <p className="text-sm font-medium text-destructive">
+                    This QR code and address are no longer active.
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    For your safety, we hide the crypto amount and address once the timer runs out.
+                    Please create a new payment from the pricing page before sending funds.
                   </p>
                 </div>
-              </div>
+              )}
 
               {/* Buffer Info */}
               <div className="flex items-start gap-2 rounded-lg border border-border/40 bg-muted/30 p-2.5">
