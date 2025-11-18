@@ -21,19 +21,25 @@ export interface CurrencyMapping {
 const CURRENCY_MAPPINGS: CurrencyMapping[] = [
   {
     ourCode: 'usdtsol',
-    nowpaymentsCode: 'usdt_sol', // USDT on Solana - NowPayments uses underscore format
+    // NowPayments currency codes must be alpha-numeric only.
+    // Their Solana USDT code is typically `usdtsol` (no underscore).
+    nowpaymentsCode: 'usdtsol',
     displayName: 'USDT',
     network: 'Solana',
   },
   {
     ourCode: 'usdterc20',
-    nowpaymentsCode: 'usdt-erc20', // USDT on Ethereum ERC-20 - NowPayments uses dash format
+    // Ethereum USDT (ERC-20) – NowPayments usually exposes codes like `usdterc20`.
+    nowpaymentsCode: 'usdterc20',
     displayName: 'USDT',
     network: 'Ethereum',
   },
   {
     ourCode: 'usdce',
-    nowpaymentsCode: 'usdc-erc20', // USDC on Ethereum ERC-20
+    // Ethereum USDC (ERC-20) – NowPayments often uses `usdce` / `usdceerc20`.
+    // We keep the base alphanumeric code here and let the mapper expand to
+    // ERC‑20 variants when validating against the live currency list.
+    nowpaymentsCode: 'usdce',
     displayName: 'USDC',
     network: 'Ethereum',
     // NowPayments might also use: usdc_erc20, usdc-eth, usdc_eth, usdce, usdcerc20
@@ -306,4 +312,3 @@ export function getCurrencyNetwork(ourCode: string): string {
 export function isSupportedCurrency(ourCode: string): boolean {
   return CURRENCY_MAPPINGS.some(m => m.ourCode.toLowerCase() === ourCode.toLowerCase())
 }
-

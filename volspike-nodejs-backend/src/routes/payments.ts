@@ -1071,9 +1071,9 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             }
         }
 
-        // Use mapped currency or default to USDT on Solana (proper format: usdt_sol)
+        // Use mapped currency or default to USDT on Solana (NowPayments alpha-numeric format: usdtsol)
         // This ensures we only show supported currencies, not all 300+ NowPayments currencies
-        const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
+        const finalPayCurrency: string = mappedPayCurrency || 'usdtsol'
 
         // Some NowPayments environments are strict about pay_currency being alphanumeric only.
         // If we see non-alphanumeric characters here (typically '_' or '-'), prefer to log and
@@ -1502,8 +1502,8 @@ payments.post('/nowpayments/checkout', async (c) => {
             }
         }
 
-        // Use mapped currency or default to USDT on Solana (usdt_sol format)
-        const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
+        // Use mapped currency or default to USDT on Solana (NowPayments alpha-numeric format: usdtsol)
+        const finalPayCurrency: string = mappedPayCurrency || 'usdtsol'
 
         logger.info('Final currency code determined', {
             originalPayCurrency: payCurrency,
