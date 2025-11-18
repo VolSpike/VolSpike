@@ -82,6 +82,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
     const buildSnapshot = useCallback((): MarketData[] => {
         const out: MarketData[] = [];
+        const oiLookupDebug: Array<{symbol: string, normalized: string, found: boolean, value: number}> = [];
 
         for (const [sym, t] of Array.from(tickersRef.current.entries())) {
             // Filter for USDT perpetual pairs only
@@ -99,6 +100,16 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             const normalizedSym = normalizeSym(sym);
             const openInterest = openInterestRef.current.get(normalizedSym) || 0;
             
+            // Debug first 10 lookups
+            if (oiLookupDebug.length < 10) {
+                oiLookupDebug.push({
+                    symbol: sym,
+                    normalized: normalizedSym,
+                    found: openInterestRef.current.has(normalizedSym),
+                    value: openInterest
+                });
+            }
+            
             const prec = symbolPrecisionRef.current.get(sym) ?? 2;
             out.push({
                 symbol: sym,
@@ -109,6 +120,15 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 openInterest, // From backend (via Digital Ocean script)
                 timestamp: Date.now(),
                 precision: prec,
+            });
+        }
+
+        // Log OI lookup debug info
+        if (oiLookupDebug.length > 0) {
+            console.log(`🔍 [Open Interest Debug] buildSnapshot OI lookups:`, {
+                oiCacheSize: openInterestRef.current.size,
+                sampleLookups: oiLookupDebug,
+                oiCacheKeys: Array.from(openInterestRef.current.keys()).slice(0, 10)
             });
         }
 
@@ -124,7 +144,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         
         const limit = tierLimits[tier as keyof typeof tierLimits] || 50;
         return out.slice(0, limit);
-    }, [tier]);
+    }, [tier, normalizeSym]);
 
     const render = useCallback((snapshot: MarketData[]) => {
         setData(snapshot);
@@ -203,16 +223,35 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 apiUrl = 'http://localhost:3001'
             }
 
-            const response = await fetch(`${apiUrl}/api/market/open-interest`);
+            const fetchUrl = `${apiUrl}/api/market/open-interest`;
+            console.log(`🔍 [Open Interest Debug] Fetching from: ${fetchUrl}`);
+            console.log(`🔍 [Open Interest Debug] Current ticker count: ${tickersRef.current.size}`);
+            console.log(`🔍 [Open Interest Debug] Current OI cache size: ${openInterestRef.current.size}`);
+            
+            // Show sample ticker symbols (both raw and normalized for comparison)
+            const sampleTickers = Array.from(tickersRef.current.keys()).slice(0, 5);
+            const sampleNormalized = sampleTickers.map(s => ({ raw: s, normalized: normalizeSym(s) }));
+            console.log(`🔍 [Open Interest Debug] Sample ticker symbols:`, sampleNormalized);
+
+            const response = await fetch(fetchUrl);
             
             if (!response.ok) {
-                if (process.env.NODE_ENV === 'development') {
-                    console.warn(`Open Interest fetch failed: ${response.status}`);
-                }
+                console.error(`❌ [Open Interest Debug] Fetch failed: ${response.status} ${response.statusText}`);
+                const errorText = await response.text().catch(() => '');
+                console.error(`❌ [Open Interest Debug] Error response:`, errorText);
                 return;
             }
 
             const payload = await response.json();
+            console.log(`🔍 [Open Interest Debug] Response payload:`, {
+                hasData: !!payload?.data,
+                dataKeys: payload?.data ? Object.keys(payload.data).length : 0,
+                stale: payload?.stale,
+                dangerouslyStale: payload?.dangerouslyStale,
+                asOf: payload?.asOf ? new Date(payload.asOf).toISOString() : null,
+                sampleKeys: payload?.data ? Object.keys(payload.data).slice(0, 10) : []
+            });
+            
             const data = payload?.data ?? {};
             const keys = Object.keys(data);
             
@@ -221,6 +260,8 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 // Normalize all keys and store in map
                 const newMap = new Map<string, number>();
                 let matchedCount = 0;
+                const unmatchedSamples: string[] = [];
+                const matchedSamples: string[] = [];
                 
                 for (const [symbol, oiUsd] of Object.entries(data)) {
                     if (typeof oiUsd === 'number' && oiUsd > 0) {
@@ -228,11 +269,35 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                         newMap.set(normalizedKey, oiUsd);
                         
                         // Check if we have this symbol in tickers
-                        if (tickersRef.current.has(normalizedKey)) {
+                        // Tickers are stored with raw symbols from Binance, so check both normalized and raw
+                        // Also check all ticker keys to see if any match (in case of case/format differences)
+                        let foundInTickers = false;
+                        const normalizedTickerKeys = Array.from(tickersRef.current.keys()).map(k => normalizeSym(k));
+                        
+                        if (tickersRef.current.has(normalizedKey) || 
+                            tickersRef.current.has(symbol) ||
+                            normalizedTickerKeys.includes(normalizedKey)) {
+                            foundInTickers = true;
                             matchedCount++;
+                            if (matchedSamples.length < 5) {
+                                matchedSamples.push(`${symbol} -> ${normalizedKey} (OI: $${oiUsd.toLocaleString()})`);
+                            }
+                        } else {
+                            if (unmatchedSamples.length < 5) {
+                                unmatchedSamples.push(`${symbol} -> ${normalizedKey}`);
+                            }
                         }
                     }
                 }
+                
+                console.log(`🔍 [Open Interest Debug] Processing results:`, {
+                    totalKeys: keys.length,
+                    validEntries: newMap.size,
+                    matchedCount,
+                    matchedSamples,
+                    unmatchedSamples,
+                    tickerSymbols: Array.from(tickersRef.current.keys()).slice(0, 10)
+                });
                 
                 // Update ref with new data
                 openInterestRef.current = newMap;
@@ -249,35 +314,37 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     // localStorage might be full or disabled, ignore
                 }
                 
-                if (process.env.NODE_ENV === 'development') {
-                    console.log(`📊 Open Interest: Fetched ${keys.length} symbols, ${matchedCount} matched with tickers, ${newMap.size} total cached`, {
-                        stale: payload?.stale,
-                        dangerouslyStale: payload?.dangerouslyStale,
-                        asOf: payload?.asOf ? new Date(payload.asOf).toISOString() : null
-                    });
-                }
+                console.log(`✅ [Open Interest Debug] Updated cache: ${newMap.size} symbols, ${matchedCount} matched with tickers`, {
+                    stale: payload?.stale,
+                    dangerouslyStale: payload?.dangerouslyStale,
+                    asOf: payload?.asOf ? new Date(payload.asOf).toISOString() : null
+                });
 
                 // Re-render with updated OI data if we have tickers
                 if (tickersRef.current.size > 0) {
                     const snapshot = buildSnapshot();
+                    console.log(`🔍 [Open Interest Debug] Built snapshot: ${snapshot.length} items`);
+                    // Debug first few items
+                    snapshot.slice(0, 5).forEach(item => {
+                        const normalizedSym = normalizeSym(item.symbol);
+                        const oiValue = openInterestRef.current.get(normalizedSym);
+                        console.log(`🔍 [Open Interest Debug] Snapshot item: ${item.symbol} -> normalized: ${normalizedSym}, OI: ${oiValue ?? 'NOT FOUND'}`);
+                    });
                     if (snapshot.length > 0) {
                         render(snapshot);
                     }
                 }
             } else {
                 // No clobbering! Keep existing ref so UI doesn't flip to 0s
-                if (process.env.NODE_ENV === 'development') {
-                    console.warn('📊 Open Interest: Received empty data, keeping existing cache', {
-                        stale: payload?.stale,
-                        dangerouslyStale: payload?.dangerouslyStale,
-                        currentCacheSize: openInterestRef.current.size
-                    });
-                }
+                console.warn('⚠️ [Open Interest Debug] Received empty data, keeping existing cache', {
+                    stale: payload?.stale,
+                    dangerouslyStale: payload?.dangerouslyStale,
+                    currentCacheSize: openInterestRef.current.size,
+                    payloadKeys: Object.keys(payload)
+                });
             }
         } catch (error) {
-            if (process.env.NODE_ENV === 'development') {
-                console.warn('Failed to fetch Open Interest from backend:', error);
-            }
+            console.error('❌ [Open Interest Debug] Fetch error:', error);
         }
     }, [buildSnapshot, render, normalizeSym]);
 

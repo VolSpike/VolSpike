@@ -64,7 +64,11 @@ const handleIngest = async (c: any) => {
       updatedAt: Date.now()
     }
 
-    console.log(`✅ Open Interest cached: ${Object.keys(oiMap).length} symbols`)
+    const sampleEntries = Object.entries(oiMap).slice(0, 5).map(([sym, oi]) => `${sym}: $${oi.toLocaleString()}`)
+    console.log(`✅ [Open Interest Debug] Cached ${Object.keys(oiMap).length} symbols`, {
+      sample: sampleEntries,
+      timestamp: new Date().toISOString()
+    })
 
     return c.json({
       success: true,
@@ -88,7 +92,7 @@ app.get('/', async (c) => {
   try {
     // Always return last known data if available (never return empty {} when we have data)
     if (!oiCache) {
-      console.log('ℹ️  Open Interest cache empty')
+      console.log('ℹ️  [Open Interest Debug] Cache empty - returning empty response')
       return c.json({
         data: {},
         stale: true,
@@ -101,17 +105,22 @@ app.get('/', async (c) => {
     const stale = age > FIVE_MIN_MS
     const dangerouslyStale = age > (FIVE_MIN_MS + STALE_GRACE_MS)
 
-    // Log cache status for debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📊 Open Interest cache:', {
-        updatedAt: new Date(oiCache.updatedAt).toISOString(),
-        count: Object.keys(oiCache.data).length,
-        sample: Object.keys(oiCache.data).slice(0, 5),
-        ageSeconds: Math.floor(age / 1000),
-        stale,
-        dangerouslyStale
-      })
-    }
+    // Enhanced logging for debugging
+    const cacheKeys = Object.keys(oiCache.data)
+    const sampleData = cacheKeys.slice(0, 5).map(key => ({
+      symbol: key,
+      oiUsd: oiCache!.data[key]
+    }))
+    
+    console.log('📊 [Open Interest Debug] GET request:', {
+      updatedAt: new Date(oiCache.updatedAt).toISOString(),
+      count: cacheKeys.length,
+      sample: sampleData,
+      ageSeconds: Math.floor(age / 1000),
+      stale,
+      dangerouslyStale,
+      userAgent: c.req.header('user-agent')?.substring(0, 50)
+    })
 
     // Always return last known data; let client decide how to render stale
     return c.json({
@@ -122,7 +131,7 @@ app.get('/', async (c) => {
     })
 
   } catch (error) {
-    console.error('❌ Open Interest GET error:', error)
+    console.error('❌ [Open Interest Debug] GET error:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
