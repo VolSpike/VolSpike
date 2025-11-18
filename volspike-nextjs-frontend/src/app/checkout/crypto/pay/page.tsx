@@ -50,8 +50,17 @@ export default function CryptoPaymentPage() {
   const isRedirectingRef = useRef(false) // Prevent multiple redirect attempts
   const pollingRef = useRef(false) // Track polling without triggering re-renders
   const hasFetchedPaymentRef = useRef(false) // Ensure we only fetch details once per page load
+  const expiresAtRef = useRef<number | null>(null) // Wall-clock expiry timestamp (ms)
+  const paymentDetailsRef = useRef<PaymentDetails | null>(null) // Latest payment details snapshot
 
-  // Debug helpers – only log noisier diagnostics when debugMode is enabled
+  // Keep ref in sync with state so background logic can read without
+  // forcing effects to re-run on every status change.
+  useEffect(() => {
+    paymentDetailsRef.current = paymentDetails
+  }, [paymentDetails])
+
+  // Debug helpers – keep production console clean, but allow
+  // rich diagnostics via ?debug=true or in development.
   const debugLog = (...args: any[]) => {
     if (debugMode) console.log(...args)
   }
@@ -603,7 +612,10 @@ export default function CryptoPaymentPage() {
       })
   }, [phantomUniversalLink, solanaUri, paymentDetails])
 
-  // Fetch payment details
+  // Fetch payment details once per page load and initialize the
+  // countdown deadline (expiresAtRef). This effect is purposely
+  // decoupled from timer/polling logic so the timer is not reset
+  // by subsequent renders or session refreshes.
   useEffect(() => {
     if (!session?.user || !paymentId) {
       if (!session?.user) {
@@ -638,12 +650,31 @@ export default function CryptoPaymentPage() {
         const data = await response.json()
         setPaymentDetails(data)
 
-        // Set timer (15 minutes) - but only if payment is not already confirmed
-        // Don't reset timer if payment is already finished/confirmed
+        // Establish a wall‑clock deadline for this payment window.
+        // Prefer a backend-provided expiresAt if present; otherwise
+        // fall back to a 15‑minute window starting from now.
+        const now = Date.now()
+        let expiresAtMs: number | null = null
+
+        if (data.expiresAt) {
+          const parsed = Date.parse(data.expiresAt)
+          if (!Number.isNaN(parsed)) {
+            expiresAtMs = parsed
+          }
+        }
+
+        if (!expiresAtMs) {
+          expiresAtMs = now + 15 * 60 * 1000
+        }
+
+        expiresAtRef.current = expiresAtMs
+
+        // Initialize the visible countdown only if payment is not
+        // already completed.
         if (data.paymentStatus !== 'finished' && data.paymentStatus !== 'confirmed') {
-          setTimeRemaining(15 * 60)
+          const initialSeconds = Math.max(0, Math.floor((expiresAtMs - now) / 1000))
+          setTimeRemaining(initialSeconds)
         } else {
-          // Payment already confirmed - stop timer
           setTimeRemaining(null)
         }
       } catch (err) {
@@ -659,65 +690,81 @@ export default function CryptoPaymentPage() {
     fetchPaymentDetails()
   }, [session, paymentId, router])
 
-  // Countdown timer with expiration handling
+  // Countdown timer – single interval tied to a fixed expiresAtRef.
+  // This avoids effect re-creation on every tick and keeps the
+  // countdown stable even as other state changes.
   useEffect(() => {
-    if (timeRemaining === null) return
-
-    if (timeRemaining <= 0) {
-      if (!isExpired) {
-        setIsExpired(true)
-        // Check payment status one more time when timer expires
-        if (paymentDetails && session?.user && paymentId) {
-          const checkExpiredPayment = async () => {
-            try {
-              const authToken = (session as any)?.accessToken || session.user.id
-              const response = await fetch(`${API_URL}/api/payments/nowpayments/payment/${paymentId}`, {
-                headers: {
-                  'Authorization': `Bearer ${authToken}`,
-                },
-              })
-
-              if (response.ok) {
-                const data = await response.json()
-                // If payment was completed, update state (don't show expired message)
-                if (data.paymentStatus === 'finished' || data.paymentStatus === 'confirmed') {
-                  setIsExpired(false)
-                  setPaymentDetails((prev) => prev ? { ...prev, ...data } : null)
-                  setTimeout(() => {
-                    router.push(`/checkout/success?payment=crypto&tier=${paymentDetails?.tier}`)
-                  }, 2000)
-                  return
-                }
-              }
-            } catch (err) {
-              console.error('[CryptoPaymentPage] Error checking expired payment:', err)
-            }
-            
-            // Show expiration toast
-            toast.error('Payment window expired. Please create a new payment.', {
-              duration: 5000,
-            })
-          }
-          checkExpiredPayment()
-        }
+    const intervalId = setInterval(() => {
+      if (!expiresAtRef.current) {
+        return
       }
-      return
-    }
 
-    const interval = setInterval(() => {
+      const msLeft = expiresAtRef.current - Date.now()
+      const nextSeconds = msLeft > 0 ? Math.floor(msLeft / 1000) : 0
+
       setTimeRemaining((prev) => {
-        if (prev === null || prev <= 1) {
-          return 0
+        // Avoid useless re-renders when the value hasn't changed
+        if (prev === nextSeconds) {
+          return prev
         }
-        return prev - 1
+        return nextSeconds
       })
     }, 1000)
 
-    return () => clearInterval(interval)
-  }, [timeRemaining, isExpired, paymentDetails, session, paymentId, router])
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [])
 
-  // Check if user was already upgraded (for cases where payment is confirmed but user hasn't been redirected)
-  // This effect runs when session updates after payment is confirmed
+  // When the countdown reaches zero for the first time, perform a
+  // final status check so we don't incorrectly show "expired" if the
+  // on-chain confirmation landed right at the boundary.
+  useEffect(() => {
+    if (timeRemaining !== 0 || isExpired) {
+      return
+    }
+    if (!paymentDetails || !session?.user || !paymentId) {
+      return
+    }
+
+    setIsExpired(true)
+
+    const checkExpiredPayment = async () => {
+      try {
+        const authToken = (session as any)?.accessToken || session.user.id
+        const response = await fetch(`${API_URL}/api/payments/nowpayments/payment/${paymentId}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.paymentStatus === 'finished' || data.paymentStatus === 'confirmed') {
+            // Window technically expired but payment succeeded – treat as success.
+            setIsExpired(false)
+            setPaymentDetails((prev) => prev ? { ...prev, ...data } : data)
+            const tier = data.tier || paymentDetails.tier
+            const redirectUrl = `/checkout/success?payment=crypto&tier=${tier}&paymentId=${data.paymentId || paymentDetails.paymentId}`
+            safeNavigate(redirectUrl, 'timer-expired-success')
+            return
+          }
+        }
+      } catch (err) {
+        console.error('[CryptoPaymentPage] Error checking expired payment:', err)
+      }
+
+      toast.error('Payment window expired. Please create a new payment.', {
+        duration: 5000,
+      })
+    }
+
+    void checkExpiredPayment()
+  }, [timeRemaining, isExpired, paymentDetails, session, paymentId, safeNavigate])
+
+  // Check if user was already upgraded (for cases where payment is confirmed
+  // but user hasn't been redirected). This effect responds to tier changes
+  // rather than driving the countdown or polling itself.
   useEffect(() => {
     if (!paymentDetails || !session?.user || isRedirectingRef.current) return
     
@@ -730,7 +777,7 @@ export default function CryptoPaymentPage() {
       if (isRedirectingRef.current) return
       isRedirectingRef.current = true
       
-      console.log('[CryptoPaymentPage] Payment confirmed and user upgraded - redirecting to success page', {
+      debugLog('[CryptoPaymentPage] Payment confirmed and user upgraded - redirecting to success page', {
         paymentStatus: paymentDetails.paymentStatus,
         userTier: session.user.tier,
         paymentTier: paymentDetails.tier,
@@ -770,7 +817,7 @@ export default function CryptoPaymentPage() {
     const isUserUpgraded = session.user.tier === paymentDetails.tier
     if (isPaymentComplete && isUserUpgraded) {
       // Payment complete and user upgraded - redirect will be handled by the upgrade check effect
-      console.log('[CryptoPaymentPage] Payment confirmed and user upgraded - stopping polling, redirect will happen via effect')
+      debugLog('[CryptoPaymentPage] Payment confirmed and user upgraded - stopping polling, redirect will happen via effect')
       return
     }
 
@@ -850,7 +897,7 @@ export default function CryptoPaymentPage() {
               await updateSession()
               
               // Check again after session refresh (will be handled by the upgrade check effect above)
-              console.log('[CryptoPaymentPage] Payment confirmed, checking user tier after session refresh', {
+              debugLog('[CryptoPaymentPage] Payment confirmed, checking user tier after session refresh', {
                 paymentStatus: data.status,
                 upgraded: data.upgraded,
                 userTier: data.userTier,
@@ -1041,12 +1088,12 @@ export default function CryptoPaymentPage() {
             bottom: 0,
             zIndex: 99999,
             pointerEvents: 'none',
-            backgroundColor: 'rgba(255, 0, 0, 0.1)',
-            border: '2px solid red',
+            backgroundColor: 'rgba(255, 0, 0, 0.06)',
+            border: '1px dashed rgba(248, 113, 113, 0.6)',
           }}
           onClick={(e) => {
             const element = document.elementFromPoint(e.clientX, e.clientY)
-            console.log('🔍 Click intercepted at:', {
+            debugLog('🔍 Click intercepted at:', {
               x: e.clientX,
               y: e.clientY,
               element,
@@ -1548,7 +1595,7 @@ export default function CryptoPaymentPage() {
                   <Button
                     onClick={() => {
                       if (solanaUri) {
-                        console.log('[CryptoPaymentPage] Opening Solana Pay URI from button:', {
+                        debugLog('[CryptoPaymentPage] Opening Solana Pay URI from button:', {
                           solanaUri,
                           phantomUniversalLink,
                           phantomDeepLink,
@@ -1560,7 +1607,7 @@ export default function CryptoPaymentPage() {
                         try {
                           const opened = window.open(solanaUri, '_blank', 'noopener,noreferrer')
                           if (!opened) {
-                            console.warn('[CryptoPaymentPage] Popup blocked, trying direct navigation', {
+                            debugWarn('[CryptoPaymentPage] Popup blocked, trying direct navigation', {
                               solanaUri,
                             })
                             window.location.href = solanaUri

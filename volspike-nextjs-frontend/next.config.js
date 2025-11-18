@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // Enable StrictMode only in development so we catch issues
+    // locally without double-running effects in production.
+    reactStrictMode: process.env.NODE_ENV === 'development',
     outputFileTracingRoot: __dirname,
     images: {
         // Allow common avatar hosts. Keep domains for backward compat
