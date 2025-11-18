@@ -97,11 +97,25 @@ export function SigninForm({ onSuccess, isAdminMode = false, nextUrl = '/dashboa
         console.log('[SigninForm] Attempting sign in with:', data.email)
 
         try {
+            // Ensure callbackUrl is an absolute URL to avoid
+            // `new URL()` errors inside NextAuth on some browsers.
+            let callbackUrl: string | undefined = nextUrl
+            try {
+                if (nextUrl) {
+                    const isAbsolute = /^https?:\/\//i.test(nextUrl)
+                    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                    callbackUrl = isAbsolute ? nextUrl : (origin ? `${origin}${nextUrl}` : undefined)
+                }
+            } catch {
+                callbackUrl = undefined
+            }
+
             const result = await signIn('credentials', {
                 email: data.email,
                 password: data.password,
                 redirect: false,
-                callbackUrl: nextUrl,
+                // Only pass callbackUrl if we could construct a safe absolute URL.
+                ...(callbackUrl ? { callbackUrl } : {}),
             })
 
             console.log('[SigninForm] Sign in result:', JSON.stringify(result, null, 2))
