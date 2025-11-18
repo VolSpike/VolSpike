@@ -921,35 +921,47 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         let priceAmount = testAmount
         const nowpayments = NowPaymentsService.getInstance()
 
-        // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher)
-        // Buffer will be applied to QR code amount (pay_amount), not invoice amount
-        // This ensures NowPayments recognizes payment as fully paid
+        // CRITICAL: For TEST payments we want a small, predictable amount (~$2)
+        // so test accounts can exercise the full flow without paying real tier prices.
+        // We still *consult* NowPayments minimums, but if they suddenly jump to a
+        // suspiciously high number (e.g. $10+), we log it and fall back to $2.00
+        // instead of charging $20+ just for a test.
         if (!priceAmount && payCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
                 if (minAmount) {
-                    // Use minimum amount or $2.00, whichever is higher (no buffer on invoice)
-                    priceAmount = Math.max(minAmount, 2.0)
-                    // Round to 2 decimals
-                    priceAmount = Math.ceil(priceAmount * 100) / 100
+                    if (minAmount <= 5) {
+                        // Normal case: min is in a reasonable test range ($2‑$5)
+                        priceAmount = Math.max(minAmount, 2.0)
+                        priceAmount = Math.ceil(priceAmount * 100) / 100
 
-                    logger.info('Set invoice amount to base amount (no buffer)', {
-                        currency: payCurrency,
-                        minAmount,
-                        invoiceAmount: priceAmount,
-                        note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
-                    })
+                        logger.info('Set TEST invoice amount from NowPayments minimum (reasonable range)', {
+                            currency: payCurrency,
+                            minAmount,
+                            invoiceAmount: priceAmount,
+                            note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
+                        })
+                    } else {
+                        // Defensive: NowPayments returned an unusually high minimum for a TEST payment.
+                        // Keep the test affordable and log full context for investigation.
+                        logger.warn('NowPayments returned unusually high minimum for TEST payment, falling back to $2.00', {
+                            currency: payCurrency,
+                            reportedMinAmount: minAmount,
+                            threshold: 5,
+                        })
+                        priceAmount = 2.0
+                    }
                 } else {
                     // Fallback: Use exactly $2.00 (no buffer)
                     priceAmount = 2.0
-                    logger.warn('Unable to fetch minimum amount, using $2.00 base', {
+                    logger.warn('Unable to fetch minimum amount, using $2.00 base for TEST payment', {
                         currency: payCurrency,
                         invoiceAmount: priceAmount,
                         note: 'Buffer will be applied to QR code amount',
                     })
                 }
             } catch (minAmountError) {
-                logger.error('Error fetching minimum amount, using $2.00 base', {
+                logger.error('Error fetching minimum amount for TEST payment, using $2.00 base', {
                     error: minAmountError,
                     currency: payCurrency,
                 })
@@ -1089,29 +1101,40 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             })
         }
 
-        // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher) - NO buffer on invoice
-        // Buffer will be applied to QR code amount (pay_amount), not invoice amount
+        // CRITICAL: For TEST payments, do not silently jump to very high minimums.
+        // We re-check minimums here using the fully mapped finalPayCurrency, but
+        // only adjust the amount if the reported minimum is still in a reasonable
+        // test range. Otherwise, we keep the affordable $2.00 base.
         if (!testAmount && finalPayCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
                 if (minAmount && (!priceAmount || priceAmount < minAmount)) {
-                    // Use minimum amount or $2.00, whichever is higher (no buffer on invoice)
-                    priceAmount = Math.max(minAmount, 2.0)
-                    // Round to 2 decimals
-                    priceAmount = Math.ceil(priceAmount * 100) / 100
+                    if (minAmount <= 5) {
+                        priceAmount = Math.max(minAmount, 2.0)
+                        priceAmount = Math.ceil(priceAmount * 100) / 100
 
-                    logger.info('Set invoice amount to base amount (no buffer)', {
-                        currency: finalPayCurrency,
-                        minAmount,
-                        invoiceAmount: priceAmount,
-                        note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
-                    })
+                        logger.info('Adjusted TEST invoice amount from NowPayments minimum (reasonable range)', {
+                            currency: finalPayCurrency,
+                            minAmount,
+                            invoiceAmount: priceAmount,
+                        })
+                    } else {
+                        logger.warn('NowPayments reported high minimum on second check for TEST payment, keeping $2.00 base', {
+                            currency: finalPayCurrency,
+                            reportedMinAmount: minAmount,
+                            threshold: 5,
+                            existingPriceAmount: priceAmount,
+                        })
+                        if (!priceAmount) {
+                            priceAmount = 2.0
+                        }
+                    }
                 } else if (!priceAmount) {
                     // No amount set, use exactly $2.00
                     priceAmount = 2.0
                 }
             } catch (minAmountError) {
-                logger.warn('Could not fetch minimum amount, using $2.00 base', {
+                logger.warn('Could not fetch minimum amount on second check for TEST payment, using $2.00 base', {
                     error: minAmountError,
                     currency: finalPayCurrency,
                 })
