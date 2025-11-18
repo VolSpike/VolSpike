@@ -2,6 +2,7 @@ import { prisma } from '../index'
 import { createLogger } from '../lib/logger'
 import { NowPaymentsService } from './nowpayments'
 import { EmailService } from './email'
+import { computeStackedCryptoExpiry } from './subscription-utils'
 
 const logger = createLogger()
 
@@ -151,8 +152,7 @@ export async function syncPendingPayments() {
                     })
 
                     const previousTier = updatedPayment.user.tier
-                    const expiresAt = new Date()
-                    expiresAt.setDate(expiresAt.getDate() + 30)
+                    const expiresAt = await computeStackedCryptoExpiry(updatedPayment.userId)
 
                     await prisma.$transaction(async (tx) => {
                         await tx.user.update({
@@ -255,4 +255,3 @@ export async function syncPendingPayments() {
         }
     }
 }
-

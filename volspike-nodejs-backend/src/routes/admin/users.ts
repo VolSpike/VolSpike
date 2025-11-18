@@ -281,35 +281,47 @@ adminUserRoutes.get('/', async (c) => {
             }
         }
 
-        // Batch fetch crypto payment expirations for all users
+        // Batch fetch crypto payment expirations for all users.
+        // We treat any finished crypto payment as a 30‑day subscription,
+        // even if older rows are missing an expiresAt. This ensures that
+        // test / manual upgrades still show as “active subscription” in
+        // the admin UI as long as they are within the current period.
         const userIds = users.map(u => u.id)
         const cryptoPaymentsMap = new Map<string, Date>()
         if (userIds.length > 0) {
-            const activeCryptoPayments = await prisma.cryptoPayment.findMany({
+            const finishedCryptoPayments = await prisma.cryptoPayment.findMany({
                 where: {
                     userId: { in: userIds },
                     paymentStatus: 'finished',
-                    expiresAt: {
-                        not: null,
-                        gte: new Date(),
-                    },
                 } as any,
                 select: {
                     userId: true,
                     expiresAt: true,
+                    paidAt: true,
+                    createdAt: true,
                 },
                 orderBy: {
-                    expiresAt: 'desc',
+                    createdAt: 'desc',
                 } as any,
             })
             
-            // Group by userId, keeping only the most recent expiration
-            activeCryptoPayments.forEach(payment => {
-                if (payment.expiresAt) {
-                    const existing = cryptoPaymentsMap.get(payment.userId)
-                    if (!existing || payment.expiresAt > existing) {
-                        cryptoPaymentsMap.set(payment.userId, payment.expiresAt)
-                    }
+            const now = new Date()
+
+            // Group by userId, keeping only the most recent effective expiration.
+            // If expiresAt is missing (older data), fall back to 30 days from
+            // paidAt or createdAt so admins still see a reasonable window.
+            finishedCryptoPayments.forEach(payment => {
+                const baseDate = payment.paidAt || payment.createdAt
+                const effectiveExpiresAt = payment.expiresAt ?? new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+                // Ignore subscriptions that are already expired
+                if (effectiveExpiresAt <= now) {
+                    return
+                }
+
+                const existing = cryptoPaymentsMap.get(payment.userId)
+                if (!existing || effectiveExpiresAt > existing) {
+                    cryptoPaymentsMap.set(payment.userId, effectiveExpiresAt)
                 }
             })
         }
