@@ -91,10 +91,6 @@ function formatCryptoCurrency(currency: string | null | undefined): string {
     if (upper.includes('USDT') && (upper.includes('ERC20') || upper.includes('ETH'))) {
         return 'USDT on ETH'
     }
-    // NowPayments often reports USDC on Ethereum as "USDCE" or similar.
-    if (upper === 'USDCE' || upper === 'USDC.E') {
-        return 'USDC on ETH'
-    }
     if (upper.includes('USDC') && (upper.includes('ERC20') || upper.includes('ETH'))) {
         return 'USDC on ETH'
     }

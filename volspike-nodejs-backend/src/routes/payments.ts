@@ -8,7 +8,6 @@ import { User } from '../types'
 import { getUser, requireUser } from '../lib/hono-extensions'
 import { EmailService } from '../services/email'
 import { NowPaymentsService } from '../services/nowpayments'
-import { computeStackedCryptoExpiry } from '../services/subscription-utils'
 
 const logger = createLogger()
 
@@ -25,105 +24,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 const payments = new Hono()
 
-type StripeSubscriptionSummary = {
-    id: string
-    status: string
-    currentPeriodStart: number
-    currentPeriodEnd: number
-    price: {
-        id: string
-        amount: number | null
-        currency: string | null
-        interval: string | null | undefined
-    }
-    paymentMethod: 'stripe'
-}
-
-type CryptoSubscriptionSummary = {
-    id: string
-    status: 'active' | 'expired'
-    tier: string
-    expiresAt: string
-    daysUntilExpiration: number
-    paymentMethod: 'crypto'
-    payCurrency?: string | null
-}
-
-async function getUserSubscriptions(user: User): Promise<{
-    stripe: StripeSubscriptionSummary | null
-    crypto: CryptoSubscriptionSummary | null
-}> {
-    // Stripe subscription (if any)
-    let stripeSubscription: StripeSubscriptionSummary | null = null
-
-    if (user.stripeCustomerId) {
-        try {
-            const subscriptions = await stripe.subscriptions.list({
-                customer: user.stripeCustomerId,
-                status: 'active',
-                limit: 1,
-            })
-
-            if (subscriptions.data.length > 0) {
-                const subscription = subscriptions.data[0]
-                const price = await stripe.prices.retrieve(subscription.items.data[0].price.id)
-
-                stripeSubscription = {
-                    id: subscription.id,
-                    status: subscription.status,
-                    currentPeriodStart: subscription.current_period_start,
-                    currentPeriodEnd: subscription.current_period_end,
-                    price: {
-                        id: price.id,
-                        amount: price.unit_amount,
-                        currency: price.currency,
-                        interval: price.recurring?.interval,
-                    },
-                    paymentMethod: 'stripe',
-                }
-            }
-        } catch (error) {
-            logger.warn('Error fetching Stripe subscription:', error)
-        }
-    }
-
-    // Crypto subscription (if any)
-    let cryptoSubscription: CryptoSubscriptionSummary | null = null
-
-    const activeCryptoPayment = await prisma.cryptoPayment.findFirst({
-        where: {
-            userId: user.id,
-            paymentStatus: 'finished',
-            expiresAt: {
-                not: null,
-                gte: new Date(), // Not expired yet
-            },
-        } as any,
-        orderBy: {
-            expiresAt: 'desc', // Most recent expiry
-        } as any,
-    }) as any
-
-    if (activeCryptoPayment && activeCryptoPayment.expiresAt) {
-        const now = new Date()
-        const daysUntilExpiration = Math.ceil(
-            (activeCryptoPayment.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        )
-
-        cryptoSubscription = {
-            id: activeCryptoPayment.id,
-            status: daysUntilExpiration > 0 ? 'active' : 'expired',
-            tier: activeCryptoPayment.tier,
-            expiresAt: activeCryptoPayment.expiresAt.toISOString(),
-            daysUntilExpiration,
-            paymentMethod: 'crypto',
-            payCurrency: activeCryptoPayment.actuallyPaidCurrency || activeCryptoPayment.payCurrency,
-        }
-    }
-
-    return { stripe: stripeSubscription, crypto: cryptoSubscription }
-}
-
 // Validation schemas
 const createCheckoutSchema = z.object({
     priceId: z.string(),
@@ -138,42 +38,6 @@ payments.post('/checkout', async (c) => {
         const user = requireUser(c)
         const body = await c.req.json()
         const { priceId, successUrl, cancelUrl, mode } = createCheckoutSchema.parse(body)
-
-        // Enforce strict separation between Stripe and crypto subscriptions
-        // For subscription checkouts, block if any active subscription already exists.
-        if (mode === 'subscription') {
-            const { stripe, crypto } = await getUserSubscriptions(user)
-
-            if (stripe && stripe.status === 'active') {
-                logger.info('Blocking Stripe checkout - active Stripe subscription already exists', {
-                    userId: user.id,
-                    email: user.email,
-                    subscriptionId: stripe.id,
-                })
-                return c.json(
-                    {
-                        error: 'You already have an active Stripe subscription. Manage your billing from the Billing page instead of creating a new subscription.',
-                        code: 'STRIPE_SUB_ACTIVE',
-                    },
-                    400
-                )
-            }
-
-            if (crypto && crypto.status === 'active') {
-                logger.info('Blocking Stripe checkout - active crypto subscription already exists', {
-                    userId: user.id,
-                    email: user.email,
-                    cryptoPaymentId: crypto.id,
-                })
-                return c.json(
-                    {
-                        error: 'You already have an active crypto subscription. You can renew with crypto again after it expires.',
-                        code: 'CRYPTO_SUB_ACTIVE',
-                    },
-                    400
-                )
-            }
-        }
 
         // Create or get Stripe customer
         let customerId = user.stripeCustomerId
@@ -232,7 +96,71 @@ payments.get('/subscription', async (c) => {
     try {
         const user = requireUser(c)
 
-        const { stripe: stripeSubscription, crypto: cryptoSubscription } = await getUserSubscriptions(user)
+        // Check Stripe subscription first
+        let stripeSubscription = null
+        if (user.stripeCustomerId) {
+            try {
+                const subscriptions = await stripe.subscriptions.list({
+                    customer: user.stripeCustomerId,
+                    status: 'active',
+                    limit: 1,
+                })
+
+                if (subscriptions.data.length > 0) {
+                    const subscription = subscriptions.data[0]
+                    const price = await stripe.prices.retrieve(subscription.items.data[0].price.id)
+
+                    stripeSubscription = {
+                        id: subscription.id,
+                        status: subscription.status,
+                        currentPeriodStart: subscription.current_period_start,
+                        currentPeriodEnd: subscription.current_period_end,
+                        price: {
+                            id: price.id,
+                            amount: price.unit_amount,
+                            currency: price.currency,
+                            interval: price.recurring?.interval,
+                        },
+                        paymentMethod: 'stripe' as const,
+                    }
+                }
+            } catch (error) {
+                logger.warn('Error fetching Stripe subscription:', error)
+            }
+        }
+
+        // Check crypto subscription
+        let cryptoSubscription = null
+        const activeCryptoPayment = await prisma.cryptoPayment.findFirst({
+            where: {
+                userId: user.id,
+                paymentStatus: 'finished',
+                expiresAt: {
+                    not: null,
+                    gte: new Date(), // Not expired yet
+                },
+            } as any,
+            orderBy: {
+                expiresAt: 'desc', // Get most recent
+            } as any,
+        }) as any
+
+        if (activeCryptoPayment && activeCryptoPayment.expiresAt) {
+            const now = new Date()
+            const daysUntilExpiration = Math.ceil(
+                (activeCryptoPayment.expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            )
+
+            cryptoSubscription = {
+                id: activeCryptoPayment.id,
+                status: daysUntilExpiration > 0 ? 'active' : 'expired',
+                tier: activeCryptoPayment.tier,
+                expiresAt: activeCryptoPayment.expiresAt.toISOString(),
+                daysUntilExpiration,
+                paymentMethod: 'crypto' as const,
+                payCurrency: activeCryptoPayment.actuallyPaidCurrency || activeCryptoPayment.payCurrency,
+            }
+        }
 
         logger.info(`Subscription status requested by ${user?.email}`, {
             hasStripe: !!stripeSubscription,
@@ -995,49 +923,56 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             testAmount: z.number().min(0.01).max(10).optional(), // Optional - will be calculated from minimum
         }).parse(body)
 
-        // Start with any explicit testAmount; we'll adjust from there as needed.
+        // Fetch actual minimum amount from NowPayments API
         let priceAmount = testAmount
         const nowpayments = NowPaymentsService.getInstance()
 
-        // If no explicit test amount is provided, fetch the dynamic minimum
-        // from NowPayments for this currency and apply a 10% safety buffer.
-        // This mirrors the previously stable behavior where tests reliably
-        // cleared NowPayments' "less than minimal" checks.
+        // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher)
+        // Buffer will be applied to QR code amount (pay_amount), not invoice amount
+        // This ensures NowPayments recognizes payment as fully paid
         if (!priceAmount && payCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
                 if (minAmount) {
-                    // Use 10% above minimum, rounded UP to 2 decimals
-                    const buffered = minAmount * 1.1
-                    priceAmount = Math.ceil(buffered * 100) / 100
+                    // Use minimum amount or $2.00, whichever is higher (no buffer on invoice)
+                    priceAmount = Math.max(minAmount, 2.0)
+                    // Round to 2 decimals
+                    priceAmount = Math.ceil(priceAmount * 100) / 100
 
-                    logger.info('TEST checkout amount calculated from NowPayments minimum', {
-                        internalCurrency: payCurrency,
+                    logger.info('Set invoice amount to base amount (no buffer)', {
+                        currency: payCurrency,
                         minAmount,
-                        bufferedAmount: buffered,
-                        finalPriceAmount: priceAmount,
-                        bufferPercent: ((priceAmount / minAmount - 1) * 100).toFixed(1) + '%',
+                        invoiceAmount: priceAmount,
+                        note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
                     })
                 } else {
-                    // Fallback: safe default when min-amount is unavailable
+                    // Fallback: Use exactly $2.00 (no buffer)
                     priceAmount = 2.0
-                    logger.warn('NowPayments min-amount returned null for TEST checkout, using $2.00 fallback', {
-                        internalCurrency: payCurrency,
-                        fallbackAmount: priceAmount,
+                    logger.warn('Unable to fetch minimum amount, using $2.00 base', {
+                        currency: payCurrency,
+                        invoiceAmount: priceAmount,
+                        note: 'Buffer will be applied to QR code amount',
                     })
                 }
             } catch (minAmountError) {
-                // Do NOT break tests if min-amount fails; use a conservative default
-                priceAmount = 2.0
-                logger.error('Error fetching NowPayments minimum amount for TEST checkout, using $2.00 fallback', {
-                    internalCurrency: payCurrency,
-                    error: minAmountError instanceof Error ? minAmountError.message : String(minAmountError),
+                logger.error('Error fetching minimum amount, using $2.00 base', {
+                    error: minAmountError,
+                    currency: payCurrency,
                 })
+                // Fallback: Use exactly $2.00 (no buffer)
+                priceAmount = 2.0
             }
         } else if (!priceAmount) {
-            // No currency selected or testAmount provided – fall back to $2.00
+            // No currency selected, use exactly $2.00 (no buffer)
             priceAmount = 2.0
         }
+
+        logger.info('Test checkout parameters', {
+            tier,
+            testAmount: priceAmount,
+            payCurrency,
+            userId: user.id,
+        })
 
         // Generate unique order ID with TEST prefix
         const orderId = `volspike-test-${user.id}-${Date.now()}`
@@ -1142,15 +1077,44 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             }
         }
 
-        // Use mapped currency or default to USDT on Solana.
-        // For TEST payments, NowPayments expects pay_currency to be
-        // alphanumeric only (no underscores/dashes). Our internal codes
-        // (usdtsol, usdterc20, usdce, sol, btc, eth) already follow this
-        // pattern, so we prefer them when talking to the payment API.
+        // Use mapped currency or default to USDT on Solana (proper format: usdt_sol)
+        // This ensures we only show supported currencies, not all 300+ NowPayments currencies
         const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
-        const paymentPayCurrency: string = (payCurrency
-            ? payCurrency.toLowerCase()
-            : finalPayCurrency.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())
+
+        // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher) - NO buffer on invoice
+        // Buffer will be applied to QR code amount (pay_amount), not invoice amount
+        if (!testAmount && finalPayCurrency) {
+            try {
+                const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
+                if (minAmount && (!priceAmount || priceAmount < minAmount)) {
+                    // Use minimum amount or $2.00, whichever is higher (no buffer on invoice)
+                    priceAmount = Math.max(minAmount, 2.0)
+                    // Round to 2 decimals
+                    priceAmount = Math.ceil(priceAmount * 100) / 100
+
+                    logger.info('Set invoice amount to base amount (no buffer)', {
+                        currency: finalPayCurrency,
+                        minAmount,
+                        invoiceAmount: priceAmount,
+                        note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
+                    })
+                } else if (!priceAmount) {
+                    // No amount set, use exactly $2.00
+                    priceAmount = 2.0
+                }
+            } catch (minAmountError) {
+                logger.warn('Could not fetch minimum amount, using $2.00 base', {
+                    error: minAmountError,
+                    currency: finalPayCurrency,
+                })
+                if (!priceAmount) {
+                    priceAmount = 2.0
+                }
+            }
+        } else if (!priceAmount) {
+            // No currency selected, use exactly $2.00 (no buffer)
+            priceAmount = 2.0
+        }
 
         logger.info('Test checkout currency determined', {
             originalPayCurrency: payCurrency,
@@ -1166,7 +1130,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         if (usePaymentAPI) {
             // Create payment directly (gives us pay_address immediately for QR code)
             logger.info('Using payment API for test checkout (currency already selected)', {
-                payCurrency: paymentPayCurrency,
+                payCurrency: finalPayCurrency,
                 priceAmount,
                 orderId,
             })
@@ -1174,8 +1138,8 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             const paymentParams: any = {
                 price_amount: priceAmount,
                 price_currency: 'usd',
-                pay_currency: paymentPayCurrency,
-                payout_currency: paymentPayCurrency,
+                pay_currency: finalPayCurrency,
+                payout_currency: finalPayCurrency,
                 order_id: orderId,
                 order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
                 ipn_callback_url: ipnCallbackUrl,
@@ -1299,8 +1263,8 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         const invoice = await nowpayments.createInvoice({
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: paymentPayCurrency, // TEST: use alphanumeric internal code (no underscores/dashes)
-            payout_currency: paymentPayCurrency,
+            pay_currency: finalPayCurrency, // Use validated/mapped currency code (alphanumeric only for invoice API)
+            payout_currency: finalPayCurrency,
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
             ipn_callback_url: ipnCallbackUrl,
@@ -1401,29 +1365,6 @@ payments.post('/nowpayments/checkout', async (c) => {
             cancelUrl: z.string().url(),
             payCurrency: z.string().optional(), // Optional - user-selected currency
         }).parse(body)
-
-        // Enforce strict separation between Stripe and crypto subscriptions.
-        // - If a Stripe subscription is active, block crypto checkout entirely.
-        // - If only a crypto subscription is active, allow checkout so the user can extend
-        //   their subscription (stacked expiry logic handles date extension).
-        {
-            const { stripe, crypto } = await getUserSubscriptions(user)
-
-            if (stripe && stripe.status === 'active') {
-                logger.info('Blocking crypto checkout - active Stripe subscription already exists', {
-                    userId: user.id,
-                    email: user.email,
-                    subscriptionId: stripe.id,
-                })
-                return c.json(
-                    {
-                        error: 'You already have an active Stripe subscription. Manage your subscription in Billing instead of starting a new crypto payment.',
-                        code: 'STRIPE_SUB_ACTIVE',
-                    },
-                    400
-                )
-            }
-        }
 
         // Determine price based on tier
         const tierPrices: Record<string, number> = {
@@ -2367,10 +2308,9 @@ payments.post('/nowpayments/webhook', async (c) => {
                 // Get user's previous tier before updating (for email notification)
                 const previousTier = cryptoPayment.user.tier
 
-                // Calculate expiration date using stacked logic:
-                // base = max(now, currentExpiresAt)
-                // expiresAt = base + 30 days
-                const expiresAt = await computeStackedCryptoExpiry(cryptoPayment.userId)
+                // Calculate expiration date (30 days from now for subscription)
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 30) // 30-day subscription period
 
                 // Use a transaction to ensure atomicity
                 await prisma.$transaction(async (tx) => {
@@ -2694,7 +2634,8 @@ payments.get('/nowpayments/status/:paymentId', async (c) => {
 
             try {
                 const previousTier = updatedPayment.user.tier
-                const expiresAt = await computeStackedCryptoExpiry(updatedPayment.userId)
+                const expiresAt = new Date()
+                expiresAt.setDate(expiresAt.getDate() + 30)
 
                 await prisma.$transaction(async (tx) => {
                     await tx.user.update({
