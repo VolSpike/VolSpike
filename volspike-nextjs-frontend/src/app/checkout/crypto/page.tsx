@@ -12,27 +12,6 @@ import { startCryptoCheckout } from '@/lib/payments'
 import { toast } from 'react-hot-toast'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-
-interface SubscriptionStatus {
-  stripe?: {
-    id: string
-    status: string
-    currentPeriodEnd: number
-    paymentMethod: 'stripe'
-  } | null
-  crypto?: {
-    id: string
-    status: string
-    tier: string
-    expiresAt: string
-    daysUntilExpiration: number
-    paymentMethod: 'crypto'
-    payCurrency?: string | null
-  } | null
-  subscription?: any
-}
-
 export default function CryptoCheckoutPage() {
   const { data: session } = useSession()
   const router = useRouter()
@@ -44,8 +23,6 @@ export default function CryptoCheckoutPage() {
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'select' | 'redirecting'>('select')
-  const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null)
-  const [subscriptionLoading, setSubscriptionLoading] = useState(true)
 
   useEffect(() => {
     if (!session?.user) {
@@ -54,64 +31,7 @@ export default function CryptoCheckoutPage() {
     }
   }, [session, router])
 
-  // Load current subscription to enforce Stripe/crypto separation on the client
-  useEffect(() => {
-    if (!session?.user) {
-      setSubscriptionLoading(false)
-      return
-    }
-
-    let cancelled = false
-    const token = (session as any)?.accessToken || (session.user as any)?.id
-
-    if (!token) {
-      setSubscriptionLoading(false)
-      return
-    }
-
-    const loadSubscription = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/payments/subscription`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: 'no-store',
-        })
-
-        if (!res.ok) {
-          if (!cancelled) setSubscription(null)
-          return
-        }
-
-        const data = await res.json()
-        if (!cancelled) setSubscription(data)
-      } catch (err) {
-        console.error('[CryptoCheckoutPage] Failed to fetch subscription:', err)
-        if (!cancelled) setSubscription(null)
-      } finally {
-        if (!cancelled) setSubscriptionLoading(false)
-      }
-    }
-
-    loadSubscription()
-
-    return () => {
-      cancelled = true
-    }
-  }, [session])
-
-  const hasActiveStripe = !!subscription?.stripe && subscription.stripe.status === 'active'
-  const hasActiveCrypto = !!subscription?.crypto && subscription.crypto.status === 'active'
-  const isBlocked = hasActiveStripe
-
   const handleContinue = async () => {
-    if (isBlocked) {
-      if (hasActiveStripe) {
-        toast.error('You already have an active Stripe subscription. Manage it from the Billing page.')
-      }
-      return
-    }
-
     if (!selectedCurrency) {
       toast.error('Please select a payment currency')
       return
@@ -297,40 +217,6 @@ export default function CryptoCheckoutPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {(hasActiveStripe || hasActiveCrypto) && (
-              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 mt-0.5 text-blue-600 dark:text-blue-400" />
-                  <div className="space-y-1">
-                    {hasActiveStripe && (
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
-                        You already have an active Stripe subscription. Manage your billing from the{' '}
-                        <button
-                          type="button"
-                          className="underline underline-offset-2"
-                          onClick={() => router.push('/settings/billing')}
-                        >
-                          Billing page
-                        </button>{' '}
-                        instead of starting a new crypto payment.
-                      </p>
-                    )}
-                    {hasActiveCrypto && subscription?.crypto && (
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
-                        You already have an active crypto subscription ({subscription.crypto.tier.toUpperCase()}) paid with{' '}
-                        {(subscription.crypto.payCurrency || 'crypto').toUpperCase()}. It expires on{' '}
-                        {new Date(subscription.crypto.expiresAt).toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                        . If you pay with crypto again now, we&apos;ll add another 30 days on top of this date.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
             {/* Currency Selector */}
             <CryptoCurrencySelector
               selectedCurrency={selectedCurrency}
@@ -364,7 +250,7 @@ export default function CryptoCheckoutPage() {
                 onClick={handleContinue}
                 className="flex-1"
                 size="lg"
-                disabled={!selectedCurrency || isLoading || subscriptionLoading || isBlocked}
+                disabled={!selectedCurrency || isLoading}
               >
                 Continue to Payment
                 <ArrowRight className="h-4 w-4 ml-2" />
@@ -391,3 +277,4 @@ export default function CryptoCheckoutPage() {
     </div>
   )
 }
+

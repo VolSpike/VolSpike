@@ -12,7 +12,6 @@ export interface CreatePaymentParams {
   price_amount: number
   price_currency: string
   pay_currency?: string  // Optional - if omitted, user can choose from all available currencies
-  payout_currency?: string  // Optional - merchant payout currency (defaults to account setting)
   order_id?: string
   order_description?: string
   ipn_callback_url?: string
@@ -24,7 +23,6 @@ export interface CreateInvoiceParams {
   price_amount: number
   price_currency: string
   pay_currency?: string  // Optional - if omitted, user can choose on checkout page
-  payout_currency?: string  // Optional - merchant payout currency
   order_id?: string
   order_description?: string
   ipn_callback_url?: string
@@ -92,43 +90,6 @@ export class NowPaymentsService {
         order_id: params.order_id,
         API_URL,
       })
-
-      // Optional pre-flight check: log when our price_amount is too close to
-      // NowPayments' dynamic minimum. This does NOT block the request, but
-      // helps us debug "less than minimal" errors from their API.
-      try {
-        const preflightCurrencyTo = params.pay_currency || ''
-        if (preflightCurrencyTo) {
-          const preflightMin = await this.getMinimumAmount(
-            params.price_currency || 'usd',
-            preflightCurrencyTo
-          )
-
-        if (preflightMin && typeof preflightMin === 'number') {
-          const bufferPercent = ((params.price_amount / preflightMin - 1) * 100)
-          if (bufferPercent < 10) {
-            logger.warn('NowPayments pre-flight minimum check: price may be too close to minimum', {
-              priceAmount: params.price_amount,
-              minAmount: preflightMin,
-              payCurrency: params.pay_currency,
-              bufferPercent: bufferPercent.toFixed(2) + '%',
-            })
-          } else {
-            logger.info('NowPayments pre-flight minimum check: price comfortably above minimum', {
-              priceAmount: params.price_amount,
-              minAmount: preflightMin,
-              payCurrency: params.pay_currency,
-              bufferPercent: bufferPercent.toFixed(2) + '%',
-            })
-          }
-        }
-        }
-      } catch (preflightError: any) {
-        logger.warn('NowPayments pre-flight minimum check failed (non-fatal)', {
-          error: preflightError?.message || String(preflightError),
-          payCurrency: params.pay_currency,
-        })
-      }
 
       const response = await axios.post(
         `${API_URL}/payment`,
@@ -293,7 +254,6 @@ export class NowPaymentsService {
         price_amount: priceAmount,
         price_currency: invoice.price_currency || 'usd',
         pay_currency: invoice.pay_currency,
-        payout_currency: invoice.pay_currency,
         order_id: invoice.order_id,
         order_description: `Payment for invoice ${invoiceId}`,
       })
@@ -496,9 +456,7 @@ export class NowPaymentsService {
     }
 
     try {
-      // Map our currency codes to NowPayments format.
-      // NOTE: If callers already pass a NowPayments code (e.g. 'usdt_sol'),
-      // mapCurrencyToNowPayments will return null and we'll use the code as-is.
+      // Map our currency codes to NowPayments format
       const currencyMapper = await import('./currency-mapper')
       const mappedCurrency = currencyMapper.mapCurrencyToNowPayments(currencyTo, [])
       const payCurrency = mappedCurrency || currencyTo.toLowerCase()
@@ -549,3 +507,4 @@ export class NowPaymentsService {
     }
   }
 }
+

@@ -11,20 +11,6 @@ interface PaymentErrorDisplayProps {
   className?: string
 }
 
-function extractMinimumAmount(errorMessage: string): string | null {
-  // Match patterns like "$1.99823182" or "$2.00"
-  const match = errorMessage.match(/\$(\d+(\.\d+)?)/)
-  if (!match) return null
-
-  const amount = parseFloat(match[1])
-  if (!Number.isFinite(amount)) return null
-
-  // Round UP to 2 decimals for display so we never
-  // suggest a number that could still be rejected.
-  const roundedUp = Math.ceil(amount * 100) / 100
-  return roundedUp.toFixed(2)
-}
-
 export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorDisplayProps) {
   // Parse error type for better UX
   const isMinimumAmountError = error.toLowerCase().includes('minimum') || 
@@ -41,11 +27,11 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
   // Extract helpful information
   const getErrorDetails = () => {
     if (isMinimumAmountError) {
-      const extracted = extractMinimumAmount(error)
-      const displayAmount = extracted ? `$${extracted}` : 'the required minimum'
+      const amountMatch = error.match(/\$?(\d+\.?\d*)/)
+      const minAmount = amountMatch ? amountMatch[1] : '5'
       return {
         title: 'Payment Amount Too Low',
-        description: `The payment amount is below NowPayments' minimum requirement. Please use at least ${displayAmount} for this currency.`,
+        description: `The payment amount is below NowPayments' minimum requirement. Please use at least $${minAmount} for this currency.`,
         icon: AlertTriangle,
         variant: 'warning' as const,
       }
@@ -173,3 +159,4 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
     </div>
   )
 }
+
