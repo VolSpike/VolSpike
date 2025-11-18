@@ -995,56 +995,16 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             testAmount: z.number().min(0.01).max(10).optional(), // Optional - will be calculated from minimum
         }).parse(body)
 
-        // Fetch actual minimum amount from NowPayments API
+        // Base amount for test subscriptions (USD).
+        // We intentionally stay ~10% above NowPayments' dynamic minimums
+        // to avoid "less than minimal" edge cases due to rounding while
+        // keeping the advertised price around $2.00.
+        const TEST_BASE_AMOUNT_USD = 2.0
+        const TEST_MIN_MULTIPLIER = 1.1
+
+        // Start with any explicit testAmount; we'll adjust from there as needed.
         let priceAmount = testAmount
         const nowpayments = NowPaymentsService.getInstance()
-
-        // CRITICAL: Set invoice to exactly $2.10 (or minimum if higher)
-        // Buffer will be applied to QR code amount (pay_amount), not invoice amount
-        // This ensures NowPayments recognizes payment as fully paid
-        if (!priceAmount && payCurrency) {
-            try {
-                const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
-                if (minAmount) {
-                    // Use minimum amount or $2.10, whichever is higher (no buffer on invoice)
-                    priceAmount = Math.max(minAmount, 2.1)
-                    // Round to 2 decimals
-                    priceAmount = Math.ceil(priceAmount * 100) / 100
-
-                    logger.info('Set invoice amount to base amount (no buffer)', {
-                        currency: payCurrency,
-                        minAmount,
-                        invoiceAmount: priceAmount,
-                        note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
-                    })
-                } else {
-                    // Fallback: Use exactly $2.10 (no buffer)
-                    priceAmount = 2.1
-                    logger.warn('Unable to fetch minimum amount, using $2.10 base', {
-                        currency: payCurrency,
-                        invoiceAmount: priceAmount,
-                        note: 'Buffer will be applied to QR code amount',
-                    })
-                }
-            } catch (minAmountError) {
-                logger.error('Error fetching minimum amount, using $2.10 base', {
-                    error: minAmountError,
-                    currency: payCurrency,
-                })
-                // Fallback: Use exactly $2.10 (no buffer)
-                priceAmount = 2.1
-            }
-        } else if (!priceAmount) {
-            // No currency selected, use exactly $2.10 (no buffer)
-            priceAmount = 2.1
-        }
-
-        logger.info('Test checkout parameters', {
-            tier,
-            testAmount: priceAmount,
-            payCurrency,
-            userId: user.id,
-        })
 
         // Generate unique order ID with TEST prefix
         const orderId = `volspike-test-${user.id}-${Date.now()}`
@@ -1153,39 +1113,47 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         // This ensures we only show supported currencies, not all 300+ NowPayments currencies
         const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
 
-        // CRITICAL: Set invoice to exactly $2.10 (or minimum if higher) - NO buffer on invoice
-        // Buffer will be applied to QR code amount (pay_amount), not invoice amount
+        // Re-check minimum amount using the final mapped currency, and apply a
+        // 10% safety margin to avoid NowPayments "less than minimal" errors.
         if (!testAmount && finalPayCurrency) {
             try {
                 const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
-                if (minAmount && (!priceAmount || priceAmount < minAmount)) {
-                    // Use minimum amount or $2.10, whichever is higher (no buffer on invoice)
-                    priceAmount = Math.max(minAmount, 2.1)
-                    // Round to 2 decimals
-                    priceAmount = Math.ceil(priceAmount * 100) / 100
 
-                    logger.info('Set invoice amount to base amount (no buffer)', {
+                if (typeof minAmount === 'number') {
+                    // Base amount must be at least:
+                    //   - dynamic minimum * TEST_MIN_MULTIPLIER (e.g. 1.1),
+                    //   - and our configured TEST_BASE_AMOUNT_USD (e.g. 2.0)
+                    const targetBase = Math.max(minAmount * TEST_MIN_MULTIPLIER, TEST_BASE_AMOUNT_USD)
+                    priceAmount = Math.ceil(targetBase * 100) / 100
+
+                    logger.info('Test checkout min-amount enforcement', {
                         currency: finalPayCurrency,
                         minAmount,
+                        multiplier: TEST_MIN_MULTIPLIER,
+                        baseAmount: TEST_BASE_AMOUNT_USD,
                         invoiceAmount: priceAmount,
-                        note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
+                        note: 'Using NowPayments min_amount * multiplier to stay safely above minimum',
                     })
                 } else if (!priceAmount) {
-                    // No amount set, use exactly $2.10
-                    priceAmount = 2.1
+                    priceAmount = TEST_BASE_AMOUNT_USD
+                    logger.warn('Min-amount endpoint returned null/invalid value, using test base amount', {
+                        currency: finalPayCurrency,
+                        baseAmount: priceAmount,
+                    })
                 }
             } catch (minAmountError) {
-                logger.warn('Could not fetch minimum amount, using $2.10 base', {
-                    error: minAmountError,
+                logger.warn('Could not fetch minimum amount for test checkout, using test base amount', {
+                    error: minAmountError instanceof Error ? minAmountError.message : String(minAmountError),
                     currency: finalPayCurrency,
+                    baseAmount: TEST_BASE_AMOUNT_USD,
                 })
                 if (!priceAmount) {
-                    priceAmount = 2.1
+                    priceAmount = TEST_BASE_AMOUNT_USD
                 }
             }
         } else if (!priceAmount) {
-            // No currency selected, use exactly $2.10 (no buffer)
-            priceAmount = 2.1
+            // No explicit test amount set – fall back to base amount
+            priceAmount = TEST_BASE_AMOUNT_USD
         }
 
         logger.info('Test checkout currency determined', {
