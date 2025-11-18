@@ -17,6 +17,7 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
                                error.toLowerCase().includes('less than minimal')
   const isCurrencyError = error.toLowerCase().includes('currency') || 
                           error.toLowerCase().includes('pay_currency')
+  const isCurrencyFormatError = isCurrencyError && error.toLowerCase().includes('alpha-numeric')
   const isNetworkError = error.toLowerCase().includes('network') || 
                          error.toLowerCase().includes('fetch') ||
                          error.toLowerCase().includes('connection')
@@ -38,6 +39,15 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
     }
     
     if (isCurrencyError) {
+      if (isCurrencyFormatError) {
+        return {
+          title: 'Payment Currency Formatting Issue',
+          description: 'The payment provider rejected this currency code due to formatting. Please refresh this page and try again, or pick a different currency (USDT on Solana is recommended).',
+          icon: XCircle,
+          variant: 'destructive' as const,
+        }
+      }
+
       return {
         title: 'Invalid Currency',
         description: 'The selected payment currency is not supported or invalid. Please try selecting a different currency.',
@@ -81,7 +91,7 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
         variant={errorDetails.variant === 'destructive' ? 'destructive' : 'default'}
         className={cn(
           'border-2',
-          errorDetails.variant === 'destructive' && 'border-red-500/50 bg-red-500/10',
+          errorDetails.variant === 'destructive' && 'border-red-500/50 bg-gradient-to-r from-red-500/10 via-red-500/5 to-amber-500/10',
           errorDetails.variant === 'warning' && 'border-yellow-500/50 bg-yellow-500/10'
         )}
       >
@@ -107,11 +117,11 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
               {errorDetails.description}
             </AlertDescription>
             
-            {/* Show raw error in development */}
-            {process.env.NODE_ENV === 'development' && (
+            {/* Collapsible technical details for advanced debugging */}
+            {error && (
               <details className="mt-3">
                 <summary className="text-xs cursor-pointer opacity-70 hover:opacity-100">
-                  Technical Details
+                  Technical details
                 </summary>
                 <pre className="mt-2 text-xs bg-black/10 dark:bg-white/10 p-2 rounded overflow-auto">
                   {error}
@@ -159,4 +169,3 @@ export function PaymentErrorDisplay({ error, onRetry, className }: PaymentErrorD
     </div>
   )
 }
-

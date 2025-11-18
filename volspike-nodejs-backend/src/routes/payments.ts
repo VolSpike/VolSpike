@@ -1075,6 +1075,20 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         // This ensures we only show supported currencies, not all 300+ NowPayments currencies
         const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
 
+        // Some NowPayments environments are strict about pay_currency being alphanumeric only.
+        // If we see non-alphanumeric characters here (typically '_' or '-'), prefer to log and
+        // gracefully fall back to a flow where NowPayments lets the user choose the currency
+        // instead of returning a hard 400 with "pay_currency must only contain alpha-numeric chars".
+        const hasNonAlphanumericPayCurrency = /[^a-zA-Z0-9]/.test(finalPayCurrency)
+
+        if (hasNonAlphanumericPayCurrency) {
+            logger.warn('Final pay currency contains non-alphanumeric characters. NowPayments may reject this value.', {
+                originalPayCurrency: payCurrency,
+                finalPayCurrency,
+                note: 'Will avoid sending this code directly as pay_currency and may fall back to generic invoice flow.',
+            })
+        }
+
         // CRITICAL: Set invoice to exactly $2.00 (or minimum if higher) - NO buffer on invoice
         // Buffer will be applied to QR code amount (pay_amount), not invoice amount
         if (!testAmount && finalPayCurrency) {
@@ -1117,9 +1131,9 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             priceAmount,
         })
 
-        // If currency is selected, use payment API to get pay_address immediately for QR code
-        // Otherwise, use invoice API for hosted checkout where user selects currency
-        const usePaymentAPI = !!payCurrency // Use payment API if user explicitly selected a currency
+        // If currency is selected and looks safe, use payment API to get pay_address immediately
+        // Otherwise, use invoice API for hosted checkout where user can select a currency
+        const usePaymentAPI = !!payCurrency && !hasNonAlphanumericPayCurrency
 
         if (usePaymentAPI) {
             // Create payment directly (gives us pay_address immediately for QR code)
@@ -1252,18 +1266,32 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             }
         }
 
-        // Fallback to invoice API (for cases where currency not selected)
+        // Fallback to invoice API (for cases where currency not selected or looked unsafe)
         // Create invoice with NowPayments (hosted checkout flow)
-        const invoice = await nowpayments.createInvoice({
+        const invoicePayload: any = {
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: finalPayCurrency, // Use validated/mapped currency code (alphanumeric only for invoice API)
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
             ipn_callback_url: ipnCallbackUrl,
             success_url: successUrl,
             cancel_url: cancelUrl,
-        })
+        }
+
+        // Only include pay_currency if it is strictly alphanumeric – this avoids the
+        // "pay_currency must only contain alpha-numeric chars" validation error while
+        // still honouring the user's choice when the code is safe.
+        if (!hasNonAlphanumericPayCurrency && finalPayCurrency) {
+            invoicePayload.pay_currency = finalPayCurrency
+        } else {
+            logger.info('Omitting pay_currency from test invoice due to non-alphanumeric characters', {
+                originalPayCurrency: payCurrency,
+                finalPayCurrency,
+                hasNonAlphanumericPayCurrency,
+            })
+        }
+
+        const invoice = await nowpayments.createInvoice(invoicePayload)
 
         const invoiceId = invoice.invoice_id || invoice.id
         const invoiceUrl = invoice.invoice_url
@@ -1321,7 +1349,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         })
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        logger.error('Create TEST checkout error:', message)
+        logger.error('Create TEST checkout error:', {
+            message,
+            error,
+        })
         if (message.includes('User not authenticated') || message.includes('Authorization')) {
             return c.json({ error: 'Unauthorized' }, 401)
         }
