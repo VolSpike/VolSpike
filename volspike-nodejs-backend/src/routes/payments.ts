@@ -729,7 +729,7 @@ async function notifyAdminPaymentIssue(type: string, details: Record<string, any
 async function notifyAdminPaymentSuccess(type: string, details: Record<string, any>): Promise<void> {
     try {
         const emailService = EmailService.getInstance()
-        await emailService.sendPaymentIssueAlertEmail({
+        await emailService.sendPaymentSuccessAlertEmail({
             type,
             details,
         })

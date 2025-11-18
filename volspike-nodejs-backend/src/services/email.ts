@@ -1073,6 +1073,137 @@ Admin payments dashboard: ${dashboardUrl}
     }
 
     /**
+     * Send a success/ops notification to the site owner when a payment
+     * completes and the user is upgraded correctly. Uses the same
+     * lightweight JSON details pattern as the issue alert, but with
+     * positive wording so admins aren’t confused by “issue detected”
+     * on successful payments.
+     */
+    async sendPaymentSuccessAlertEmail(data: PaymentIssueAlertData): Promise<boolean> {
+        try {
+            if (!process.env.SENDGRID_API_KEY) {
+                logger.error('SENDGRID_API_KEY is not set in environment variables')
+                return false
+            }
+
+            const adminEmail =
+                process.env.ADMIN_ALERT_EMAIL ||
+                process.env.SUPPORT_EMAIL ||
+                'support@volspike.com'
+
+            const subject = `[VolSpike] Payment completed: ${data.type}`
+            const dashboardUrl = `${this.baseUrl}/admin/payments`
+            const safeDashboardUrl = dashboardUrl.replace(/"/g, '&quot;')
+
+            const prettyDetails = JSON.stringify(data.details, null, 2)
+            const createdAt = new Date().toISOString()
+
+            const html = `
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VolSpike Payment Success</title>
+  </head>
+  <body style="margin:0;padding:0;background:#0b1120;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b1120;">
+      <tr>
+        <td align="center" style="padding:24px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#020617;border-radius:16px;border:1px solid #1e293b;">
+            <tr>
+              <td style="padding:24px 24px 16px;border-bottom:1px solid #1e293b;">
+                <div style="font:600 14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#22c55e;text-transform:uppercase;letter-spacing:0.08em;">Payment Success</div>
+                <div style="margin-top:8px;font:600 22px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#e5e7eb;">
+                  ${subject.replace('[VolSpike] ', '')}
+                </div>
+                <div style="margin-top:4px;font:400 13px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#9ca3af;">
+                  Logged at ${createdAt}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 24px 8px;">
+                <div style="font:500 14px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#e5e7eb;margin-bottom:8px;">
+                  Summary
+                </div>
+                <div style="font:400 13px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#9ca3af;">
+                  A payment completed successfully and the user was upgraded or synced correctly. This email is for operational visibility only – no action is required unless something looks off in the details below.
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px 24px 8px;">
+                <div style="font:500 14px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#e5e7eb;margin-bottom:8px;">
+                  Details (JSON)
+                </div>
+                <pre style="margin:0;padding:12px 14px;border-radius:8px;background:#020617;border:1px solid #1e293b;font:12px/1.5 SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;color:#e5e7eb;white-space:pre-wrap;word-break:break-word;">
+${prettyDetails}
+                </pre>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 24px 24px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="left">
+                      <a href="${safeDashboardUrl}" style="display:inline-block;padding:10px 18px;border-radius:999px;background-image:linear-gradient(90deg,#22c55e,#22d3ee);color:#020617;font:600 13px/1 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;text-decoration:none;">
+                        Open Admin Payments
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <div style="margin-top:12px;font:11px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#6b7280;">
+                  You are receiving this email because <span style="color:#e5e7eb;">ADMIN_ALERT_EMAIL</span> or <span style="color:#e5e7eb;">SUPPORT_EMAIL</span> is configured for VolSpike.
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+`
+
+            const text = `VolSpike payment completed (${data.type})
+
+Logged at: ${createdAt}
+
+Details (JSON):
+${prettyDetails}
+
+Admin payments dashboard: ${dashboardUrl}
+`
+
+            const msg: any = {
+                to: adminEmail,
+                from: {
+                    email: this.fromEmail,
+                    name: 'VolSpike Alerts',
+                },
+                replyTo: 'support@volspike.com',
+                subject,
+                html,
+                text,
+                categories: ['payment-success'],
+                customArgs: {
+                    type: 'payment-success',
+                    successType: data.type,
+                    timestamp: Date.now().toString(),
+                },
+            }
+
+            await mail.send(msg)
+            logger.info(`Payment success alert email sent to ${adminEmail} (${data.type})`)
+            return true
+        } catch (error) {
+            logger.error('Failed to send payment success alert email:', error)
+            return false
+        }
+    }
+
+    /**
      * HTML template for tier upgrade email
      * Optimized for deliverability, responsiveness, and compatibility across all email clients
      */
