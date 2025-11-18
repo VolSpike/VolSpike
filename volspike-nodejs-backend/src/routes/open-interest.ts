@@ -7,7 +7,6 @@
  */
 
 import { Hono } from 'hono'
-import { env } from 'hono/adapter'
 
 const app = new Hono()
 
@@ -31,10 +30,14 @@ let oiCache: OISnapshot | null = null
 // Shared handler for OI ingestion
 const handleIngest = async (c: any) => {
   try {
-    // Get API key from environment
-    const { ALERT_INGEST_API_KEY } = env(c)
+    // Get API key from environment (Node.js runtime)
+    const ALERT_INGEST_API_KEY = process.env.ALERT_INGEST_API_KEY
+    if (!ALERT_INGEST_API_KEY) {
+      console.error('❌ Open Interest ingest error: ALERT_INGEST_API_KEY not configured')
+      return c.json({ error: 'Server configuration error' }, 500)
+    }
 
-    // Validate API key
+    // Validate API key (must match DigitalOcean script)
     const providedKey = c.req.header('X-API-Key')
     if (!providedKey || providedKey !== ALERT_INGEST_API_KEY) {
       console.log('⚠️  Open Interest ingest: Invalid API key')
@@ -113,14 +116,14 @@ app.get('/', async (c) => {
     }))
     
     console.log('📊 [Open Interest Debug] GET request:', {
-      updatedAt: new Date(oiCache.updatedAt).toISOString(),
+        updatedAt: new Date(oiCache.updatedAt).toISOString(),
       count: cacheKeys.length,
       sample: sampleData,
-      ageSeconds: Math.floor(age / 1000),
-      stale,
+        ageSeconds: Math.floor(age / 1000),
+        stale,
       dangerouslyStale,
       userAgent: c.req.header('user-agent')?.substring(0, 50)
-    })
+      })
 
     // Always return last known data; let client decide how to render stale
     return c.json({
