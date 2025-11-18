@@ -12,6 +12,7 @@ export interface CreatePaymentParams {
   price_amount: number
   price_currency: string
   pay_currency?: string  // Optional - if omitted, user can choose from all available currencies
+  payout_currency?: string  // Optional - merchant payout currency (defaults to account setting)
   order_id?: string
   order_description?: string
   ipn_callback_url?: string
@@ -23,6 +24,7 @@ export interface CreateInvoiceParams {
   price_amount: number
   price_currency: string
   pay_currency?: string  // Optional - if omitted, user can choose on checkout page
+  payout_currency?: string  // Optional - merchant payout currency
   order_id?: string
   order_description?: string
   ipn_callback_url?: string
@@ -254,6 +256,7 @@ export class NowPaymentsService {
         price_amount: priceAmount,
         price_currency: invoice.price_currency || 'usd',
         pay_currency: invoice.pay_currency,
+        payout_currency: invoice.pay_currency,
         order_id: invoice.order_id,
         order_description: `Payment for invoice ${invoiceId}`,
       })
@@ -507,4 +510,3 @@ export class NowPaymentsService {
     }
   }
 }
-
