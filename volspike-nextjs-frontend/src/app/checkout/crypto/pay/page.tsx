@@ -1076,7 +1076,7 @@ export default function CryptoPaymentPage() {
   const friendlyStatus = getFriendlyStatus(paymentDetails.paymentStatus)
   const baseUsd = paymentDetails.bufferInfo?.baseAmount ?? usdAmount
   const bufferedUsd = paymentDetails.bufferInfo?.bufferedAmount ?? usdAmount
-  const bufferPercent = paymentDetails.bufferInfo?.percentage ?? '20%'
+  const bufferPercent = paymentDetails.bufferInfo?.percentage ?? '5%'
   const displayAmount = paymentDetails.payAmountString || paymentDetails.payAmount.toString()
 
   return (

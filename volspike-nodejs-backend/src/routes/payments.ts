@@ -1147,30 +1147,30 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             let payAmount = payment.pay_amount
             const payCurrencyFromPayment = payment.pay_currency
 
-            // CRITICAL FIX: Add 20% buffer to QR code amount to cover network fees
+            // CRITICAL FIX: Add 5% buffer to QR code amount to cover network fees
             // Invoice: $2.00 USD → NowPayments converts to ~1.99386686 USDT (8 decimals)
-            // QR Code: Round UP to 6 decimals + 20% buffer = ~2.39264023 USDT
-            // User pays: 2.392640 USDT > Invoice (1.99386686) = Fully paid ✅
+            // QR Code: Round UP to 6 decimals + 5% buffer ≈ 2.09 USDT
+            // User pays: ~2.09 USDT > Invoice (1.99386686) = Fully paid ✅
             // This ensures NowPayments recognizes payment as fully paid while covering network fees
             const isUSDT = payCurrencyFromPayment?.toLowerCase().includes('usdt')
             const isUSDC = payCurrencyFromPayment?.toLowerCase().includes('usdc')
             if ((isUSDT || isUSDC) && typeof payAmount === 'number') {
                 // Round UP to 6 decimals (ceiling function) - ensures we're at least equal to invoice
                 const roundedUp = Math.ceil(payAmount * 1000000) / 1000000
-                // Add 20% buffer for network fees (10-20% range, using 20% for safety)
-                const bufferedAmount = roundedUp * 1.20
+                // Add 5% buffer for network fees
+                const bufferedAmount = roundedUp * 1.05
                 // Round UP again to ensure we're always above invoice amount
                 payAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
 
-                logger.info('Applied 20% buffer to QR code amount for network fees', {
+                logger.info('Applied 5% buffer to QR code amount for network fees', {
                     invoiceUSD: priceAmount,
                     originalPayAmount: payment.pay_amount,
                     roundedUpTo6Decimals: roundedUp,
                     bufferedAmount: bufferedAmount,
                     finalPayAmount: payAmount,
                     increase: payAmount - payment.pay_amount,
-                    increasePercent: '20%',
-                    note: 'QR code shows 20% higher amount than invoice to cover network fees, ensuring NowPayments recognizes full payment',
+                    increasePercent: '5%',
+                    note: 'QR code shows 5% higher amount than invoice to cover network fees, ensuring NowPayments recognizes full payment',
                 })
             }
 
@@ -1510,30 +1510,30 @@ payments.post('/nowpayments/checkout', async (c) => {
             let payAmount = payment.pay_amount
             const payCurrency = payment.pay_currency
 
-            // CRITICAL FIX: Add 20% buffer to QR code amount to cover network fees
+            // CRITICAL FIX: Add 5% buffer to QR code amount to cover network fees
             // Invoice: $2.00 USD → NowPayments converts to ~1.99386686 USDT (8 decimals)
-            // QR Code: Round UP to 6 decimals + 20% buffer = ~2.39264023 USDT
-            // User pays: 2.392640 USDT > Invoice (1.99386686) = Fully paid ✅
+            // QR Code: Round UP to 6 decimals + 5% buffer ≈ 2.09 USDT
+            // User pays: ~2.09 USDT > Invoice (1.99386686) = Fully paid ✅
             // This ensures NowPayments recognizes payment as fully paid while covering network fees
             const isUSDT = payCurrency?.toLowerCase().includes('usdt')
             const isUSDC = payCurrency?.toLowerCase().includes('usdc')
             if ((isUSDT || isUSDC) && typeof payAmount === 'number') {
                 // Round UP to 6 decimals (ceiling function) - ensures we're at least equal to invoice
                 const roundedUp = Math.ceil(payAmount * 1000000) / 1000000
-                // Add 20% buffer for network fees (10-20% range, using 20% for safety)
-                const bufferedAmount = roundedUp * 1.20
+                // Add 5% buffer for network fees
+                const bufferedAmount = roundedUp * 1.05
                 // Round UP again to ensure we're always above invoice amount
                 payAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
 
-                logger.info('Applied 20% buffer to QR code amount for network fees', {
+                logger.info('Applied 5% buffer to QR code amount for network fees', {
                     invoiceUSD: priceAmount,
                     originalPayAmount: payment.pay_amount,
                     roundedUpTo6Decimals: roundedUp,
                     bufferedAmount: bufferedAmount,
                     finalPayAmount: payAmount,
                     increase: payAmount - payment.pay_amount,
-                    increasePercent: '20%',
-                    note: 'QR code shows 20% higher amount than invoice to cover network fees, ensuring NowPayments recognizes full payment',
+                    increasePercent: '5%',
+                    note: 'QR code shows 5% higher amount than invoice to cover network fees, ensuring NowPayments recognizes full payment',
                 })
             }
 
@@ -2495,19 +2495,19 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
         })
 
         // Calculate buffer percentage for display
-        // CRITICAL: Invoice is $2.00, QR code shows 20% more (~$2.40 worth of crypto)
+        // CRITICAL: Invoice is $2.00, QR code shows 5% more (~$2.10 worth of crypto)
         // Buffer info should show: $2.00 base + $0.40 buffer = $2.40
         let bufferInfo = null
         if (paymentStatus.price_amount) {
             // The invoice amount is the BASE amount ($2.00)
-            // We apply 20% buffer to the QR code amount (crypto side)
-            // So the USD equivalent of QR code is: invoice * 1.20 = $2.40
+            // We apply 5% buffer to the QR code amount (crypto side)
+            // So the USD equivalent of QR code is: invoice * 1.05 = $2.10
             const baseAmount = paymentStatus.price_amount // $2.00 (invoice amount)
-            const bufferedAmount = baseAmount * 1.20 // $2.40 (QR code amount with 20% buffer)
+            const bufferedAmount = baseAmount * 1.05 // $2.10 (QR code amount with 5% buffer)
 
             bufferInfo = {
                 applied: true,
-                percentage: '20%',
+                percentage: '5%',
                 baseAmount: Math.round(baseAmount * 100) / 100, // Round to 2 decimals
                 bufferedAmount: Math.round(bufferedAmount * 100) / 100, // Round to 2 decimals
             }
@@ -2516,12 +2516,12 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
                 paymentId,
                 invoiceAmount: baseAmount,
                 qrCodeAmountUSD: bufferedAmount,
-                bufferPercent: '20%',
-                note: 'Invoice is base amount, QR code shows 20% more to cover network fees',
+                bufferPercent: '5%',
+                note: 'Invoice is base amount, QR code shows 5% more to cover network fees',
             })
         }
 
-        // CRITICAL: Apply 20% buffer to pay_amount for USDT/USDC (same as when creating payment)
+        // CRITICAL: Apply 5% buffer to pay_amount for USDT/USDC (same as when creating payment)
         // NowPayments returns the original amount, but QR code should show buffered amount
         let finalPayAmount = paymentStatus.pay_amount
         const isUSDT = paymentStatus.pay_currency?.toLowerCase().includes('usdt')
@@ -2530,18 +2530,18 @@ payments.get('/nowpayments/payment/:paymentId', async (c) => {
         if ((isUSDT || isUSDC) && typeof finalPayAmount === 'number') {
             // Round UP to 6 decimals (ceiling function) - ensures we're at least equal to invoice
             const roundedUp = Math.ceil(finalPayAmount * 1000000) / 1000000
-            // Add 20% buffer for network fees (same as when creating payment)
-            const bufferedAmount = roundedUp * 1.20
+            // Add 5% buffer for network fees (same as when creating payment)
+            const bufferedAmount = roundedUp * 1.05
             // Round UP again to ensure we're always above invoice amount
             finalPayAmount = Math.ceil(bufferedAmount * 1000000) / 1000000
 
-            logger.info('Applied 20% buffer to pay_amount for QR code', {
+            logger.info('Applied 5% buffer to pay_amount for QR code', {
                 originalPayAmount: paymentStatus.pay_amount,
                 roundedUpTo6Decimals: roundedUp,
                 bufferedAmount: bufferedAmount,
                 finalPayAmount: finalPayAmount,
                 increase: finalPayAmount - paymentStatus.pay_amount,
-                increasePercent: '20%',
+                increasePercent: '5%',
                 note: 'QR code will show buffered amount, ensuring NowPayments recognizes full payment',
             })
         }
