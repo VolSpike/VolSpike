@@ -38,6 +38,29 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
         redirect('/auth?next=/admin/payments&mode=admin&error=access_denied')
     }
 
+    // CRITICAL: Check if accessToken exists - required for admin API calls
+    const accessToken = (session as any)?.accessToken
+    if (!accessToken) {
+        console.error('[PaymentsPage] No access token in session - redirecting to re-authenticate', {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            userId: session?.user?.id,
+            role: session?.user?.role,
+            note: 'Admin API requires JWT token in session.accessToken',
+        })
+        redirect('/auth?next=/admin/payments&mode=admin&error=token_missing')
+    }
+
+    // Verify token looks like a JWT (contains dots)
+    if (!accessToken.includes('.')) {
+        console.error('[PaymentsPage] Invalid token format (not a JWT)', {
+            tokenLength: accessToken.length,
+            tokenPreview: accessToken.substring(0, 20),
+            note: 'Admin API requires JWT token format',
+        })
+        redirect('/auth?next=/admin/payments&mode=admin&error=invalid_token')
+    }
+
     const query = {
         userId: params.userId,
         email: params.email,
@@ -53,7 +76,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
     }
 
     try {
-        adminAPI.setAccessToken(session.accessToken || null)
+        adminAPI.setAccessToken(accessToken)
         const paymentsData = await adminAPI.getPayments(query)
 
         return (
@@ -61,7 +84,7 @@ export default async function PaymentsPage({ searchParams }: PaymentsPageProps) 
                 <PaymentsPageClient
                     initialData={paymentsData}
                     query={query}
-                    accessToken={session.accessToken || null}
+                    accessToken={accessToken}
                 />
             </AdminLayout>
         )
