@@ -320,19 +320,19 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     asOf: payload?.asOf ? new Date(payload.asOf).toISOString() : null
                 });
 
-                // Re-render with updated OI data if we have tickers
-                if (tickersRef.current.size > 0) {
-                    const snapshot = buildSnapshot();
-                    console.log(`🔍 [Open Interest Debug] Built snapshot: ${snapshot.length} items`);
-                    // Debug first few items
-                    snapshot.slice(0, 5).forEach(item => {
-                        const normalizedSym = normalizeSym(item.symbol);
-                        const oiValue = openInterestRef.current.get(normalizedSym);
-                        console.log(`🔍 [Open Interest Debug] Snapshot item: ${item.symbol} -> normalized: ${normalizedSym}, OI: ${oiValue ?? 'NOT FOUND'}`);
-                    });
-                    if (snapshot.length > 0) {
-                        render(snapshot);
-                    }
+                // Always re-render with updated OI data (even if tickers aren't loaded yet, they'll be matched later)
+                const snapshot = buildSnapshot();
+                console.log(`🔍 [Open Interest Debug] Built snapshot: ${snapshot.length} items (tickers: ${tickersRef.current.size})`);
+                // Debug first few items
+                snapshot.slice(0, 5).forEach(item => {
+                    const normalizedSym = normalizeSym(item.symbol);
+                    const oiValue = openInterestRef.current.get(normalizedSym);
+                    console.log(`🔍 [Open Interest Debug] Snapshot item: ${item.symbol} -> normalized: ${normalizedSym}, OI: ${oiValue ?? 'NOT FOUND'}`);
+                });
+                if (snapshot.length > 0) {
+                    render(snapshot);
+                } else if (tickersRef.current.size === 0) {
+                    console.warn('⚠️ [Open Interest Debug] No snapshot items and no tickers - OI data available but no tickers to match');
                 }
             } else {
                 // No clobbering! Keep existing ref so UI doesn't flip to 0s
@@ -431,6 +431,10 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
 
             if (seeded > 0) {
+                console.log(`🔍 [Open Interest Debug] Tickers seeded: ${seeded} symbols`);
+                // Fetch OI after tickers are loaded so we can match symbols
+                void fetchOpenInterest();
+                
                 const snapshot = buildSnapshot();
                 // Only render if we are still within the bootstrap window and before first paint
                 const now = Date.now();
@@ -483,9 +487,14 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
 
                 void primeFundingSnapshot();
                 void primeActiveSymbols();
-                void fetchOpenInterest(); // Fetch Open Interest from backend on connection
-                // Warm start: try to seed from REST in parallel (best-effort)
-                void primeTickersSnapshot();
+                // Warm start: seed tickers first, then fetch OI after tickers are loaded
+                void primeTickersSnapshot().then(() => {
+                    // Fetch OI after tickers are seeded so we can match symbols
+                    console.log('🔍 [Open Interest Debug] Tickers seeded, fetching OI...');
+                    void fetchOpenInterest();
+                });
+                // Also fetch OI immediately in case tickers are already loaded from localStorage
+                void fetchOpenInterest();
             };
 
             wsRef.current.onmessage = (ev) => {
@@ -495,9 +504,11 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     const arr = Array.isArray(payload) ? payload : [payload];
 
                     // Process ticker data
+                    let tickersUpdated = false;
                     for (const it of arr) {
                         if (it?.e === '24hrTicker' || it?.c || it?.v) {
                             tickersRef.current.set(it.s, it);
+                            tickersUpdated = true;
                         }
                         if (
                             it?.r !== undefined ||
@@ -519,6 +530,11 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                                 });
                             }
                         }
+                    }
+
+                    // If tickers were updated and we have OI data, trigger a fetch to match symbols
+                    if (tickersUpdated && openInterestRef.current.size > 0) {
+                        console.log(`🔍 [Open Interest Debug] Tickers updated via WebSocket, re-rendering with OI data`);
                     }
 
                     const snapshot = buildSnapshot();
