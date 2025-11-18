@@ -1142,9 +1142,15 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             }
         }
 
-        // Use mapped currency or default to USDT on Solana (proper format: usdt_sol)
-        // This ensures we only show supported currencies, not all 300+ NowPayments currencies
+        // Use mapped currency or default to USDT on Solana.
+        // For TEST payments, NowPayments expects pay_currency to be
+        // alphanumeric only (no underscores/dashes). Our internal codes
+        // (usdtsol, usdterc20, usdce, sol, btc, eth) already follow this
+        // pattern, so we prefer them when talking to the payment API.
         const finalPayCurrency: string = mappedPayCurrency || 'usdt_sol'
+        const paymentPayCurrency: string = (payCurrency
+            ? payCurrency.toLowerCase()
+            : finalPayCurrency.replace(/[^a-zA-Z0-9]/g, '').toLowerCase())
 
         logger.info('Test checkout currency determined', {
             originalPayCurrency: payCurrency,
@@ -1160,7 +1166,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         if (usePaymentAPI) {
             // Create payment directly (gives us pay_address immediately for QR code)
             logger.info('Using payment API for test checkout (currency already selected)', {
-                payCurrency: finalPayCurrency,
+                payCurrency: paymentPayCurrency,
                 priceAmount,
                 orderId,
             })
@@ -1168,8 +1174,8 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             const paymentParams: any = {
                 price_amount: priceAmount,
                 price_currency: 'usd',
-                pay_currency: finalPayCurrency,
-                payout_currency: finalPayCurrency,
+                pay_currency: paymentPayCurrency,
+                payout_currency: paymentPayCurrency,
                 order_id: orderId,
                 order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
                 ipn_callback_url: ipnCallbackUrl,
@@ -1293,8 +1299,8 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         const invoice = await nowpayments.createInvoice({
             price_amount: priceAmount,
             price_currency: 'usd',
-            pay_currency: finalPayCurrency, // Use validated/mapped currency code (alphanumeric only for invoice API)
-            payout_currency: finalPayCurrency,
+            pay_currency: paymentPayCurrency, // TEST: use alphanumeric internal code (no underscores/dashes)
+            payout_currency: paymentPayCurrency,
             order_id: orderId,
             order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
             ipn_callback_url: ipnCallbackUrl,
