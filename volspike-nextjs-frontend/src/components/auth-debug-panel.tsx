@@ -43,16 +43,15 @@ export function AuthDebugPanel() {
     const run = async () => {
       try {
         setMeState({ status: 'loading' })
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-        const authToken = (session as any)?.accessToken || session.user.id
         const start = performance.now()
 
-        const response = await fetch(`${apiUrl}/api/auth/me`, {
+        // Use same-origin proxy route for consistency with SessionValidator
+        const response = await fetch('/api/auth/me', {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${authToken}`,
             'X-Auth-Source': 'auth-debug-panel',
           },
+          credentials: 'include',
           cache: 'no-store',
         })
 
@@ -260,4 +259,3 @@ export function AuthDebugPanel() {
     </div>
   )
 }
-

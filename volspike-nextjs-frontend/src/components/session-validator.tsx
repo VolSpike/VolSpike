@@ -17,7 +17,6 @@ export function SessionValidator() {
             return
         }
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
         const controller = new AbortController()
 
         const logout = async (reason: string, source: string, statusCode: number) => {
@@ -41,22 +40,21 @@ export function SessionValidator() {
 
         const check = async (source: string) => {
             try {
-                // Use stable database user id for /me checks.
-                // This avoids any JWT secret mismatches between environments.
-                const token = String((session.user as any).id)
-
                 const start = Date.now()
-                console.log('[SessionValidator] 🔍 Checking user status', {
+                console.log('[SessionValidator] 🔍 Checking user status via /api/auth/me', {
                     source,
                     userId: (session.user as any).id,
                 })
 
-                const res = await fetch(`${apiUrl}/api/auth/me`, {
+                // Call the Next.js API route, which proxies to the backend and
+                // forwards status codes as-is. This keeps everything same-origin
+                // and resistant to environment mismatches.
+                const res = await fetch('/api/auth/me', {
                     method: 'GET',
                     headers: {
-                        Authorization: `Bearer ${token}`,
                         'X-Auth-Source': 'session-validator',
                     },
+                    credentials: 'include',
                     cache: 'no-store',
                     signal: controller.signal,
                 })
