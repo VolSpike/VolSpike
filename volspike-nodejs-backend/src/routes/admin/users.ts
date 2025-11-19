@@ -208,6 +208,9 @@ adminUserRoutes.get('/', async (c) => {
             where.status = { not: UserStatus.BANNED }
         }
 
+        // Payment completion statuses we consider as "paid" for admin summaries
+        const COMPLETED_CRYPTO_STATUSES = ['finished', 'confirmed']
+
         // Optimize: Run count and findMany in parallel for better performance
         const [total, users] = await Promise.all([
             prisma.user.count({ where }),
@@ -226,11 +229,17 @@ adminUserRoutes.get('/', async (c) => {
                 stripeCustomerId: true,
                 cryptoPayments: {
                     where: {
-                        paymentStatus: 'finished',
+                        // Treat both "finished" and "confirmed" as completed crypto payments
+                        paymentStatus: {
+                            in: COMPLETED_CRYPTO_STATUSES,
+                        },
                     },
                     select: {
                         id: true,
                         actuallyPaidCurrency: true,
+                        paymentStatus: true,
+                        expiresAt: true,
+                        paidAt: true,
                     },
                     take: 1,
                     orderBy: {
@@ -283,20 +292,23 @@ adminUserRoutes.get('/', async (c) => {
 
         // Batch fetch crypto payment expirations for all users
         const userIds = users.map(u => u.id)
-        const cryptoPaymentsMap = new Map<string, Date>()
+        const cryptoPaymentsMap = new Map<string, { expiresAt: Date; status: string }>()
         if (userIds.length > 0) {
             const activeCryptoPayments = await prisma.cryptoPayment.findMany({
                 where: {
                     userId: { in: userIds },
-                    paymentStatus: 'finished',
+                    // Consider both finished and confirmed as "completed"
+                    paymentStatus: {
+                        in: COMPLETED_CRYPTO_STATUSES,
+                    },
                     expiresAt: {
                         not: null,
-                        gte: new Date(),
                     },
                 } as any,
                 select: {
                     userId: true,
                     expiresAt: true,
+                    paymentStatus: true,
                 },
                 orderBy: {
                     expiresAt: 'desc',
@@ -307,8 +319,11 @@ adminUserRoutes.get('/', async (c) => {
             activeCryptoPayments.forEach(payment => {
                 if (payment.expiresAt) {
                     const existing = cryptoPaymentsMap.get(payment.userId)
-                    if (!existing || payment.expiresAt > existing) {
-                        cryptoPaymentsMap.set(payment.userId, payment.expiresAt)
+                    if (!existing || payment.expiresAt > existing.expiresAt) {
+                        cryptoPaymentsMap.set(payment.userId, {
+                            expiresAt: payment.expiresAt,
+                            status: payment.paymentStatus || 'finished',
+                        })
                     }
                 }
             })
@@ -351,9 +366,9 @@ adminUserRoutes.get('/', async (c) => {
             let cryptoCurrency: string | null = null // Currency used for crypto payment
             
             // Get crypto subscription expiration (from batched fetch)
-            const cryptoExpiration = cryptoPaymentsMap.get(user.id)
-            if (cryptoExpiration) {
-                subscriptionExpiresAt = cryptoExpiration
+            const cryptoInfo = cryptoPaymentsMap.get(user.id)
+            if (cryptoInfo) {
+                subscriptionExpiresAt = cryptoInfo.expiresAt
                 subscriptionMethod = 'crypto'
                 // Get currency from crypto payment
                 if (hasCryptoPayment && user.cryptoPayments && user.cryptoPayments.length > 0) {
@@ -400,7 +415,7 @@ adminUserRoutes.get('/', async (c) => {
                 paymentMethod = 'stripe'
             }
 
-            return {
+            const enriched = {
                 ...user,
                 paymentMethod,
                 subscriptionExpiresAt,
@@ -408,6 +423,25 @@ adminUserRoutes.get('/', async (c) => {
                 cryptoCurrency, // Currency used for crypto payment (e.g., 'usdt_sol', 'eth')
                 cryptoPayments: undefined, // Remove from response
             }
+
+            // Focused debug logging to understand why some users (like crypto-test) show
+            // "No active subscription" even after a successful crypto payment.
+            if (process.env.ADMIN_SUBSCRIPTION_DEBUG === 'true') {
+                logger.info('[AdminUsers] Subscription summary', {
+                    userId: user.id,
+                    email: user.email,
+                    tier: user.tier,
+                    hasCryptoPayment,
+                    hasStripe,
+                    cryptoPaymentSample: user.cryptoPayments?.[0] || null,
+                    subscriptionExpiresAt: subscriptionExpiresAt?.toISOString() || null,
+                    subscriptionMethod,
+                    paymentMethod,
+                    cryptoCurrency,
+                })
+            }
+
+            return enriched
         })
 
         return c.json({
