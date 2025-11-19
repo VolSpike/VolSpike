@@ -41,10 +41,9 @@ export function SessionValidator() {
 
         const check = async (source: string) => {
             try {
-                const token =
-                    (session as any)?.accessToken ||
-                    (session as any)?.user?.accessToken ||
-                    (session.user as any).id
+                // Use stable database user id for /me checks.
+                // This avoids any JWT secret mismatches between environments.
+                const token = String((session.user as any).id)
 
                 const start = Date.now()
                 console.log('[SessionValidator] 🔍 Checking user status', {
@@ -76,9 +75,14 @@ export function SessionValidator() {
                     return
                 }
 
-                // Any other non-OK status is also treated as fatal to avoid zombie sessions
+                // Any other non-OK status is treated as a soft failure – log it but
+                // don't immediately kill the session to avoid flapping on transient
+                // backend issues. Deletion is always signalled via 401/403/404.
                 if (!res.ok) {
-                    await logout('non-ok-response', source, res.status)
+                    console.warn('[SessionValidator] Non-OK response from /api/auth/me (non-fatal)', {
+                        status: res.status,
+                        source,
+                    })
                     return
                 }
 
@@ -105,11 +109,12 @@ export function SessionValidator() {
                 if (error?.name === 'AbortError') {
                     return
                 }
-                console.error('[SessionValidator] Error checking user status', {
+                console.error('[SessionValidator] Error checking user status (non-fatal)', {
                     error: error?.message || String(error),
+                    source,
                 })
-                // Be conservative: network errors should not leave stale sessions around
-                await logout('network-error', source, 0)
+                // Network failures are treated as transient; do not log the user out
+                // automatically here to avoid aggressive flapping.
             }
         }
 
