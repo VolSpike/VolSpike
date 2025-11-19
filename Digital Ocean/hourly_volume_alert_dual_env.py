@@ -1,6 +1,6 @@
 """
-Hourly Volume Spike Alert – Binance USDT-Perpetuals (Dual Environment)
-────────────────────────────────────────────────────────────────────────
+Hourly Volume Spike Alert – Binance USDT-Perpetuals (Dual Environment + Open Interest)
+────────────────────────────────────────────────────────────────────────────────────────
 • Scans every 5 min on the clock (…:00, :05, :10, …)
 • At hh:00 → uses last two *closed* hourly candles
   All other times → compares current open candle vs. previous closed
@@ -9,6 +9,7 @@ Hourly Volume Spike Alert – Binance USDT-Perpetuals (Dual Environment)
 • Sends spikes to Telegram
 • Sends spikes to VolSpike PRODUCTION and DEV dashboards with candle direction
 • Updates alerts at XX:30 (HALF-UPDATE) and XX:00 (UPDATE) for previously alerted assets
+• Fetches and posts Open Interest data to PRODUCTION and DEV backends every 5 minutes
 """
 
 import os
@@ -77,15 +78,15 @@ def tg_send(text: str):
         print("Telegram send exception:", e)
 
 
-def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, asset: str, 
-                         curr_vol: float, prev_vol: float, ratio: float, price: float, 
+def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, asset: str,
+                         curr_vol: float, prev_vol: float, ratio: float, price: float,
                          funding_rate: float, alert_msg: str, curr_hour: datetime.datetime,
-                         utc_now: datetime.datetime, is_update: bool, alert_type: str, 
+                         utc_now: datetime.datetime, is_update: bool, alert_type: str,
                          candle_direction: str) -> bool:
     """Send alert to a specific VolSpike backend environment."""
     if not api_key or not api_url:
         return False
-    
+
     try:
         payload = {
             "symbol": sym,
@@ -102,7 +103,7 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
             "isUpdate": is_update,
             "alertType": alert_type,
         }
-        
+
         r = session.post(
             f"{api_url}/api/volume-alerts/ingest",
             json=payload,
@@ -112,7 +113,7 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
             },
             timeout=5
         )
-        
+
         if r.status_code == 200:
             candle_emoji = "🟢" if candle_direction == "bullish" else "🔴"
             print(f"  ✅ Posted to VolSpike {env_name}: {asset} {candle_emoji}")
@@ -125,7 +126,7 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
         return False
 
 
-def volspike_send(sym: str, asset: str, curr_vol: float, prev_vol: float, ratio: float, 
+def volspike_send(sym: str, asset: str, curr_vol: float, prev_vol: float, ratio: float,
                   price: float, funding_rate: float, alert_msg: str, curr_hour: datetime.datetime,
                   utc_now: datetime.datetime, is_update: bool, alert_type: str, candle_direction: str):
     """Send alert to VolSpike backends (production and dev if configured)."""
@@ -135,7 +136,7 @@ def volspike_send(sym: str, asset: str, curr_vol: float, prev_vol: float, ratio:
         sym, asset, curr_vol, prev_vol, ratio, price, funding_rate,
         alert_msg, curr_hour, utc_now, is_update, alert_type, candle_direction
     )
-    
+
     # Send to dev (optional - only if env vars are set)
     if VOLSPIKE_API_URL_DEV and VOLSPIKE_API_KEY_DEV:
         dev_success = volspike_send_to_env(
@@ -172,6 +173,131 @@ def last_two_closed_klines(sym: str):
     now_ms = int(time.time() * 1000)
     closed = [k for k in kl if k[6] < now_ms]
     return closed[-2:] if len(closed) >= 2 else []
+
+
+def fetch_and_post_open_interest_to_env(api_url: str, api_key: str, env_name: str,
+                                         open_interest_data: list, utc_now: datetime.datetime) -> bool:
+    """Post Open Interest data to a specific VolSpike backend environment."""
+    if not api_key or not api_url:
+        return False
+
+    try:
+        payload = {
+            "data": open_interest_data,
+            "timestamp": utc_now.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "totalSymbols": len(open_interest_data)
+        }
+
+        r = session.post(
+            f"{api_url}/api/market/open-interest/ingest",
+            json=payload,
+            headers={
+                "X-API-Key": api_key,
+                "Content-Type": "application/json"
+            },
+            timeout=10
+        )
+
+        if r.status_code == 200:
+            print(f"✅ Posted Open Interest to {env_name}: {len(open_interest_data)} symbols")
+            return True
+        else:
+            print(f"⚠️  Open Interest post to {env_name} failed {r.status_code}: {r.text[:120]}")
+            return False
+
+    except Exception as e:
+        print(f"⚠️  Open Interest post to {env_name} exception: {e}")
+        return False
+
+
+def fetch_and_post_open_interest() -> None:
+    """
+    Fetch Open Interest for all active USDT perpetuals and post to VolSpike backends.
+    Sends to both PROD and DEV (if configured).
+    Runs every 5 minutes alongside the volume scan.
+    """
+    if not VOLSPIKE_API_KEY or not VOLSPIKE_API_URL:
+        print("⚠️  Open Interest: VolSpike PROD API not configured, skipping...")
+        return
+
+    try:
+        print("📊 Fetching Open Interest data from Binance...", flush=True)
+
+        # Get all active perpetuals
+        symbols = active_perps()
+        if not symbols:
+            print("⚠️  Open Interest: No active symbols found")
+            return
+
+        # Fetch Open Interest for each symbol
+        open_interest_data = []
+        success_count = 0
+        error_count = 0
+
+        for sym in symbols:
+            try:
+                # Fetch Open Interest from Binance
+                oi_resp = session.get(
+                    f"{API}/fapi/v1/openInterest",
+                    params={"symbol": sym},
+                    timeout=5
+                ).json()
+
+                # Parse response
+                if "openInterest" in oi_resp:
+                    open_interest = float(oi_resp["openInterest"])
+
+                    # Get current mark price to calculate USD notional
+                    mark_resp = session.get(
+                        f"{API}/fapi/v1/premiumIndex",
+                        params={"symbol": sym},
+                        timeout=5
+                    ).json()
+
+                    mark_price = float(mark_resp.get("markPrice", 0))
+
+                    # Calculate USD notional (Open Interest in contracts * Mark Price)
+                    oi_usd = open_interest * mark_price
+
+                    open_interest_data.append({
+                        "symbol": sym,
+                        "openInterest": open_interest,
+                        "openInterestUsd": oi_usd,
+                        "markPrice": mark_price
+                    })
+                    success_count += 1
+
+            except Exception as e:
+                error_count += 1
+                # Silent failure for individual symbols to avoid spam
+                continue
+
+        if not open_interest_data:
+            print(f"⚠️  Open Interest: No data fetched (errors: {error_count})")
+            return
+
+        # Get current UTC time
+        utc_now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+
+        # Post to PROD (required)
+        prod_success = fetch_and_post_open_interest_to_env(
+            VOLSPIKE_API_URL, VOLSPIKE_API_KEY, "PROD",
+            open_interest_data, utc_now
+        )
+
+        # Post to DEV (optional - only if env vars are set)
+        if VOLSPIKE_API_URL_DEV and VOLSPIKE_API_KEY_DEV:
+            dev_success = fetch_and_post_open_interest_to_env(
+                VOLSPIKE_API_URL_DEV, VOLSPIKE_API_KEY_DEV, "DEV",
+                open_interest_data, utc_now
+            )
+
+        # Summary
+        print(f"📊 Open Interest fetch complete: {success_count} success, {error_count} errors")
+
+    except Exception as e:
+        print(f"⚠️  Open Interest fetch exception: {e}")
+
 
 # ─────────────────────── core scan function ─────────────────────
 
@@ -247,7 +373,7 @@ def scan(top_of_hour: bool, is_middle_hour: bool = False) -> None:
         if spike or update_alert:
             asset = sym.replace("USDT", "")
             alert_msg = f"{update_prefix}{asset} hourly volume {fmt(curr_vol)} ({ratio:.2f}× prev) — VOLUME SPIKE!"
-            
+
             # Determine alert type
             if update_prefix == "HALF-UPDATE: ":
                 alert_type = "HALF_UPDATE"
@@ -255,14 +381,14 @@ def scan(top_of_hour: bool, is_middle_hour: bool = False) -> None:
                 alert_type = "FULL_UPDATE"
             else:
                 alert_type = "SPIKE"
-            
+
             # Add candle emoji to console output
             candle_emoji = "🟢" if is_bullish else "🔴"
             print(f"\033[95;1m{line}  ← {'VOLUME SPIKE!' if spike else (update_prefix + 'VOLUME SPIKE!')} {candle_emoji}\033[0m")
-            
+
             # Send to Telegram
             tg_send(alert_msg)
-            
+
             # Send to VolSpike (both PROD and DEV)
             volspike_send(
                 sym=sym,
@@ -285,7 +411,13 @@ def scan(top_of_hour: bool, is_middle_hour: bool = False) -> None:
 
 
 # ───────────────────────── main loop ────────────────────────────
-print("Hourly-volume alert running…  (Ctrl-C to stop)")
+print("Hourly-volume alert (dual-env) running…  (Ctrl-C to stop)")
+print("📊 Open Interest tracking enabled (dual-env)")
+if VOLSPIKE_API_URL_DEV and VOLSPIKE_API_KEY_DEV:
+    print("🔧 DEV environment configured - sending to both PROD and DEV")
+else:
+    print("🔧 DEV environment NOT configured - sending to PROD only")
+
 while True:
     utc_now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
     top_of_hour = (utc_now.minute == 0)
@@ -297,6 +429,12 @@ while True:
     except Exception as e:
         print("⚠️  Error:", e)
 
+    # Fetch and post Open Interest data every 5 minutes
+    try:
+        fetch_and_post_open_interest()
+    except Exception as e:
+        print(f"⚠️  Open Interest error: {e}")
+
     # Sleep until next 5-minute boundary
     utc_now = datetime.datetime.utcnow()
     seconds = utc_now.minute * 60 + utc_now.second
@@ -306,4 +444,3 @@ while True:
         sys.stdout.flush()
         time.sleep(1)
     print()
-
