@@ -301,7 +301,9 @@ def fetch_and_post_open_interest() -> None:
 
 # ─────────────────────── core scan function ─────────────────────
 
-def scan(top_of_hour: bool, is_middle_hour: bool = False) -> None:
+def scan(top_of_hour: bool, is_middle_hour: bool = False, utc_now: datetime.datetime = None) -> None:
+    if utc_now is None:
+        utc_now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
     for sym in active_perps():
         try:
             if top_of_hour:
@@ -425,7 +427,7 @@ while True:
 
     print("Starting volume scan…", flush=True)
     try:
-        scan(top_of_hour, is_middle_hour)
+        scan(top_of_hour, is_middle_hour, utc_now)
     except Exception as e:
         print("⚠️  Error:", e)
 

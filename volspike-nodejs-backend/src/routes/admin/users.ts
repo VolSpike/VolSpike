@@ -606,6 +606,16 @@ adminUserRoutes.delete('/:id', async (c) => {
                 userId,
                 email: user.email,
             })
+            
+            // Broadcast ban event BEFORE updating status
+            try {
+                const { broadcastUserDeletion } = await import('../../services/alert-broadcaster')
+                await broadcastUserDeletion(userId, 'banned')
+                logger.info(`Broadcasted user ban event to user ${userId}`)
+            } catch (broadcastError: any) {
+                logger.warn('Failed to broadcast user ban (non-critical):', broadcastError?.message)
+            }
+            
             await prisma.user.update({
                 where: { id: userId },
                 data: { status: UserStatus.BANNED },
@@ -617,6 +627,16 @@ adminUserRoutes.delete('/:id', async (c) => {
                 userId,
                 email: user.email,
             })
+            
+            // CRITICAL: Broadcast deletion event BEFORE deleting user to ensure Socket.IO can find the user room
+            // This ensures deleted users are logged out immediately via WebSocket
+            try {
+                const { broadcastUserDeletion } = await import('../../services/alert-broadcaster')
+                await broadcastUserDeletion(userId, 'deleted')
+                logger.info(`Broadcasted user deletion event to user ${userId}`)
+            } catch (broadcastError: any) {
+                logger.warn('Failed to broadcast user deletion (non-critical):', broadcastError?.message)
+            }
             
             // CRITICAL: Delete all NextAuth sessions for this user to force immediate logout
             // This ensures deleted users cannot continue using their sessions

@@ -12,12 +12,16 @@ export function useSocket() {
     useEffect(() => {
         if (!session) return
 
-        // Use session user email for Socket.io authentication
-        // Email is consistent across environments, unlike IDs
+        // Prefer userId for Socket.io authentication (for user-specific room matching)
+        // Fallback to email if userId not available
+        const userId = (session.user as any)?.id
         const userEmail = session.user?.email || 'test-free@example.com'
+        
+        // Use userId with method=id query param for proper room matching
+        // This ensures user-deleted events are broadcast to the correct room
         const token = process.env.NODE_ENV === 'development'
             ? `mock-token-${userEmail}-${Date.now()}`
-            : userEmail
+            : userId || userEmail
 
         // Use dedicated Socket.IO URL; never point to Binance WS URL
         const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_IO_URL || 'http://localhost:3001'
@@ -25,6 +29,7 @@ export function useSocket() {
             auth: {
                 token: token,
             },
+            query: userId ? { method: 'id' } : {}, // Tell backend to use ID lookup
             transports: ['websocket', 'polling'],
         })
 

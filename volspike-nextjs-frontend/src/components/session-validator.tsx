@@ -29,10 +29,11 @@ export function SessionValidator() {
             return
         }
 
-        // Throttle checks - don't check more than once per 5 seconds
+        // Throttle checks - don't check more than once per 3 seconds (more aggressive)
         const now = Date.now()
-        if (now - lastCheckRef.current < 5000) {
-            console.log(`[SessionValidator] Throttled check (source: ${source}, last check: ${now - lastCheckRef.current}ms ago)`)
+        const timeSinceLastCheck = now - lastCheckRef.current
+        if (timeSinceLastCheck < 3000) {
+            console.log(`[SessionValidator] Throttled check (source: ${source}, last check: ${timeSinceLastCheck}ms ago)`)
             return
         }
 
@@ -43,6 +44,7 @@ export function SessionValidator() {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
             const authToken = (session as any)?.accessToken || session.user.id
 
+            const startTime = Date.now()
             console.log(`[SessionValidator] 🔍 Checking user status (source: ${source}, userId: ${session.user.id})`)
 
             const response = await fetch(`${apiUrl}/api/auth/me`, {
@@ -52,21 +54,34 @@ export function SessionValidator() {
                 cache: 'no-store', // Ensure we don't get cached responses
             })
 
-            console.log(`[SessionValidator] Response status: ${response.status} (source: ${source})`)
+            const responseTime = Date.now() - startTime
+            console.log(`[SessionValidator] Response status: ${response.status} (source: ${source}, took: ${responseTime}ms)`)
 
             // Check for 404 (user deleted) or 401 (user not found - backwards compatibility)
             if (response.status === 404 || response.status === 401) {
                 const errorData = await response.json().catch(() => ({ error: 'User not found' }))
                 
                 // Double-check it's actually a "user not found" error, not an auth error
-                if (response.status === 404 || errorData.error?.toLowerCase().includes('not found')) {
-                    console.error(`[SessionValidator] ⚠️ User account was deleted (404/401) - logging out immediately`)
+                const isUserNotFound = response.status === 404 || 
+                    errorData.error?.toLowerCase().includes('not found') ||
+                    errorData.error?.toLowerCase().includes('user not found')
+                
+                if (isUserNotFound) {
+                    console.error(`[SessionValidator] ⚠️ CRITICAL: User account was deleted (${response.status}) - logging out immediately`, {
+                        source,
+                        userId: session.user.id,
+                        error: errorData.error,
+                        responseTime: `${responseTime}ms`
+                    })
                     toast.error('Your account has been deleted. You have been logged out.', {
                         duration: 5000,
+                        icon: '⚠️',
                     })
                     isCheckingRef.current = false
-                    await signOut({ redirect: true, callbackUrl: '/auth' })
+                    await signOut({ redirect: true, callbackUrl: '/auth?reason=deleted' })
                     return
+                } else {
+                    console.warn(`[SessionValidator] Auth error (${response.status}) but not user deletion:`, errorData)
                 }
             }
 
@@ -147,16 +162,16 @@ export function SessionValidator() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pathname, status, session?.user?.id])
 
-    // Check periodically (every 10 seconds - more aggressive)
+    // Check periodically (every 5 seconds - very aggressive for immediate deletion detection)
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) {
             return
         }
 
-        console.log('[SessionValidator] Setting up periodic check (every 10 seconds)')
+        console.log('[SessionValidator] Setting up periodic check (every 5 seconds)')
         const interval = setInterval(() => {
             checkUserStatus('periodic')
-        }, 10000) // Check every 10 seconds instead of 30
+        }, 5000) // Check every 5 seconds for immediate deletion detection
 
         return () => {
             clearInterval(interval)

@@ -13,6 +13,7 @@ import { TierChangeListener } from '@/components/tier-change-listener'
 import { PasswordChangeListener } from '@/components/password-change-listener'
 import { SessionTracker } from '@/components/session-tracker'
 import { SessionValidator } from '@/components/session-validator'
+import { UserDeletionHandler } from '@/components/user-deletion-handler'
 
 // Dynamic import for Web3 providers to prevent hydration mismatches
 const Web3Providers = dynamic(
@@ -92,6 +93,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 <SessionTracker />
                 <TierChangeListener />
                 <PasswordChangeListener />
+                <UserDeletionHandler />
                 <Web3Providers>
                     <ThemeProvider
                         attribute="class"

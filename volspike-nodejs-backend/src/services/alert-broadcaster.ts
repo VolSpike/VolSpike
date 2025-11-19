@@ -15,6 +15,45 @@ export function setSocketIO(io: SocketIOServer) {
   startTierBasedBroadcasting()
 }
 
+/**
+ * Broadcast user deletion event to force immediate logout
+ * This ensures deleted users are logged out immediately via WebSocket
+ */
+export async function broadcastUserDeletion(userId: string, reason: 'deleted' | 'banned' | 'suspended' = 'deleted') {
+  if (!ioInstance) {
+    console.warn('[UserDeletion] Socket.IO not initialized, cannot broadcast deletion')
+    return
+  }
+
+  console.log(`[UserDeletion] Broadcasting ${reason} event to user ${userId}`)
+  
+  const deletionPayload = {
+    userId,
+    reason,
+    timestamp: new Date().toISOString(),
+    message: reason === 'deleted' 
+      ? 'Your account has been permanently deleted.'
+      : reason === 'banned'
+      ? 'Your account has been banned.'
+      : 'Your account has been suspended.'
+  }
+  
+  // Broadcast to user's room
+  ioInstance.to(`user-${userId}`).emit('user-deleted', deletionPayload)
+  
+  // Also disconnect all sockets for this user to force immediate logout
+  try {
+    const sockets = await ioInstance.in(`user-${userId}`).fetchSockets()
+    sockets.forEach(socket => {
+      socket.emit('user-deleted', deletionPayload)
+      socket.disconnect(true)
+    })
+    console.log(`[UserDeletion] Disconnected ${sockets.length} socket(s) for user ${userId}`)
+  } catch (error) {
+    console.error('[UserDeletion] Error disconnecting sockets:', error)
+  }
+}
+
 export function broadcastVolumeAlert(alert: VolumeAlert) {
   if (!ioInstance) {
     console.warn('Socket.IO not initialized, skipping broadcast')
