@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
         const session = await auth()
 
         if (!session?.user?.id) {
+            console.warn('[API Auth Me] No authenticated user in session')
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
         }
 
@@ -21,6 +22,11 @@ export async function GET(request: NextRequest) {
             'https://volspike-production.up.railway.app'
 
         const userId = String((session.user as any).id)
+
+        console.log('[API Auth Me] Proxying to backend /api/auth/me', {
+            apiUrl,
+            userId,
+        })
 
         const backendResponse = await fetch(`${apiUrl}/api/auth/me`, {
             method: 'GET',
@@ -34,6 +40,11 @@ export async function GET(request: NextRequest) {
         })
 
         const text = await backendResponse.text()
+
+        console.log('[API Auth Me] Backend /api/auth/me response', {
+            status: backendResponse.status,
+            ok: backendResponse.ok,
+        })
 
         return new NextResponse(text, {
             status: backendResponse.status,
@@ -50,4 +61,3 @@ export async function GET(request: NextRequest) {
         )
     }
 }
-
