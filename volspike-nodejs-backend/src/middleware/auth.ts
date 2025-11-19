@@ -82,7 +82,8 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
                 path: c.req.path,
                 method: c.req.method,
             })
-            return c.json({ error: 'User not found' }, 401)
+            // Treat missing users as "not found" to support hard-delete invariants
+            return c.json({ error: 'User not found' }, 404)
         }
 
         // Block access for suspended or banned accounts even if a token still exists

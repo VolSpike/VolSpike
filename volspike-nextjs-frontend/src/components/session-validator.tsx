@@ -1,204 +1,139 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useRouter, usePathname } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 
 /**
- * Component that validates user session in real-time
- * Checks if user still exists and is active
- * Logs out automatically if user was deleted or banned
+ * Validates the current session against the backend.
+ * If the user has been deleted, banned, or the token is no longer valid,
+ * it aggressively signs the user out within a few seconds.
  */
 export function SessionValidator() {
-    const { data: session, status, update } = useSession()
-    const router = useRouter()
-    const pathname = usePathname()
-    const isCheckingRef = useRef(false)
-    const lastCheckRef = useRef<number>(0)
+    const { data: session, status } = useSession()
 
-    const checkUserStatus = async (source: string = 'unknown') => {
-        // Prevent concurrent checks
-        if (isCheckingRef.current) {
-            console.log(`[SessionValidator] Check already in progress, skipping (source: ${source})`)
-            return
-        }
-
+    useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) {
-            console.log(`[SessionValidator] Not authenticated, skipping check (source: ${source})`)
             return
         }
 
-        // Throttle checks - don't check more than once per 3 seconds (more aggressive)
-        const now = Date.now()
-        const timeSinceLastCheck = now - lastCheckRef.current
-        if (timeSinceLastCheck < 3000) {
-            console.log(`[SessionValidator] Throttled check (source: ${source}, last check: ${timeSinceLastCheck}ms ago)`)
-            return
-        }
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+        const controller = new AbortController()
 
-        isCheckingRef.current = true
-        lastCheckRef.current = now
-
-        try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const authToken = (session as any)?.accessToken || session.user.id
-
-            const startTime = Date.now()
-            console.log(`[SessionValidator] 🔍 Checking user status (source: ${source}, userId: ${session.user.id})`)
-
-            const response = await fetch(`${apiUrl}/api/auth/me`, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                    'X-Auth-Source': 'session-validator',
-                },
-                cache: 'no-store', // Ensure we don't get cached responses
+        const logout = async (reason: string, source: string, statusCode: number) => {
+            console.error('[SessionValidator] Logging out due to backend status', {
+                reason,
+                source,
+                statusCode,
+                userId: (session.user as any).id,
             })
 
-            const responseTime = Date.now() - startTime
-            console.log(`[SessionValidator] Response status: ${response.status} (source: ${source}, took: ${responseTime}ms)`)
+            toast.error('Your session is no longer valid. You have been logged out.', {
+                duration: 5000,
+                icon: '⚠️',
+            })
 
-            // Check for 404 (user deleted) or 401 (user not found - backwards compatibility)
-            if (response.status === 404 || response.status === 401) {
-                const errorData = await response.json().catch(() => ({ error: 'User not found' }))
-                
-                // Double-check it's actually a "user not found" error, not an auth error
-                const isUserNotFound = response.status === 404 || 
-                    errorData.error?.toLowerCase().includes('not found') ||
-                    errorData.error?.toLowerCase().includes('user not found')
-                
-                if (isUserNotFound) {
-                    console.error(`[SessionValidator] ⚠️ CRITICAL: User account was deleted (${response.status}) - logging out immediately`, {
-                        source,
-                        userId: session.user.id,
-                        error: errorData.error,
-                        responseTime: `${responseTime}ms`
-                    })
-                    toast.error('Your account has been deleted. You have been logged out.', {
-                        duration: 5000,
-                        icon: '⚠️',
-                    })
-                    isCheckingRef.current = false
-                    await signOut({ redirect: true, callbackUrl: '/auth?reason=deleted' })
+            await signOut({
+                redirect: true,
+                callbackUrl: '/auth?reason=deleted',
+            })
+        }
+
+        const check = async (source: string) => {
+            try {
+                const token =
+                    (session as any)?.accessToken ||
+                    (session as any)?.user?.accessToken ||
+                    (session.user as any).id
+
+                const start = Date.now()
+                console.log('[SessionValidator] 🔍 Checking user status', {
+                    source,
+                    userId: (session.user as any).id,
+                })
+
+                const res = await fetch(`${apiUrl}/api/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'X-Auth-Source': 'session-validator',
+                    },
+                    cache: 'no-store',
+                    signal: controller.signal,
+                })
+
+                const elapsed = Date.now() - start
+                console.log('[SessionValidator] Response from /api/auth/me', {
+                    status: res.status,
+                    ok: res.ok,
+                    source,
+                    elapsedMs: elapsed,
+                })
+
+                // Treat any 401/403/404 as fatal: user is gone or token invalid
+                if (res.status === 401 || res.status === 403 || res.status === 404) {
+                    await logout('unauthorized-or-deleted', source, res.status)
                     return
-                } else {
-                    console.warn(`[SessionValidator] Auth error (${response.status}) but not user deletion:`, errorData)
                 }
-            }
 
-            if (!response.ok) {
-                console.warn(`[SessionValidator] Non-OK response: ${response.status} (source: ${source})`)
-                // Other errors - might be temporary, don't log out
-                isCheckingRef.current = false
-                return
-            }
+                // Any other non-OK status is also treated as fatal to avoid zombie sessions
+                if (!res.ok) {
+                    await logout('non-ok-response', source, res.status)
+                    return
+                }
 
-            const { user } = await response.json()
+                const data = await res.json().catch(() => null)
+                const user = data?.user
 
-            if (!user) {
-                console.error(`[SessionValidator] ⚠️ No user data returned - logging out`)
-                toast.error('Your account has been deleted. You have been logged out.', {
-                    duration: 5000,
+                // Defensive: if there's no user payload, or user is banned/suspended/deleted, log out
+                if (
+                    !user ||
+                    user.status === 'BANNED' ||
+                    user.status === 'SUSPENDED' ||
+                    user.deletedAt
+                ) {
+                    await logout('invalid-user-payload', source, res.status)
+                    return
+                }
+
+                console.log('[SessionValidator] ✅ Session validated', {
+                    email: user.email,
+                    status: user.status,
+                    tier: user.tier,
                 })
-                isCheckingRef.current = false
-                await signOut({ redirect: true, callbackUrl: '/auth' })
-                return
-            }
-
-            console.log(`[SessionValidator] ✅ User exists: ${user.email}, status: ${user.status}, tier: ${user.tier}`)
-
-            // Check if user is banned
-            if (user.status === 'BANNED') {
-                console.error(`[SessionValidator] ⚠️ User account is banned - logging out`)
-                toast.error('Your account has been banned. You have been logged out.', {
-                    duration: 5000,
+            } catch (error: any) {
+                if (error?.name === 'AbortError') {
+                    return
+                }
+                console.error('[SessionValidator] Error checking user status', {
+                    error: error?.message || String(error),
                 })
-                isCheckingRef.current = false
-                await signOut({ redirect: true, callbackUrl: '/auth' })
-                return
+                // Be conservative: network errors should not leave stale sessions around
+                await logout('network-error', source, 0)
             }
-
-            // Check if user is suspended
-            if (user.status === 'SUSPENDED') {
-                console.error(`[SessionValidator] ⚠️ User account is suspended - logging out`)
-                toast.error('Your account has been suspended. You have been logged out.', {
-                    duration: 5000,
-                })
-                isCheckingRef.current = false
-                await signOut({ redirect: true, callbackUrl: '/auth' })
-                return
-            }
-
-            // Update session if tier or status changed
-            if (
-                user.tier !== session.user.tier ||
-                user.status !== session.user.status ||
-                user.role !== session.user.role
-            ) {
-                console.log(`[SessionValidator] User data changed, updating session (tier: ${session.user.tier} → ${user.tier})`)
-                await update()
-            }
-        } catch (error) {
-            console.error(`[SessionValidator] Error checking user status (source: ${source}):`, error)
-        } finally {
-            isCheckingRef.current = false
-        }
-    }
-
-    // Check immediately on mount and when session changes
-    useEffect(() => {
-        if (status === 'authenticated' && session?.user?.id) {
-            console.log('[SessionValidator] Initial check on mount')
-            checkUserStatus('mount')
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status, session?.user?.id])
-
-    // Check on every page navigation
-    useEffect(() => {
-        if (status === 'authenticated' && session?.user?.id && pathname) {
-            console.log(`[SessionValidator] Page navigation detected: ${pathname}`)
-            checkUserStatus(`navigation:${pathname}`)
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pathname, status, session?.user?.id])
-
-    // Check periodically (every 5 seconds - very aggressive for immediate deletion detection)
-    useEffect(() => {
-        if (status !== 'authenticated' || !session?.user?.id) {
-            return
         }
 
-        console.log('[SessionValidator] Setting up periodic check (every 5 seconds)')
+        // Initial check and interval
+        check('initial').catch(() => {})
+
         const interval = setInterval(() => {
-            checkUserStatus('periodic')
-        }, 5000) // Check every 5 seconds for immediate deletion detection
-
-        return () => {
-            clearInterval(interval)
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status, session?.user?.id])
-
-    // Check when tab becomes visible (user switches back to tab)
-    useEffect(() => {
-        if (status !== 'authenticated' || !session?.user?.id) {
-            return
-        }
+            check('interval').catch(() => {})
+        }, 5000)
 
         const handleVisibilityChange = () => {
             if (!document.hidden) {
-                console.log('[SessionValidator] Tab became visible - checking user status')
-                checkUserStatus('visibility')
+                check('visibility').catch(() => {})
             }
         }
 
         document.addEventListener('visibilitychange', handleVisibilityChange)
+
         return () => {
+            controller.abort()
+            clearInterval(interval)
             document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status, session?.user?.id])
+    }, [status, session])
 
     // This component doesn't render anything
     return null
