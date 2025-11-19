@@ -39,6 +39,10 @@ const nextConfig = {
         NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
         NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
         NEXT_PUBLIC_SOCKET_IO_URL: process.env.NEXT_PUBLIC_SOCKET_IO_URL,
+        // Used by useBuildVersionGuard to detect when a tab is running an
+        // old bundle and should be reloaded. Prefer a stable commit SHA
+        // when available, otherwise fall back to an explicit env value.
+        NEXT_PUBLIC_BUILD_ID: process.env.NEXT_PUBLIC_BUILD_ID || process.env.VERCEL_GIT_COMMIT_SHA,
     },
     webpack: (config) => {
         config.resolve.fallback = {

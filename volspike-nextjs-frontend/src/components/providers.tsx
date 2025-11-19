@@ -15,6 +15,7 @@ import { SessionTracker } from '@/components/session-tracker'
 import { SessionValidator } from '@/components/session-validator'
 import { UserDeletionHandler } from '@/components/user-deletion-handler'
 import { AuthDebugPanel } from '@/components/auth-debug-panel'
+import { useBuildVersionGuard } from '@/hooks/use-build-version-guard'
 
 // Dynamic import for Web3 providers to prevent hydration mismatches
 const Web3Providers = dynamic(
@@ -78,6 +79,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             },
         },
     }))
+
+    // Reload long-lived tabs when a new build is deployed so they always
+    // run the latest auth/deletion/session logic.
+    useBuildVersionGuard()
 
     useEffect(() => setMounted(true), [])
 

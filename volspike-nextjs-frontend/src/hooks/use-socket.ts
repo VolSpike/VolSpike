@@ -5,47 +5,51 @@ import { io, Socket } from 'socket.io-client'
 import { useSession } from 'next-auth/react'
 
 export function useSocket() {
-    const [socket, setSocket] = useState<Socket | null>(null)
-    const [isConnected, setIsConnected] = useState(false)
     const { data: session } = useSession()
+    const [socket, setSocket] = useState<Socket | null>(null)
 
     useEffect(() => {
-        if (!session) return
+        const userIdValue = (session?.user as any)?.id
+        const userEmail = session?.user?.email
 
-        // Prefer userId for Socket.io authentication (for user-specific room matching)
-        // Fallback to email if userId not available
-        const userId = (session.user as any)?.id
-        const userEmail = session.user?.email || 'test-free@example.com'
-        
-        // Use userId with method=id query param for proper room matching
-        // This ensures user-deleted events are broadcast to the correct room
-        const token = process.env.NODE_ENV === 'development'
-            ? `mock-token-${userEmail}-${Date.now()}`
-            : userId || userEmail
+        // Require at least a user id or email before connecting
+        if (!userIdValue && !userEmail) {
+            if (socket) {
+                socket.disconnect()
+                setSocket(null)
+            }
+            return
+        }
 
-        // Use dedicated Socket.IO URL; never point to Binance WS URL
+        // Prefer stable userId for room names; fall back to email only if needed
+        const userId = userIdValue ? String(userIdValue) : null
+
+        const token =
+            process.env.NODE_ENV === 'development'
+                ? `mock-token-${userEmail || 'test-free@example.com'}-${Date.now()}`
+                : userId || userEmail!
+
         const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_IO_URL || 'http://localhost:3001'
+
         const socketInstance = io(SOCKET_URL, {
             auth: {
-                token: token,
+                token,
             },
-            query: userId ? { method: 'id' } : {}, // Tell backend to use ID lookup
+            query: userId ? { method: 'id' } : {},
             transports: ['websocket', 'polling'],
         })
 
         socketInstance.on('connect', () => {
-            setIsConnected(true)
-            console.log('Socket connected')
+            console.log('[Socket] Connected as', { userId, userEmail })
         })
 
-        socketInstance.on('disconnect', () => {
-            setIsConnected(false)
-            console.log('Socket disconnected')
+        socketInstance.on('disconnect', (reason) => {
+            console.log('[Socket] Disconnected', { reason })
         })
 
         socketInstance.on('connect_error', (error) => {
             if (process.env.NODE_ENV === 'development') {
-                console.warn('Socket connection warning (non-fatal):', error?.message || error)
+                console.warn('[Socket] Connection warning (non-fatal):', error?.message || error)
             }
         })
 
@@ -53,8 +57,12 @@ export function useSocket() {
 
         return () => {
             socketInstance.close()
+            setSocket(null)
         }
-    }, [session])
+        // We intentionally depend only on the stable identifiers so we reconnect
+        // when identity changes, not on every session object mutation.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [(session?.user as any)?.id, session?.user?.email])
 
-    return { socket, isConnected }
+    return { socket }
 }

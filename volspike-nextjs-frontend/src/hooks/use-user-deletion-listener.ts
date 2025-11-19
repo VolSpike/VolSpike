@@ -2,35 +2,38 @@
 
 import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { useSocket } from './use-socket'
 
 export interface UserDeletionEvent {
-  userId: string
+  userId: string | number
   reason: 'deleted' | 'banned' | 'suspended'
   timestamp: string
   message: string
 }
 
 export function useUserDeletionListener() {
-  const { socket, isConnected } = useSocket()
+  const { socket } = useSocket()
   const { data: session } = useSession()
-  const router = useRouter()
   const [deletionEvent, setDeletionEvent] = useState<UserDeletionEvent | null>(null)
 
   useEffect(() => {
-    if (!socket || !isConnected || !session?.user?.id) {
+    if (!socket || !session?.user?.id) {
       return
     }
 
-    console.log('[UserDeletionListener] Setting up deletion listener for user', session.user.id)
+    const currentUserId = String((session.user as any).id)
+    console.log('[UserDeletionListener] Setting up deletion listener for user', currentUserId)
 
     const handleUserDeletion = async (event: UserDeletionEvent) => {
       console.error('[UserDeletionListener] ⚠️ User deletion event received:', event)
+      const eventUserId = String(event.userId)
       
       // Verify this event is for the current user
-      if (event.userId !== session.user.id) {
-        console.warn('[UserDeletionListener] Deletion event for different user, ignoring')
+      if (eventUserId !== currentUserId) {
+        console.warn('[UserDeletionListener] Deletion event for different user, ignoring', {
+          eventUserId,
+          currentUserId,
+        })
         return
       }
 
@@ -52,8 +55,7 @@ export function useUserDeletionListener() {
     return () => {
       socket.off('user-deleted', handleUserDeletion)
     }
-  }, [socket, isConnected, session?.user?.id, router])
+  }, [socket, session?.user?.id])
 
   return { deletionEvent, clearDeletionEvent: () => setDeletionEvent(null) }
 }
-
