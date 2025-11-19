@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export function Dashboard() {
     const { data: session, status } = useSession()
-    const { socket, isConnected } = useSocket()
+    const { socket } = useSocket()
     
     // Listen for tier changes via WebSocket and auto-refresh session
     useTierChangeListener()
@@ -84,31 +84,33 @@ export function Dashboard() {
     })
 
     useEffect(() => {
-        if (socket && isConnected) {
-            // Subscribe to market updates
-            socket.on('market-update', (data) => {
-                if (process.env.NODE_ENV !== 'production') {
-                    console.log('Market update received:', data)
-                }
-                // Handle both old and new data formats
-                const marketData = data.data || data
-                if (marketData) {
-                    // Update the market data in the UI
-                    // This will trigger a re-render with fresh data
-                }
-            })
+        if (!socket) return
 
-            // Subscribe to alerts
-            socket.on('alert-triggered', (alert) => {
-                setAlerts(prev => [alert, ...prev.slice(0, 9)]) // Keep last 10 alerts
-            })
-
-            return () => {
-                socket.off('market-update')
-                socket.off('alert-triggered')
+        // Subscribe to market updates
+        const handleMarketUpdate = (data: any) => {
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('Market update received:', data)
+            }
+            // Handle both old and new data formats
+            const market = data?.data || data
+            if (market) {
+                // Currently, client-only WebSocket market data is handled elsewhere.
+                // This listener stays in place for future enhancements / server pushes.
             }
         }
-    }, [socket, isConnected])
+
+        const handleAlertTriggered = (alert: any) => {
+            setAlerts(prev => [alert, ...prev.slice(0, 9)]) // Keep last 10 alerts
+        }
+
+        socket.on('market-update', handleMarketUpdate)
+        socket.on('alert-triggered', handleAlertTriggered)
+
+        return () => {
+            socket.off('market-update', handleMarketUpdate)
+            socket.off('alert-triggered', handleAlertTriggered)
+        }
+    }, [socket])
 
     if (status === 'loading') {
         return <LoadingSpinner />

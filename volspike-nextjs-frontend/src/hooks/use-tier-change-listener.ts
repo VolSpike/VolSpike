@@ -11,11 +11,11 @@ import { useSocket } from './use-socket'
  */
 export function useTierChangeListener() {
     const { data: session, update } = useSession()
-    const { socket, isConnected } = useSocket()
+    const { socket } = useSocket()
     const router = useRouter()
 
     useEffect(() => {
-        if (!socket || !isConnected || !session?.user?.id) {
+        if (!socket || !session?.user?.id) {
             return
         }
 
@@ -63,6 +63,5 @@ export function useTierChangeListener() {
         return () => {
             socket.off('tier-changed', handleTierChange)
         }
-    }, [socket, isConnected, session, update, router])
+    }, [socket, session, update, router])
 }
-
