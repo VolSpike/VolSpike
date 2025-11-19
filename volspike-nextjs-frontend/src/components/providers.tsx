@@ -14,6 +14,7 @@ import { PasswordChangeListener } from '@/components/password-change-listener'
 import { SessionTracker } from '@/components/session-tracker'
 import { SessionValidator } from '@/components/session-validator'
 import { UserDeletionHandler } from '@/components/user-deletion-handler'
+import { AuthDebugPanel } from '@/components/auth-debug-panel'
 
 // Dynamic import for Web3 providers to prevent hydration mismatches
 const Web3Providers = dynamic(
@@ -105,6 +106,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                             <div className="flex-1 flex flex-col">
                                 {children}
                             </div>
+                            <AuthDebugPanel />
                             <ConditionalAdPlaceholder />
                             <ConditionalFooter />
                         </div>

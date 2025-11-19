@@ -264,6 +264,7 @@ export const authConfig: NextAuthConfig = {
                         method: 'GET',
                         headers: {
                             'Authorization': `Bearer ${token.accessToken || token.id}`,
+                            'X-Auth-Source': 'nextauth-jwt',
                         },
                     })
 

@@ -1699,9 +1699,14 @@ auth.post('/oauth/unlink', authMiddleware, async (c) => {
 auth.get('/me', async (c) => {
     try {
         const authHeader = c.req.header('Authorization')
+        const authSource = c.req.header('X-Auth-Source') || 'unknown'
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            logger.warn('[Auth] /me endpoint called without Authorization header')
+            logger.warn('[Auth] /me endpoint called without Authorization header', {
+                path: c.req.path,
+                method: c.req.method,
+                authSource,
+            })
             return c.json({ error: 'Not authenticated' }, 401)
         }
 
@@ -1711,7 +1716,10 @@ auth.get('/me', async (c) => {
         // Check if it's a simple user ID (from NextAuth session)
         if (!token.includes('.') && !token.startsWith('mock-token-')) {
             userId = token
-            logger.info(`[Auth] /me using simple user ID token: ${userId}`)
+            logger.info('[Auth] /me using simple user ID token', {
+                userId,
+                authSource,
+            })
         }
         // Handle mock tokens
         else if (token.startsWith('mock-token-')) {
@@ -1719,6 +1727,10 @@ auth.get('/me', async (c) => {
             if (match) {
                 userId = match[1]
             } else {
+                logger.warn('[Auth] /me received invalid mock token format', {
+                    tokenPreview: token.substring(0, 16) + '...',
+                    authSource,
+                })
                 return c.json({ error: 'Invalid token format' }, 401)
             }
         }
@@ -1731,13 +1743,22 @@ auth.get('/me', async (c) => {
                 const { payload } = await jwtVerify(token, secretBytes)
 
                 if (!payload.sub) {
+                    logger.error('[Auth] /me JWT payload missing sub', {
+                        authSource,
+                    })
                     return c.json({ error: 'Invalid token payload' }, 401)
                 }
 
                 userId = payload.sub as string
-                logger.info(`[Auth] /me JWT verified for user ID: ${userId}`)
+                logger.info('[Auth] /me JWT verified', {
+                    userId,
+                    authSource,
+                })
             } catch (jwtError) {
-                logger.error('[Auth] /me JWT verification failed:', jwtError)
+                logger.error('[Auth] /me JWT verification failed:', {
+                    error: jwtError instanceof Error ? jwtError.message : String(jwtError),
+                    authSource,
+                })
                 return c.json({ error: 'Invalid token' }, 401)
             }
         }
@@ -1764,7 +1785,10 @@ auth.get('/me', async (c) => {
         })
 
         if (!user) {
-            logger.warn(`[Auth] /me user not found for ID: ${userId} - user was deleted`)
+            logger.warn('[Auth] /me user not found - treated as deleted', {
+                userId,
+                authSource,
+            })
             return c.json({ error: 'User not found' }, 404) // Return 404 for deleted users
         }
 
@@ -1778,6 +1802,8 @@ auth.get('/me', async (c) => {
             userId: user.id,
             email: user.email,
             tier: user.tier,
+            status: user.status,
+            authSource,
         })
 
         return c.json({ user: userResponse })

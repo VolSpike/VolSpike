@@ -1,4 +1,5 @@
-import { Context, Next, MiddlewareHandler } from 'hono'
+import { MiddlewareHandler } from 'hono'
+import { UserStatus } from '@prisma/client'
 import { jwtVerify } from 'jose'
 import { prisma } from '../index'
 import type { AppBindings, AppVariables } from '../types/hono'
@@ -15,7 +16,11 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
 
         let userId: string | null = null
 
-        console.log(`[Auth] Received token: ${token.substring(0, 50)}...`)
+        console.log('[Auth] Incoming authenticated request', {
+            path: c.req.path,
+            method: c.req.method,
+            tokenPreview: token.substring(0, 16) + '...',
+        })
 
         // ✅ Check if it's a simple user ID (from NextAuth session)
         if (!token.includes('.') && !token.startsWith('mock-token-')) {
@@ -67,12 +72,30 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
                 tier: true,
                 refreshInterval: true,
                 theme: true,
+                status: true,
             },
         })
 
         if (!user) {
-            console.error(`[Auth] User not found for ID: ${userId}`)
+            console.error('[Auth] User not found for authenticated request', {
+                userId,
+                path: c.req.path,
+                method: c.req.method,
+            })
             return c.json({ error: 'User not found' }, 401)
+        }
+
+        // Block access for suspended or banned accounts even if a token still exists
+        if (user.status === UserStatus.BANNED || user.status === UserStatus.SUSPENDED) {
+            const reason = user.status === UserStatus.BANNED ? 'banned' : 'suspended'
+            console.warn('[Auth] Blocked request from non-active user', {
+                userId: user.id,
+                email: user.email,
+                status: user.status,
+                path: c.req.path,
+                method: c.req.method,
+            })
+            return c.json({ error: `Account ${reason}` }, 403)
         }
 
         console.log(`[Auth] ✅ Authenticated user: ${user.email} (${user.tier} tier)`)

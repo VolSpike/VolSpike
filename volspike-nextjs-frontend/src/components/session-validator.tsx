@@ -50,6 +50,7 @@ export function SessionValidator() {
             const response = await fetch(`${apiUrl}/api/auth/me`, {
                 headers: {
                     'Authorization': `Bearer ${authToken}`,
+                    'X-Auth-Source': 'session-validator',
                 },
                 cache: 'no-store', // Ensure we don't get cached responses
             })
@@ -202,4 +203,3 @@ export function SessionValidator() {
     // This component doesn't render anything
     return null
 }
-
