@@ -821,7 +821,32 @@ export function UsersTable({ users, pagination, currentQuery }: UsersTableProps)
                                                 )
                                             }
                                             
-                                            // For paid users without subscription, show upgrade prompt
+                                            // For paid users with a crypto payment but no expiry recorded yet,
+                                            // show a clear "crypto active" state instead of a scary warning badge.
+                                            if (user.paymentMethod === 'crypto') {
+                                                return (
+                                                    <div className="p-2.5 rounded-lg border border-purple-300/40 dark:border-purple-800 bg-purple-50/80 dark:bg-purple-950/20">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300">
+                                                                <Zap className="h-3.5 w-3.5" />
+                                                                <span className="text-xs font-semibold">
+                                                                    Crypto subscription active
+                                                                </span>
+                                                            </div>
+                                                            {user.cryptoCurrency && (
+                                                                <span className="text-[10px] font-medium text-purple-800/80 dark:text-purple-200/80 uppercase tracking-wide">
+                                                                    {formatCryptoCurrency(user.cryptoCurrency)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="mt-1 text-[10px] text-muted-foreground leading-snug">
+                                                            Expiration date is being synced from NowPayments. Check the Payments tab for full details.
+                                                        </p>
+                                                    </div>
+                                                )
+                                            }
+                                            
+                                            // For paid users without a detected subscription, show upgrade prompt
                                             return (
                                                 <div className="p-2.5 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
                                                     <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">

@@ -1170,6 +1170,8 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 price_amount: priceAmount,
                 price_currency: 'usd',
                 pay_currency: finalPayCurrency,
+                // Ensure merchant payouts are denominated in the same asset
+                payout_currency: finalPayCurrency,
                 order_id: orderId,
                 order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription (TEST - $${priceAmount})`,
                 ipn_callback_url: ipnCallbackUrl,
@@ -1306,6 +1308,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
         // still honouring the user's choice when the code is safe.
         if (!hasNonAlphanumericPayCurrency && finalPayCurrency) {
             invoicePayload.pay_currency = finalPayCurrency
+            invoicePayload.payout_currency = finalPayCurrency
         } else {
             logger.info('Omitting pay_currency from test invoice due to non-alphanumeric characters', {
                 originalPayCurrency: payCurrency,
@@ -1550,6 +1553,8 @@ payments.post('/nowpayments/checkout', async (c) => {
                 price_amount: priceAmount,
                 price_currency: 'usd',
                 pay_currency: finalPayCurrency,
+                // Ensure merchant payout matches the asset the user pays with
+                payout_currency: finalPayCurrency,
                 order_id: orderId,
                 order_description: `VolSpike ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription`,
                 ipn_callback_url: ipnCallbackUrl,
@@ -1705,6 +1710,8 @@ payments.post('/nowpayments/checkout', async (c) => {
             success_url: successUrl,
             cancel_url: cancelUrl,
             pay_currency: finalPayCurrency, // Use validated/mapped currency code
+            // Ensure merchant payout matches the asset the user pays with
+            payout_currency: finalPayCurrency,
         }
 
         logger.info('Invoice parameters prepared', {
@@ -1713,6 +1720,7 @@ payments.post('/nowpayments/checkout', async (c) => {
             priceAmount: invoiceParams.price_amount,
             orderId: invoiceParams.order_id,
             priceCurrency: invoiceParams.price_currency,
+            payoutCurrency: invoiceParams.payout_currency,
         })
 
         const invoice = await nowpayments.createInvoice(invoiceParams)

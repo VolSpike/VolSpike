@@ -12,6 +12,7 @@ export interface CreatePaymentParams {
   price_amount: number
   price_currency: string
   pay_currency?: string  // Optional - if omitted, user can choose from all available currencies
+  payout_currency?: string // Optional - merchant payout currency (we default to pay_currency for 1:1 payouts)
   order_id?: string
   order_description?: string
   ipn_callback_url?: string
@@ -23,6 +24,7 @@ export interface CreateInvoiceParams {
   price_amount: number
   price_currency: string
   pay_currency?: string  // Optional - if omitted, user can choose on checkout page
+  payout_currency?: string // Optional - merchant payout currency (we default to pay_currency for 1:1 payouts)
   order_id?: string
   order_description?: string
   ipn_callback_url?: string
@@ -88,6 +90,8 @@ export class NowPaymentsService {
         price_amount: params.price_amount,
         price_currency: params.price_currency,
         order_id: params.order_id,
+        pay_currency: params.pay_currency,
+        payout_currency: params.payout_currency,
         API_URL,
       })
 
@@ -112,6 +116,9 @@ export class NowPaymentsService {
         paymentStatus: responseData.payment_status,
         payUrl: responseData.pay_url,
         payAddress: responseData.pay_address,
+        payCurrency: responseData.pay_currency,
+        payoutCurrencyEffective: responseData.outcome_currency || '(not reported)',
+        requestedPayoutCurrency: params.payout_currency || '(none)',
 
         // All response keys
         responseKeys: Object.keys(responseData),
@@ -254,6 +261,7 @@ export class NowPaymentsService {
         price_amount: priceAmount,
         price_currency: invoice.price_currency || 'usd',
         pay_currency: invoice.pay_currency,
+        payout_currency: invoice.pay_currency, // Ensure merchant receives funds in the same asset the user paid with
         order_id: invoice.order_id,
         order_description: `Payment for invoice ${invoiceId}`,
       })
@@ -301,6 +309,7 @@ export class NowPaymentsService {
         price_currency: params.price_currency,
         order_id: params.order_id,
         pay_currency: params.pay_currency || '(omitted - user will choose)',
+        payout_currency: params.payout_currency || '(omitted - account default)',
         API_URL,
       })
 
@@ -507,4 +516,3 @@ export class NowPaymentsService {
     }
   }
 }
-
