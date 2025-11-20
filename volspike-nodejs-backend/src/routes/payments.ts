@@ -917,67 +917,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             testAmount: z.number().min(0.01).max(10).optional(), // Optional - will be calculated from minimum
         }).parse(body)
 
-        // Fetch actual minimum amount from NowPayments API
-        let priceAmount = testAmount
+        // TEST payments: keep predictable, low amounts (~$2) and avoid inflating based on
+        // provider-reported minimums. We only increase in the rare self-healing path below.
+        let priceAmount = testAmount ?? 2.0
         const nowpayments = NowPaymentsService.getInstance()
-
-        // CRITICAL: For TEST payments we want a small, predictable amount (~$2)
-        // so test accounts can exercise the full flow without paying real tier prices.
-        // We still *consult* NowPayments minimums, but if they suddenly jump to a
-        // suspiciously high number (e.g. $10+), we log it and fall back to $2.00
-        // instead of charging $20+ just for a test.
-        if (!priceAmount && payCurrency) {
-            try {
-                const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
-                if (minAmount) {
-                    if (minAmount <= 5) {
-                        // Normal case: min is in a reasonable test range ($2‑$5).
-                        // Use max(min, $2.00) and then add a 5% safety buffer (capped at $5)
-                        // to stay comfortably above NowPayments' dynamic minimums.
-                        const baseAmount = Math.max(minAmount, 2.0)
-                        const bufferedAmount = Math.min(baseAmount * 1.05, 5.0)
-                        priceAmount = Math.ceil(bufferedAmount * 100) / 100
-
-                        logger.info('Set TEST invoice amount from NowPayments minimum (reasonable range)', {
-                            currency: payCurrency,
-                            minAmount,
-                            baseAmount,
-                            bufferedAmount,
-                            bufferPercent: '5%',
-                            invoiceAmount: priceAmount,
-                            note: '5% buffer applied on top of NowPayments minimum; additional buffer applies to QR code pay_amount to cover network fees',
-                        })
-                    } else {
-                        // Defensive: NowPayments returned an unusually high minimum for a TEST payment.
-                        // Keep the test affordable and log full context for investigation.
-                        logger.warn('NowPayments returned unusually high minimum for TEST payment, falling back to $2.00', {
-                            currency: payCurrency,
-                            reportedMinAmount: minAmount,
-                            threshold: 5,
-                        })
-                        priceAmount = 2.0
-                    }
-                } else {
-                    // Fallback: Use exactly $2.00 (no buffer)
-                    priceAmount = 2.0
-                    logger.warn('Unable to fetch minimum amount, using $2.00 base for TEST payment', {
-                        currency: payCurrency,
-                        invoiceAmount: priceAmount,
-                        note: 'Buffer will be applied to QR code amount',
-                    })
-                }
-            } catch (minAmountError) {
-                logger.error('Error fetching minimum amount for TEST payment, using $2.00 base', {
-                    error: minAmountError,
-                    currency: payCurrency,
-                })
-                // Fallback: Use exactly $2.00 (no buffer)
-                priceAmount = 2.0
-            }
-        } else if (!priceAmount) {
-            // No currency selected, use exactly $2.00 (no buffer)
-            priceAmount = 2.0
-        }
 
         logger.info('Test checkout parameters', {
             tier,
@@ -1107,56 +1050,8 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             })
         }
 
-        // CRITICAL: For TEST payments, do not silently jump to very high minimums.
-        // We re-check minimums here using the fully mapped finalPayCurrency, but
-        // only adjust the amount if the reported minimum is still in a reasonable
-        // test range. Otherwise, we keep the affordable $2.00 base.
-        if (!testAmount && finalPayCurrency) {
-            try {
-                const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
-                if (minAmount && (!priceAmount || priceAmount < minAmount)) {
-                    if (minAmount <= 5) {
-                        // Normal case: min is in a reasonable test range ($2‑$5).
-                        // Again apply a 5% safety buffer (capped at $5) to stay comfortably
-                        // above NowPayments' dynamic minimums even if they shift between calls.
-                        const baseAmount = Math.max(minAmount, 2.0)
-                        const bufferedAmount = Math.min(baseAmount * 1.05, 5.0)
-                        priceAmount = Math.ceil(bufferedAmount * 100) / 100
-
-                        logger.info('Adjusted TEST invoice amount from NowPayments minimum (reasonable range)', {
-                            currency: finalPayCurrency,
-                            minAmount,
-                            baseAmount,
-                            bufferedAmount,
-                            bufferPercent: '5%',
-                            invoiceAmount: priceAmount,
-                        })
-                    } else {
-                        logger.warn('NowPayments reported high minimum on second check for TEST payment, keeping $2.00 base', {
-                            currency: finalPayCurrency,
-                            reportedMinAmount: minAmount,
-                            threshold: 5,
-                            existingPriceAmount: priceAmount,
-                        })
-                        if (!priceAmount) {
-                            priceAmount = 2.0
-                        }
-                    }
-                } else if (!priceAmount) {
-                    // No amount set, use exactly $2.00
-                    priceAmount = 2.0
-                }
-            } catch (minAmountError) {
-                logger.warn('Could not fetch minimum amount on second check for TEST payment, using $2.00 base', {
-                    error: minAmountError,
-                    currency: finalPayCurrency,
-                })
-                if (!priceAmount) {
-                    priceAmount = 2.0
-                }
-            }
-        } else if (!priceAmount) {
-            // No currency selected, use exactly $2.00 (no buffer)
+        // Keep a predictable base: if somehow unset, default to $2.00 (no pre-bump).
+        if (!priceAmount) {
             priceAmount = 2.0
         }
 
@@ -1233,9 +1128,9 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                     ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
                     const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
-                    // Respect the $5 ceiling for test payments.
-                    const cappedBase = Math.min(candidateBase, 5.0)
-                    const bufferedAmount = Math.min(cappedBase * 1.05, 5.0)
+                    // Keep test payments low: cap adjusted test amount at $3.00 even after buffer.
+                    const cappedBase = Math.min(candidateBase, 3.0)
+                    const bufferedAmount = Math.min(cappedBase * 1.05, 3.0)
                     const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
                     if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
@@ -1447,8 +1342,9 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
                 const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
-                const cappedBase = Math.min(candidateBase, 5.0)
-                const bufferedAmount = Math.min(cappedBase * 1.05, 5.0)
+                // Keep test payments low: cap adjusted test amount at $3.00 even after buffer.
+                const cappedBase = Math.min(candidateBase, 3.0)
+                const bufferedAmount = Math.min(cappedBase * 1.05, 3.0)
                 const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
                 if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
