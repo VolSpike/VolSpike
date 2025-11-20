@@ -97,6 +97,16 @@ export default function CryptoPaymentPage() {
     return 'Unknown'
   }
 
+  // Convert decimal string to base units (BigInt) for ERC20 deeplinks
+  const toBaseUnits = (amountStr: string, decimals: number): bigint => {
+    const [intPartRaw, fracRaw = ''] = amountStr.split('.')
+    const intPart = intPartRaw || '0'
+    const frac = (fracRaw || '').padEnd(decimals, '0').slice(0, decimals)
+    const cleanedInt = intPart.replace(/^0+/, '') || '0'
+    const cleanedFrac = frac.replace(/[^0-9]/g, '') || '0'.repeat(decimals)
+    return BigInt(cleanedInt + cleanedFrac)
+  }
+
   const safeNavigate = useCallback(
     (href: string, source: string) => {
       const isDebug =
@@ -229,7 +239,7 @@ export default function CryptoPaymentPage() {
 
   // Generate chain-specific payloads:
   // - Solana: Solana Pay URI + Phantom links (unchanged for USDT/USDC/SOL)
-  // - EVM/BTC: Simple address + amount, avoid Solana/Phantom paths
+  // - EVM/BTC: MetaMask deeplink (ERC20) + address fallback (BTC/address-only)
   const { solanaUri, phantomDeepLink, phantomUniversalLink, evmData } = useMemo(() => {
     if (!paymentDetails?.payAddress || !paymentDetails?.payAmount) {
       return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null, evmData: null }
@@ -242,8 +252,39 @@ export default function CryptoPaymentPage() {
     const isUSDT = currency.includes('usdt')
     const isUSDC = currency.includes('usdc')
 
-    // EVM/BTC path: provide address + amount for QR and UI; no Solana/Phantom URIs
+    // EVM/BTC path: provide MetaMask deeplink for ERC20 and address fallback
     if (isEthereum || isBitcoin) {
+      let metamaskLink: string | null = null
+
+      const erc20Tokens: Record<string, { contract: string; decimals: number }> = {
+        usdterc20: { contract: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 }, // USDT ERC20
+        usdce: { contract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },   // USDC ERC20
+      }
+      const tokenInfo = erc20Tokens[currency]
+
+      if (tokenInfo) {
+        try {
+          const amountStr = paymentDetails.payAmountString || paymentDetails.payAmount.toString()
+          const units = toBaseUnits(amountStr, tokenInfo.decimals)
+          metamaskLink = `https://link.metamask.io/send/${tokenInfo.contract}@1/transfer?address=${paymentDetails.payAddress}&uint256=${units.toString()}`
+          debugLog('[CryptoPaymentPage] Built MetaMask deeplink', {
+            currency,
+            contract: tokenInfo.contract,
+            chainId: 1,
+            amountStr,
+            units: units.toString(),
+            link: metamaskLink,
+          })
+        } catch (err) {
+          debugError('[CryptoPaymentPage] Failed to build MetaMask deeplink', {
+            error: err,
+            currency,
+            payAmount: paymentDetails.payAmount,
+            payAmountString: paymentDetails.payAmountString,
+          })
+        }
+      }
+
       return {
         solanaUri: null,
         phantomDeepLink: null,
@@ -253,6 +294,7 @@ export default function CryptoPaymentPage() {
           amount: paymentDetails.payAmount,
           token: getCurrencyDisplayName(currency),
           network: getNetworkName(currency),
+          metamaskLink,
         },
       }
     }
@@ -574,17 +616,18 @@ export default function CryptoPaymentPage() {
     }
   }, [paymentDetails])
 
-  // Generate QR code – Solana uses Solana Pay URI; EVM/BTC uses plain address
+  // Generate QR code – Solana uses Solana Pay URI; EVM/BTC uses MetaMask deeplink (if available) else address
   useEffect(() => {
     const uriForQR = solanaUri
 
-    // EVM/BTC: QR is address-only (let wallet prompt for amount); avoids Phantom/Solana handling
+    // EVM/BTC: prefer MetaMask deeplink for ERC20; fallback to address-only
     if (!uriForQR && evmData?.address) {
-      const payload = evmData.address
-      debugLog('[CryptoPaymentPage] Generating QR code (EVM/BTC address only)', {
+      const payload = evmData.metamaskLink || evmData.address
+      debugLog('[CryptoPaymentPage] Generating QR code (EVM/BTC)', {
         payload,
         network: evmData.network,
         token: evmData.token,
+        hasMetamaskLink: !!evmData.metamaskLink,
       })
       QRCode.toDataURL(payload, {
         width: 300,
@@ -1715,8 +1758,30 @@ export default function CryptoPaymentPage() {
                   ) : (
                     <>
                       <div className="text-sm text-muted-foreground text-center">
-                        Open your {networkName} wallet (e.g., MetaMask) and send to the address below. QR is address-only to avoid the wrong app opening.
+                        {evmData?.metamaskLink
+                          ? 'Scan with MetaMask to send pre-filled USDT on Ethereum. If it opens in browser, tap “Open in MetaMask”.'
+                          : `Open your ${networkName} wallet (e.g., MetaMask) and scan or copy the address below.`}
                       </div>
+                      {evmData?.metamaskLink && (
+                        <Button
+                          onClick={() => {
+                            try {
+                              window.open(evmData.metamaskLink!, '_blank', 'noopener,noreferrer')
+                              toast.success('Opening MetaMask...')
+                            } catch (err) {
+                              toast.error('Open MetaMask and scan/copy manually.')
+                            }
+                          }}
+                          className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-lg"
+                          size="lg"
+                          type="button"
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <ExternalLink className="h-4 w-4" />
+                            Open in MetaMask
+                          </span>
+                        </Button>
+                      )}
                       <Button
                         onClick={() => {
                           if (paymentDetails?.payAddress) {
