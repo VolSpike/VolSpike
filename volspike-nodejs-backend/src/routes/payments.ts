@@ -932,10 +932,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 if (minAmount) {
                     if (minAmount <= 5) {
                         // Normal case: min is in a reasonable test range ($2‑$5).
-                        // Use max(min, $2.00) and then add a 10% safety buffer (capped at $5)
+                        // Use max(min, $2.00) and then add a 5% safety buffer (capped at $5)
                         // to stay comfortably above NowPayments' dynamic minimums.
                         const baseAmount = Math.max(minAmount, 2.0)
-                        const bufferedAmount = Math.min(baseAmount * 1.1, 5.0)
+                        const bufferedAmount = Math.min(baseAmount * 1.05, 5.0)
                         priceAmount = Math.ceil(bufferedAmount * 100) / 100
 
                         logger.info('Set TEST invoice amount from NowPayments minimum (reasonable range)', {
@@ -943,9 +943,9 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                             minAmount,
                             baseAmount,
                             bufferedAmount,
-                            bufferPercent: '10%',
+                            bufferPercent: '5%',
                             invoiceAmount: priceAmount,
-                            note: '10% buffer applied on top of NowPayments minimum; additional buffer applies to QR code pay_amount to cover network fees',
+                            note: '5% buffer applied on top of NowPayments minimum; additional buffer applies to QR code pay_amount to cover network fees',
                         })
                     } else {
                         // Defensive: NowPayments returned an unusually high minimum for a TEST payment.
@@ -1117,10 +1117,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 if (minAmount && (!priceAmount || priceAmount < minAmount)) {
                     if (minAmount <= 5) {
                         // Normal case: min is in a reasonable test range ($2‑$5).
-                        // Again apply a 10% safety buffer (capped at $5) to stay comfortably
+                        // Again apply a 5% safety buffer (capped at $5) to stay comfortably
                         // above NowPayments' dynamic minimums even if they shift between calls.
                         const baseAmount = Math.max(minAmount, 2.0)
-                        const bufferedAmount = Math.min(baseAmount * 1.1, 5.0)
+                        const bufferedAmount = Math.min(baseAmount * 1.05, 5.0)
                         priceAmount = Math.ceil(bufferedAmount * 100) / 100
 
                         logger.info('Adjusted TEST invoice amount from NowPayments minimum (reasonable range)', {
@@ -1128,7 +1128,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                             minAmount,
                             baseAmount,
                             bufferedAmount,
-                            bufferPercent: '10%',
+                            bufferPercent: '5%',
                             invoiceAmount: priceAmount,
                         })
                     } else {
@@ -1235,7 +1235,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                     const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
                     // Respect the $5 ceiling for test payments.
                     const cappedBase = Math.min(candidateBase, 5.0)
-                    const bufferedAmount = Math.min(cappedBase * 1.1, 5.0)
+                    const bufferedAmount = Math.min(cappedBase * 1.05, 5.0)
                     const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
                     if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
@@ -1448,7 +1448,7 @@ payments.post('/nowpayments/test-checkout', async (c) => {
 
                 const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
                 const cappedBase = Math.min(candidateBase, 5.0)
-                const bufferedAmount = Math.min(cappedBase * 1.1, 5.0)
+                const bufferedAmount = Math.min(cappedBase * 1.05, 5.0)
                 const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
                 if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
