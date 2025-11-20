@@ -268,12 +268,13 @@ export default function CryptoPaymentPage() {
       }
       const tokenInfo = erc20Tokens[currency]
 
-      if (tokenInfo) {
-        try {
-          const amountStr = paymentDetails.payAmountString || paymentDetails.payAmount.toString()
+      try {
+        const amountStr = paymentDetails.payAmountString || paymentDetails.payAmount.toString()
+
+        if (tokenInfo) {
           const units = toBaseUnits(amountStr, tokenInfo.decimals)
           metamaskLink = `https://link.metamask.io/send/${tokenInfo.contract}@1/transfer?address=${paymentDetails.payAddress}&uint256=${units.toString()}`
-          debugLog('[CryptoPaymentPage] Built MetaMask deeplink', {
+          debugLog('[CryptoPaymentPage] Built MetaMask ERC20 deeplink', {
             currency,
             contract: tokenInfo.contract,
             chainId: 1,
@@ -281,14 +282,25 @@ export default function CryptoPaymentPage() {
             units: units.toString(),
             link: metamaskLink,
           })
-        } catch (err) {
-          debugError('[CryptoPaymentPage] Failed to build MetaMask deeplink', {
-            error: err,
+        } else if (currency === 'eth') {
+          // Native ETH send: use value in wei via link.metamask.io send format
+          const units = toBaseUnits(amountStr, 18)
+          metamaskLink = `https://link.metamask.io/send/${paymentDetails.payAddress}@1?value=${units.toString()}`
+          debugLog('[CryptoPaymentPage] Built MetaMask native ETH deeplink', {
             currency,
-            payAmount: paymentDetails.payAmount,
-            payAmountString: paymentDetails.payAmountString,
+            chainId: 1,
+            amountStr,
+            units: units.toString(),
+            link: metamaskLink,
           })
         }
+      } catch (err) {
+        debugError('[CryptoPaymentPage] Failed to build MetaMask deeplink', {
+          error: err,
+          currency,
+          payAmount: paymentDetails.payAmount,
+          payAmountString: paymentDetails.payAmountString,
+        })
       }
 
       return {
