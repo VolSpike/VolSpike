@@ -78,28 +78,11 @@ export function SessionValidator() {
                     elapsedMs: elapsed,
                 })
 
-                // Treat 404 as "user is gone" (deleted / hard missing)
-                if (res.status === 404) {
-                    await logout('user-not-found', source, res.status)
-                    return
-                }
-
-                // 401/403 mean "not authenticated" or "forbidden" for this call.
-                // We log them but do NOT force logout here to avoid races on
-                // initial page load or transient auth glitches. NextAuth will
-                // handle these states via its own callbacks.
-                if (res.status === 401 || res.status === 403) {
-                    console.warn('[SessionValidator] Auth heartbeat returned', res.status, '(non-fatal)', {
-                        source,
-                    })
-                    return
-                }
-
-                // Any other non-OK status is treated as a soft failure – log it but
-                // don't immediately kill the session to avoid flapping on transient
-                // backend issues.
+                // Treat all non-OK statuses as soft failures (do not auto-logout).
+                // NextAuth will still handle true auth loss. This prevents flapping
+                // if the backend briefly returns 404/401/403 during redeploys.
                 if (!res.ok) {
-                    console.warn('[SessionValidator] Non-OK response from /api/auth/ping (non-fatal)', {
+                    console.warn('[SessionValidator] Non-OK response from /api/auth/ping (soft)', {
                         status: res.status,
                         source,
                     })
