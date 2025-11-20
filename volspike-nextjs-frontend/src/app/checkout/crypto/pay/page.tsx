@@ -75,6 +75,7 @@ export default function CryptoPaymentPage() {
     const currencyMap: Record<string, string> = {
       'usdtsol': 'USDT',
       'usdterc20': 'USDT',
+      'usdc': 'USDC',
       'usdce': 'USDC',
       'sol': 'SOL',
       'btc': 'BTC',
@@ -88,7 +89,7 @@ export default function CryptoPaymentPage() {
     if (normalized.includes('sol') || normalized === 'sol') {
       return 'Solana'
     }
-    if (normalized.includes('erc20') || normalized.includes('eth') || normalized === 'eth') {
+    if (normalized.includes('erc20') || normalized.includes('eth') || normalized === 'eth' || normalized.includes('usdc')) {
       return 'Ethereum'
     }
     if (normalized === 'btc') {
@@ -247,7 +248,11 @@ export default function CryptoPaymentPage() {
 
     const currency = paymentDetails.payCurrency?.toLowerCase() || ''
     const isSolana = currency === 'sol' || currency.includes('sol')
-    const isEthereum = currency === 'eth' || currency.includes('erc20') || currency === 'usdce' || currency === 'usdterc20'
+    const isEthereum = currency === 'eth'
+      || currency.includes('erc20')
+      || currency === 'usdce'
+      || currency === 'usdterc20'
+      || currency === 'usdc'
     const isBitcoin = currency === 'btc'
     const isUSDT = currency.includes('usdt')
     const isUSDC = currency.includes('usdc')
@@ -258,7 +263,8 @@ export default function CryptoPaymentPage() {
 
       const erc20Tokens: Record<string, { contract: string; decimals: number }> = {
         usdterc20: { contract: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 }, // USDT ERC20
-        usdce: { contract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },   // USDC ERC20
+        usdce: { contract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },   // USDC ERC20 (Circle)
+        usdc: { contract: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },    // USDC alias
       }
       const tokenInfo = erc20Tokens[currency]
 
