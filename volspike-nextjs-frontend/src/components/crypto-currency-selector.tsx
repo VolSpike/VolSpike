@@ -41,12 +41,6 @@ const SUPPORTED_CURRENCIES: SupportedCurrency[] = [
     logoId: 'solana', // Solana logo
   },
   {
-    code: 'btc',
-    name: 'BTC',
-    network: 'Bitcoin',
-    logoId: 'bitcoin', // Bitcoin logo
-  },
-  {
     code: 'eth',
     name: 'ETH',
     network: 'Ethereum',
@@ -291,4 +285,3 @@ export function CryptoCurrencySelector({
     </div>
   )
 }
-
