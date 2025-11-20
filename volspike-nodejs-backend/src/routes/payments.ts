@@ -931,15 +931,21 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 const minAmount = await nowpayments.getMinimumAmount('usd', payCurrency)
                 if (minAmount) {
                     if (minAmount <= 5) {
-                        // Normal case: min is in a reasonable test range ($2‑$5)
-                        priceAmount = Math.max(minAmount, 2.0)
-                        priceAmount = Math.ceil(priceAmount * 100) / 100
+                        // Normal case: min is in a reasonable test range ($2‑$5).
+                        // Use max(min, $2.00) and then add a 10% safety buffer (capped at $5)
+                        // to stay comfortably above NowPayments' dynamic minimums.
+                        const baseAmount = Math.max(minAmount, 2.0)
+                        const bufferedAmount = Math.min(baseAmount * 1.1, 5.0)
+                        priceAmount = Math.ceil(bufferedAmount * 100) / 100
 
                         logger.info('Set TEST invoice amount from NowPayments minimum (reasonable range)', {
                             currency: payCurrency,
                             minAmount,
+                            baseAmount,
+                            bufferedAmount,
+                            bufferPercent: '10%',
                             invoiceAmount: priceAmount,
-                            note: 'Buffer will be applied to QR code amount (pay_amount) to cover network fees',
+                            note: '10% buffer applied on top of NowPayments minimum; additional buffer applies to QR code pay_amount to cover network fees',
                         })
                     } else {
                         // Defensive: NowPayments returned an unusually high minimum for a TEST payment.
@@ -1110,12 +1116,19 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 const minAmount = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
                 if (minAmount && (!priceAmount || priceAmount < minAmount)) {
                     if (minAmount <= 5) {
-                        priceAmount = Math.max(minAmount, 2.0)
-                        priceAmount = Math.ceil(priceAmount * 100) / 100
+                        // Normal case: min is in a reasonable test range ($2‑$5).
+                        // Again apply a 10% safety buffer (capped at $5) to stay comfortably
+                        // above NowPayments' dynamic minimums even if they shift between calls.
+                        const baseAmount = Math.max(minAmount, 2.0)
+                        const bufferedAmount = Math.min(baseAmount * 1.1, 5.0)
+                        priceAmount = Math.ceil(bufferedAmount * 100) / 100
 
                         logger.info('Adjusted TEST invoice amount from NowPayments minimum (reasonable range)', {
                             currency: finalPayCurrency,
                             minAmount,
+                            baseAmount,
+                            bufferedAmount,
+                            bufferPercent: '10%',
                             invoiceAmount: priceAmount,
                         })
                     } else {
@@ -1179,7 +1192,83 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 cancel_url: cancelUrl,
             }
 
-            const payment = await nowpayments.createPayment(paymentParams)
+            let payment: any
+
+            try {
+                payment = await nowpayments.createPayment(paymentParams)
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error)
+                const lowerMessage = message.toLowerCase()
+                const isMinimumError =
+                    lowerMessage.includes('minimum') ||
+                    lowerMessage.includes('less than minimal')
+
+                if (isMinimumError) {
+                    // Self-healing path: if NowPayments still reports that the amount is
+                    // below the minimum, re-compute a safer test amount with additional
+                    // buffer (while keeping the test affordable and capped at $5).
+                    let minAmountFromError: number | null = null
+                    const amountMatch = message.match(/(\d+\.?\d*)/)
+                    if (amountMatch) {
+                        const parsed = Number(amountMatch[1])
+                        if (!Number.isNaN(parsed) && parsed > 0) {
+                            minAmountFromError = parsed
+                        }
+                    }
+
+                    let minAmountFromApi: number | null = null
+                    try {
+                        minAmountFromApi = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
+                    } catch (minErr) {
+                        logger.warn('Failed to refetch NowPayments minimum after TEST payment minimum error', {
+                            error: minErr instanceof Error ? minErr.message : String(minErr),
+                            currency: finalPayCurrency,
+                        })
+                    }
+
+                    const candidatesRaw = [
+                        typeof priceAmount === 'number' ? priceAmount : null,
+                        minAmountFromError,
+                        minAmountFromApi,
+                    ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
+
+                    const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
+                    // Respect the $5 ceiling for test payments.
+                    const cappedBase = Math.min(candidateBase, 5.0)
+                    const bufferedAmount = Math.min(cappedBase * 1.1, 5.0)
+                    const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
+
+                    if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
+                        logger.warn('Retrying NowPayments TEST payment with higher amount due to minimum error', {
+                            previousPriceAmount: priceAmount,
+                            adjustedAmount,
+                            minAmountFromError,
+                            minAmountFromApi,
+                            candidatesRaw,
+                            finalPayCurrency,
+                            originalErrorMessage: message,
+                        })
+
+                        priceAmount = adjustedAmount
+                        paymentParams.price_amount = priceAmount
+
+                        payment = await nowpayments.createPayment(paymentParams)
+                    } else {
+                        logger.error('Unable to safely adjust TEST payment amount after minimum error', {
+                            previousPriceAmount: priceAmount,
+                            minAmountFromError,
+                            minAmountFromApi,
+                            candidatesRaw,
+                            adjustedAmount,
+                            finalPayCurrency,
+                            originalErrorMessage: message,
+                        })
+                        throw error
+                    }
+                } else {
+                    throw error
+                }
+            }
 
             const paymentId = payment.payment_id
             const payAddress = payment.pay_address
@@ -1317,7 +1406,82 @@ payments.post('/nowpayments/test-checkout', async (c) => {
             })
         }
 
-        const invoice = await nowpayments.createInvoice(invoicePayload)
+        let invoice: any
+
+        try {
+            invoice = await nowpayments.createInvoice(invoicePayload)
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            const lowerMessage = message.toLowerCase()
+            const isMinimumError =
+                lowerMessage.includes('minimum') ||
+                lowerMessage.includes('less than minimal')
+
+            if (isMinimumError) {
+                // Self-healing path for invoice-based TEST flows: if NowPayments
+                // reports that the amount is below the minimum, recompute a safer
+                // amount with an extra 10% buffer (capped at $5) and retry once.
+                let minAmountFromError: number | null = null
+                const amountMatch = message.match(/(\d+\.?\d*)/)
+                if (amountMatch) {
+                    const parsed = Number(amountMatch[1])
+                    if (!Number.isNaN(parsed) && parsed > 0) {
+                        minAmountFromError = parsed
+                    }
+                }
+
+                let minAmountFromApi: number | null = null
+                try {
+                    minAmountFromApi = await nowpayments.getMinimumAmount('usd', finalPayCurrency)
+                } catch (minErr) {
+                    logger.warn('Failed to refetch NowPayments minimum after TEST invoice minimum error', {
+                        error: minErr instanceof Error ? minErr.message : String(minErr),
+                        currency: finalPayCurrency,
+                    })
+                }
+
+                const candidatesRaw = [
+                    typeof priceAmount === 'number' ? priceAmount : null,
+                    minAmountFromError,
+                    minAmountFromApi,
+                ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
+
+                const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
+                const cappedBase = Math.min(candidateBase, 5.0)
+                const bufferedAmount = Math.min(cappedBase * 1.1, 5.0)
+                const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
+
+                if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
+                    logger.warn('Retrying NowPayments TEST invoice with higher amount due to minimum error', {
+                        previousPriceAmount: priceAmount,
+                        adjustedAmount,
+                        minAmountFromError,
+                        minAmountFromApi,
+                        candidatesRaw,
+                        finalPayCurrency,
+                        originalErrorMessage: message,
+                    })
+
+                    priceAmount = adjustedAmount
+                    invoicePayload.price_amount = priceAmount
+
+                    invoice = await nowpayments.createInvoice(invoicePayload)
+                } else {
+                    logger.error('Unable to safely adjust TEST invoice amount after minimum error', {
+                        previousPriceAmount: priceAmount,
+                        minAmountFromError,
+                        minAmountFromApi,
+                        candidatesRaw,
+                        adjustedAmount,
+                        finalPayCurrency,
+                        originalErrorMessage: message,
+                    })
+                    throw error
+                }
+            } else {
+                throw error
+            }
+        }
 
         const invoiceId = invoice.invoice_id || invoice.id
         const invoiceUrl = invoice.invoice_url
