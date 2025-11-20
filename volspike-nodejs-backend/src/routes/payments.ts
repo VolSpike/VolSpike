@@ -1127,13 +1127,18 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                         minAmountFromApi,
                     ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
-                    // HARD CAP: Tests must stay at ~$2, even if NowPayments reports higher minimums.
-                    const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
-                    const cappedBase = Math.min(candidateBase, 2.0)
-                    const bufferedAmount = Math.min(cappedBase * 1.05, 2.0)
+                    // Soft self-heal: honor NowPayments minimum but keep test payments low.
+                    // Bump to slightly above the reported minimum (+$0.02) and cap at $2.50.
+                    const effectiveMin = Math.max(
+                        2.0,
+                        ...candidatesRaw,
+                    )
+                    const bumped = effectiveMin + 0.02
+                    const adjustedBase = Math.min(bumped, 2.5)
+                    const bufferedAmount = Math.min(adjustedBase * 1.05, 2.5)
                     const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
-                    if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
+                    if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 2.5) {
                         logger.warn('Retrying NowPayments TEST payment with higher amount due to minimum error', {
                             previousPriceAmount: priceAmount,
                             adjustedAmount,
@@ -1341,13 +1346,18 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                     minAmountFromApi,
                 ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
-                // HARD CAP: Tests must stay at ~$2, even if NowPayments reports higher minimums.
-                const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
-                const cappedBase = Math.min(candidateBase, 2.0)
-                const bufferedAmount = Math.min(cappedBase * 1.05, 2.0)
+                // Soft self-heal: honor NowPayments minimum but keep test payments low.
+                // Bump to slightly above the reported minimum (+$0.02) and cap at $2.50.
+                const effectiveMin = Math.max(
+                    2.0,
+                    ...candidatesRaw,
+                )
+                const bumped = effectiveMin + 0.02
+                const adjustedBase = Math.min(bumped, 2.5)
+                const bufferedAmount = Math.min(adjustedBase * 1.05, 2.5)
                 const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
-                if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
+                if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 2.5) {
                     logger.warn('Retrying NowPayments TEST invoice with higher amount due to minimum error', {
                         previousPriceAmount: priceAmount,
                         adjustedAmount,
