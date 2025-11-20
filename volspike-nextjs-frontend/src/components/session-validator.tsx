@@ -13,7 +13,11 @@ export function SessionValidator() {
     const { data: session, status } = useSession()
 
     useEffect(() => {
-        if (status !== 'authenticated' || !session?.user?.id) {
+        if (!session?.user?.id) {
+            console.log('[SessionValidator] Skipping heartbeat - no session user id', {
+                status,
+                hasSession: !!session,
+            })
             return
         }
 
