@@ -1813,6 +1813,49 @@ auth.get('/me', async (c) => {
     }
 })
 
+// Lightweight heartbeat endpoint - updates last active time and confirms session validity.
+// Uses authMiddleware so deleted / banned users are rejected before handler runs.
+auth.get('/ping', authMiddleware, async (c) => {
+    try {
+        const user = c.get('user')
+
+        if (!user) {
+            logger.warn('[Auth] /ping called without user in context')
+            return c.json({ error: 'Not authenticated' }, 401)
+        }
+
+        const now = new Date()
+
+        // Update lastLoginAt to act as "last active" timestamp
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: now },
+        })
+
+        logger.info('[Auth] /ping heartbeat', {
+            userId: user.id,
+            email: user.email,
+            tier: user.tier,
+            status: (user as any).status,
+            at: now.toISOString(),
+        })
+
+        return c.json({
+            ok: true,
+            user: {
+                id: user.id,
+                email: user.email,
+                tier: user.tier,
+                status: (user as any).status,
+                lastActiveAt: now.toISOString(),
+            },
+        })
+    } catch (error) {
+        logger.error('[Auth] /ping error', error)
+        return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
 export { auth as authRoutes }
 // =============================
 // Phantom Deep Link (iOS) Support

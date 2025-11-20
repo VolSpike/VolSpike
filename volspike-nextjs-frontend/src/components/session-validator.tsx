@@ -41,15 +41,14 @@ export function SessionValidator() {
         const check = async (source: string) => {
             try {
                 const start = Date.now()
-                console.log('[SessionValidator] 🔍 Checking user status via /api/auth/me', {
+                console.log('[SessionValidator] 🔍 Checking user status via /api/auth/ping', {
                     source,
                     userId: (session.user as any).id,
                 })
 
-                // Call the Next.js API route, which proxies to the backend and
-                // forwards status codes as-is. This keeps everything same-origin
-                // and resistant to environment mismatches.
-                const res = await fetch('/api/auth/me', {
+                // Call the Next.js heartbeat route, which proxies to the backend and
+                // forwards status codes as-is while updating last active time.
+                const res = await fetch('/api/auth/ping', {
                     method: 'GET',
                     headers: {
                         'X-Auth-Source': 'session-validator',
@@ -60,7 +59,7 @@ export function SessionValidator() {
                 })
 
                 const elapsed = Date.now() - start
-                console.log('[SessionValidator] Response from /api/auth/me', {
+                console.log('[SessionValidator] Response from /api/auth/ping', {
                     status: res.status,
                     ok: res.ok,
                     source,
