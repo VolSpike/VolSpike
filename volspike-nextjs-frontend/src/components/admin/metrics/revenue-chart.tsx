@@ -271,10 +271,10 @@ export function RevenueChart() {
                                         borderColor: 'rgba(255,255,255,0.05)',
                                         borderRadius: 10,
                                     }}
-                                    formatter={(value: number, name) => [
-                                        `$${value.toLocaleString()}`,
-                                        name.charAt(0).toUpperCase() + name.slice(1),
-                                    ]}
+                                    formatter={(value: number, name) => {
+                                        const label = typeof name === 'string' ? name : String(name)
+                                        return [`$${value.toLocaleString()}`, label.charAt(0).toUpperCase() + label.slice(1)]
+                                    }}
                                 />
                                 <Legend />
                                 <Area
