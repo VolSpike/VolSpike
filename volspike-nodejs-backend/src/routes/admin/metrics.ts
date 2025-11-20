@@ -19,6 +19,32 @@ const metricsQuerySchema = z.object({
     period: z.enum(['7d', '30d', '90d', '1y']).default('30d').optional(),
 })
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000
+
+const formatDateKey = (date: Date): string => date.toISOString().split('T')[0]
+
+const getPeriodRange = (period: string = '30d') => {
+    const now = new Date()
+    const startDate = new Date(now)
+
+    switch (period) {
+        case '7d':
+            startDate.setDate(now.getDate() - 7)
+            break
+        case '30d':
+            startDate.setDate(now.getDate() - 30)
+            break
+        case '90d':
+            startDate.setDate(now.getDate() - 90)
+            break
+        case '1y':
+            startDate.setFullYear(now.getFullYear() - 1)
+            break
+    }
+
+    return { period, startDate, endDate: now }
+}
+
 // GET /api/admin/metrics - Get system metrics
 adminMetricsRoutes.get('/', async (c) => {
     try {
@@ -27,23 +53,7 @@ adminMetricsRoutes.get('/', async (c) => {
         const period = params.period || '30d'
 
         // Calculate date range
-        const now = new Date()
-        const startDate = new Date()
-
-        switch (period) {
-            case '7d':
-                startDate.setDate(now.getDate() - 7)
-                break
-            case '30d':
-                startDate.setDate(now.getDate() - 30)
-                break
-            case '90d':
-                startDate.setDate(now.getDate() - 90)
-                break
-            case '1y':
-                startDate.setFullYear(now.getFullYear() - 1)
-                break
-        }
+        const { startDate } = getPeriodRange(period)
 
         // Get metrics
         const [
@@ -134,6 +144,129 @@ adminMetricsRoutes.get('/users', async (c) => {
     } catch (error) {
         logger.error('Get user metrics error:', error)
         return c.json({ error: 'Failed to fetch user metrics' }, 500)
+    }
+})
+
+// GET /api/admin/metrics/user-growth - Get user growth over time
+adminMetricsRoutes.get('/user-growth', async (c) => {
+    try {
+        const query = c.req.query()
+        const params = metricsQuerySchema.parse(query)
+        const { period, startDate, endDate } = getPeriodRange(params.period || '30d')
+        const rangeMs = endDate.getTime() - startDate.getTime()
+
+        // Fetch new users in the period (date and tier for stacking)
+        const newUsers = await prisma.user.findMany({
+            where: {
+                createdAt: {
+                    gte: startDate,
+                    lte: endDate,
+                },
+            },
+            select: {
+                createdAt: true,
+                tier: true,
+            },
+            orderBy: {
+                createdAt: 'asc',
+            },
+        })
+
+        // Previous period baseline to calculate growth rate
+        const previousPeriodStart = new Date(startDate.getTime() - rangeMs)
+        const previousNewUsers = await prisma.user.count({
+            where: {
+                createdAt: {
+                    gte: previousPeriodStart,
+                    lt: startDate,
+                },
+            },
+        })
+
+        // Build daily buckets
+        const dailyMap = new Map<
+            string,
+            { total: number; free: number; pro: number; elite: number }
+        >()
+
+        newUsers.forEach((user) => {
+            const key = formatDateKey(user.createdAt)
+            const existing = dailyMap.get(key) || { total: 0, free: 0, pro: 0, elite: 0 }
+
+            existing.total += 1
+            if (user.tier === 'pro') {
+                existing.pro += 1
+            } else if (user.tier === 'elite') {
+                existing.elite += 1
+            } else {
+                existing.free += 1
+            }
+
+            dailyMap.set(key, existing)
+        })
+
+        // Ensure we have an entry for each day in the range
+        for (
+            let cursor = new Date(startDate);
+            cursor <= endDate;
+            cursor = new Date(cursor.getTime() + DAY_IN_MS)
+        ) {
+            const key = formatDateKey(cursor)
+            if (!dailyMap.has(key)) {
+                dailyMap.set(key, { total: 0, free: 0, pro: 0, elite: 0 })
+            }
+        }
+
+        // Sort and build cumulative totals
+        const sortedDaily = Array.from(dailyMap.entries()).sort((a, b) =>
+            a[0].localeCompare(b[0]),
+        )
+
+        let runningTotal = 0
+        const dailyGrowth = sortedDaily.map(([date, counts]) => {
+            runningTotal += counts.total
+            return {
+                date,
+                newUsers: counts.total,
+                free: counts.free,
+                pro: counts.pro,
+                elite: counts.elite,
+                cumulative: runningTotal,
+            }
+        })
+
+        // Summaries
+        const freeTotal = newUsers.filter(u => u.tier === 'free').length
+        const proTotal = newUsers.filter(u => u.tier === 'pro').length
+        const eliteTotal = newUsers.filter(u => u.tier === 'elite').length
+
+        const dayCount = Math.max(1, Math.round(rangeMs / DAY_IN_MS))
+        const growthRate = previousNewUsers === 0
+            ? newUsers.length > 0 ? 100 : 0
+            : ((newUsers.length - previousNewUsers) / previousNewUsers) * 100
+
+        return c.json({
+            period,
+            range: {
+                start: startDate.toISOString(),
+                end: endDate.toISOString(),
+            },
+            daily: dailyGrowth,
+            summary: {
+                newUsers: newUsers.length,
+                averagePerDay: Math.round((newUsers.length / dayCount) * 100) / 100,
+                perTier: {
+                    free: freeTotal,
+                    pro: proTotal,
+                    elite: eliteTotal,
+                },
+                previousPeriod: previousNewUsers,
+                growthRate,
+            },
+        })
+    } catch (error) {
+        logger.error('Get user growth metrics error:', error)
+        return c.json({ error: 'Failed to fetch user growth metrics' }, 500)
     }
 })
 

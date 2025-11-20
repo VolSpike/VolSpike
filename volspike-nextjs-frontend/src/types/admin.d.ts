@@ -155,6 +155,33 @@ export interface SystemMetrics {
     adminSessions: number
 }
 
+export interface UserGrowthMetrics {
+    period: string
+    range: {
+        start: string
+        end: string
+    }
+    daily: Array<{
+        date: string
+        newUsers: number
+        free: number
+        pro: number
+        elite: number
+        cumulative: number
+    }>
+    summary: {
+        newUsers: number
+        averagePerDay: number
+        perTier: {
+            free: number
+            pro: number
+            elite: number
+        }
+        previousPeriod: number
+        growthRate: number
+    }
+}
+
 // 2FA types
 export interface TwoFactorSetup {
     secret: string

@@ -1,4 +1,4 @@
-import { AdminUser, UserListQuery, UserListResponse, CreateUserRequest, UpdateUserRequest, BulkActionRequest, AuditLogResponse, AuditLogQuery, SystemMetrics, SubscriptionSummary, AdminSettings, TwoFactorSetup, TwoFactorVerification } from '@/types/admin'
+import { AdminUser, UserListQuery, UserListResponse, CreateUserRequest, UpdateUserRequest, BulkActionRequest, AuditLogResponse, AuditLogQuery, SystemMetrics, SubscriptionSummary, AdminSettings, TwoFactorSetup, TwoFactorVerification, UserGrowthMetrics } from '@/types/admin'
 import type { AssetRecord } from '@/lib/asset-manifest'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -246,6 +246,10 @@ class AdminAPIClient {
 
     async getRevenueAnalytics(period: string = '1y'): Promise<any> {
         return this.request<any>(`/api/admin/metrics/revenue-analytics?period=${period}`)
+    }
+
+    async getUserGrowth(period: string = '30d'): Promise<UserGrowthMetrics> {
+        return this.request<UserGrowthMetrics>(`/api/admin/metrics/user-growth?period=${period}`)
     }
 
     async getActivityMetrics(period: string = '30d'): Promise<any> {
