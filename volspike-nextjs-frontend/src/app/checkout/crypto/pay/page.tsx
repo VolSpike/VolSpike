@@ -201,19 +201,38 @@ export default function CryptoPaymentPage() {
     }
   }, [debugMode])
 
-  // Generate Solana Pay URI (wallet-agnostic transfer request)
-  // Solana Pay spec: solana:<address>?amount=<decimal>&spl-token=<mint>&label=<label>&message=<message>
-  // IMPORTANT: This is the only officially documented, QR-friendly payment format that Phantom supports.
-  const { solanaUri, phantomDeepLink, phantomUniversalLink } = useMemo(() => {
+  // Generate chain-specific payloads:
+  // - Solana: Solana Pay URI + Phantom links (unchanged for USDT/USDC/SOL)
+  // - EVM/BTC: Simple address + amount, avoid Solana/Phantom paths
+  const { solanaUri, phantomDeepLink, phantomUniversalLink, evmData } = useMemo(() => {
     if (!paymentDetails?.payAddress || !paymentDetails?.payAmount) {
-      return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null }
+      return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null, evmData: null }
+    }
+
+    const currency = paymentDetails.payCurrency?.toLowerCase() || ''
+    const isSolana = currency === 'sol' || currency.includes('sol')
+    const isEthereum = currency === 'eth' || currency.includes('erc20') || currency === 'usdce' || currency === 'usdterc20'
+    const isBitcoin = currency === 'btc'
+    const isUSDT = currency.includes('usdt')
+    const isUSDC = currency.includes('usdc')
+
+    // EVM/BTC path: provide address + amount for QR and UI; no Solana/Phantom URIs
+    if (isEthereum || isBitcoin) {
+      return {
+        solanaUri: null,
+        phantomDeepLink: null,
+        phantomUniversalLink: null,
+        evmData: {
+          address: paymentDetails.payAddress,
+          amount: paymentDetails.payAmount,
+          token: getCurrencyDisplayName(currency),
+          network: getNetworkName(currency),
+        },
+      }
     }
 
     try {
-      const currency = paymentDetails.payCurrency?.toLowerCase() || ''
       const isSOL = currency === 'sol'
-      const isUSDT = currency.includes('usdt')
-      const isUSDC = currency.includes('usdc')
 
       // SPL Token mint addresses (Solana mainnet)
       const SPL_TOKEN_MINTS: Record<string, string> = {
@@ -521,28 +540,41 @@ export default function CryptoPaymentPage() {
         solanaUri: solanaPayUri,
         phantomDeepLink: phantomDeepLinkUri,
         phantomUniversalLink: phantomUniversalLinkUri,
+        evmData: null,
       }
     } catch (error) {
       debugError('[CryptoPaymentPage] Error generating payment URIs:', error)
-      return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null }
+      return { solanaUri: null, phantomDeepLink: null, phantomUniversalLink: null, evmData: null }
     }
   }, [paymentDetails])
 
-  // Generate QR code – **Solana Pay transfer URL only**
-  // This is the wallet-agnostic, officially documented way to trigger a prefilled payment.
+  // Generate QR code – Solana uses Solana Pay URI; EVM/BTC uses plain address
   useEffect(() => {
     const uriForQR = solanaUri
-    
-    if (!uriForQR) {
-      debugWarn('[CryptoPaymentPage] No Solana Pay URI available for QR code generation', {
-        hasSolanaUri: !!solanaUri,
-        hasPhantomLink: !!phantomUniversalLink,
-        paymentDetails: paymentDetails ? {
-          hasAddress: !!paymentDetails.payAddress,
-          hasAmount: !!paymentDetails.payAmount,
-          currency: paymentDetails.payCurrency,
-        } : null,
+
+    // EVM/BTC: QR is address-only (let wallet prompt for amount); avoids Phantom/Solana handling
+    if (!uriForQR && evmData?.address) {
+      const payload = evmData.address
+      debugLog('[CryptoPaymentPage] Generating QR code (EVM/BTC address only)', {
+        payload,
+        network: evmData.network,
+        token: evmData.token,
       })
+      QRCode.toDataURL(payload, {
+        width: 300,
+        margin: 2,
+        color: { dark: '#000000', light: '#FFFFFF' },
+        errorCorrectionLevel: 'M',
+      })
+        .then((url) => setQrCodeDataUrl(url))
+        .catch((err) => {
+          debugError('[CryptoPaymentPage] QR code generation error (EVM/BTC):', err)
+          toast.error('Failed to generate QR code')
+        })
+      return
+    }
+
+    if (!uriForQR) {
       return
     }
 
@@ -1135,7 +1167,7 @@ export default function CryptoPaymentPage() {
                 Scan to upgrade with crypto
               </h1>
               <p className="text-sm text-muted-foreground max-w-md">
-                Use your phone&apos;s camera or Phantom wallet to scan the code and send one secure payment. Your VolSpike tier upgrades automatically after the transaction confirms.
+                Scan the QR with your wallet. Solana payments open in Phantom/compatible Solana wallets; Ethereum/Bitcoin payments use your EVM/BTC wallet (e.g., MetaMask).
               </p>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/40 px-3 py-1.5 text-xs">
@@ -1156,7 +1188,7 @@ export default function CryptoPaymentPage() {
                   </div>
                   <div>
                     <CardTitle className="flex items-center gap-2 text-xl">
-                      Pay with Phantom
+                      {networkName === 'Solana' ? 'Pay with Phantom' : `Pay with your ${networkName} wallet`}
                     </CardTitle>
                     <CardDescription className="mt-1.5">
                       Use your wallet&apos;s <span className="font-medium text-foreground">Scan</span> feature to send the exact amount below.
@@ -1353,33 +1385,46 @@ export default function CryptoPaymentPage() {
                   <div className="text-center space-y-3 max-w-sm">
                     <div className="space-y-2 text-xs text-muted-foreground">
                       <p className="font-semibold text-foreground">How to pay</p>
-                      <ol className="list-decimal list-inside space-y-1 text-left">
-                        <li>Open your phone&apos;s Camera app or Phantom wallet.</li>
-                        <li>Point it at this QR code.</li>
-                        <li>Confirm the pre-filled payment in your wallet.</li>
-                      </ol>
+                      {networkName === 'Solana' ? (
+                        <ol className="list-decimal list-inside space-y-1 text-left">
+                          <li>Open your phone&apos;s Camera app or Phantom wallet.</li>
+                          <li>Point it at this QR code.</li>
+                          <li>Confirm the pre-filled payment in your wallet.</li>
+                        </ol>
+                      ) : (
+                        <ol className="list-decimal list-inside space-y-1 text-left">
+                          <li>Open your {networkName} wallet (e.g., MetaMask for Ethereum).</li>
+                          <li>Use the wallet&apos;s QR scanner or copy the address below.</li>
+                          <li>Send the exact amount shown to the address.</li>
+                        </ol>
+                      )}
                     </div>
                     <div className="pt-2 border-t border-border/30 space-y-2">
-                      <Button
-                        onClick={() => {
-                          // Open Phantom app - user can then use the scanner
-                          const targetUri = phantomDeepLink || phantomUniversalLink || solanaUri
-                          if (targetUri) {
-                            try {
-                              window.open(targetUri, '_blank', 'noopener,noreferrer')
-                              toast.success('Opening Phantom... Use the Send → QR scanner to scan the code above', { duration: 5000 })
-                            } catch (err) {
-                              toast.error('Please open Phantom manually and use the scanner')
+                      {networkName === 'Solana' ? (
+                        <Button
+                          onClick={() => {
+                            const targetUri = phantomDeepLink || phantomUniversalLink || solanaUri
+                            if (targetUri) {
+                              try {
+                                window.open(targetUri, '_blank', 'noopener,noreferrer')
+                                toast.success('Opening Phantom... Use the Send → QR scanner to scan the code above', { duration: 5000 })
+                              } catch (err) {
+                                toast.error('Please open Phantom manually and use the scanner')
+                              }
                             }
-                          }
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                      >
-                        <QrCode className="mr-2 h-3.5 w-3.5" />
-                        Open Phantom & Use Scanner
-                      </Button>
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                        >
+                          <QrCode className="mr-2 h-3.5 w-3.5" />
+                          Open Phantom & Use Scanner
+                        </Button>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground text-center">
+                          Use your {networkName} wallet (e.g., MetaMask) to scan or copy the address. We don&apos;t deep-link non-Solana wallets to avoid the wrong app opening.
+                        </p>
+                      )}
                       <p className="text-[11px] text-muted-foreground">
                         💡 <strong>Best method:</strong> Use iPhone Camera (Option A) for the easiest and most reliable experience.
                       </p>
@@ -1387,7 +1432,7 @@ export default function CryptoPaymentPage() {
                   </div>
 
                   {/* Debug info (dev / debug mode) */}
-                  {debugMode && (phantomUniversalLink || solanaUri) && (
+                  {debugMode && (phantomUniversalLink || solanaUri) && networkName === 'Solana' && (
                     <div className="w-full space-y-3 rounded-lg border border-purple-500/25 bg-gradient-to-br from-purple-500/10 to-blue-500/10 p-4">
                       <div className="flex items-center gap-2">
                         <span className="text-lg">🔍</span>
@@ -1606,66 +1651,92 @@ export default function CryptoPaymentPage() {
                 </>
               ) : (
                 <>
-                  {/* Primary: Open in wallet (Solana Pay URI) */}
-                  <Button
-                    onClick={() => {
-                      if (solanaUri) {
-                        debugLog('[CryptoPaymentPage] Opening Solana Pay URI from button:', {
-                          solanaUri,
-                          phantomUniversalLink,
-                          phantomDeepLink,
-                          timestamp: new Date().toISOString(),
-                        })
-                        
-                        // Use window.open instead of window.location.href to avoid blocking navigation.
-                        // The OS will route the solana: URI to the user’s preferred Solana wallet (Phantom, etc.)
-                        try {
-                          const opened = window.open(solanaUri, '_blank', 'noopener,noreferrer')
-                          if (!opened) {
-                            debugWarn('[CryptoPaymentPage] Popup blocked, trying direct navigation', {
+                  {networkName === 'Solana' ? (
+                    <>
+                      {/* Primary: Open in wallet (Solana Pay URI) */}
+                      <Button
+                        onClick={() => {
+                          if (solanaUri) {
+                            debugLog('[CryptoPaymentPage] Opening Solana Pay URI from button:', {
                               solanaUri,
+                              phantomUniversalLink,
+                              phantomDeepLink,
+                              timestamp: new Date().toISOString(),
                             })
-                            window.location.href = solanaUri
+                            
+                            try {
+                              const opened = window.open(solanaUri, '_blank', 'noopener,noreferrer')
+                              if (!opened) {
+                                debugWarn('[CryptoPaymentPage] Popup blocked, trying direct navigation', {
+                                  solanaUri,
+                                })
+                                window.location.href = solanaUri
+                              }
+                            } catch (err) {
+                              console.error('[CryptoPaymentPage] Error opening wallet via Solana Pay URI:', err)
+                              toast.error('Failed to open wallet. Please copy the address manually.')
+                            }
+                          } else {
+                            toast.error('Payment details not available')
+                            console.error('[CryptoPaymentPage] No Solana Pay URI available for button click')
                           }
-                        } catch (err) {
-                          console.error('[CryptoPaymentPage] Error opening wallet via Solana Pay URI:', err)
-                          toast.error('Failed to open wallet. Please copy the address manually.')
-                        }
-                      } else {
-                        toast.error('Payment details not available')
-                        console.error('[CryptoPaymentPage] No Solana Pay URI available for button click')
-                      }
-                    }}
-                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white shadow-lg"
-                    size="lg"
-                    disabled={!solanaUri || isExpired}
-                    type="button"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <span>Open in Phantom Wallet</span>
-                      <ExternalLink className="h-4 w-4" />
-                    </span>
-                  </Button>
-                  
-                  {/* Secondary: Copy address for manual entry */}
-                  <Button
-                    onClick={() => {
-                      if (paymentDetails?.payAddress) {
-                        copyToClipboard(paymentDetails.payAddress, 'address')
-                        toast.success('Address copied! Paste it in Phantom wallet manually.')
-                      }
-                    }}
-                    variant="outline"
-                    className="w-full"
-                    size="lg"
-                    disabled={!paymentDetails?.payAddress || isExpired}
-                    type="button"
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <Copy className="h-4 w-4" />
-                      Copy Address (Manual Entry)
-                    </span>
-                  </Button>
+                        }}
+                        className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white shadow-lg"
+                        size="lg"
+                        disabled={!solanaUri || isExpired}
+                        type="button"
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span>Open in Phantom Wallet</span>
+                          <ExternalLink className="h-4 w-4" />
+                        </span>
+                      </Button>
+                      
+                      {/* Secondary: Copy address for manual entry */}
+                      <Button
+                        onClick={() => {
+                          if (paymentDetails?.payAddress) {
+                            copyToClipboard(paymentDetails.payAddress, 'address')
+                            toast.success('Address copied! Paste it in Phantom wallet manually.')
+                          }
+                        }}
+                        variant="outline"
+                        className="w-full"
+                        size="lg"
+                        disabled={!paymentDetails?.payAddress || isExpired}
+                        type="button"
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <Copy className="h-4 w-4" />
+                          Copy Address (Manual Entry)
+                        </span>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm text-muted-foreground text-center">
+                        Open your {networkName} wallet (e.g., MetaMask) and send to the address below. QR is address-only to avoid the wrong app opening.
+                      </div>
+                      <Button
+                        onClick={() => {
+                          if (paymentDetails?.payAddress) {
+                            copyToClipboard(paymentDetails.payAddress, 'address')
+                            toast.success('Address copied! Paste it in your wallet.')
+                          }
+                        }}
+                        variant="outline"
+                        className="w-full"
+                        size="lg"
+                        disabled={!paymentDetails?.payAddress || isExpired}
+                        type="button"
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <Copy className="h-4 w-4" />
+                          Copy Wallet Address
+                        </span>
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
               
