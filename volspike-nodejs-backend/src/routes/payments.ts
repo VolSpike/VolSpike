@@ -1127,10 +1127,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                         minAmountFromApi,
                     ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
+                    // HARD CAP: Tests must stay at ~$2, even if NowPayments reports higher minimums.
                     const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
-                    // Keep test payments low: cap adjusted test amount at $3.00 even after buffer.
-                    const cappedBase = Math.min(candidateBase, 3.0)
-                    const bufferedAmount = Math.min(cappedBase * 1.05, 3.0)
+                    const cappedBase = Math.min(candidateBase, 2.0)
+                    const bufferedAmount = Math.min(cappedBase * 1.05, 2.0)
                     const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
                     if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
@@ -1341,10 +1341,10 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                     minAmountFromApi,
                 ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
+                // HARD CAP: Tests must stay at ~$2, even if NowPayments reports higher minimums.
                 const candidateBase = candidatesRaw.length > 0 ? Math.max(...candidatesRaw) : 2.0
-                // Keep test payments low: cap adjusted test amount at $3.00 even after buffer.
-                const cappedBase = Math.min(candidateBase, 3.0)
-                const bufferedAmount = Math.min(cappedBase * 1.05, 3.0)
+                const cappedBase = Math.min(candidateBase, 2.0)
+                const bufferedAmount = Math.min(cappedBase * 1.05, 2.0)
                 const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
                 if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 5.0) {
