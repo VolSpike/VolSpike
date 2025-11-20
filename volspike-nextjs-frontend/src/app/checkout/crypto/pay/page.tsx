@@ -71,6 +71,32 @@ export default function CryptoPaymentPage() {
     if (debugMode) console.error(...args)
   }
 
+  const getCurrencyDisplayName = (currency: string): string => {
+    const currencyMap: Record<string, string> = {
+      'usdtsol': 'USDT',
+      'usdterc20': 'USDT',
+      'usdce': 'USDC',
+      'sol': 'SOL',
+      'btc': 'BTC',
+      'eth': 'ETH',
+    }
+    return currencyMap[currency.toLowerCase()] || currency.toUpperCase()
+  }
+
+  const getNetworkName = (currency: string): string => {
+    const normalized = currency.toLowerCase()
+    if (normalized.includes('sol') || normalized === 'sol') {
+      return 'Solana'
+    }
+    if (normalized.includes('erc20') || normalized.includes('eth') || normalized === 'eth') {
+      return 'Ethereum'
+    }
+    if (normalized === 'btc') {
+      return 'Bitcoin'
+    }
+    return 'Unknown'
+  }
+
   const safeNavigate = useCallback(
     (href: string, source: string) => {
       const isDebug =
@@ -986,32 +1012,6 @@ export default function CryptoPaymentPage() {
     } catch (err) {
       toast.error('Failed to copy')
     }
-  }
-
-  const getCurrencyDisplayName = (currency: string): string => {
-    const currencyMap: Record<string, string> = {
-      'usdtsol': 'USDT',
-      'usdterc20': 'USDT',
-      'usdce': 'USDC',
-      'sol': 'SOL',
-      'btc': 'BTC',
-      'eth': 'ETH',
-    }
-    return currencyMap[currency.toLowerCase()] || currency.toUpperCase()
-  }
-
-  const getNetworkName = (currency: string): string => {
-    const normalized = currency.toLowerCase()
-    if (normalized.includes('sol') || normalized === 'sol') {
-      return 'Solana'
-    }
-    if (normalized.includes('erc20') || normalized.includes('eth') || normalized === 'eth') {
-      return 'Ethereum'
-    }
-    if (normalized === 'btc') {
-      return 'Bitcoin'
-    }
-    return 'Unknown'
   }
 
   const getFriendlyStatus = (status: string | undefined | null): { label: string; tone: 'default' | 'success' | 'warning' | 'danger'; description?: string } => {
