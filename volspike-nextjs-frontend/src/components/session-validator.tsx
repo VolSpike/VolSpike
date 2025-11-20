@@ -13,6 +13,14 @@ export function SessionValidator() {
     const { data: session, status } = useSession()
 
     useEffect(() => {
+        // Only run heartbeat checks when NextAuth reports an authenticated session.
+        if (status !== 'authenticated') {
+            console.log('[SessionValidator] Skipping heartbeat - status is not authenticated', {
+                status,
+            })
+            return
+        }
+
         if (!session?.user?.id) {
             console.log('[SessionValidator] Skipping heartbeat - no session user id', {
                 status,
@@ -70,17 +78,28 @@ export function SessionValidator() {
                     elapsedMs: elapsed,
                 })
 
-                // Treat any 401/403/404 as fatal: user is gone or token invalid
-                if (res.status === 401 || res.status === 403 || res.status === 404) {
-                    await logout('unauthorized-or-deleted', source, res.status)
+                // Treat 404 as "user is gone" (deleted / hard missing)
+                if (res.status === 404) {
+                    await logout('user-not-found', source, res.status)
+                    return
+                }
+
+                // 401/403 mean "not authenticated" or "forbidden" for this call.
+                // We log them but do NOT force logout here to avoid races on
+                // initial page load or transient auth glitches. NextAuth will
+                // handle these states via its own callbacks.
+                if (res.status === 401 || res.status === 403) {
+                    console.warn('[SessionValidator] Auth heartbeat returned', res.status, '(non-fatal)', {
+                        source,
+                    })
                     return
                 }
 
                 // Any other non-OK status is treated as a soft failure – log it but
                 // don't immediately kill the session to avoid flapping on transient
-                // backend issues. Deletion is always signalled via 401/403/404.
+                // backend issues.
                 if (!res.ok) {
-                    console.warn('[SessionValidator] Non-OK response from /api/auth/me (non-fatal)', {
+                    console.warn('[SessionValidator] Non-OK response from /api/auth/ping (non-fatal)', {
                         status: res.status,
                         source,
                     })
