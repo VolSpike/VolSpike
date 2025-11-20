@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,8 +20,10 @@ import {
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import { formatDistanceToNow } from 'date-fns'
+import { useSession } from 'next-auth/react'
 
 export function SecuritySettings() {
+    const { data: session } = useSession()
     const [loading, setLoading] = useState<string | null>(null)
     const [sessions, setSessions] = useState<any[]>([])
     const [showPassword, setShowPassword] = useState(false)
@@ -30,6 +32,13 @@ export function SecuritySettings() {
         newPassword: '',
         confirmPassword: '',
     })
+
+    useEffect(() => {
+        if (session?.accessToken) {
+            adminAPI.setAccessToken(session.accessToken as string)
+            loadSessions()
+        }
+    }, [session?.accessToken])
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -71,6 +80,12 @@ export function SecuritySettings() {
     const loadSessions = async () => {
         setLoading('sessions')
         try {
+            if (!session?.accessToken) {
+                toast.error('No session token available')
+                setLoading(null)
+                return
+            }
+            adminAPI.setAccessToken(session.accessToken as string)
             const data = await adminAPI.getActiveSessions()
             setSessions(data.sessions)
         } catch (error: any) {

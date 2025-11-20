@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Wallet, Copy, ExternalLink, Loader2 } from 'lucide-react'
@@ -20,6 +20,10 @@ export function WalletBalances() {
     const { data: session } = useSession()
     const [wallets, setWallets] = useState<WalletAddress[]>([])
     const [loading, setLoading] = useState(true)
+    const [stats, setStats] = useState<{ totalPayments: number; withAddress: number }>({
+        totalPayments: 0,
+        withAddress: 0,
+    })
 
     useEffect(() => {
         if (session?.accessToken) {
@@ -37,84 +41,63 @@ export function WalletBalances() {
         setLoading(true)
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            
-            // Fetch all payments with pagination (max limit is 100 per API)
+            // Fetch all payments (paginate) and include any with usable addresses.
             const allPayments: any[] = []
             let page = 1
-            const limit = 100 // API maximum
-            let hasMore = true
-            
-            console.log('[WalletBalances] Starting to fetch payments with pagination...')
-            
-            while (hasMore) {
-                const url = `${apiUrl}/api/admin/payments?limit=${limit}&page=${page}&paymentStatus=finished`
-                console.log('[WalletBalances] Fetching page', page, 'from:', url)
-                
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${session.accessToken}`,
-                        'Content-Type': 'application/json',
-                    },
+            const limit = 100
+            let pages = 1
+
+            while (page <= pages) {
+                const resp = await adminAPI.getPayments({
+                    limit,
+                    page,
+                    paymentStatus: 'finished', // primary filter
                 })
-                
-                console.log('[WalletBalances] Response status:', response.status)
-                
-                if (!response.ok) {
-                    const errorText = await response.text()
-                    console.error('[WalletBalances] API error:', response.status, errorText)
-                    throw new Error(`Failed to fetch payments: ${response.status} ${errorText}`)
-                }
-                
-                const data = await response.json()
-                console.log('[WalletBalances] Page', page, 'received:', { 
-                    paymentsCount: data.payments?.length || 0,
-                    total: data.pagination?.total || 0,
-                    pages: data.pagination?.pages || 0
-                })
-                
-                if (data.payments && Array.isArray(data.payments)) {
-                    allPayments.push(...data.payments)
-                    
-                    // Check if there are more pages
-                    hasMore = page < (data.pagination?.pages || 0)
-                    page++
-                } else {
-                    hasMore = false
-                }
+                const payments = resp.payments || []
+                allPayments.push(...payments)
+                pages = resp.pagination?.pages || 1
+                page += 1
             }
-            
-            console.log('[WalletBalances] Total payments fetched:', allPayments.length)
-            
+
             // Group by payAddress and currency
             const walletMap = new Map<string, WalletAddress>()
-            
+
             allPayments.forEach((payment: any) => {
-                if (payment.payAddress && payment.paymentStatus === 'finished') {
-                    const key = `${payment.payAddress}-${payment.actuallyPaidCurrency || 'unknown'}`
-                    
+                // Normalize fields (handle pay_address if the API ever returns snake_case)
+                const payAddress = payment.payAddress || payment.pay_address
+                const currency = (payment.actuallyPaidCurrency || payment.actually_paid_currency || payment.payCurrency || payment.pay_currency || 'unknown').toString().toUpperCase()
+
+                if (payAddress && (payment.paymentStatus === 'finished' || payment.paymentStatus === 'confirmed' || payment.paymentStatus === 'sending')) {
+                    const key = `${payAddress}-${currency}`
+
                     if (!walletMap.has(key)) {
                         walletMap.set(key, {
-                            address: payment.payAddress,
-                            currency: payment.actuallyPaidCurrency?.toUpperCase() || 'UNKNOWN',
+                            address: payAddress,
+                            currency,
                             totalReceived: 0,
                             paymentCount: 0,
                             lastPayment: null,
                         })
                     }
-                    
+
                     const wallet = walletMap.get(key)!
-                    wallet.totalReceived += payment.payAmount || 0
+                    // Sum USD-equivalent if present; otherwise use crypto amount.
+                    const fiat = payment.payAmount ?? payment.pay_amount
+                    const crypto = payment.actuallyPaid ?? payment.actually_paid
+                    wallet.totalReceived += (fiat ?? crypto ?? 0)
                     wallet.paymentCount += 1
-                    
+
                     if (payment.paidAt && (!wallet.lastPayment || payment.paidAt > wallet.lastPayment)) {
                         wallet.lastPayment = payment.paidAt
                     }
                 }
             })
-            
+
             const walletsArray = Array.from(walletMap.values()).sort((a, b) => b.totalReceived - a.totalReceived)
-            console.log('[WalletBalances] Processed wallets:', walletsArray.length)
+            setStats({
+                totalPayments: allPayments.length,
+                withAddress: walletsArray.length,
+            })
             setWallets(walletsArray)
         } catch (error: any) {
             console.error('[WalletBalances] Failed to fetch wallet addresses:', error)
@@ -186,7 +169,9 @@ export function WalletBalances() {
                         <Wallet className="h-8 w-8 text-muted-foreground mb-2" />
                         <p className="text-sm font-medium text-foreground mb-1">No wallet addresses found</p>
                         <p className="text-xs text-muted-foreground text-center max-w-xs">
-                            Wallet addresses will appear here once crypto payments are received
+                            {stats.totalPayments > 0
+                                ? `Scanned ${stats.totalPayments} finished payments. None had a pay address on record.`
+                                : 'Wallet addresses will appear here once crypto payments are received.'}
                         </p>
                     </div>
                 ) : (
@@ -254,4 +239,3 @@ export function WalletBalances() {
         </Card>
     )
 }
-
