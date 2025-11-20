@@ -1147,17 +1147,18 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                     ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
                     // Soft self-heal: honor NowPayments minimum but keep test payments low.
-                    // Bump to slightly above the reported minimum (+$0.02) and cap at $2.50.
+                    // BTC sometimes returns tiny “minimum” values; allow a higher cap for BTC.
+                    const adaptiveCap = payCurrency === 'btc' ? 10.0 : 2.5
                     const effectiveMin = Math.max(
                         2.0,
                         ...candidatesRaw,
                     )
                     const bumped = effectiveMin + 0.02
-                    const adjustedBase = Math.min(bumped, 2.5)
-                    const bufferedAmount = Math.min(adjustedBase * 1.05, 2.5)
+                    const adjustedBase = Math.min(bumped, adaptiveCap)
+                    const bufferedAmount = Math.min(adjustedBase * 1.05, adaptiveCap)
                     const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
-                    if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 2.5) {
+                    if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= adaptiveCap) {
                         logger.warn('Retrying NowPayments TEST payment with higher amount due to minimum error', {
                             previousPriceAmount: priceAmount,
                             adjustedAmount,
@@ -1366,17 +1367,18 @@ payments.post('/nowpayments/test-checkout', async (c) => {
                 ].filter((v): v is number => v !== null && !Number.isNaN(v) && v > 0)
 
                 // Soft self-heal: honor NowPayments minimum but keep test payments low.
-                // Bump to slightly above the reported minimum (+$0.02) and cap at $2.50.
+                // BTC sometimes returns tiny “minimum” values; allow a higher cap for BTC.
+                const adaptiveCap = payCurrency === 'btc' ? 10.0 : 2.5
                 const effectiveMin = Math.max(
                     2.0,
                     ...candidatesRaw,
                 )
                 const bumped = effectiveMin + 0.02
-                const adjustedBase = Math.min(bumped, 2.5)
-                const bufferedAmount = Math.min(adjustedBase * 1.05, 2.5)
+                const adjustedBase = Math.min(bumped, adaptiveCap)
+                const bufferedAmount = Math.min(adjustedBase * 1.05, adaptiveCap)
                 const adjustedAmount = Math.ceil(bufferedAmount * 100) / 100
 
-                if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= 2.5) {
+                if (adjustedAmount > (priceAmount || 0) && adjustedAmount <= adaptiveCap) {
                     logger.warn('Retrying NowPayments TEST invoice with higher amount due to minimum error', {
                         previousPriceAmount: priceAmount,
                         adjustedAmount,
