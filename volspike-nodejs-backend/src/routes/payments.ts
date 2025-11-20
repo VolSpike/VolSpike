@@ -18,6 +18,25 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 const payments = new Hono()
 
+// Helper to check whether user already has an active Stripe subscription
+async function hasActiveStripeSubscription(user: User) {
+    if (!user.stripeCustomerId) return false
+    try {
+        const subs = await stripe.subscriptions.list({
+            customer: user.stripeCustomerId,
+            status: 'active',
+            limit: 1,
+        })
+        return subs.data.length > 0
+    } catch (err) {
+        logger.warn('Stripe subscription check failed (allowing crypto proceed)', {
+            userId: user.id,
+            error: err instanceof Error ? err.message : String(err),
+        })
+        return false
+    }
+}
+
 // Validation schemas
 const createCheckoutSchema = z.object({
     priceId: z.string(),
@@ -1471,6 +1490,18 @@ payments.post('/nowpayments/checkout', async (c) => {
             email: user.email,
         })
 
+        // Block crypto checkout if user already has an active Stripe subscription
+        const hasStripe = await hasActiveStripeSubscription(user as any)
+        if (hasStripe) {
+            logger.warn('Blocking crypto checkout because active Stripe subscription exists', {
+                userId: user.id,
+                email: user.email,
+            })
+            return c.json({
+                error: 'You already have an active Stripe subscription. Please manage it via billing.',
+            }, 400)
+        }
+
         const body = await c.req.json()
         logger.info('Request body parsed', {
             tier: body.tier,
@@ -1485,6 +1516,36 @@ payments.post('/nowpayments/checkout', async (c) => {
             cancelUrl: z.string().url(),
             payCurrency: z.string().optional(), // Optional - user-selected currency
         }).parse(body)
+
+        // Prevent early renewals for the same tier while a crypto sub is still active.
+        // Users can still "upgrade" (free/pro → elite) because tier differs, but
+        // cannot stack another Pro while Pro is active.
+        const activeSameTier = await prisma.cryptoPayment.findFirst({
+            where: {
+                userId: user.id,
+                tier,
+                paymentStatus: 'finished',
+                expiresAt: {
+                    not: null,
+                    gte: new Date(),
+                },
+            },
+            orderBy: { expiresAt: 'desc' },
+        })
+
+        if (activeSameTier?.expiresAt) {
+            logger.warn('Blocking early crypto renewal for same tier (active subscription present)', {
+                userId: user.id,
+                tier,
+                activeExpiresAt: activeSameTier.expiresAt,
+                paymentId: activeSameTier.paymentId,
+                invoiceId: activeSameTier.invoiceId,
+            })
+            return c.json({
+                error: `You already have an active ${tier} crypto subscription until ${activeSameTier.expiresAt.toISOString()}. Renew after it expires.`,
+                activeExpiresAt: activeSameTier.expiresAt.toISOString(),
+            }, 400)
+        }
 
         // Determine price based on tier
         const tierPrices: Record<string, number> = {
