@@ -293,8 +293,8 @@ logger.info('ℹ️  Using in-memory Socket.IO adapter')
 // SCHEDULED TASKS - Renewal Reminders & Expiration Checks & Payment Sync
 // ============================================
 
-// Track all scheduled intervals for graceful shutdown
-const scheduledIntervals: NodeJS.Timeout[] = []
+// Track all scheduled intervals and timeouts for graceful shutdown
+const scheduledTimers: NodeJS.Timeout[] = []
 
 // Only run scheduled tasks in production (not in development to avoid conflicts)
 // NOTE: Payment sync runs regardless of NODE_ENV to ensure users get upgraded immediately
@@ -303,7 +303,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     // Runs in both development and production to ensure immediate upgrades
     const PAYMENT_SYNC_INTERVAL = 30 * 1000 // 30 seconds in milliseconds
 
-    scheduledIntervals.push(
+    scheduledTimers.push(
         setInterval(async () => {
             try {
                 const result = await syncPendingPayments()
@@ -319,7 +319,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     // Renewal reminder check: Every 6 hours
     const RENEWAL_CHECK_INTERVAL = 6 * 60 * 60 * 1000 // 6 hours in milliseconds
 
-    scheduledIntervals.push(
+    scheduledTimers.push(
         setInterval(async () => {
             try {
                 logger.info('🔄 Running scheduled renewal reminder check')
@@ -334,7 +334,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     // Expired subscription check: Daily (every 24 hours)
     const EXPIRATION_CHECK_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
-    scheduledIntervals.push(
+    scheduledTimers.push(
         setInterval(async () => {
             try {
                 logger.info('🔄 Running scheduled expired subscription check')
@@ -361,26 +361,28 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     }
 
     // Run initial checks after 2 minutes (to allow server and database to fully start)
-    setTimeout(async () => {
-        try {
-            logger.info('🔄 Running initial payment sync')
-            const paymentResult = await syncPendingPayments()
-            logger.info(`✅ Initial payment sync completed: ${paymentResult.synced} synced, ${paymentResult.upgraded} users upgraded`)
-            
-            logger.info('🔄 Running initial renewal reminder check')
-            const reminderResult = await checkAndSendRenewalReminders()
-            logger.info(`✅ Initial renewal reminder check completed: ${reminderResult.sent} reminders sent, ${reminderResult.checked} subscriptions checked`)
-            
-            logger.info('🔄 Running initial expired subscription check')
-            const expirationResult = await checkAndDowngradeExpiredSubscriptions()
-            logger.info(`✅ Initial expired subscription check completed: ${expirationResult.downgraded} users downgraded, ${expirationResult.checked} subscriptions checked`)
-        } catch (error) {
-            logger.error('❌ Initial scheduled task check failed:', {
-                error: error instanceof Error ? error.message : String(error),
-                stack: error instanceof Error ? error.stack : undefined,
-            })
-        }
-    }, 120000) // 2 minute delay to ensure database is ready
+    scheduledTimers.push(
+        setTimeout(async () => {
+            try {
+                logger.info('🔄 Running initial payment sync')
+                const paymentResult = await syncPendingPayments()
+                logger.info(`✅ Initial payment sync completed: ${paymentResult.synced} synced, ${paymentResult.upgraded} users upgraded`)
+
+                logger.info('🔄 Running initial renewal reminder check')
+                const reminderResult = await checkAndSendRenewalReminders()
+                logger.info(`✅ Initial renewal reminder check completed: ${reminderResult.sent} reminders sent, ${reminderResult.checked} subscriptions checked`)
+
+                logger.info('🔄 Running initial expired subscription check')
+                const expirationResult = await checkAndDowngradeExpiredSubscriptions()
+                logger.info(`✅ Initial expired subscription check completed: ${expirationResult.downgraded} users downgraded, ${expirationResult.checked} subscriptions checked`)
+            } catch (error) {
+                logger.error('❌ Initial scheduled task check failed:', {
+                    error: error instanceof Error ? error.message : String(error),
+                    stack: error instanceof Error ? error.stack : undefined,
+                })
+            }
+        }, 120000) // 2 minute delay to ensure database is ready
+    )
 
     logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
 } else {
@@ -403,10 +405,13 @@ httpServer.on('error', (err) => {
 const shutdown = async (signal: string) => {
     logger.info(`\n${signal} received, shutting down...`)
 
-    // Clear all scheduled intervals to allow graceful shutdown
-    logger.info(`Clearing ${scheduledIntervals.length} scheduled intervals...`)
-    scheduledIntervals.forEach(interval => clearInterval(interval))
-    logger.info('All scheduled intervals cleared')
+    // Clear all scheduled timers (intervals and timeouts) to allow graceful shutdown
+    logger.info(`Clearing ${scheduledTimers.length} scheduled timers...`)
+    scheduledTimers.forEach((timer: NodeJS.Timeout) => {
+        clearInterval(timer)
+        clearTimeout(timer)
+    })
+    logger.info('All scheduled timers cleared')
 
     io.close()
 
