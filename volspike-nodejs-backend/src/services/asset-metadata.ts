@@ -208,7 +208,7 @@ const fetchAsDataUrl = async (url?: string | null): Promise<string | undefined> 
     }
 }
 
-const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
+export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
     const now = Date.now()
     const symbol = asset.baseSymbol.toUpperCase()
     const allowOverwrite = asset.status !== 'VERIFIED'
