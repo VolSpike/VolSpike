@@ -18,12 +18,12 @@ COPY . .
 # Build the application (Prisma client already generated in postinstall)
 RUN npm run build
 
-# Remove dev dependencies after build
-RUN npm prune --omit=dev
-
-# Copy and set up entrypoint script
+# Copy and set up entrypoint script BEFORE pruning
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Remove dev dependencies after build (but keep prisma for migrations)
+RUN npm prune --omit=dev && npm install prisma --save-prod
 
 # Expose port
 EXPOSE 3001
