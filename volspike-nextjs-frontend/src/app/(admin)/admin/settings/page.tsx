@@ -5,7 +5,6 @@ import { AdminLayout } from '@/components/admin/layout/admin-layout'
 import { SettingsForm } from '@/components/admin/settings/settings-form'
 import { SecuritySettings } from '@/components/admin/settings/security-settings'
 import { TwoFactorSettings } from '@/components/admin/settings/two-factor-settings'
-import { WalletBalances } from '@/components/admin/settings/wallet-balances'
 import { AdminWalletManagement } from '@/components/admin/settings/admin-wallet-management'
 import { adminAPI } from '@/lib/admin/api-client'
 
@@ -47,9 +46,6 @@ export default async function SettingsPage() {
 
                         {/* My Wallets - Admin-managed wallets */}
                         <AdminWalletManagement />
-
-                        {/* Payment Receiving Wallets - Auto-detected from payments */}
-                        <WalletBalances />
 
                         {/* Security Settings */}
                         <SecuritySettings />
