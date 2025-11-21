@@ -337,25 +337,45 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         }
     }, EXPIRATION_CHECK_INTERVAL)
 
-    // Weekly asset metadata refresh (CoinGecko-friendly cadence). Runs hourly but only touches stale rows.
-    const ASSET_REFRESH_INTERVAL = 60 * 60 * 1000 // Scan once per hour, refresh candidates older than 7 days
+    // Adaptive asset metadata refresh with smart intervals
+    const ASSET_REFRESH_INTERVAL_BULK = 10 * 60 * 1000 // 10 minutes (bulk mode: >20 assets need refresh)
+    const ASSET_REFRESH_INTERVAL_MAINTENANCE = 60 * 60 * 1000 // 1 hour (maintenance mode: <20 assets need refresh)
     const assetRefreshEnabled = process.env.ENABLE_ASSET_ENRICHMENT?.toLowerCase() !== 'false'
+
     if (assetRefreshEnabled) {
-        setInterval(async () => {
+        let currentInterval = ASSET_REFRESH_INTERVAL_BULK // Start in bulk mode
+        let intervalId: NodeJS.Timeout
+
+        const scheduleNextRun = async () => {
             try {
-                await runAssetRefreshCycle('interval')
+                const result = await runAssetRefreshCycle('interval')
+
+                // Adjust interval based on remaining work
+                const needsBulkMode = (result.needsRefreshCount || 0) > 20
+                const newInterval = needsBulkMode ? ASSET_REFRESH_INTERVAL_BULK : ASSET_REFRESH_INTERVAL_MAINTENANCE
+
+                if (newInterval !== currentInterval) {
+                    currentInterval = newInterval
+                    const mode = needsBulkMode ? 'BULK (10 min)' : 'MAINTENANCE (1 hour)'
+                    logger.info(`🔄 Switched to ${mode} enrichment mode (${result.needsRefreshCount} assets remaining)`)
+                }
+
+                // Schedule next run
+                clearTimeout(intervalId)
+                intervalId = setTimeout(scheduleNextRun, currentInterval)
             } catch (error) {
                 logger.warn('❌ Asset metadata refresh failed', error)
+                // Retry with current interval
+                intervalId = setTimeout(scheduleNextRun, currentInterval)
             }
-        }, ASSET_REFRESH_INTERVAL)
+        }
 
+        // Initial run after 30 seconds
         setTimeout(() => {
-            runAssetRefreshCycle('startup').catch((error) => {
-                logger.warn('❌ Startup asset metadata warmup failed', error)
-            })
+            scheduleNextRun()
         }, 30000)
 
-        logger.info('✅ Asset metadata refresh enabled (hourly scan, 7d TTL per asset)')
+        logger.info('✅ Asset metadata refresh enabled (adaptive intervals: 10m bulk / 1h maintenance)')
     } else {
         logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
     }

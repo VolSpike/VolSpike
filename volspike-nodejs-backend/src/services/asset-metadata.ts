@@ -9,7 +9,8 @@ const COINGECKO_API = 'https://api.coingecko.com/api/v3'
 const BINANCE_FUTURES_INFO = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
 
 const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week
-const MAX_REFRESH_PER_RUN = 15 // Increased from 8 to 15 (still safe for free-tier: ~15 calls/hour)
+const MAX_REFRESH_PER_RUN_BULK = 30 // Bulk mode: when many assets need refresh
+const MAX_REFRESH_PER_RUN_MAINTENANCE = 15 // Maintenance mode: normal operation
 const REQUEST_GAP_MS = 6500 // ~9 calls/minute (conservative for free-tier)
 const MAX_NEW_SYMBOLS_PER_RUN = 60 // cap to avoid long startup loops
 
@@ -366,14 +367,23 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
 
     logger.debug(`[AssetMetadata] Found ${assets.length} total assets in database`)
 
-    const candidates = assets.filter((asset) => shouldRefresh(asset, now)).slice(0, MAX_REFRESH_PER_RUN)
-    
+    // Count how many assets need refresh to determine mode
+    const assetsNeedingRefresh = assets.filter((asset) => shouldRefresh(asset, now))
+    const needsRefreshCount = assetsNeedingRefresh.length
+
+    // Adaptive batch size: bulk mode for initial setup, maintenance mode for normal operation
+    const isBulkMode = needsRefreshCount > 20
+    const maxPerRun = isBulkMode ? MAX_REFRESH_PER_RUN_BULK : MAX_REFRESH_PER_RUN_MAINTENANCE
+    const mode = isBulkMode ? 'BULK' : 'MAINTENANCE'
+
+    const candidates = assetsNeedingRefresh.slice(0, maxPerRun)
+
     if (!candidates.length) {
         logger.info('[AssetMetadata] ✅ No assets need refresh')
-        return { refreshed: 0, candidates: [], total: assets.length }
+        return { refreshed: 0, candidates: [], total: assets.length, needsRefreshCount: 0 }
     }
 
-    logger.info(`[AssetMetadata] Found ${candidates.length} assets needing refresh (processing up to ${MAX_REFRESH_PER_RUN})`)
+    logger.info(`[AssetMetadata] 🔄 Mode: ${mode} | Found ${needsRefreshCount} assets needing refresh (processing ${candidates.length} this cycle)`)
 
     let refreshed = 0
     const results: Array<{ symbol: string; success: boolean; error?: string }> = []
@@ -396,17 +406,23 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
     }
 
     const elapsedMs = Date.now() - now
+    const remaining = needsRefreshCount - refreshed
     logger.info(`[AssetMetadata] ✅ Refresh cycle complete`, {
+        mode,
         refreshed,
+        remaining,
         total: candidates.length,
         elapsedMs,
         reason,
     })
 
-    return { 
-        refreshed, 
+    return {
+        refreshed,
         candidates: candidates.map((c) => c.baseSymbol),
         total: assets.length,
+        needsRefreshCount,
+        remaining,
+        mode,
         results,
     }
 }
