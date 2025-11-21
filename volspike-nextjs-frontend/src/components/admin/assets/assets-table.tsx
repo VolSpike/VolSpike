@@ -351,7 +351,9 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                             <Badge variant="outline" className="text-[10px] uppercase">
                                                 {asset.status || 'AUTO'}
                                             </Badge>
-                                            <StatusIcon className={`h-3.5 w-3.5 ${status.color}`} title={status.label} />
+                                            <div title={status.label} className="cursor-help">
+                                                <StatusIcon className={`h-3.5 w-3.5 ${status.color}`} />
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-3 py-2 align-top text-xs text-muted-foreground">
