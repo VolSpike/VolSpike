@@ -342,28 +342,11 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     const ASSET_REFRESH_INTERVAL_MAINTENANCE = 60 * 60 * 1000 // 1 hour (maintenance mode: <20 assets need refresh)
     const assetRefreshEnabled = process.env.ENABLE_ASSET_ENRICHMENT?.toLowerCase() !== 'false'
 
+    // TEMPORARY: Automatic enrichment disabled to fix Railway deployment issues
+    // User can manually trigger enrichment via "Run Cycle" button in admin panel
     if (assetRefreshEnabled) {
-        const runEnrichmentCycle = async () => {
-            try {
-                logger.info('[AssetEnrichment] 🔄 Starting automatic enrichment cycle...')
-                const result = await runAssetRefreshCycle('automatic')
-                logger.info(`[AssetEnrichment] ✅ Cycle complete: ${result.refreshed} enriched, ${result.needsRefreshCount} remaining`)
-            } catch (error) {
-                logger.error('[AssetEnrichment] ❌ Enrichment cycle failed:', error)
-            }
-        }
-
-        // Run enrichment every 10 minutes (600000ms) - DOES NOT RUN IMMEDIATELY ON STARTUP
-        // This prevents blocking Railway health checks
-        setInterval(() => {
-            // Run in background, don't await
-            runEnrichmentCycle().catch((err) => {
-                logger.error('[AssetEnrichment] ❌ Unexpected error:', err)
-            })
-        }, ASSET_REFRESH_INTERVAL_BULK)
-
-        logger.info('✅ Asset metadata refresh enabled (every 10 minutes, starting 10 min after deployment)')
-        logger.info('💡 Manual enrichment: Use "Run Cycle" button in admin panel for immediate processing')
+        logger.info('ℹ️ Automatic enrichment temporarily disabled for Railway stability')
+        logger.info('💡 Use "Run Cycle" button in admin panel to enrich assets manually')
     } else {
         logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
     }
