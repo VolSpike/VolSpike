@@ -146,18 +146,21 @@ const shorten = (text: string, maxLength: number): string => {
     return (lastSpace > 40 ? truncated.slice(0, lastSpace) : truncated).trimEnd() + '…'
 }
 
-const buildProfileFromManifest = (symbol: string, entry?: AssetProfileOverride | null): AssetProfile | undefined => {
+const buildProfileFromManifest = (symbol: string, entry?: AssetRecord | AssetProfileOverride | null): AssetProfile | undefined => {
     if (!entry) return undefined
     const upper = symbol.toUpperCase()
+    // Handle both AssetRecord (from manifest) and AssetProfileOverride (from overrides)
+    const displayName = 'displayName' in entry ? entry.displayName : undefined
+    const name = 'name' in entry ? entry.name : displayName
     return {
         id: entry.coingeckoId ?? upper,
         symbol: upper,
-        name: entry.name ?? entry.displayName ?? upper,
+        name: name ?? upper,
         logoUrl: entry.logoUrl ?? undefined,
         websiteUrl: entry.websiteUrl ?? undefined,
         twitterUrl: entry.twitterUrl ?? undefined,
-        description: entry.description ?? undefined,
-        categories: entry.categories ?? undefined,
+        description: 'description' in entry ? entry.description : undefined,
+        categories: 'categories' in entry ? entry.categories : undefined,
     }
 }
 
