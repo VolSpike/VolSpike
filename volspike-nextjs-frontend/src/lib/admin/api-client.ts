@@ -439,18 +439,26 @@ class AdminAPIClient {
         synced: number
         created: number
         updated: number
+        skipped?: number
+        errors?: number
         total: number
         processed: number
+        duration?: string
         message: string
+        results?: Array<{ symbol: string; action: string; error?: string }>
     }> {
         return this.request<{
             success: boolean
             synced: number
             created: number
             updated: number
+            skipped?: number
+            errors?: number
             total: number
             processed: number
+            duration?: string
             message: string
+            results?: Array<{ symbol: string; action: string; error?: string }>
         }>('/api/admin/assets/sync-binance', {
             method: 'POST',
         })

@@ -284,88 +284,218 @@ adminAssetRoutes.post('/refresh/cycle', async (c) => {
 
 // POST /api/admin/assets/sync-binance - Sync all Binance perpetual symbols
 adminAssetRoutes.post('/sync-binance', async (c) => {
+    const startTime = Date.now()
     try {
-        logger.info('[AdminAssets] Manual Binance sync triggered')
+        logger.info('[AdminAssets] 🔄 Manual Binance sync triggered')
         const BINANCE_FUTURES_INFO = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
         const MAX_NEW_SYMBOLS_PER_RUN = 500 // Higher limit for manual sync
         
-        const { data } = await axios.get(BINANCE_FUTURES_INFO, { timeout: 20000 })
+        // Step 1: Fetch from Binance API
+        logger.info('[AdminAssets] 📡 Fetching Binance exchange info...')
+        let data: any
+        try {
+            const response = await axios.get(BINANCE_FUTURES_INFO, { 
+                timeout: 20000,
+                validateStatus: (status) => status < 500 // Don't throw on 4xx
+            })
+            data = response.data
+            logger.info(`[AdminAssets] ✅ Binance API response received (status: ${response.status})`)
+        } catch (axiosError: any) {
+            logger.error('[AdminAssets] ❌ Binance API request failed:', {
+                message: axiosError?.message,
+                code: axiosError?.code,
+                response: axiosError?.response?.data,
+                status: axiosError?.response?.status,
+                stack: axiosError?.stack,
+            })
+            return c.json({ 
+                success: false,
+                error: 'Failed to fetch data from Binance',
+                details: axiosError?.response?.data?.msg || axiosError?.message || 'Network error',
+                code: axiosError?.code || 'UNKNOWN',
+                status: axiosError?.response?.status || null,
+            }, 500)
+        }
+        
+        // Step 2: Validate response structure
+        if (!data || typeof data !== 'object') {
+            logger.error('[AdminAssets] ❌ Invalid Binance response structure:', { data })
+            return c.json({ 
+                success: false,
+                error: 'Invalid response from Binance',
+                details: 'Response is not a valid object',
+            }, 500)
+        }
+        
         const symbols: any[] = Array.isArray(data?.symbols) ? data.symbols : []
+        logger.info(`[AdminAssets] 📊 Found ${symbols.length} total symbols from Binance`)
         
         if (!symbols.length) {
+            logger.warn('[AdminAssets] ⚠️ No symbols returned from Binance')
             return c.json({ 
                 success: false,
                 error: 'No symbols returned from Binance',
-                synced: 0
+                synced: 0,
+                details: 'Binance API returned empty symbols array',
             }, 500)
         }
 
+        // Step 3: Filter and map candidates
+        logger.info('[AdminAssets] 🔍 Filtering perpetual USDT pairs...')
         const candidates = symbols
-            .filter((s) => s?.contractType === 'PERPETUAL' && s?.quoteAsset === 'USDT' && s?.status === 'TRADING')
+            .filter((s) => {
+                const isPerpetual = s?.contractType === 'PERPETUAL'
+                const isUSDT = s?.quoteAsset === 'USDT'
+                const isTrading = s?.status === 'TRADING'
+                return isPerpetual && isUSDT && isTrading
+            })
             .map((s) => ({
                 baseSymbol: String(s.baseAsset || '').toUpperCase(),
                 binanceSymbol: String(s.symbol || '').toUpperCase(),
             }))
+            .filter((c) => c.baseSymbol && c.binanceSymbol) // Remove invalid entries
+        
+        logger.info(`[AdminAssets] ✅ Filtered to ${candidates.length} valid perpetual USDT pairs`)
 
-        const existing = await prisma.asset.findMany({
-            select: { baseSymbol: true },
-        })
+        // Step 4: Check database connection and fetch existing assets
+        logger.info('[AdminAssets] 💾 Checking database connection...')
+        let existing: Array<{ baseSymbol: string }> = []
+        try {
+            existing = await prisma.asset.findMany({
+                select: { baseSymbol: true },
+            })
+            logger.info(`[AdminAssets] ✅ Database connected, found ${existing.length} existing assets`)
+        } catch (dbError: any) {
+            logger.error('[AdminAssets] ❌ Database query failed:', {
+                message: dbError?.message,
+                code: dbError?.code,
+                meta: dbError?.meta,
+                stack: dbError?.stack,
+            })
+            return c.json({ 
+                success: false,
+                error: 'Database connection failed',
+                details: dbError?.message || 'Failed to query existing assets',
+                code: dbError?.code || 'DB_ERROR',
+            }, 500)
+        }
+        
         const existingSet = new Set(existing.map((a) => a.baseSymbol.toUpperCase()))
 
+        // Step 5: Process candidates
+        logger.info(`[AdminAssets] 🔄 Processing up to ${MAX_NEW_SYMBOLS_PER_RUN} candidates...`)
         let created = 0
         let updated = 0
-        const results: Array<{ symbol: string; action: 'created' | 'updated' | 'skipped' }> = []
+        let skipped = 0
+        let errors = 0
+        const results: Array<{ symbol: string; action: 'created' | 'updated' | 'skipped' | 'error'; error?: string }> = []
 
         for (const candidate of candidates) {
-            if (created + updated >= MAX_NEW_SYMBOLS_PER_RUN) break
+            if (created + updated >= MAX_NEW_SYMBOLS_PER_RUN) {
+                logger.info(`[AdminAssets] ⏸️ Reached limit of ${MAX_NEW_SYMBOLS_PER_RUN} operations`)
+                break
+            }
             
-            const exists = existingSet.has(candidate.baseSymbol)
-            
-            if (exists) {
-                // Update binanceSymbol if it changed
-                const asset = await prisma.asset.findUnique({
-                    where: { baseSymbol: candidate.baseSymbol },
-                })
-                if (asset && asset.binanceSymbol !== candidate.binanceSymbol) {
-                    await prisma.asset.update({
-                        where: { baseSymbol: candidate.baseSymbol },
-                        data: { binanceSymbol: candidate.binanceSymbol },
-                    })
-                    updated++
-                    results.push({ symbol: candidate.baseSymbol, action: 'updated' })
+            try {
+                const exists = existingSet.has(candidate.baseSymbol)
+                
+                if (exists) {
+                    // Update binanceSymbol if it changed
+                    try {
+                        const asset = await prisma.asset.findUnique({
+                            where: { baseSymbol: candidate.baseSymbol },
+                        })
+                        if (asset && asset.binanceSymbol !== candidate.binanceSymbol) {
+                            await prisma.asset.update({
+                                where: { baseSymbol: candidate.baseSymbol },
+                                data: { binanceSymbol: candidate.binanceSymbol },
+                            })
+                            updated++
+                            results.push({ symbol: candidate.baseSymbol, action: 'updated' })
+                        } else {
+                            skipped++
+                            results.push({ symbol: candidate.baseSymbol, action: 'skipped' })
+                        }
+                    } catch (updateError: any) {
+                        logger.warn(`[AdminAssets] ⚠️ Failed to update ${candidate.baseSymbol}:`, updateError?.message)
+                        errors++
+                        results.push({ 
+                            symbol: candidate.baseSymbol, 
+                            action: 'error',
+                            error: updateError?.message || 'Update failed'
+                        })
+                    }
                 } else {
-                    results.push({ symbol: candidate.baseSymbol, action: 'skipped' })
+                    try {
+                        await prisma.asset.create({
+                            data: {
+                                baseSymbol: candidate.baseSymbol,
+                                binanceSymbol: candidate.binanceSymbol,
+                                status: 'AUTO',
+                            },
+                        })
+                        existingSet.add(candidate.baseSymbol)
+                        created++
+                        results.push({ symbol: candidate.baseSymbol, action: 'created' })
+                    } catch (createError: any) {
+                        // Handle unique constraint violations gracefully
+                        if (createError?.code === 'P2002') {
+                            logger.debug(`[AdminAssets] 🔄 Asset ${candidate.baseSymbol} already exists, skipping`)
+                            skipped++
+                            results.push({ symbol: candidate.baseSymbol, action: 'skipped' })
+                        } else {
+                            logger.warn(`[AdminAssets] ⚠️ Failed to create ${candidate.baseSymbol}:`, createError?.message)
+                            errors++
+                            results.push({ 
+                                symbol: candidate.baseSymbol, 
+                                action: 'error',
+                                error: createError?.message || 'Create failed'
+                            })
+                        }
+                    }
                 }
-            } else {
-                await prisma.asset.create({
-                    data: {
-                        baseSymbol: candidate.baseSymbol,
-                        binanceSymbol: candidate.binanceSymbol,
-                        status: 'AUTO',
-                    },
+            } catch (error: any) {
+                logger.warn(`[AdminAssets] ⚠️ Unexpected error processing ${candidate.baseSymbol}:`, error?.message)
+                errors++
+                results.push({ 
+                    symbol: candidate.baseSymbol, 
+                    action: 'error',
+                    error: error?.message || 'Processing failed'
                 })
-                existingSet.add(candidate.baseSymbol)
-                created++
-                results.push({ symbol: candidate.baseSymbol, action: 'created' })
             }
         }
 
-        logger.info(`[AdminAssets] Binance sync completed: ${created} created, ${updated} updated, ${candidates.length} total symbols`)
+        const duration = Date.now() - startTime
+        logger.info(`[AdminAssets] ✅ Binance sync completed in ${duration}ms: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors, ${candidates.length} total symbols`)
 
         return c.json({
             success: true,
             synced: created + updated,
             created,
             updated,
+            skipped,
+            errors,
             total: candidates.length,
             processed: results.length,
-            message: `Synced ${created + updated} assets from Binance (${created} new, ${updated} updated)`
+            duration: `${duration}ms`,
+            message: `Synced ${created + updated} assets from Binance (${created} new, ${updated} updated, ${skipped} skipped, ${errors} errors)`,
+            results: errors > 0 ? results.filter(r => r.action === 'error').slice(0, 10) : undefined, // Show first 10 errors if any
         })
-    } catch (error) {
-        logger.error('Admin Binance sync error:', error)
+    } catch (error: any) {
+        const duration = Date.now() - startTime
+        logger.error('[AdminAssets] ❌ Binance sync error:', {
+            message: error?.message,
+            name: error?.name,
+            code: error?.code,
+            stack: error?.stack,
+            duration: `${duration}ms`,
+        })
         return c.json({ 
+            success: false,
             error: 'Failed to sync from Binance',
-            details: error instanceof Error ? error.message : String(error)
+            details: error?.message || 'Unknown error occurred',
+            code: error?.code || 'UNKNOWN',
+            duration: `${duration}ms`,
         }, 500)
     }
 })

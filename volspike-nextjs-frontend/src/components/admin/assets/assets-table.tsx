@@ -139,15 +139,65 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     }
 
     const handleSyncBinance = async () => {
-        if (!accessToken) return
+        if (!accessToken) {
+            toast.error('Authentication required')
+            return
+        }
         setSyncingBinance(true)
         try {
+            console.log('[AdminAssetsTable] 🔄 Starting Binance sync...')
             const res = await adminAPI.syncFromBinance()
-            toast.success(res.message || `Synced ${res.synced} assets from Binance`)
+            console.log('[AdminAssetsTable] ✅ Binance sync successful:', res)
+            
+            // Show detailed success message
+            const successMsg = res.message || 
+                `Successfully synced ${res.synced || 0} assets from Binance` +
+                (res.created ? ` (${res.created} new, ${res.updated || 0} updated)` : '')
+            toast.success(successMsg, {
+                duration: 5000,
+            })
+            
+            // Show warning if there were errors
+            if (res.errors && res.errors > 0) {
+                toast.error(`${res.errors} assets failed to sync. Check console for details.`, {
+                    duration: 6000,
+                })
+                console.warn('[AdminAssetsTable] ⚠️ Some assets failed:', res.results)
+            }
+            
             await fetchAssets() // Reload to show updated data
         } catch (err: any) {
-            console.error('[AdminAssetsTable] Failed to sync from Binance', err)
-            toast.error(err.response?.error || err.response?.details || 'Failed to sync from Binance')
+            console.error('[AdminAssetsTable] ❌ Failed to sync from Binance', {
+                error: err,
+                message: err?.message,
+                status: err?.status,
+                response: err?.response,
+                details: err?.response?.details,
+                code: err?.response?.code,
+            })
+            
+            // Build detailed error message
+            let errorMsg = 'Failed to sync from Binance'
+            const details = err?.response?.details || err?.message
+            
+            if (details) {
+                errorMsg = `${errorMsg}: ${details}`
+            }
+            
+            // Add specific error context
+            if (err?.response?.code === 'ECONNREFUSED' || err?.status === 0) {
+                errorMsg = 'Cannot connect to server. Please check your connection.'
+            } else if (err?.status === 500) {
+                errorMsg = `Server error: ${details || 'Internal server error'}`
+            } else if (err?.status === 401 || err?.status === 403) {
+                errorMsg = 'Authentication failed. Please refresh and try again.'
+            } else if (err?.response?.status) {
+                errorMsg = `HTTP ${err.response.status}: ${details || 'Request failed'}`
+            }
+            
+            toast.error(errorMsg, {
+                duration: 8000,
+            })
         } finally {
             setSyncingBinance(false)
         }
