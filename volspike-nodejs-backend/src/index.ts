@@ -343,45 +343,27 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     const assetRefreshEnabled = process.env.ENABLE_ASSET_ENRICHMENT?.toLowerCase() !== 'false'
 
     if (assetRefreshEnabled) {
-        let currentInterval = ASSET_REFRESH_INTERVAL_BULK // Start in bulk mode
-        let intervalId: NodeJS.Timeout | undefined
-
-        const scheduleNextRun = () => {
-            if (intervalId) clearTimeout(intervalId)
-
-            intervalId = setTimeout(async () => {
-                try {
-                    logger.info('[AssetEnrichment] 🔄 Starting automatic enrichment cycle...')
-                    const result = await runAssetRefreshCycle('automatic')
-
-                    // Adjust interval based on remaining work
-                    const needsBulkMode = (result.needsRefreshCount || 0) > 20
-                    const newInterval = needsBulkMode ? ASSET_REFRESH_INTERVAL_BULK : ASSET_REFRESH_INTERVAL_MAINTENANCE
-
-                    if (newInterval !== currentInterval) {
-                        currentInterval = newInterval
-                        const mode = needsBulkMode ? 'BULK (10 min)' : 'MAINTENANCE (1 hour)'
-                        logger.info(`[AssetEnrichment] 🔄 Switched to ${mode} enrichment mode (${result.needsRefreshCount} assets remaining)`)
-                    }
-
-                    logger.info(`[AssetEnrichment] ✅ Cycle complete: ${result.refreshed} enriched, ${result.needsRefreshCount} remaining. Next run in ${currentInterval / 60000} minutes.`)
-                } catch (error) {
-                    logger.error('[AssetEnrichment] ❌ Enrichment cycle failed:', error)
-                } finally {
-                    // Always schedule next run
-                    scheduleNextRun()
-                }
-            }, currentInterval)
+        const runEnrichmentCycle = async () => {
+            try {
+                logger.info('[AssetEnrichment] 🔄 Starting automatic enrichment cycle...')
+                const result = await runAssetRefreshCycle('automatic')
+                logger.info(`[AssetEnrichment] ✅ Cycle complete: ${result.refreshed} enriched, ${result.needsRefreshCount} remaining`)
+            } catch (error) {
+                logger.error('[AssetEnrichment] ❌ Enrichment cycle failed:', error)
+            }
         }
 
-        // Start first cycle after 1 minute (gives server time to fully start)
-        logger.info('✅ Asset metadata refresh enabled (adaptive intervals: 10m bulk / 1h maintenance)')
-        logger.info('⏰ First automatic enrichment cycle will run in 1 minute...')
+        // Run enrichment every 10 minutes (600000ms) - DOES NOT RUN IMMEDIATELY ON STARTUP
+        // This prevents blocking Railway health checks
+        setInterval(() => {
+            // Run in background, don't await
+            runEnrichmentCycle().catch((err) => {
+                logger.error('[AssetEnrichment] ❌ Unexpected error:', err)
+            })
+        }, ASSET_REFRESH_INTERVAL_BULK)
 
-        setTimeout(() => {
-            logger.info('[AssetEnrichment] 🚀 Starting first enrichment cycle...')
-            scheduleNextRun()
-        }, 60000) // 1 minute delay
+        logger.info('✅ Asset metadata refresh enabled (every 10 minutes, starting 10 min after deployment)')
+        logger.info('💡 Manual enrichment: Use "Run Cycle" button in admin panel for immediate processing')
     } else {
         logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
     }
