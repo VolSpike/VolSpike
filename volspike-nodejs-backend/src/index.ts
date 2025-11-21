@@ -37,7 +37,7 @@ const logger = createLogger()
 async function verifyDatabaseSchema() {
     try {
         // Check if crypto_payments table exists and has required columns
-        const tableInfo = await prisma.$queryRaw<Array<{column_name: string}>>`
+        const tableInfo = await prisma.$queryRaw<Array<{ column_name: string }>>`
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'crypto_payments'
@@ -242,46 +242,101 @@ app.onError((err, c) => {
 const port = Number(process.env.PORT) || 3001
 const host = '0.0.0.0'
 
-const httpServer = serve({
-    fetch: app.fetch,
-    port,
-    hostname: host,
-}, (info) => {
-    logger.info(`🚀 VolSpike Backend running on ${host}:${port}`)
-    logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
-    logger.info(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`)
-    logger.info(`🌐 Allowed CORS origins: ${getAllowedOrigins().join(', ')}`)
-    logger.info(`✅ Server ready to accept requests`)
-})
+logger.info('🔧 Starting HTTP server...')
+logger.info(`📌 Port: ${port}, Host: ${host}`)
+logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
+
+let httpServer: ReturnType<typeof serve>
+
+try {
+    httpServer = serve({
+        fetch: app.fetch,
+        port,
+        hostname: host,
+    }, (info) => {
+        logger.info(`🚀 VolSpike Backend running on ${host}:${port}`)
+        logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`)
+        logger.info(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`)
+        logger.info(`🌐 Allowed CORS origins: ${getAllowedOrigins().join(', ')}`)
+        logger.info(`✅ Server ready to accept requests`)
+        logger.info(`🔍 Server info:`, JSON.stringify(info, null, 2))
+    })
+
+    logger.info('✅ HTTP server instance created successfully')
+} catch (error) {
+    logger.error('❌ Failed to start HTTP server:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+    })
+    process.exit(1)
+}
 
 // ============================================
 // SOCKET.IO SETUP
 // ============================================
 
-const io = new SocketIOServer(httpServer, {
-    cors: {
-        origin: getAllowedOrigins(),
-        credentials: true,
-        methods: ['GET', 'POST'],
-    },
-    transports: ['websocket', 'polling'],
-})
+logger.info('🔧 Initializing Socket.IO server...')
 
-logger.info('✅ Socket.IO attached to HTTP server')
+// Declare io at module level to ensure it's available throughout
+let io: SocketIOServer
 
-// Initialize alert broadcaster with Socket.IO instance
-setSocketIO(io)
-
-// Setup Socket.IO handlers first
-setupSocketHandlers(io, prisma, logger)
-
-// Connection logging
-io.on('connection', (socket) => {
-    logger.info(`Socket.IO connected: ${socket.id}`)
-    socket.on('disconnect', () => {
-        logger.info(`Socket.IO disconnected: ${socket.id}`)
+try {
+    io = new SocketIOServer(httpServer, {
+        cors: {
+            origin: getAllowedOrigins(),
+            credentials: true,
+            methods: ['GET', 'POST'],
+        },
+        transports: ['websocket', 'polling'],
     })
-})
+
+    logger.info('✅ Socket.IO attached to HTTP server')
+
+    // Initialize alert broadcaster with Socket.IO instance
+    try {
+        setSocketIO(io)
+        logger.info('✅ Alert broadcaster initialized')
+    } catch (error) {
+        logger.error('❌ Failed to initialize alert broadcaster:', {
+            error: error instanceof Error ? error.message : String(error),
+        })
+    }
+
+    // Setup Socket.IO handlers first
+    try {
+        setupSocketHandlers(io, prisma, logger)
+        logger.info('✅ Socket.IO handlers setup complete')
+    } catch (error) {
+        logger.error('❌ Failed to setup Socket.IO handlers:', {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        })
+    }
+
+    // Connection logging
+    try {
+        io.on('connection', (socket) => {
+            logger.info(`Socket.IO connected: ${socket.id}`)
+            socket.on('disconnect', () => {
+                logger.info(`Socket.IO disconnected: ${socket.id}`)
+            })
+        })
+        logger.info('✅ Socket.IO connection handlers registered')
+    } catch (error) {
+        logger.error('❌ Failed to register Socket.IO connection handlers:', {
+            error: error instanceof Error ? error.message : String(error),
+        })
+    }
+} catch (error) {
+    logger.error('❌ Failed to initialize Socket.IO:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+    })
+    // Create a dummy Socket.IO instance to prevent crashes
+    // This should never happen, but we need to satisfy TypeScript
+    io = {} as SocketIOServer
+    logger.warn('⚠️ Socket.IO initialization failed - server will continue without Socket.IO')
+}
 
 // ============================================
 // SOCKET.IO SETUP (IN-MEMORY ONLY)
@@ -296,55 +351,62 @@ logger.info('ℹ️  Using in-memory Socket.IO adapter')
 // Track all scheduled intervals and timeouts for graceful shutdown
 const scheduledTimers: NodeJS.Timeout[] = []
 
+logger.info('🔧 Initializing scheduled tasks...')
+logger.info(`📊 ENABLE_SCHEDULED_TASKS: ${process.env.ENABLE_SCHEDULED_TASKS}`)
+
 // Only run scheduled tasks in production (not in development to avoid conflicts)
 // NOTE: Payment sync runs regardless of NODE_ENV to ensure users get upgraded immediately
 if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
+    logger.info('✅ Scheduled tasks enabled - initializing timers...')
     // Payment sync: Every 30 seconds (critical for real-time user upgrades)
     // Runs in both development and production to ensure immediate upgrades
     const PAYMENT_SYNC_INTERVAL = 30 * 1000 // 30 seconds in milliseconds
 
-    scheduledTimers.push(
-        setInterval(async () => {
-            try {
-                const result = await syncPendingPayments()
-                if (result.synced > 0 || result.upgraded > 0) {
-                    logger.info(`✅ Payment sync completed: ${result.synced} synced, ${result.upgraded} users upgraded`)
-                }
-            } catch (error) {
-                logger.error('❌ Scheduled payment sync failed:', error)
+    const paymentSyncTimer = setInterval(async () => {
+        try {
+            const result = await syncPendingPayments()
+            if (result.synced > 0 || result.upgraded > 0) {
+                logger.info(`✅ Payment sync completed: ${result.synced} synced, ${result.upgraded} users upgraded`)
             }
-        }, PAYMENT_SYNC_INTERVAL)
-    )
+        } catch (error) {
+            logger.error('❌ Scheduled payment sync failed:', error)
+        }
+    }, PAYMENT_SYNC_INTERVAL)
+
+    scheduledTimers.push(paymentSyncTimer)
+    logger.info(`✅ Payment sync timer registered (interval: ${PAYMENT_SYNC_INTERVAL}ms)`)
 
     // Renewal reminder check: Every 6 hours
     const RENEWAL_CHECK_INTERVAL = 6 * 60 * 60 * 1000 // 6 hours in milliseconds
 
-    scheduledTimers.push(
-        setInterval(async () => {
-            try {
-                logger.info('🔄 Running scheduled renewal reminder check')
-                const result = await checkAndSendRenewalReminders()
-                logger.info(`✅ Renewal reminder check completed: ${result.sent} reminders sent, ${result.checked} subscriptions checked`)
-            } catch (error) {
-                logger.error('❌ Scheduled renewal reminder check failed:', error)
-            }
-        }, RENEWAL_CHECK_INTERVAL)
-    )
+    const renewalCheckTimer = setInterval(async () => {
+        try {
+            logger.info('🔄 Running scheduled renewal reminder check')
+            const result = await checkAndSendRenewalReminders()
+            logger.info(`✅ Renewal reminder check completed: ${result.sent} reminders sent, ${result.checked} subscriptions checked`)
+        } catch (error) {
+            logger.error('❌ Scheduled renewal reminder check failed:', error)
+        }
+    }, RENEWAL_CHECK_INTERVAL)
+
+    scheduledTimers.push(renewalCheckTimer)
+    logger.info(`✅ Renewal reminder timer registered (interval: ${RENEWAL_CHECK_INTERVAL}ms)`)
 
     // Expired subscription check: Daily (every 24 hours)
     const EXPIRATION_CHECK_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
-    scheduledTimers.push(
-        setInterval(async () => {
-            try {
-                logger.info('🔄 Running scheduled expired subscription check')
-                const result = await checkAndDowngradeExpiredSubscriptions()
-                logger.info(`✅ Expired subscription check completed: ${result.downgraded} users downgraded, ${result.checked} subscriptions checked`)
-            } catch (error) {
-                logger.error('❌ Scheduled expired subscription check failed:', error)
-            }
-        }, EXPIRATION_CHECK_INTERVAL)
-    )
+    const expirationCheckTimer = setInterval(async () => {
+        try {
+            logger.info('🔄 Running scheduled expired subscription check')
+            const result = await checkAndDowngradeExpiredSubscriptions()
+            logger.info(`✅ Expired subscription check completed: ${result.downgraded} users downgraded, ${result.checked} subscriptions checked`)
+        } catch (error) {
+            logger.error('❌ Scheduled expired subscription check failed:', error)
+        }
+    }, EXPIRATION_CHECK_INTERVAL)
+
+    scheduledTimers.push(expirationCheckTimer)
+    logger.info(`✅ Expiration check timer registered (interval: ${EXPIRATION_CHECK_INTERVAL}ms)`)
 
     // Adaptive asset metadata refresh with smart intervals
     const ASSET_REFRESH_INTERVAL_BULK = 10 * 60 * 1000 // 10 minutes (bulk mode: >20 assets need refresh)
@@ -361,30 +423,32 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     }
 
     // Run initial checks after 2 minutes (to allow server and database to fully start)
-    scheduledTimers.push(
-        setTimeout(async () => {
-            try {
-                logger.info('🔄 Running initial payment sync')
-                const paymentResult = await syncPendingPayments()
-                logger.info(`✅ Initial payment sync completed: ${paymentResult.synced} synced, ${paymentResult.upgraded} users upgraded`)
+    const initialCheckTimeout = setTimeout(async () => {
+        try {
+            logger.info('🔄 Running initial payment sync')
+            const paymentResult = await syncPendingPayments()
+            logger.info(`✅ Initial payment sync completed: ${paymentResult.synced} synced, ${paymentResult.upgraded} users upgraded`)
 
-                logger.info('🔄 Running initial renewal reminder check')
-                const reminderResult = await checkAndSendRenewalReminders()
-                logger.info(`✅ Initial renewal reminder check completed: ${reminderResult.sent} reminders sent, ${reminderResult.checked} subscriptions checked`)
+            logger.info('🔄 Running initial renewal reminder check')
+            const reminderResult = await checkAndSendRenewalReminders()
+            logger.info(`✅ Initial renewal reminder check completed: ${reminderResult.sent} reminders sent, ${reminderResult.checked} subscriptions checked`)
 
-                logger.info('🔄 Running initial expired subscription check')
-                const expirationResult = await checkAndDowngradeExpiredSubscriptions()
-                logger.info(`✅ Initial expired subscription check completed: ${expirationResult.downgraded} users downgraded, ${expirationResult.checked} subscriptions checked`)
-            } catch (error) {
-                logger.error('❌ Initial scheduled task check failed:', {
-                    error: error instanceof Error ? error.message : String(error),
-                    stack: error instanceof Error ? error.stack : undefined,
-                })
-            }
-        }, 120000) // 2 minute delay to ensure database is ready
-    )
+            logger.info('🔄 Running initial expired subscription check')
+            const expirationResult = await checkAndDowngradeExpiredSubscriptions()
+            logger.info(`✅ Initial expired subscription check completed: ${expirationResult.downgraded} users downgraded, ${expirationResult.checked} subscriptions checked`)
+        } catch (error) {
+            logger.error('❌ Initial scheduled task check failed:', {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+            })
+        }
+    }, 120000) // 2 minute delay to ensure database is ready
 
-    logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
+    scheduledTimers.push(initialCheckTimeout)
+    logger.info(`✅ Initial check timeout registered (delay: 120000ms)`)
+
+    logger.info(`✅ Scheduled tasks initialized (${scheduledTimers.length} timers total)`)
+    logger.info('📋 Timer breakdown: payment sync every 30s, renewal reminders every 6h, expiration checks daily')
 } else {
     logger.info('ℹ️ Scheduled tasks disabled (set ENABLE_SCHEDULED_TASKS=true in production to enable)')
 }
@@ -393,9 +457,40 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
 // ERROR HANDLERS
 // ============================================
 
-httpServer.on('error', (err) => {
-    logger.error('Server error:', err)
-    process.exit(1)
+// Add error handlers if httpServer is a proper Node.js server
+if (httpServer && typeof httpServer.on === 'function') {
+    httpServer.on('error', (err) => {
+        logger.error('❌ HTTP server error:', {
+            error: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+        })
+        process.exit(1)
+    })
+
+    httpServer.on('listening', () => {
+        logger.info('✅ HTTP server is listening and ready')
+    })
+
+    logger.info('✅ HTTP server error handlers registered')
+} else {
+    logger.warn('⚠️ HTTP server instance may not support event handlers')
+}
+
+// Global unhandled error handlers
+process.on('uncaughtException', (error) => {
+    logger.error('❌ Uncaught Exception:', {
+        error: error.message,
+        stack: error.stack,
+    })
+    // Don't exit immediately - allow graceful shutdown
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('❌ Unhandled Rejection:', {
+        reason: reason instanceof Error ? reason.message : String(reason),
+        stack: reason instanceof Error ? reason.stack : undefined,
+    })
+    // Don't exit immediately - allow graceful shutdown
 })
 
 // ============================================
@@ -403,33 +498,117 @@ httpServer.on('error', (err) => {
 // ============================================
 
 const shutdown = async (signal: string) => {
-    logger.info(`\n${signal} received, shutting down...`)
+    logger.info(`\n🛑 ${signal} received, initiating graceful shutdown...`)
 
     // Clear all scheduled timers (intervals and timeouts) to allow graceful shutdown
-    logger.info(`Clearing ${scheduledTimers.length} scheduled timers...`)
+    logger.info(`🧹 Clearing ${scheduledTimers.length} scheduled timers...`)
+    let clearedCount = 0
     scheduledTimers.forEach((timer: NodeJS.Timeout) => {
-        clearInterval(timer)
-        clearTimeout(timer)
+        try {
+            clearInterval(timer)
+            clearTimeout(timer)
+            clearedCount++
+        } catch (error) {
+            logger.warn('⚠️ Error clearing timer:', error)
+        }
     })
-    logger.info('All scheduled timers cleared')
+    logger.info(`✅ Cleared ${clearedCount}/${scheduledTimers.length} timers`)
 
-    io.close()
+    // Close Socket.IO
+    try {
+        if (io && typeof io.close === 'function') {
+            io.close()
+            logger.info('✅ Socket.IO closed')
+        } else {
+            logger.info('ℹ️ Socket.IO not initialized, skipping close')
+        }
+    } catch (error) {
+        logger.warn('⚠️ Error closing Socket.IO:', error)
+    }
 
-    await new Promise<void>((resolve) => {
-        httpServer.close(() => {
-            logger.info('HTTP server closed')
-            resolve()
-        })
-    })
+    // Close HTTP server
+    try {
+        if (httpServer && typeof httpServer.close === 'function') {
+            await new Promise<void>((resolve) => {
+                const timeout = setTimeout(() => {
+                    logger.warn('⚠️ Server close timeout, forcing exit')
+                    resolve()
+                }, 5000) // 5 second timeout
 
-    await prisma.$disconnect()
-    logger.info('Prisma disconnected')
-    logger.info('Shutdown complete')
+                httpServer.close(() => {
+                    clearTimeout(timeout)
+                    logger.info('✅ HTTP server closed')
+                    resolve()
+                })
+            })
+        } else {
+            logger.warn('⚠️ HTTP server does not support close() method')
+        }
+    } catch (error) {
+        logger.warn('⚠️ Error closing HTTP server:', error)
+    }
+
+    // Disconnect Prisma
+    try {
+        await prisma.$disconnect()
+        logger.info('✅ Prisma disconnected')
+    } catch (error) {
+        logger.warn('⚠️ Error disconnecting Prisma:', error)
+    }
+
+    logger.info('✅ Shutdown complete')
     process.exit(0)
 }
 
+// Register shutdown handlers
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT', () => shutdown('SIGINT'))
+
+// ============================================
+// STARTUP HEALTH CHECK VERIFICATION
+// ============================================
+
+// Verify server is ready by checking health endpoint after a short delay
+// This helps Railway detect when the server is actually ready
+if (typeof fetch !== 'undefined') {
+    setTimeout(async () => {
+        try {
+            const healthUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/health`
+            logger.info(`🔍 Verifying server health at ${healthUrl}...`)
+
+            // Use fetch to check health endpoint (only works if server is actually listening)
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
+            const response = await fetch(healthUrl, {
+                method: 'GET',
+                signal: controller.signal,
+            }).finally(() => clearTimeout(timeoutId))
+
+            if (response.ok) {
+                const data = await response.json()
+                logger.info('✅ Health check passed:', data)
+            } else {
+                logger.warn(`⚠️ Health check returned status ${response.status}`)
+            }
+        } catch (error) {
+            // This is expected if server isn't ready yet or fetch isn't available
+            if (error instanceof Error && error.name !== 'AbortError') {
+                logger.debug('ℹ️ Health check verification skipped (server may still be starting):', {
+                    error: error.message,
+                })
+            }
+        }
+    }, 2000) // Check after 2 seconds
+} else {
+    logger.info('ℹ️ Fetch not available, skipping health check verification')
+}
+
+// Log startup completion
+logger.info('🎉 Application startup sequence complete')
+logger.info(`📊 Total timers tracked: ${scheduledTimers.length}`)
+logger.info(`🌐 Server should be ready at http://${host}:${port}`)
+logger.info(`🏥 Health check available at http://${host === '0.0.0.0' ? 'localhost' : host}:${port}/health`)
 
 // Export io instance for broadcasting from routes
 export { io }
