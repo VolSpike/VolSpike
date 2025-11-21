@@ -176,14 +176,21 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 response: err?.response,
                 details: err?.response?.details,
                 code: err?.response?.code,
+                debug: err?.response?.debug, // NEW: Show debug info
             })
-            
+
             // Build detailed error message
             let errorMsg = 'Failed to sync from Binance'
             const details = err?.response?.details || err?.message
-            
+            const debug = err?.response?.debug
+
             if (details) {
                 errorMsg = `${errorMsg}: ${details}`
+            }
+
+            // Show debug info if available
+            if (debug) {
+                console.log('[AdminAssetsTable] 🔍 Debug info from server:', debug)
             }
             
             // Add specific error context

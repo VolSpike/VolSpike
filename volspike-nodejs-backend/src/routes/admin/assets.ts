@@ -317,24 +317,54 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
 
         // Step 2: Validate response structure
         if (!data || typeof data !== 'object') {
-            logger.error('[AdminAssets] ❌ Invalid Binance response structure')
+            logger.error('[AdminAssets] ❌ Invalid Binance response structure', {
+                dataType: typeof data,
+                dataKeys: data ? Object.keys(data).slice(0, 10) : [],
+                dataSample: data ? JSON.stringify(data).slice(0, 500) : 'null',
+            })
             return c.json({
                 success: false,
                 error: 'Invalid response from Binance',
                 details: 'Response is not a valid object',
+                debug: {
+                    dataType: typeof data,
+                    hasData: !!data,
+                    keys: data ? Object.keys(data).slice(0, 10) : [],
+                }
             }, 500)
         }
 
         const symbols: any[] = Array.isArray(data?.symbols) ? data.symbols : []
-        logger.info(`[AdminAssets] 📊 Found ${symbols.length} total symbols from Binance`)
+        logger.info(`[AdminAssets] 📊 Found ${symbols.length} total symbols from Binance`, {
+            hasSymbols: !!data?.symbols,
+            isArray: Array.isArray(data?.symbols),
+            dataKeys: Object.keys(data).slice(0, 20),
+            firstSymbol: symbols[0] ? {
+                symbol: symbols[0].symbol,
+                baseAsset: symbols[0].baseAsset,
+                contractType: symbols[0].contractType,
+            } : null,
+        })
 
         if (!symbols.length) {
-            logger.warn('[AdminAssets] ⚠️ No symbols returned from Binance')
+            logger.warn('[AdminAssets] ⚠️ No symbols returned from Binance', {
+                hasSymbolsKey: 'symbols' in data,
+                symbolsType: typeof data?.symbols,
+                symbolsValue: data?.symbols,
+                dataKeys: Object.keys(data),
+                responseStructure: JSON.stringify(data).slice(0, 1000),
+            })
             return c.json({
                 success: false,
-                error: 'No symbols returned from Binance',
+                error: 'Server error: Binance API returned empty symbols array',
                 synced: 0,
-                details: 'Binance API returned empty symbols array',
+                details: 'Binance API returned empty symbols array - this may be a temporary issue',
+                debug: {
+                    hasSymbolsKey: 'symbols' in data,
+                    symbolsType: typeof data?.symbols,
+                    dataKeys: Object.keys(data).slice(0, 20),
+                    suggestion: 'Check Railway logs for full response structure',
+                }
             }, 500)
         }
 
