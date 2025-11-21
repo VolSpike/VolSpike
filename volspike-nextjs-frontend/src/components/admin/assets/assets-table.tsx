@@ -20,6 +20,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [savingId, setSavingId] = useState<string | null>(null)
     const [refreshingId, setRefreshingId] = useState<string | null>(null)
     const [bulkRefreshing, setBulkRefreshing] = useState(false)
+    const [syncingBinance, setSyncingBinance] = useState(false)
     const [query, setQuery] = useState('')
 
     const fetchAssets = useCallback(async () => {
@@ -121,6 +122,21 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             toast.error(err.response?.error || err.response?.details || 'Failed to run refresh cycle')
         } finally {
             setBulkRefreshing(false)
+        }
+    }
+
+    const handleSyncBinance = async () => {
+        if (!accessToken) return
+        setSyncingBinance(true)
+        try {
+            const res = await adminAPI.syncFromBinance()
+            toast.success(res.message || `Synced ${res.synced} assets from Binance`)
+            await fetchAssets() // Reload to show updated data
+        } catch (err: any) {
+            console.error('[AdminAssetsTable] Failed to sync from Binance', err)
+            toast.error(err.response?.error || err.response?.details || 'Failed to sync from Binance')
+        } finally {
+            setSyncingBinance(false)
         }
     }
 
@@ -228,9 +244,24 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 <div className="flex items-center gap-2">
                     <Button 
                         size="sm" 
+                        variant="default"
+                        onClick={handleSyncBinance}
+                        disabled={syncingBinance || bulkRefreshing}
+                        title="Sync all Binance perpetual symbols to database"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                        {syncingBinance ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                            <Database className="h-4 w-4 mr-1" />
+                        )}
+                        Sync from Binance
+                    </Button>
+                    <Button 
+                        size="sm" 
                         variant="outline"
                         onClick={handleBulkRefresh}
-                        disabled={bulkRefreshing || assetsNeedingRefresh === 0}
+                        disabled={bulkRefreshing || syncingBinance || assetsNeedingRefresh === 0}
                         title="Refresh up to 10 assets that need refresh"
                     >
                         {bulkRefreshing ? (
@@ -244,7 +275,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         size="sm" 
                         variant="outline"
                         onClick={handleRunCycle}
-                        disabled={bulkRefreshing}
+                        disabled={bulkRefreshing || syncingBinance}
                         title="Run scheduled refresh cycle (respects rate limits)"
                     >
                         {bulkRefreshing ? (
@@ -407,9 +438,36 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 </table>
             </div>
 
-            {assets.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                    No assets found. Add your first asset to get started.
+            {assets.length === 0 && !loading && (
+                <div className="text-center py-12 space-y-4">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="rounded-full bg-muted/50 p-4">
+                            <Database className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground mb-1">No assets found</h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                Sync all Binance perpetual symbols to get started
+                            </p>
+                            <Button 
+                                onClick={handleSyncBinance}
+                                disabled={syncingBinance}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                {syncingBinance ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Syncing from Binance...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Database className="h-4 w-4 mr-2" />
+                                        Sync from Binance
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

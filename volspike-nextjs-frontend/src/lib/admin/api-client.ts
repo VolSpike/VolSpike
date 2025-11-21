@@ -434,6 +434,28 @@ class AdminAPIClient {
         })
     }
 
+    async syncFromBinance(): Promise<{
+        success: boolean
+        synced: number
+        created: number
+        updated: number
+        total: number
+        processed: number
+        message: string
+    }> {
+        return this.request<{
+            success: boolean
+            synced: number
+            created: number
+            updated: number
+            total: number
+            processed: number
+            message: string
+        }>('/api/admin/assets/sync-binance', {
+            method: 'POST',
+        })
+    }
+
     // Health check
     async healthCheck(): Promise<{ status: string; timestamp: string; version: string }> {
         return this.request<{ status: string; timestamp: string; version: string }>('/api/admin/health')

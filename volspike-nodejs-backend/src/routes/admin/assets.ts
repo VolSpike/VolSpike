@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../../index'
 import { createLogger } from '../../lib/logger'
 import { refreshSingleAsset, runAssetRefreshCycle } from '../../services/asset-metadata'
+import axios from 'axios'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
 const logger = createLogger()
@@ -276,6 +277,94 @@ adminAssetRoutes.post('/refresh/cycle', async (c) => {
         logger.error('Admin refresh cycle error:', error)
         return c.json({ 
             error: 'Failed to run refresh cycle',
+            details: error instanceof Error ? error.message : String(error)
+        }, 500)
+    }
+})
+
+// POST /api/admin/assets/sync-binance - Sync all Binance perpetual symbols
+adminAssetRoutes.post('/sync-binance', async (c) => {
+    try {
+        logger.info('[AdminAssets] Manual Binance sync triggered')
+        const BINANCE_FUTURES_INFO = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
+        const MAX_NEW_SYMBOLS_PER_RUN = 500 // Higher limit for manual sync
+        
+        const { data } = await axios.get(BINANCE_FUTURES_INFO, { timeout: 20000 })
+        const symbols: any[] = Array.isArray(data?.symbols) ? data.symbols : []
+        
+        if (!symbols.length) {
+            return c.json({ 
+                success: false,
+                error: 'No symbols returned from Binance',
+                synced: 0
+            }, 500)
+        }
+
+        const candidates = symbols
+            .filter((s) => s?.contractType === 'PERPETUAL' && s?.quoteAsset === 'USDT' && s?.status === 'TRADING')
+            .map((s) => ({
+                baseSymbol: String(s.baseAsset || '').toUpperCase(),
+                binanceSymbol: String(s.symbol || '').toUpperCase(),
+            }))
+
+        const existing = await prisma.asset.findMany({
+            select: { baseSymbol: true },
+        })
+        const existingSet = new Set(existing.map((a) => a.baseSymbol.toUpperCase()))
+
+        let created = 0
+        let updated = 0
+        const results: Array<{ symbol: string; action: 'created' | 'updated' | 'skipped' }> = []
+
+        for (const candidate of candidates) {
+            if (created + updated >= MAX_NEW_SYMBOLS_PER_RUN) break
+            
+            const exists = existingSet.has(candidate.baseSymbol)
+            
+            if (exists) {
+                // Update binanceSymbol if it changed
+                const asset = await prisma.asset.findUnique({
+                    where: { baseSymbol: candidate.baseSymbol },
+                })
+                if (asset && asset.binanceSymbol !== candidate.binanceSymbol) {
+                    await prisma.asset.update({
+                        where: { baseSymbol: candidate.baseSymbol },
+                        data: { binanceSymbol: candidate.binanceSymbol },
+                    })
+                    updated++
+                    results.push({ symbol: candidate.baseSymbol, action: 'updated' })
+                } else {
+                    results.push({ symbol: candidate.baseSymbol, action: 'skipped' })
+                }
+            } else {
+                await prisma.asset.create({
+                    data: {
+                        baseSymbol: candidate.baseSymbol,
+                        binanceSymbol: candidate.binanceSymbol,
+                        status: 'AUTO',
+                    },
+                })
+                existingSet.add(candidate.baseSymbol)
+                created++
+                results.push({ symbol: candidate.baseSymbol, action: 'created' })
+            }
+        }
+
+        logger.info(`[AdminAssets] Binance sync completed: ${created} created, ${updated} updated, ${candidates.length} total symbols`)
+
+        return c.json({
+            success: true,
+            synced: created + updated,
+            created,
+            updated,
+            total: candidates.length,
+            processed: results.length,
+            message: `Synced ${created + updated} assets from Binance (${created} new, ${updated} updated)`
+        })
+    } catch (error) {
+        logger.error('Admin Binance sync error:', error)
+        return c.json({ 
+            error: 'Failed to sync from Binance',
             details: error instanceof Error ? error.message : String(error)
         }, 500)
     }

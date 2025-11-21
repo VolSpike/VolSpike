@@ -12,10 +12,12 @@ import { marketRoutes } from './routes/market'
 import { watchlistRoutes } from './routes/watchlist'
 import { alertRoutes } from './routes/alerts'
 import volumeAlertsRouter from './routes/volume-alerts'
+import { assetsRoutes } from './routes/assets'
 import openInterestRouter from './routes/open-interest'
 import { paymentRoutes } from './routes/payments'
 import { adminRoutes } from './routes/admin'
 import renewalRoutes from './routes/renewal'
+import { runAssetRefreshCycle } from './services/asset-metadata'
 import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
 import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
@@ -179,6 +181,8 @@ app.route('/api/auth', authRoutes)
 // Open Interest routes (GET is public, POST validates API key internally)
 // MUST be before market auth middleware to avoid requiring auth for GET
 app.route('/api/market/open-interest', openInterestRouter)
+// Public asset manifest for logo + metadata (cached server-side, refreshed weekly)
+app.route('/api/assets', assetsRoutes)
 
 // Apply auth middleware to market routes
 app.use('/api/market/*', authMiddleware)
@@ -332,6 +336,29 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
             logger.error('❌ Scheduled expired subscription check failed:', error)
         }
     }, EXPIRATION_CHECK_INTERVAL)
+
+    // Weekly asset metadata refresh (CoinGecko-friendly cadence). Runs hourly but only touches stale rows.
+    const ASSET_REFRESH_INTERVAL = 60 * 60 * 1000 // Scan once per hour, refresh candidates older than 7 days
+    const assetRefreshEnabled = process.env.ENABLE_ASSET_ENRICHMENT?.toLowerCase() !== 'false'
+    if (assetRefreshEnabled) {
+        setInterval(async () => {
+            try {
+                await runAssetRefreshCycle('interval')
+            } catch (error) {
+                logger.warn('❌ Asset metadata refresh failed', error)
+            }
+        }, ASSET_REFRESH_INTERVAL)
+
+        setTimeout(() => {
+            runAssetRefreshCycle('startup').catch((error) => {
+                logger.warn('❌ Startup asset metadata warmup failed', error)
+            })
+        }, 30000)
+
+        logger.info('✅ Asset metadata refresh enabled (hourly scan, 7d TTL per asset)')
+    } else {
+        logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
+    }
 
     // Run initial checks after 2 minutes (to allow server and database to fully start)
     setTimeout(async () => {
