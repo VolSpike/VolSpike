@@ -389,6 +389,51 @@ class AdminAPIClient {
         })
     }
 
+    async refreshAsset(id: string): Promise<{ success: boolean; asset: AssetRecord; message: string }> {
+        return this.request<{ success: boolean; asset: AssetRecord; message: string }>(`/api/admin/assets/${id}/refresh`, {
+            method: 'POST',
+        })
+    }
+
+    async bulkRefreshAssets(options?: { ids?: string[]; symbols?: string[]; limit?: number }): Promise<{
+        success: boolean
+        refreshed: number
+        total: number
+        results: Array<{ symbol: string; success: boolean; reason?: string; error?: string }>
+        message: string
+    }> {
+        return this.request<{
+            success: boolean
+            refreshed: number
+            total: number
+            results: Array<{ symbol: string; success: boolean; reason?: string; error?: string }>
+            message: string
+        }>('/api/admin/assets/refresh/bulk', {
+            method: 'POST',
+            body: JSON.stringify(options || {}),
+        })
+    }
+
+    async runRefreshCycle(): Promise<{
+        success: boolean
+        refreshed: number
+        candidates: string[]
+        total: number
+        results?: Array<{ symbol: string; success: boolean; error?: string }>
+        message: string
+    }> {
+        return this.request<{
+            success: boolean
+            refreshed: number
+            candidates: string[]
+            total: number
+            results?: Array<{ symbol: string; success: boolean; error?: string }>
+            message: string
+        }>('/api/admin/assets/refresh/cycle', {
+            method: 'POST',
+        })
+    }
+
     // Health check
     async healthCheck(): Promise<{ status: string; timestamp: string; version: string }> {
         return this.request<{ status: string; timestamp: string; version: string }>('/api/admin/health')

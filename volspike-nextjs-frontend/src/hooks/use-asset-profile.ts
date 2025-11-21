@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { STATIC_ASSET_MANIFEST } from '@/lib/asset-manifest'
+import { STATIC_ASSET_MANIFEST, findAssetInManifest, prefetchAssetManifest } from '@/lib/asset-manifest'
 import { rateLimitedFetch } from '@/lib/coingecko-rate-limiter'
 
 export interface AssetProfile {
@@ -20,7 +20,7 @@ interface UseAssetProfileResult {
 }
 
 const CACHE_KEY = 'volspike-asset-profile-cache-v1'
-const CACHE_TTL_MS = 12 * 60 * 60 * 1000 // 12 hours
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week to align with backend refresh cadence
 
 interface CacheEntry {
     profile: AssetProfile
@@ -57,6 +57,14 @@ const SYMBOL_OVERRIDES: Record<string, AssetProfileOverride> = {
     ),
 }
 
+const debugLog = (...args: any[]) => {
+    if (typeof window === 'undefined') return
+    if (localStorage.getItem('volspike:debug:assets') === 'true') {
+        // eslint-disable-next-line no-console
+        console.debug('[use-asset-profile]', ...args)
+    }
+}
+
 const safeParseCache = (): CacheShape => {
     if (memoryCache) return memoryCache
     if (typeof window === 'undefined') return {}
@@ -88,6 +96,7 @@ const writeCache = (symbol: string, profile: AssetProfile) => {
 
 export const prefetchAssetProfile = (symbol: string): void => {
     if (typeof window === 'undefined') return
+    prefetchAssetManifest()
     const upper = symbol.toUpperCase()
     const cache = safeParseCache()
     const entry = cache[upper]
@@ -135,6 +144,21 @@ const shorten = (text: string, maxLength: number): string => {
     const truncated = text.slice(0, maxLength)
     const lastSpace = truncated.lastIndexOf(' ')
     return (lastSpace > 40 ? truncated.slice(0, lastSpace) : truncated).trimEnd() + '…'
+}
+
+const buildProfileFromManifest = (symbol: string, entry?: AssetProfileOverride | null): AssetProfile | undefined => {
+    if (!entry) return undefined
+    const upper = symbol.toUpperCase()
+    return {
+        id: entry.coingeckoId ?? upper,
+        symbol: upper,
+        name: entry.name ?? entry.displayName ?? upper,
+        logoUrl: entry.logoUrl ?? undefined,
+        websiteUrl: entry.websiteUrl ?? undefined,
+        twitterUrl: entry.twitterUrl ?? undefined,
+        description: entry.description ?? undefined,
+        categories: entry.categories ?? undefined,
+    }
 }
 
 const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile | undefined> => {
@@ -357,6 +381,61 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                     }
                 }
 
+                const manifestEntry = await findAssetInManifest(upper)
+                if (manifestEntry) {
+                    const manifestProfile = buildProfileFromManifest(upper, manifestEntry)
+                    if (manifestProfile) {
+                        // Always show backend manifest data immediately (even if incomplete)
+                        writeCache(upper, manifestProfile)
+                        if (!cancelled) {
+                            setState({ loading: false, profile: manifestProfile, error: null })
+                        }
+
+                        const hasCompleteManifest = !!manifestProfile.logoUrl && !!manifestEntry.coingeckoId
+                        if (hasCompleteManifest) {
+                            debugLog(`✅ Complete manifest hit for ${upper} (${manifestEntry.source || 'db'})`)
+                            return
+                        }
+
+                        // Manifest exists but incomplete - log and optionally fetch from CoinGecko in background
+                        debugLog(`⚠️ Incomplete manifest for ${upper}`, {
+                            hasLogo: !!manifestProfile.logoUrl,
+                            hasCoingeckoId: !!manifestEntry.coingeckoId,
+                            source: manifestEntry.source || 'db',
+                        })
+
+                        // Only fetch from CoinGecko if we're missing critical data AND we have a coingeckoId
+                        // This avoids unnecessary CoinGecko calls when backend just needs to refresh
+                        if (!manifestProfile.logoUrl && manifestEntry.coingeckoId) {
+                            debugLog(`🔄 Fetching missing logo for ${upper} from CoinGecko (has coingeckoId: ${manifestEntry.coingeckoId})`)
+                            // Fetch in background - don't block UI
+                            fetchProfileFromCoinGecko(upper)
+                                .then((profile) => {
+                                    if (profile && !cancelled) {
+                                        writeCache(upper, profile)
+                                        setState((prev) => ({
+                                            ...prev,
+                                            profile,
+                                            loading: false,
+                                        }))
+                                        debugLog(`✅ Fetched and cached logo for ${upper}`)
+                                    }
+                                })
+                                .catch((err) => {
+                                    debugLog(`❌ Failed to fetch logo for ${upper}:`, err)
+                                    // Keep showing manifest data even if CoinGecko fetch fails
+                                })
+                            return // Don't wait for CoinGecko fetch
+                        }
+
+                        // If no coingeckoId, backend refresh cycle should handle it
+                        debugLog(`ℹ️ Skipping CoinGecko fetch for ${upper} - backend refresh cycle will populate missing data`)
+                        return
+                    }
+                }
+
+                // No manifest entry - try CoinGecko as last resort
+                debugLog(`🔍 No manifest entry for ${upper}, fetching from CoinGecko`)
                 const profile = await fetchProfileFromCoinGecko(upper)
 
                 if (!cancelled) {

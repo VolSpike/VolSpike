@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../../index'
 import { createLogger } from '../../lib/logger'
+import { refreshSingleAsset, runAssetRefreshCycle } from '../../services/asset-metadata'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
 const logger = createLogger()
@@ -129,6 +130,154 @@ adminAssetRoutes.delete('/:id', async (c) => {
     } catch (error) {
         logger.error('Admin asset delete error:', error)
         return c.json({ error: 'Failed to delete asset' }, 500)
+    }
+})
+
+// POST /api/admin/assets/:id/refresh - Refresh single asset from CoinGecko
+adminAssetRoutes.post('/:id/refresh', async (c) => {
+    try {
+        const id = c.req.param('id')
+        const asset = await prisma.asset.findUnique({ where: { id } })
+        
+        if (!asset) {
+            return c.json({ error: 'Asset not found' }, 404)
+        }
+
+        logger.info(`[AdminAssets] Manual refresh requested for ${asset.baseSymbol}`)
+        const updated = await refreshSingleAsset(asset)
+        
+        if (updated) {
+            const refreshed = await prisma.asset.findUnique({ where: { id } })
+            return c.json({ 
+                success: true, 
+                asset: refreshed,
+                message: `Successfully refreshed ${asset.baseSymbol} from CoinGecko`
+            })
+        } else {
+            return c.json({ 
+                success: false, 
+                asset,
+                message: `No updates needed for ${asset.baseSymbol} or refresh failed`
+            })
+        }
+    } catch (error) {
+        logger.error('Admin asset refresh error:', error)
+        return c.json({ 
+            error: 'Failed to refresh asset',
+            details: error instanceof Error ? error.message : String(error)
+        }, 500)
+    }
+})
+
+// POST /api/admin/assets/refresh/bulk - Refresh multiple assets
+const bulkRefreshSchema = z.object({
+    ids: z.array(z.string()).optional(),
+    symbols: z.array(z.string()).optional(),
+    limit: z.coerce.number().min(1).max(50).default(10),
+})
+
+adminAssetRoutes.post('/refresh/bulk', async (c) => {
+    try {
+        const body = await c.req.json()
+        const params = bulkRefreshSchema.parse(body)
+
+        let assets: any[] = []
+
+        if (params.ids && params.ids.length > 0) {
+            assets = await prisma.asset.findMany({
+                where: { id: { in: params.ids } },
+            })
+        } else if (params.symbols && params.symbols.length > 0) {
+            assets = await prisma.asset.findMany({
+                where: { baseSymbol: { in: params.symbols.map(s => s.toUpperCase()) } },
+            })
+        } else {
+            // Refresh assets that need refresh (missing logo or stale)
+            const now = Date.now()
+            const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week
+            
+            const allAssets = await prisma.asset.findMany({
+                where: {
+                    status: { not: 'HIDDEN' },
+                },
+                orderBy: { updatedAt: 'asc' },
+            })
+
+            assets = allAssets
+                .filter(asset => {
+                    if (!asset.logoUrl || !asset.displayName || !asset.coingeckoId) return true
+                    const updatedAt = asset.updatedAt?.getTime() ?? Date.now()
+                    return now - updatedAt > REFRESH_INTERVAL_MS
+                })
+                .slice(0, params.limit)
+        }
+
+        if (assets.length === 0) {
+            return c.json({ 
+                success: true, 
+                refreshed: 0, 
+                message: 'No assets need refresh' 
+            })
+        }
+
+        logger.info(`[AdminAssets] Bulk refresh requested for ${assets.length} assets`)
+        
+        const results = []
+        let refreshed = 0
+        
+        for (const asset of assets) {
+            try {
+                const updated = await refreshSingleAsset(asset)
+                if (updated) {
+                    refreshed++
+                    results.push({ symbol: asset.baseSymbol, success: true })
+                } else {
+                    results.push({ symbol: asset.baseSymbol, success: false, reason: 'No updates needed' })
+                }
+                // Small delay to respect CoinGecko rate limits
+                await new Promise(resolve => setTimeout(resolve, 7000)) // ~8 calls/minute
+            } catch (error) {
+                logger.warn(`[AdminAssets] Failed to refresh ${asset.baseSymbol}:`, error)
+                results.push({ 
+                    symbol: asset.baseSymbol, 
+                    success: false, 
+                    error: error instanceof Error ? error.message : String(error)
+                })
+            }
+        }
+
+        return c.json({
+            success: true,
+            refreshed,
+            total: assets.length,
+            results,
+            message: `Refreshed ${refreshed} of ${assets.length} assets`
+        })
+    } catch (error) {
+        logger.error('Admin bulk asset refresh error:', error)
+        return c.json({ 
+            error: 'Failed to refresh assets',
+            details: error instanceof Error ? error.message : String(error)
+        }, 500)
+    }
+})
+
+// POST /api/admin/assets/refresh/cycle - Run scheduled refresh cycle
+adminAssetRoutes.post('/refresh/cycle', async (c) => {
+    try {
+        logger.info('[AdminAssets] Manual refresh cycle triggered')
+        const result = await runAssetRefreshCycle('manual')
+        return c.json({
+            success: true,
+            ...result,
+            message: `Refresh cycle completed: ${result.refreshed} assets refreshed`
+        })
+    } catch (error) {
+        logger.error('Admin refresh cycle error:', error)
+        return c.json({ 
+            error: 'Failed to run refresh cycle',
+            details: error instanceof Error ? error.message : String(error)
+        }, 500)
     }
 })
 
