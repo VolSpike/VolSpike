@@ -344,36 +344,39 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
 
     if (assetRefreshEnabled) {
         let currentInterval = ASSET_REFRESH_INTERVAL_BULK // Start in bulk mode
-        let intervalId: NodeJS.Timeout
+        let intervalId: NodeJS.Timeout | undefined
 
-        const scheduleNextRun = async () => {
-            try {
-                const result = await runAssetRefreshCycle('interval')
+        const scheduleNextRun = () => {
+            const runCycle = async () => {
+                try {
+                    const result = await runAssetRefreshCycle('interval')
 
-                // Adjust interval based on remaining work
-                const needsBulkMode = (result.needsRefreshCount || 0) > 20
-                const newInterval = needsBulkMode ? ASSET_REFRESH_INTERVAL_BULK : ASSET_REFRESH_INTERVAL_MAINTENANCE
+                    // Adjust interval based on remaining work
+                    const needsBulkMode = (result.needsRefreshCount || 0) > 20
+                    const newInterval = needsBulkMode ? ASSET_REFRESH_INTERVAL_BULK : ASSET_REFRESH_INTERVAL_MAINTENANCE
 
-                if (newInterval !== currentInterval) {
-                    currentInterval = newInterval
-                    const mode = needsBulkMode ? 'BULK (10 min)' : 'MAINTENANCE (1 hour)'
-                    logger.info(`🔄 Switched to ${mode} enrichment mode (${result.needsRefreshCount} assets remaining)`)
+                    if (newInterval !== currentInterval) {
+                        currentInterval = newInterval
+                        const mode = needsBulkMode ? 'BULK (10 min)' : 'MAINTENANCE (1 hour)'
+                        logger.info(`🔄 Switched to ${mode} enrichment mode (${result.needsRefreshCount} assets remaining)`)
+                    }
+                } catch (error) {
+                    logger.warn('❌ Asset metadata refresh failed', error)
+                } finally {
+                    // Always schedule next run
+                    if (intervalId) clearTimeout(intervalId)
+                    intervalId = setTimeout(runCycle, currentInterval)
                 }
-
-                // Schedule next run
-                clearTimeout(intervalId)
-                intervalId = setTimeout(scheduleNextRun, currentInterval)
-            } catch (error) {
-                logger.warn('❌ Asset metadata refresh failed', error)
-                // Retry with current interval
-                intervalId = setTimeout(scheduleNextRun, currentInterval)
             }
+
+            // Start the cycle
+            runCycle().catch((error) => {
+                logger.error('❌ Unexpected error in asset refresh cycle', error)
+            })
         }
 
-        // Initial run after 30 seconds
-        setTimeout(() => {
-            scheduleNextRun()
-        }, 30000)
+        // Initial run after 30 seconds (non-blocking)
+        setTimeout(scheduleNextRun, 30000)
 
         logger.info('✅ Asset metadata refresh enabled (adaptive intervals: 10m bulk / 1h maintenance)')
     } else {
