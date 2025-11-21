@@ -35,7 +35,10 @@ const upsertSchema = z.object({
 adminAssetRoutes.get('/', async (c) => {
     try {
         const query = c.req.query()
+        logger.info('[AdminAssets] GET / - Request received', { query })
+
         const params = listSchema.parse(query)
+        logger.debug('[AdminAssets] Parsed params:', params)
 
         const where: any = {}
 
@@ -53,13 +56,21 @@ adminAssetRoutes.get('/', async (c) => {
             ]
         }
 
+        logger.debug('[AdminAssets] Querying database with where:', where)
         const total = await prisma.asset.count({ where })
+        logger.info('[AdminAssets] Total assets found:', total)
 
         const assets = await prisma.asset.findMany({
             where,
             orderBy: { baseSymbol: 'asc' },
             skip: (params.page - 1) * params.limit,
             take: params.limit,
+        })
+
+        logger.info('[AdminAssets] Assets fetched successfully', {
+            count: assets.length,
+            page: params.page,
+            total
         })
 
         return c.json({
@@ -72,8 +83,14 @@ adminAssetRoutes.get('/', async (c) => {
             },
         })
     } catch (error) {
-        logger.error('Admin asset list error:', error)
-        return c.json({ error: 'Failed to list assets' }, 500)
+        logger.error('[AdminAssets] Admin asset list error:', {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        })
+        return c.json({
+            error: 'Failed to list assets',
+            details: error instanceof Error ? error.message : String(error)
+        }, 500)
     }
 })
 

@@ -389,7 +389,24 @@ class AdminAPIClient {
                 params.append(key, String(value))
             }
         })
-        return this.request<{ assets: AssetRecord[]; pagination: any }>(`/api/admin/assets?${params.toString()}`)
+
+        console.log('[AdminAPIClient] Fetching assets with params:', query, 'URL:', `/api/admin/assets?${params.toString()}`)
+
+        try {
+            const result = await this.request<{ assets: AssetRecord[]; pagination: any }>(`/api/admin/assets?${params.toString()}`)
+            console.log('[AdminAPIClient] Successfully fetched assets:', {
+                count: result.assets?.length || 0,
+                pagination: result.pagination
+            })
+            return result
+        } catch (error) {
+            console.error('[AdminAPIClient] Failed to fetch assets:', {
+                error,
+                query,
+                url: `/api/admin/assets?${params.toString()}`
+            })
+            throw error
+        }
     }
 
     async saveAsset(data: AssetRecord & { id?: string }): Promise<{ asset: AssetRecord }> {

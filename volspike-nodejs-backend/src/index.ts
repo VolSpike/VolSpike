@@ -37,7 +37,7 @@ const logger = createLogger()
 async function verifyDatabaseSchema() {
     try {
         // Check if crypto_payments table exists and has required columns
-        const tableInfo = await prisma.$queryRaw<Array<{column_name: string}>>`
+        const tableInfo = await prisma.$queryRaw<Array<{ column_name: string }>>`
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'crypto_payments'
@@ -299,7 +299,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     // Payment sync: Every 30 seconds (critical for real-time user upgrades)
     // Runs in both development and production to ensure immediate upgrades
     const PAYMENT_SYNC_INTERVAL = 30 * 1000 // 30 seconds in milliseconds
-    
+
     setInterval(async () => {
         try {
             const result = await syncPendingPayments()
@@ -313,7 +313,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
 
     // Renewal reminder check: Every 6 hours
     const RENEWAL_CHECK_INTERVAL = 6 * 60 * 60 * 1000 // 6 hours in milliseconds
-    
+
     setInterval(async () => {
         try {
             logger.info('🔄 Running scheduled renewal reminder check')
@@ -326,7 +326,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
 
     // Expired subscription check: Daily (every 24 hours)
     const EXPIRATION_CHECK_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-    
+
     setInterval(async () => {
         try {
             logger.info('🔄 Running scheduled expired subscription check')
@@ -357,11 +357,11 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
             logger.info('🔄 Running initial payment sync')
             const paymentResult = await syncPendingPayments()
             logger.info(`✅ Initial payment sync completed: ${paymentResult.synced} synced, ${paymentResult.upgraded} users upgraded`)
-            
+
             logger.info('🔄 Running initial renewal reminder check')
             const reminderResult = await checkAndSendRenewalReminders()
             logger.info(`✅ Initial renewal reminder check completed: ${reminderResult.sent} reminders sent, ${reminderResult.checked} subscriptions checked`)
-            
+
             logger.info('🔄 Running initial expired subscription check')
             const expirationResult = await checkAndDowngradeExpiredSubscriptions()
             logger.info(`✅ Initial expired subscription check completed: ${expirationResult.downgraded} users downgraded, ${expirationResult.checked} subscriptions checked`)
