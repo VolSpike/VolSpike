@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { STATIC_ASSET_MANIFEST, findAssetInManifest, prefetchAssetManifest } from '@/lib/asset-manifest'
+import { STATIC_ASSET_MANIFEST, findAssetInManifest, prefetchAssetManifest, type AssetRecord } from '@/lib/asset-manifest'
 import { rateLimitedFetch } from '@/lib/coingecko-rate-limiter'
 
 export interface AssetProfile {
