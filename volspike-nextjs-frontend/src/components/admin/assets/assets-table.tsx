@@ -18,6 +18,7 @@ interface AdminAssetsTableProps {
 export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [assets, setAssets] = useState<AssetRecord[]>([])
     const [loading, setLoading] = useState(true)
+    const [loadingMore, setLoadingMore] = useState(false)
     const [savingId, setSavingId] = useState<string | null>(null)
     const [refreshingId, setRefreshingId] = useState<string | null>(null)
     const [bulkRefreshing, setBulkRefreshing] = useState(false)
@@ -26,18 +27,32 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards') // Default to cards for better UX
     const [recentlyRefreshed, setRecentlyRefreshed] = useState<Set<string>>(new Set())
     const [refreshProgress, setRefreshProgress] = useState<{current: number, total: number} | null>(null)
+    const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; pages: number } | null>(null)
+    const [currentPage, setCurrentPage] = useState(1)
 
-    const fetchAssets = useCallback(async () => {
+    const fetchAssets = useCallback(async (page: number = 1, append: boolean = false) => {
         if (!accessToken) {
             console.warn('[AdminAssetsTable] No access token, skipping fetch')
             setLoading(false)
             return
         }
         try {
-            console.debug('[AdminAssetsTable] Fetching assets...', { query, accessToken: accessToken.substring(0, 10) + '...' })
-            const res = await adminAPI.getAssets({ q: query, limit: 100 })
+            if (append) {
+                setLoadingMore(true)
+            } else {
+                setLoading(true)
+            }
+            console.debug('[AdminAssetsTable] Fetching assets...', { query, page, accessToken: accessToken.substring(0, 10) + '...' })
+            const res = await adminAPI.getAssets({ q: query, limit: 100, page })
             console.debug('[AdminAssetsTable] Assets fetched:', { count: res.assets?.length || 0, pagination: res.pagination })
-            setAssets(res.assets || [])
+
+            if (append) {
+                setAssets((prev) => [...prev, ...(res.assets || [])])
+            } else {
+                setAssets(res.assets || [])
+            }
+            setPagination(res.pagination)
+            setCurrentPage(page)
         } catch (err: any) {
             console.error('[AdminAssetsTable] Failed to load assets', {
                 error: err,
@@ -47,16 +62,26 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             })
             const errorMsg = err?.response?.error || err?.message || 'Failed to load assets'
             toast.error(errorMsg)
-            setAssets([]) // Clear assets on error
+            if (!append) {
+                setAssets([]) // Clear assets on error (but not when loading more)
+            }
         } finally {
             setLoading(false)
+            setLoadingMore(false)
         }
     }, [accessToken, query])
+
+    const handleLoadMore = () => {
+        if (pagination && currentPage < pagination.pages) {
+            fetchAssets(currentPage + 1, true)
+        }
+    }
 
     useEffect(() => {
         if (!accessToken) return
         adminAPI.setAccessToken(accessToken)
-        fetchAssets()
+        setCurrentPage(1) // Reset to page 1 when query changes
+        fetchAssets(1, false)
     }, [accessToken, query, fetchAssets])
 
     const handleFieldChange = (id: string | undefined, field: keyof AssetRecord, value: string) => {
@@ -346,8 +371,60 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         return updatedAt < weekAgo
     }).length
 
+    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
+    const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
+
     return (
         <div className="space-y-4">
+            {/* Enrichment Status Banner */}
+            {assets.length > 0 && assetsNeedingRefresh > 0 && (
+                <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-full bg-amber-500/20 p-2">
+                                <Clock className="h-5 w-5 text-amber-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-sm text-foreground">
+                                    Enrichment in Progress
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {fullyEnriched} of {assets.length} assets enriched ({enrichmentPercentage}%) • {assetsNeedingRefresh} pending
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleRunCycle}
+                                disabled={bulkRefreshing}
+                                className="bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20"
+                            >
+                                {bulkRefreshing ? (
+                                    <>
+                                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw className="h-3 w-3 mr-1.5" />
+                                        Run Cycle
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="mt-3 h-2 rounded-full bg-amber-500/20 overflow-hidden">
+                        <div
+                            className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-500"
+                            style={{ width: `${enrichmentPercentage}%` }}
+                        />
+                    </div>
+                </div>
+            )}
+
             <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                     <Input
@@ -356,11 +433,6 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         placeholder="Search by symbol, name, or CoinGecko id..."
                         className="w-72"
                     />
-                    {assetsNeedingRefresh > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                            {assetsNeedingRefresh} need refresh
-                        </Badge>
-                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     {/* View mode toggle */}
@@ -592,6 +664,32 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                     </tbody>
                 </table>
             </div>
+            )}
+
+            {/* Load More Button - Show when there are more pages */}
+            {pagination && currentPage < pagination.pages && assets.length > 0 && (
+                <div className="flex flex-col items-center justify-center gap-3 py-8">
+                    <div className="text-sm text-muted-foreground">
+                        Showing {assets.length} of {pagination.total} assets
+                    </div>
+                    <Button
+                        onClick={handleLoadMore}
+                        disabled={loadingMore}
+                        variant="outline"
+                        className="min-w-[200px] bg-gradient-to-r from-blue-600/10 to-purple-600/10 hover:from-blue-600/20 hover:to-purple-600/20"
+                    >
+                        {loadingMore ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Loading more...
+                            </>
+                        ) : (
+                            <>
+                                Load More ({pagination.total - assets.length} remaining)
+                            </>
+                        )}
+                    </Button>
+                </div>
             )}
 
             {assets.length === 0 && !loading && (
