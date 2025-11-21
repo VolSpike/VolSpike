@@ -164,6 +164,69 @@ const buildProfileFromManifest = (symbol: string, entry?: AssetRecord | AssetPro
     }
 }
 
+// Fetch profile using a known CoinGecko ID (faster, avoids search)
+const fetchProfileFromCoinGeckoWithId = async (symbol: string, coingeckoId: string): Promise<AssetProfile | undefined> => {
+    const upper = symbol.toUpperCase()
+    const override = SYMBOL_OVERRIDES[upper]
+
+    try {
+        // Fetch coin details directly using the known ID (rate-limited)
+        const coinRes = await rateLimitedFetch(
+            `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coingeckoId)}?localization=false&tickers=false&market_data=false&community_data=true&developer_data=false&sparkline=false`,
+            undefined,
+            'high' // High priority since we have the ID
+        )
+
+        const coin = (await coinRes.json()) as any
+
+        const descriptionRaw = typeof coin?.description?.en === 'string' ? coin.description.en : ''
+        const descriptionText = stripHtml(descriptionRaw)
+
+        const homepage: string | undefined = Array.isArray(coin?.links?.homepage)
+            ? coin.links.homepage.find((url: string | null | undefined) => !!url?.trim())
+            : undefined
+
+        const twitterName: string | undefined = coin?.links?.twitter_screen_name
+            ? String(coin.links.twitter_screen_name).trim()
+            : undefined
+
+        const twitterUrl = twitterName ? `https://x.com/${twitterName}` : undefined
+
+        const logoUrl: string | undefined =
+            coin?.image?.small || coin?.image?.thumb || coin?.image?.large || undefined
+
+        const categories: string[] | undefined = Array.isArray(coin?.categories)
+            ? coin.categories.filter((c: unknown) => typeof c === 'string' && c.trim().length > 0)
+            : undefined
+
+        const baseProfile: AssetProfile = {
+            id: String(coin.id || coingeckoId),
+            symbol: upper,
+            name: String(coin.name || upper),
+            logoUrl,
+            websiteUrl: homepage,
+            twitterUrl,
+            description: descriptionText || undefined,
+            categories,
+        }
+
+        const merged: AssetProfile = {
+            ...baseProfile,
+            ...override,
+            id: override?.id ?? baseProfile.id,
+            symbol: upper,
+            name: override?.name ?? baseProfile.name,
+            description: override?.description ?? baseProfile.description,
+        }
+
+        return merged
+    } catch (coinError: any) {
+        // Handle rate limit or other errors gracefully
+        console.warn(`[use-asset-profile] CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
+        return undefined
+    }
+}
+
 const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile | undefined> => {
     const upper = symbol.toUpperCase()
     const override = SYMBOL_OVERRIDES[upper]
@@ -411,8 +474,9 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                         // This avoids unnecessary CoinGecko calls when backend just needs to refresh
                         if (!manifestProfile.logoUrl && manifestEntry.coingeckoId) {
                             debugLog(`🔄 Fetching missing logo for ${upper} from CoinGecko (has coingeckoId: ${manifestEntry.coingeckoId})`)
-                            // Fetch in background - don't block UI
-                            fetchProfileFromCoinGecko(upper)
+                            // Fetch immediately (not background) when user is actively viewing the asset
+                            // Use the manifest's coingeckoId directly to avoid search
+                            fetchProfileFromCoinGeckoWithId(upper, manifestEntry.coingeckoId)
                                 .then((profile) => {
                                     if (profile && !cancelled) {
                                         writeCache(upper, profile)
