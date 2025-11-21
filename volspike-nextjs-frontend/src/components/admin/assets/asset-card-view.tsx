@@ -18,6 +18,7 @@ interface AssetCardViewProps {
     onDelete: (asset: AssetRecord) => Promise<void>
     refreshingId: string | null
     savingId: string | null
+    recentlyRefreshed?: Set<string>
 }
 
 export function AssetCardView({
@@ -26,7 +27,8 @@ export function AssetCardView({
     onSave,
     onDelete,
     refreshingId,
-    savingId
+    savingId,
+    recentlyRefreshed
 }: AssetCardViewProps) {
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editForm, setEditForm] = useState<Partial<AssetRecord>>({})
@@ -88,20 +90,30 @@ export function AssetCardView({
                 const StatusIcon = status.icon
                 const editing = isEditing(asset)
                 const currentAsset = editing ? { ...asset, ...editForm } : asset
+                const wasRecentlyRefreshed = recentlyRefreshed?.has(asset.baseSymbol)
 
                 return (
                     <div
                         key={asset.id ?? asset.baseSymbol}
-                        className="group relative overflow-hidden rounded-xl border border-border/60 bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-sm hover:border-border/80 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
+                        className={`group relative overflow-hidden rounded-xl border backdrop-blur-sm transition-all duration-500 ${
+                            wasRecentlyRefreshed
+                                ? 'border-green-500/60 bg-gradient-to-br from-green-500/20 to-card/80 shadow-lg shadow-green-500/20 animate-pulse'
+                                : 'border-border/60 bg-gradient-to-br from-card/80 to-card/60 hover:border-border/80 hover:shadow-xl hover:scale-[1.02]'
+                        }`}
                     >
                         {/* Card content */}
                         <div className="p-5 space-y-4">
                             {/* Header with status badges */}
                             <div className="flex items-start justify-between gap-2 pb-3 border-b border-border/40">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant="secondary" className="text-[10px] uppercase font-semibold px-2 py-0.5">
                                         {asset.status || 'AUTO'}
                                     </Badge>
+                                    {wasRecentlyRefreshed && (
+                                        <Badge className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-green-500 text-white animate-bounce">
+                                            ✨ Just Updated!
+                                        </Badge>
+                                    )}
                                 </div>
                                 <div
                                     title={status.label}

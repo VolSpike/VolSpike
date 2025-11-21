@@ -24,6 +24,8 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [syncingBinance, setSyncingBinance] = useState(false)
     const [query, setQuery] = useState('')
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards') // Default to cards for better UX
+    const [recentlyRefreshed, setRecentlyRefreshed] = useState<Set<string>>(new Set())
+    const [refreshProgress, setRefreshProgress] = useState<{current: number, total: number} | null>(null)
 
     const fetchAssets = useCallback(async () => {
         if (!accessToken) {
@@ -128,15 +130,62 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const handleRunCycle = async () => {
         if (!accessToken) return
         setBulkRefreshing(true)
+        setRefreshProgress({ current: 0, total: 15 }) // Assume max 15 assets per cycle
+
         try {
+            console.log('[AdminAssetsTable] 🔄 Starting refresh cycle...')
             const res = await adminAPI.runRefreshCycle()
-            toast.success(res.message || `Refresh cycle completed: ${res.refreshed} assets refreshed`)
+
+            console.log('[AdminAssetsTable] ✅ Refresh cycle response:', res)
+
+            // Extract refreshed asset symbols from results
+            const refreshedSymbols = new Set<string>()
+            if (res.results && Array.isArray(res.results)) {
+                res.results
+                    .filter((r: any) => r.success)
+                    .forEach((r: any) => refreshedSymbols.add(r.symbol))
+            }
+
+            // If we have candidates list, use that
+            if (res.candidates && Array.isArray(res.candidates)) {
+                res.candidates.forEach((symbol: string) => refreshedSymbols.add(symbol))
+            }
+
+            setRecentlyRefreshed(refreshedSymbols)
+
+            // Show detailed success message
+            const successSymbols = Array.from(refreshedSymbols).slice(0, 5).join(', ')
+            const moreCount = refreshedSymbols.size > 5 ? ` (+${refreshedSymbols.size - 5} more)` : ''
+
+            toast.success(
+                `✅ Refreshed ${res.refreshed || 0} assets: ${successSymbols || 'No assets'}${moreCount}`,
+                { duration: 6000 }
+            )
+
+            // Log failed assets if any
+            if (res.results) {
+                const failed = res.results.filter((r: any) => !r.success)
+                if (failed.length > 0) {
+                    console.warn('[AdminAssetsTable] ⚠️ Some assets failed to refresh:', failed)
+                    toast.error(`⚠️ ${failed.length} assets failed to refresh (check console)`, {
+                        duration: 5000,
+                    })
+                }
+            }
+
             await fetchAssets() // Reload to show updated data
+
+            // Clear highlight after 10 seconds
+            setTimeout(() => {
+                setRecentlyRefreshed(new Set())
+            }, 10000)
+
         } catch (err: any) {
-            console.error('[AdminAssetsTable] Failed to run refresh cycle', err)
+            console.error('[AdminAssetsTable] ❌ Failed to run refresh cycle', err)
             toast.error(err.response?.error || err.response?.details || 'Failed to run refresh cycle')
         } finally {
             setBulkRefreshing(false)
+            setRefreshProgress(null)
         }
     }
 
@@ -395,6 +444,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                     onDelete={handleDelete}
                     refreshingId={refreshingId}
                     savingId={savingId}
+                    recentlyRefreshed={recentlyRefreshed}
                 />
             ) : (
                 <div className="overflow-x-auto rounded-md border border-border/60 bg-card/60">
