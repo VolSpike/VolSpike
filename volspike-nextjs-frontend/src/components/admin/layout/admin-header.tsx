@@ -86,6 +86,7 @@ export function AdminHeader() {
         if (pathname.startsWith('/admin/payments')) return 'Payments'
         if (pathname.startsWith('/admin/audit')) return 'Audit Logs'
         if (pathname.startsWith('/admin/metrics')) return 'Metrics'
+        if (pathname.startsWith('/admin/assets')) return 'Assets'
         if (pathname.startsWith('/admin/settings')) return 'Settings'
         return 'Overview'
     }
