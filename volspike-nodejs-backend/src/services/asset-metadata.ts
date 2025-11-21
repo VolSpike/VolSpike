@@ -11,7 +11,7 @@ const BINANCE_FUTURES_INFO = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
 const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week
 const MAX_REFRESH_PER_RUN_BULK = 30 // Bulk mode: when many assets need refresh
 const MAX_REFRESH_PER_RUN_MAINTENANCE = 15 // Maintenance mode: normal operation
-const REQUEST_GAP_MS = 6500 // ~9 calls/minute (conservative for free-tier)
+const REQUEST_GAP_MS = 3000 // 3 seconds between requests (~20 calls/minute, safe for CoinGecko)
 const MAX_NEW_SYMBOLS_PER_RUN = 60 // cap to avoid long startup loops
 
 export interface AssetManifestEntry {
@@ -142,22 +142,33 @@ const pickCoingeckoId = async (baseSymbol: string, knownId?: string | null): Pro
     if (knownId) return { id: knownId, source: 'override' }
 
     const query = baseSymbol.toUpperCase()
-    const { data } = await axios.get(`${COINGECKO_API}/search`, {
-        params: { query },
-        timeout: 12000,
-    })
 
-    const coins: any[] = Array.isArray(data?.coins) ? data.coins : []
-    if (!coins.length) return { id: undefined, source: 'search' }
+    try {
+        const { data } = await axios.get(`${COINGECKO_API}/search`, {
+            params: { query },
+            timeout: 8000, // Reduced from 12s to 8s
+        })
 
-    const candidates = coins.filter((c) => (c?.symbol || '').toUpperCase() === query)
-    const ranked = (candidates.length ? candidates : coins).slice().sort((a: any, b: any) => {
-        const rankA = typeof a.market_cap_rank === 'number' ? a.market_cap_rank : Number.MAX_SAFE_INTEGER
-        const rankB = typeof b.market_cap_rank === 'number' ? b.market_cap_rank : Number.MAX_SAFE_INTEGER
-        return rankA - rankB
-    })
+        const coins: any[] = Array.isArray(data?.coins) ? data.coins : []
+        if (!coins.length) {
+            logger.debug(`[AssetMetadata] No CoinGecko results for ${query}`)
+            return { id: undefined, source: 'search' }
+        }
 
-    return { id: ranked[0]?.id, source: 'search' }
+        const candidates = coins.filter((c) => (c?.symbol || '').toUpperCase() === query)
+        const ranked = (candidates.length ? candidates : coins).slice().sort((a: any, b: any) => {
+            const rankA = typeof a.market_cap_rank === 'number' ? a.market_cap_rank : Number.MAX_SAFE_INTEGER
+            const rankB = typeof b.market_cap_rank === 'number' ? b.market_cap_rank : Number.MAX_SAFE_INTEGER
+            return rankA - rankB
+        })
+
+        return { id: ranked[0]?.id, source: 'search' }
+    } catch (error) {
+        logger.warn(`[AssetMetadata] CoinGecko search failed for ${query}:`, {
+            error: error instanceof Error ? error.message : String(error)
+        })
+        return { id: undefined, source: 'search' }
+    }
 }
 
 const fetchCoinProfile = async (coingeckoId: string) => {
@@ -170,7 +181,7 @@ const fetchCoinProfile = async (coingeckoId: string) => {
             developer_data: 'false',
             sparkline: 'false',
         },
-        timeout: 15000,
+        timeout: 10000, // Reduced from 15s to 10s
     })
 
     const homepage: string | undefined = Array.isArray(data?.links?.homepage)
@@ -390,13 +401,19 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
 
     for (let i = 0; i < candidates.length; i++) {
         const asset = candidates[i]
+        const progress = `[${i + 1}/${candidates.length}]`
+
+        logger.info(`[AssetMetadata] ${progress} Processing ${asset.baseSymbol}...`)
+
         const updated = await refreshSingleAsset(asset)
-        
+
         if (updated) {
             refreshed += 1
             results.push({ symbol: asset.baseSymbol, success: true })
+            logger.info(`[AssetMetadata] ${progress} ✅ ${asset.baseSymbol} enriched (${refreshed} successful so far)`)
         } else {
             results.push({ symbol: asset.baseSymbol, success: false })
+            logger.info(`[AssetMetadata] ${progress} ⚠️  ${asset.baseSymbol} skipped (no CoinGecko ID found)`)
         }
 
         // Rate limit: wait between requests (except for the last one)
