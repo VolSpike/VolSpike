@@ -287,14 +287,18 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
     const startTime = Date.now()
     try {
         logger.info('[AdminAssets] 🔄 Manual Binance sync triggered')
-        const BINANCE_FUTURES_INFO = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
 
-        // Step 1: Fetch from Binance API
-        logger.info('[AdminAssets] 📡 Fetching Binance exchange info...')
+        // Use proxy if BINANCE_PROXY_URL is set (to bypass Railway IP block)
+        const BINANCE_FUTURES_INFO = process.env.BINANCE_PROXY_URL
+            ? `${process.env.BINANCE_PROXY_URL}/api/binance/futures/info`
+            : 'https://fapi.binance.com/fapi/v1/exchangeInfo'
+
+        // Step 1: Fetch from Binance API (or proxy)
+        logger.info(`[AdminAssets] 📡 Fetching Binance exchange info from: ${BINANCE_FUTURES_INFO}`)
         let data: any
         try {
             const response = await axios.get(BINANCE_FUTURES_INFO, {
-                timeout: 20000,
+                timeout: 30000, // Increased timeout for proxy
                 validateStatus: (status) => status < 500 // Don't throw on 4xx
             })
             data = response.data
