@@ -347,9 +347,12 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         let intervalId: NodeJS.Timeout | undefined
 
         const scheduleNextRun = () => {
-            const runCycle = async () => {
+            if (intervalId) clearTimeout(intervalId)
+
+            intervalId = setTimeout(async () => {
                 try {
-                    const result = await runAssetRefreshCycle('interval')
+                    logger.info('[AssetEnrichment] 🔄 Starting automatic enrichment cycle...')
+                    const result = await runAssetRefreshCycle('automatic')
 
                     // Adjust interval based on remaining work
                     const needsBulkMode = (result.needsRefreshCount || 0) > 20
@@ -358,27 +361,27 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                     if (newInterval !== currentInterval) {
                         currentInterval = newInterval
                         const mode = needsBulkMode ? 'BULK (10 min)' : 'MAINTENANCE (1 hour)'
-                        logger.info(`🔄 Switched to ${mode} enrichment mode (${result.needsRefreshCount} assets remaining)`)
+                        logger.info(`[AssetEnrichment] 🔄 Switched to ${mode} enrichment mode (${result.needsRefreshCount} assets remaining)`)
                     }
+
+                    logger.info(`[AssetEnrichment] ✅ Cycle complete: ${result.refreshed} enriched, ${result.needsRefreshCount} remaining. Next run in ${currentInterval / 60000} minutes.`)
                 } catch (error) {
-                    logger.warn('❌ Asset metadata refresh failed', error)
+                    logger.error('[AssetEnrichment] ❌ Enrichment cycle failed:', error)
                 } finally {
                     // Always schedule next run
-                    if (intervalId) clearTimeout(intervalId)
-                    intervalId = setTimeout(runCycle, currentInterval)
+                    scheduleNextRun()
                 }
-            }
-
-            // Start the cycle
-            runCycle().catch((error) => {
-                logger.error('❌ Unexpected error in asset refresh cycle', error)
-            })
+            }, currentInterval)
         }
 
-        // Initial run after 30 seconds (non-blocking)
-        setTimeout(scheduleNextRun, 30000)
-
+        // Start first cycle after 1 minute (gives server time to fully start)
         logger.info('✅ Asset metadata refresh enabled (adaptive intervals: 10m bulk / 1h maintenance)')
+        logger.info('⏰ First automatic enrichment cycle will run in 1 minute...')
+
+        setTimeout(() => {
+            logger.info('[AssetEnrichment] 🚀 Starting first enrichment cycle...')
+            scheduleNextRun()
+        }, 60000) // 1 minute delay
     } else {
         logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
     }
