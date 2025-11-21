@@ -225,6 +225,7 @@ export function AssetCardView({
                                         )}
                                     </div>
                                 )}
+                            </div>
 
                             {/* Updated timestamp */}
                             <div className="text-xs text-muted-foreground/60 pt-2 border-t border-border/40">
