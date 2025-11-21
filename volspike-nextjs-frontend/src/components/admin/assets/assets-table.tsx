@@ -24,13 +24,26 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [query, setQuery] = useState('')
 
     const fetchAssets = useCallback(async () => {
-        if (!accessToken) return
+        if (!accessToken) {
+            console.warn('[AdminAssetsTable] No access token, skipping fetch')
+            setLoading(false)
+            return
+        }
         try {
+            console.debug('[AdminAssetsTable] Fetching assets...', { query, accessToken: accessToken.substring(0, 10) + '...' })
             const res = await adminAPI.getAssets({ q: query, limit: 100 })
-            setAssets(res.assets)
-        } catch (err) {
-            console.error('[AdminAssetsTable] Failed to load assets', err)
-            toast.error('Failed to load assets')
+            console.debug('[AdminAssetsTable] Assets fetched:', { count: res.assets?.length || 0, pagination: res.pagination })
+            setAssets(res.assets || [])
+        } catch (err: any) {
+            console.error('[AdminAssetsTable] Failed to load assets', {
+                error: err,
+                message: err?.message,
+                response: err?.response,
+                status: err?.status,
+            })
+            const errorMsg = err?.response?.error || err?.message || 'Failed to load assets'
+            toast.error(errorMsg)
+            setAssets([]) // Clear assets on error
         } finally {
             setLoading(false)
         }
