@@ -413,13 +413,118 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     const ASSET_REFRESH_INTERVAL_MAINTENANCE = 60 * 60 * 1000 // 1 hour (maintenance mode: <20 assets need refresh)
     const assetRefreshEnabled = process.env.ENABLE_ASSET_ENRICHMENT?.toLowerCase() !== 'false'
 
-    // TEMPORARY: Automatic enrichment disabled to fix Railway deployment issues
-    // User can manually trigger enrichment via "Run Cycle" button in admin panel
+    // Automatic asset enrichment - runs periodically to enrich assets with CoinGecko data
     if (assetRefreshEnabled) {
-        logger.info('ℹ️ Automatic enrichment temporarily disabled for Railway stability')
-        logger.info('💡 Use "Run Cycle" button in admin panel to enrich assets manually')
+        logger.info('✅ Automatic asset enrichment enabled')
+
+        // Adaptive enrichment cycle that runs periodically
+        const runEnrichmentCycle = async () => {
+            try {
+                logger.info('[AssetEnrichment] 🔄 Starting enrichment cycle...')
+                const result = await runAssetRefreshCycle('scheduled')
+
+                if (result.refreshed > 0) {
+                    logger.info(`[AssetEnrichment] ✅ Enriched ${result.refreshed} assets (${result.remaining || 0} remaining)`)
+                } else if (result.needsRefreshCount === 0) {
+                    logger.info('[AssetEnrichment] ✅ All assets are up to date')
+                } else {
+                    logger.info(`[AssetEnrichment] ℹ️ No assets refreshed this cycle (${result.needsRefreshCount} still need refresh)`)
+                }
+
+                return result
+            } catch (error) {
+                logger.error('[AssetEnrichment] ❌ Enrichment cycle failed:', {
+                    error: error instanceof Error ? error.message : String(error),
+                    stack: error instanceof Error ? error.stack : undefined,
+                })
+                return null
+            }
+        }
+
+        // Run initial enrichment check after 2 minutes (to allow server and database to fully start)
+        scheduledTimers.push(
+            setTimeout(async () => {
+                try {
+                    logger.info('[AssetEnrichment] 🚀 Running initial enrichment check...')
+                    const assetCount = await prisma.asset.count()
+
+                    if (assetCount === 0) {
+                        logger.info('[AssetEnrichment] ℹ️ No assets in database yet - enrichment will start after assets are synced')
+                        // Schedule a check every hour until assets are available
+                        const checkTimer = setInterval(async () => {
+                            const count = await prisma.asset.count()
+                            if (count > 0) {
+                                clearInterval(checkTimer)
+                                logger.info(`[AssetEnrichment] 🎨 Assets detected (${count} total) - starting enrichment`)
+                                await runEnrichmentCycle()
+                            }
+                        }, ASSET_REFRESH_INTERVAL_MAINTENANCE)
+                        scheduledTimers.push(checkTimer)
+                        return
+                    }
+
+                    // Check how many assets need refresh
+                    const assets = await prisma.asset.findMany({
+                        select: { logoUrl: true, displayName: true, coingeckoId: true, updatedAt: true },
+                    })
+
+                    const now = Date.now()
+                    const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week
+                    const needsRefresh = assets.filter(asset => {
+                        if (!asset.logoUrl || !asset.displayName || !asset.coingeckoId) return true
+                        const updatedAt = asset.updatedAt?.getTime() ?? Date.now()
+                        return now - updatedAt > REFRESH_INTERVAL_MS
+                    }).length
+
+                    const enriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
+                    const enrichmentPercentage = assets.length > 0 ? Math.round((enriched / assets.length) * 100) : 0
+
+                    logger.info(`[AssetEnrichment] 📊 Enrichment status: ${enriched}/${assets.length} enriched (${enrichmentPercentage}%), ${needsRefresh} need refresh`)
+
+                    // Run first enrichment cycle immediately if assets need refresh
+                    if (needsRefresh > 0) {
+                        logger.info(`[AssetEnrichment] 🎨 Starting automatic enrichment for ${needsRefresh} assets...`)
+                        await runEnrichmentCycle()
+                    } else {
+                        logger.info('[AssetEnrichment] ✅ All assets are enriched')
+                    }
+
+                    // Schedule periodic enrichment with adaptive intervals
+                    // Use bulk mode interval if many assets need refresh, otherwise maintenance mode
+                    const enrichmentInterval = needsRefresh > 20
+                        ? ASSET_REFRESH_INTERVAL_BULK
+                        : ASSET_REFRESH_INTERVAL_MAINTENANCE
+
+                    const enrichmentTimer = setInterval(async () => {
+                        const result = await runEnrichmentCycle()
+                        // Dynamically adjust interval based on result
+                        if (result && result.needsRefreshCount > 20) {
+                            // If many assets need refresh, we'll run more frequently
+                            // But we keep the same interval to avoid complexity
+                            logger.info(`[AssetEnrichment] ⚡ ${result.needsRefreshCount} assets need refresh - continuing bulk mode`)
+                        }
+                    }, enrichmentInterval)
+
+                    scheduledTimers.push(enrichmentTimer)
+                    logger.info(`[AssetEnrichment] ⏰ Scheduled periodic enrichment every ${enrichmentInterval / 1000 / 60} minutes`)
+                } catch (error) {
+                    logger.error('[AssetEnrichment] ❌ Initial enrichment check failed:', {
+                        error: error instanceof Error ? error.message : String(error),
+                        stack: error instanceof Error ? error.stack : undefined,
+                    })
+                    // Schedule retry in maintenance interval
+                    const retryTimer = setTimeout(async () => {
+                        await runEnrichmentCycle()
+                    }, ASSET_REFRESH_INTERVAL_MAINTENANCE)
+                    scheduledTimers.push(retryTimer)
+                }
+            }, 120000) // 2 minute delay to ensure database is ready
+        )
+
+        logger.info('✅ Automatic asset enrichment scheduled (adaptive intervals based on workload)')
     } else {
-        logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
+        logger.info('ℹ️ Asset metadata refresh disabled (set ENABLE_ASSET_ENRICHMENT=true to enable)')
+        logger.info('💡 Use "Run Cycle" button in admin panel to enrich assets manually')
     }
 
     // Run initial checks after 2 minutes (to allow server and database to fully start)
