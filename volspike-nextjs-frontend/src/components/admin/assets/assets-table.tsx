@@ -22,22 +22,22 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [bulkRefreshing, setBulkRefreshing] = useState(false)
     const [query, setQuery] = useState('')
 
-    const fetchAssets = async () => {
-        if (!accessToken) return
-        try {
-            const res = await adminAPI.getAssets({ q: query, limit: 100 })
-            setAssets(res.assets)
-        } catch (err) {
-            console.error('[AdminAssetsTable] Failed to load assets', err)
-            toast.error('Failed to load assets')
-        } finally {
-            setLoading(false)
-        }
-    }
-
     useEffect(() => {
         if (!accessToken) return
         adminAPI.setAccessToken(accessToken)
+
+        const fetchAssets = async () => {
+            try {
+                const res = await adminAPI.getAssets({ q: query, limit: 100 })
+                setAssets(res.assets)
+            } catch (err) {
+                console.error('[AdminAssetsTable] Failed to load assets', err)
+                toast.error('Failed to load assets')
+            } finally {
+                setLoading(false)
+            }
+        }
+
         fetchAssets()
     }, [accessToken, query])
 
