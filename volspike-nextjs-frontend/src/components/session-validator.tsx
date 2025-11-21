@@ -122,11 +122,15 @@ export function SessionValidator() {
         }
 
         // Initial check and interval
-        check('initial').catch(() => {})
+        // IMPORTANT: Delay initial check to avoid race with login
+        setTimeout(() => {
+            check('initial').catch(() => {})
+        }, 2000) // Wait 2 seconds after mount before first check
 
+        // Check every 30 seconds instead of 5 seconds to reduce server load and race conditions
         const interval = setInterval(() => {
             check('interval').catch(() => {})
-        }, 5000)
+        }, 30000) // 30 seconds
 
         const handleVisibilityChange = () => {
             if (!document.hidden) {

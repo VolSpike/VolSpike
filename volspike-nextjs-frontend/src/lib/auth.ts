@@ -221,7 +221,13 @@ export const authConfig: NextAuthConfig = {
                     token.image = user.image
                 }
                 token.iat = Math.floor(Date.now() / 1000) // Issued at time
-                console.log(`[Auth] JWT callback - User logged in: ${user.email}, tier: ${token.tier}, image: ${user.image ? 'present' : 'missing'}`)
+                console.log(`[Auth] JWT callback - User logged in: ${user.email}, role: ${token.role}, tier: ${token.tier}, authMethod: ${token.authMethod}, image: ${user.image ? 'present' : 'missing'}`, {
+                    userId: user.id,
+                    role: token.role,
+                    tier: token.tier,
+                    authMethod: token.authMethod,
+                    hasAccessToken: !!token.accessToken,
+                })
             }
 
             // For initial Google OAuth sign-in, we deliberately avoid treating
@@ -275,13 +281,28 @@ export const authConfig: NextAuthConfig = {
 
                         if (dbUser) {
                             // Check if password was changed after this token was issued
+                            // IMPORTANT: Only check for password-based auth, not OAuth
                             const dbPasswordChangedAt = dbUser.passwordChangedAt ? new Date(dbUser.passwordChangedAt).getTime() : 0
                             const tokenIssuedAt = (token.iat as number) * 1000 || 0
+                            const isPasswordAuth = token.authMethod === 'password' || (!token.authMethod && !token.oauthProvider)
 
-                            if (dbPasswordChangedAt > tokenIssuedAt) {
+                            // Only invalidate if:
+                            // 1. This is password-based auth
+                            // 2. Password was changed AFTER token was issued
+                            // 3. Password change is significant (>10 seconds after token issued to avoid race conditions)
+                            const timeDiff = dbPasswordChangedAt - tokenIssuedAt
+                            if (isPasswordAuth && dbPasswordChangedAt > 0 && timeDiff > 10000) {
                                 // Password was changed after token was issued - invalidate session
-                                console.log(`[Auth] ⚠️ Password changed after token issued - invalidating session`)
+                                console.log(`[Auth] ⚠️ Password changed ${Math.round(timeDiff/1000)}s after token issued - invalidating session`, {
+                                    dbPasswordChangedAt: new Date(dbPasswordChangedAt).toISOString(),
+                                    tokenIssuedAt: new Date(tokenIssuedAt).toISOString(),
+                                    authMethod: token.authMethod,
+                                    email: dbUser.email,
+                                })
                                 return null // Return null to invalidate the session
+                            } else if (dbPasswordChangedAt > tokenIssuedAt) {
+                                // Log but don't invalidate (race condition or OAuth user)
+                                console.log(`[Auth] Password check: not invalidating (timeDiff: ${Math.round(timeDiff/1000)}s, isPasswordAuth: ${isPasswordAuth})`)
                             }
 
                             // CRITICAL: Check if user status is BANNED or user was deleted
