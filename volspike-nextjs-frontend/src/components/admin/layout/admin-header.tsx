@@ -98,6 +98,7 @@ export function AdminHeader() {
         'Payments': 'Track payment transactions and revenue.',
         'Audit Logs': 'Review system activity and security events.',
         'Metrics': 'Analyze system performance and user analytics.',
+        'Assets': 'Manage cryptocurrency asset metadata, logos, and CoinGecko mappings.',
         'Settings': 'Configure platform settings and preferences.',
     }
 
