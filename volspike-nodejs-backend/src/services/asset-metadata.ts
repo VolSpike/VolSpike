@@ -196,8 +196,12 @@ const fetchCoinProfile = async (coingeckoId: string) => {
 
     const logoUrl: string | undefined = data?.image?.small || data?.image?.thumb || data?.image?.large || undefined
 
+    // Extract description from CoinGecko (supports both 'en' localized and direct description)
+    const description: string | undefined = data?.description?.en || data?.description || undefined
+
     return {
         name: data?.name as string | undefined,
+        description,
         homepage,
         twitterUrl,
         logoUrl,
@@ -246,6 +250,7 @@ export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
         const profile = await fetchCoinProfile(coingeckoId)
         logger.debug(`[AssetMetadata] Fetched profile for ${symbol}`, {
             hasName: !!profile.name,
+            hasDescription: !!profile.description,
             hasHomepage: !!profile.homepage,
             hasTwitter: !!profile.twitterUrl,
             hasLogoUrl: !!profile.logoUrl,
@@ -262,6 +267,9 @@ export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
 
         if (allowOverwrite || !asset.displayName) {
             payload.displayName = profile.name || asset.displayName || symbol
+        }
+        if (allowOverwrite || !asset.description) {
+            payload.description = profile.description ?? asset.description
         }
         if (allowOverwrite || !asset.websiteUrl) {
             payload.websiteUrl = profile.homepage ?? asset.websiteUrl

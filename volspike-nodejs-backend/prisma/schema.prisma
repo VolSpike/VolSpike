@@ -169,6 +169,7 @@ model Asset {
   extraSymbols    String?     @db.Text // JSON array of additional symbols / aliases
   coingeckoId     String?     // CoinGecko id for enrichment
   displayName     String?     // Human-friendly name override (e.g. "Ethena")
+  description     String?     @db.Text // Project description from CoinGecko
   websiteUrl      String?
   twitterUrl      String?
   logoUrl         String?     // Optional custom logo URL

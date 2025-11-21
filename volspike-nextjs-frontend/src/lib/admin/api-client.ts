@@ -43,28 +43,44 @@ class AdminAPIClient {
     // Make API request
     private async request<T>(
         endpoint: string,
-        options: RequestInit = {}
+        options: RequestInit & { timeout?: number } = {}
     ): Promise<T> {
         const url = `${this.baseURL}${endpoint}`
+        const { timeout, ...fetchOptions } = options
 
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                ...this.getHeaders(),
-                ...options.headers,
-            },
-        })
+        // Create abort controller for timeout
+        const controller = new AbortController()
+        const timeoutId = timeout ? setTimeout(() => controller.abort(), timeout) : null
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            throw new AdminAPIError(
-                errorData.error || `HTTP ${response.status}`,
-                response.status,
-                errorData
-            )
+        try {
+            const response = await fetch(url, {
+                ...fetchOptions,
+                signal: controller.signal,
+                headers: {
+                    ...this.getHeaders(),
+                    ...fetchOptions.headers,
+                },
+            })
+
+            if (timeoutId) clearTimeout(timeoutId)
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new AdminAPIError(
+                    errorData.error || `HTTP ${response.status}`,
+                    response.status,
+                    errorData
+                )
+            }
+
+            return response.json()
+        } catch (error) {
+            if (timeoutId) clearTimeout(timeoutId)
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new AdminAPIError('Request timeout', 408, { error: 'Request timeout' })
+            }
+            throw error
         }
-
-        return response.json()
     }
 
     // User Management API
@@ -411,6 +427,7 @@ class AdminAPIClient {
         }>('/api/admin/assets/refresh/bulk', {
             method: 'POST',
             body: JSON.stringify(options || {}),
+            timeout: 120000, // 120 seconds for bulk operations (10 assets × 7s delay = ~70s)
         })
     }
 
@@ -431,6 +448,7 @@ class AdminAPIClient {
             message: string
         }>('/api/admin/assets/refresh/cycle', {
             method: 'POST',
+            timeout: 180000, // 180 seconds (3 minutes) for cycle (30 assets × 3s delay = ~90s + API time)
         })
     }
 
