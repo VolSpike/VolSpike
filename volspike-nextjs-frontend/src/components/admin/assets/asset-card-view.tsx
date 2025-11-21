@@ -92,46 +92,48 @@ export function AssetCardView({
                 return (
                     <div
                         key={asset.id ?? asset.baseSymbol}
-                        className="group relative overflow-hidden rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm hover:border-border transition-all duration-300 hover:shadow-lg"
+                        className="group relative overflow-hidden rounded-xl border border-border/60 bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-sm hover:border-border/80 transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
                     >
-                        {/* Status indicator */}
-                        <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-                            <Badge variant="outline" className={`text-[10px] uppercase ${status.bgColor}`}>
-                                {asset.status || 'AUTO'}
-                            </Badge>
-                            <div
-                                title={status.label}
-                                className={`p-1.5 rounded-full ${status.bgColor} cursor-help`}
-                            >
-                                <StatusIcon className={`h-3.5 w-3.5 ${status.color}`} />
-                            </div>
-                        </div>
-
                         {/* Card content */}
                         <div className="p-5 space-y-4">
+                            {/* Header with status badges */}
+                            <div className="flex items-start justify-between gap-2 pb-3 border-b border-border/40">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="secondary" className="text-[10px] uppercase font-semibold px-2 py-0.5">
+                                        {asset.status || 'AUTO'}
+                                    </Badge>
+                                </div>
+                                <div
+                                    title={status.label}
+                                    className={`p-1.5 rounded-lg ${status.bgColor} cursor-help transition-transform hover:scale-110`}
+                                >
+                                    <StatusIcon className={`h-3.5 w-3.5 ${status.color}`} />
+                                </div>
+                            </div>
+
                             {/* Logo and Symbol */}
                             <div className="flex items-start gap-4">
-                                <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-muted/60 to-muted/30 flex items-center justify-center overflow-hidden ring-2 ring-border/50 flex-shrink-0">
+                                <div className="relative h-20 w-20 rounded-xl bg-gradient-to-br from-primary/10 via-muted/40 to-muted/20 flex items-center justify-center overflow-hidden ring-2 ring-border/50 flex-shrink-0 shadow-sm">
                                     {currentAsset.logoUrl ? (
                                         <Image
                                             src={currentAsset.logoUrl}
                                             alt={`${currentAsset.displayName || currentAsset.baseSymbol} logo`}
                                             fill
-                                            sizes="64px"
-                                            className="object-contain p-2"
+                                            sizes="80px"
+                                            className="object-contain p-3"
                                             onError={(e) => {
                                                 e.currentTarget.style.display = 'none'
                                             }}
                                         />
                                     ) : (
-                                        <span className="text-sm font-bold text-muted-foreground">
+                                        <span className="text-base font-bold text-muted-foreground/60">
                                             {currentAsset.baseSymbol?.slice(0, 3).toUpperCase() || '?'}
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-lg font-bold text-foreground truncate">
+                                <div className="flex-1 min-w-0 pt-1">
+                                    <div className="text-xl font-bold text-foreground truncate tracking-tight">
                                         {currentAsset.baseSymbol}
                                     </div>
                                     {editing ? (
@@ -142,88 +144,87 @@ export function AssetCardView({
                                             className="h-7 text-xs mt-1"
                                         />
                                     ) : (
-                                        <div className="text-sm text-muted-foreground truncate">
-                                            {currentAsset.displayName || 'No name'}
+                                        <div className="text-sm text-muted-foreground truncate mt-1 font-medium">
+                                            {currentAsset.displayName || <span className="italic text-muted-foreground/50">No name</span>}
                                         </div>
                                     )}
-                                    <div className="text-xs text-muted-foreground/70 mt-0.5 font-mono truncate">
+                                    <div className="text-[11px] text-muted-foreground/60 mt-1 font-mono truncate">
                                         {currentAsset.binanceSymbol || 'N/A'}
                                     </div>
                                 </div>
                             </div>
 
                             {/* CoinGecko ID */}
-                            {editing ? (
-                                <div className="space-y-1">
-                                    <label className="text-xs text-muted-foreground">CoinGecko ID</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">CoinGecko</label>
+                                {editing ? (
                                     <Input
                                         value={editForm.coingeckoId ?? ''}
                                         onChange={(e) => setEditForm({ ...editForm, coingeckoId: e.target.value })}
                                         placeholder="coingecko-id"
                                         className="h-7 text-xs font-mono"
                                     />
-                                </div>
-                            ) : currentAsset.coingeckoId ? (
-                                <div className="px-2 py-1.5 bg-muted/40 rounded text-xs font-mono text-muted-foreground truncate">
-                                    {currentAsset.coingeckoId}
-                                </div>
-                            ) : (
-                                <div className="px-2 py-1.5 bg-muted/40 rounded text-xs text-muted-foreground/50 italic">
-                                    No CoinGecko ID
-                                </div>
-                            )}
+                                ) : currentAsset.coingeckoId ? (
+                                    <div className="px-3 py-2 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg text-xs font-mono text-foreground truncate">
+                                        {currentAsset.coingeckoId}
+                                    </div>
+                                ) : (
+                                    <div className="px-3 py-2 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 italic flex items-center gap-2">
+                                        <AlertCircle className="h-3 w-3" />
+                                        Pending enrichment
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Links */}
-                            {editing ? (
-                                <div className="space-y-2">
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-muted-foreground">Website</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">Links</label>
+                                {editing ? (
+                                    <div className="space-y-2">
                                         <Input
                                             value={editForm.websiteUrl ?? ''}
                                             onChange={(e) => setEditForm({ ...editForm, websiteUrl: e.target.value })}
-                                            placeholder="https://..."
+                                            placeholder="Website URL"
                                             className="h-7 text-xs"
                                         />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-xs text-muted-foreground">Twitter/X</label>
                                         <Input
                                             value={editForm.twitterUrl ?? ''}
                                             onChange={(e) => setEditForm({ ...editForm, twitterUrl: e.target.value })}
-                                            placeholder="https://x.com/..."
+                                            placeholder="Twitter/X URL"
                                             className="h-7 text-xs"
                                         />
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    {currentAsset.websiteUrl && (
-                                        <a
-                                            href={currentAsset.websiteUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors"
-                                        >
-                                            <ExternalLink className="h-3 w-3" />
-                                            Website
-                                        </a>
-                                    )}
-                                    {currentAsset.twitterUrl && (
-                                        <a
-                                            href={currentAsset.twitterUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 transition-colors"
-                                        >
-                                            <Twitter className="h-3 w-3" />
-                                            Twitter
-                                        </a>
-                                    )}
-                                    {!currentAsset.websiteUrl && !currentAsset.twitterUrl && (
-                                        <div className="text-xs text-muted-foreground/50 italic">No links</div>
-                                    )}
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {currentAsset.websiteUrl && (
+                                            <a
+                                                href={currentAsset.websiteUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-all"
+                                            >
+                                                <ExternalLink className="h-3 w-3" />
+                                                Website
+                                            </a>
+                                        )}
+                                        {currentAsset.twitterUrl && (
+                                            <a
+                                                href={currentAsset.twitterUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs text-sky-600 dark:text-sky-400 hover:bg-sky-500/20 transition-all"
+                                            >
+                                                <Twitter className="h-3 w-3" />
+                                                Twitter
+                                            </a>
+                                        )}
+                                        {!currentAsset.websiteUrl && !currentAsset.twitterUrl && (
+                                            <div className="px-3 py-1.5 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 italic">
+                                                No links available
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                             {/* Updated timestamp */}
                             <div className="text-xs text-muted-foreground/60 pt-2 border-t border-border/40">
