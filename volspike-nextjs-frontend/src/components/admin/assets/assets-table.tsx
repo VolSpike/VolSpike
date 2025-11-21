@@ -7,8 +7,9 @@ import type { AssetRecord } from '@/lib/asset-manifest'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Save, Trash2, RefreshCw, RefreshCcw, AlertCircle, CheckCircle2, Clock, Database } from 'lucide-react'
+import { Loader2, Plus, Save, Trash2, RefreshCw, RefreshCcw, AlertCircle, CheckCircle2, Clock, Database, LayoutGrid, LayoutList } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { AssetCardView } from './asset-card-view'
 
 interface AdminAssetsTableProps {
     accessToken?: string | null
@@ -22,6 +23,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [bulkRefreshing, setBulkRefreshing] = useState(false)
     const [syncingBinance, setSyncingBinance] = useState(false)
     const [query, setQuery] = useState('')
+    const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards') // Default to cards for better UX
 
     const fetchAssets = useCallback(async () => {
         if (!accessToken) {
@@ -305,8 +307,30 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                     )}
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button 
-                        size="sm" 
+                    {/* View mode toggle */}
+                    <div className="flex items-center rounded-lg border border-border/60 bg-muted/30 p-1">
+                        <Button
+                            size="sm"
+                            variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                            onClick={() => setViewMode('cards')}
+                            className="h-7 px-2"
+                            title="Card view"
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={viewMode === 'table' ? 'default' : 'ghost'}
+                            onClick={() => setViewMode('table')}
+                            className="h-7 px-2"
+                            title="Table view"
+                        >
+                            <LayoutList className="h-4 w-4" />
+                        </Button>
+                    </div>
+
+                    <Button
+                        size="sm"
                         variant="default"
                         onClick={handleSyncBinance}
                         disabled={syncingBinance || bulkRefreshing}
@@ -355,8 +379,19 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 </div>
             </div>
 
-            <div className="overflow-x-auto rounded-md border border-border/60 bg-card/60">
-                <table className="min-w-full text-sm">
+            {/* Conditional rendering based on view mode */}
+            {viewMode === 'cards' ? (
+                <AssetCardView
+                    assets={assets}
+                    onRefresh={handleRefresh}
+                    onSave={handleSave}
+                    onDelete={handleDelete}
+                    refreshingId={refreshingId}
+                    savingId={savingId}
+                />
+            ) : (
+                <div className="overflow-x-auto rounded-md border border-border/60 bg-card/60">
+                    <table className="min-w-full text-sm">
                     <thead className="bg-muted/60">
                         <tr className="text-xs text-muted-foreground">
                             <th className="px-3 py-2 text-left font-medium">Logo</th>
@@ -500,6 +535,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                     </tbody>
                 </table>
             </div>
+            )}
 
             {assets.length === 0 && !loading && (
                 <div className="text-center py-12 space-y-4">
