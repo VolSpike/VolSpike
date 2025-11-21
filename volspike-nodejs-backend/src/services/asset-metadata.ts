@@ -345,12 +345,20 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
     const now = Date.now()
     logger.info(`[AssetMetadata] 🔄 Refresh cycle started (${reason})`)
 
-    // Ensure Binance universe is synced (non-blocking, runs in background)
-    ensureBinanceUniverse().catch((error) => {
-        logger.warn('[AssetMetadata] Binance universe sync failed (non-critical)', {
-            error: error instanceof Error ? error.message : String(error),
+    // Check if database is empty and sync Binance universe first
+    const assetCount = await prisma.asset.count()
+    if (assetCount === 0) {
+        logger.info('[AssetMetadata] Database is empty, syncing Binance universe first...')
+        const synced = await ensureBinanceUniverse()
+        logger.info(`[AssetMetadata] Initial Binance sync completed: ${synced} assets created`)
+    } else {
+        // Ensure Binance universe is synced (non-blocking, runs in background)
+        ensureBinanceUniverse().catch((error) => {
+            logger.warn('[AssetMetadata] Binance universe sync failed (non-critical)', {
+                error: error instanceof Error ? error.message : String(error),
+            })
         })
-    })
+    }
 
     const assets = await prisma.asset.findMany({
         orderBy: { updatedAt: 'asc' },
