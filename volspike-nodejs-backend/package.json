@@ -16,6 +16,7 @@
         "lint": "eslint src --ext .ts",
         "type-check": "tsc --noEmit",
         "seed:test": "tsx scripts/seed-test-users.ts",
+        "backfill:assets": "tsx scripts/backfill-descriptions.ts",
         "test": "vitest",
         "test:ui": "vitest --ui",
         "test:coverage": "vitest --coverage",

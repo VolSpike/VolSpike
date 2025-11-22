@@ -4,6 +4,23 @@
 
 The Asset Mappings panel (`/admin/assets`) manages cryptocurrency asset metadata, logos, and CoinGecko mappings for all Binance perpetual futures pairs.
 
+### 🔧 New: description backfill CLI
+
+When descriptions fall behind production data, run the new script inside `volspike-nodejs-backend`:
+
+```
+DATABASE_URL="postgres://..." npx tsx scripts/backfill-descriptions.ts
+```
+
+Key flags:
+
+- `--limit=50` – process a subset for testing
+- `--symbols=BTC,ETH,SOL` – focus on a few tickers
+- `--allow-overwrite` – re-hydrate verified assets (use sparingly)
+- `--dry-run` – log intended updates without writing
+
+The script respects CoinGecko rate limits (default 3.5 s delay, exponential back-off on 429s), logs per-asset outcomes, and outputs a summary table when finished.
+
 ---
 
 ## Understanding the UI Elements

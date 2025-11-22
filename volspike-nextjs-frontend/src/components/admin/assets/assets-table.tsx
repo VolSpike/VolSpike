@@ -43,7 +43,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 setLoading(true)
             }
             console.debug('[AdminAssetsTable] Fetching assets...', { query, page, accessToken: accessToken.substring(0, 10) + '...' })
-            const res = await adminAPI.getAssets({ q: query, limit: 100, page })
+            const res = await adminAPI.getAssets({ q: query, limit: 1000, page })
             console.debug('[AdminAssetsTable] Assets fetched:', { count: res.assets?.length || 0, pagination: res.pagination })
 
             if (append) {
