@@ -69,7 +69,8 @@ VolSpike is a production‑ready Binance Perpetual Futures dashboard featuring r
 ## Payments
 - Stripe: primary recurring subscription system with customer portal, proration, and webhooks for automatic tier upgrades/downgrades.
 - NowPayments: optional crypto checkout (USDT/USDC/SOL/BTC/ETH and networks) using hosted invoices, IPN webhooks, and a `CryptoPayment` table; surfaced in the pricing flow via a payment‑method selector and reflected in unified subscription status.
-- Admin payments tooling: `/admin/payments` includes filtering, tier-mismatch repair, and a “Create Payment from NOWPayments” dialog. Webhook fallback now auto-creates missing `CryptoPayment` rows by parsing the `order_id`.
+- Admin payments tooling: `/admin/payments` includes filtering, tier-mismatch repair, and a "Create Payment from NOWPayments" dialog. Webhook fallback now auto-creates missing `CryptoPayment` rows by parsing the `order_id`.
+- **Payment Method Display (CRITICAL)**: Admin users table shows cryptocurrency payment methods in human-readable format. Currency is sourced from the most recent active crypto payment that matches the subscription expiration. The `formatCryptoCurrency()` function handles all NowPayments codes (e.g., `'usdce'` → `'USDC on ETH'`). This logic must not be modified without updating documentation in AGENTS.md, OVERVIEW.md, and IMPLEMENTATION_PLAN.md.
 - Ops reminder: if `/api/admin/payments` returns `Failed to fetch payments`, check Railway logs for Prisma errors (usually missing migrations). Run `npx prisma migrate deploy` against the production DB to sync schema (Neon already has `expiresAt` and related columns).
 
 ## Deployment

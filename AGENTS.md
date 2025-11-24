@@ -522,6 +522,22 @@ NODE_ENV=production
 - Billing portal integration
 - Crypto payments via NowPayments (hosted invoices + IPN webhooks) for Pro/Elite tiers, tracked in the `CryptoPayment` table and merged with Stripe into unified subscription status.
 
+#### Payment Method Display Logic (CRITICAL - DO NOT MODIFY WITHOUT DOCUMENTATION UPDATE)
+- **Admin Panel Currency Display**: The admin users table displays cryptocurrency payment methods using human-readable format (e.g., "USDC on ETH" instead of "USDCE").
+- **Currency Source**: The currency is retrieved from the most recent active crypto payment that matches the user's active subscription expiration date. This ensures the displayed payment method always corresponds to the payment that activated the current subscription.
+- **Backend Logic** (`volspike-nodejs-backend/src/routes/admin/users.ts`):
+  - Fetches active crypto payments ordered by `expiresAt: 'desc'` to get the most recent subscription
+  - Stores both expiration date AND currency in `cryptoPaymentsMap` for each user
+  - Uses the currency from the payment that matches the active subscription (not just any payment)
+- **Frontend Formatting** (`volspike-nextjs-frontend/src/components/admin/users/users-table.tsx`):
+  - `formatCryptoCurrency()` function handles all NowPayments currency codes:
+    - `'usdce'` → `'USDC on ETH'` (CRITICAL: This must be checked FIRST before generic USDC checks)
+    - `'usdceerc20'`, `'usdcerc20'`, `'usdc_eth'` → `'USDC on ETH'`
+    - `'usdterc20'`, `'usdt_eth'` → `'USDT on ETH'`
+    - `'usdtsol'`, `'usdt_sol'` → `'USDT on SOL'`
+    - Native tokens: `'sol'`, `'eth'`, `'btc'` → `'SOL'`, `'ETH'`, `'BTC'`
+- **IMPORTANT**: Any changes to currency formatting or payment method display logic MUST be documented in AGENTS.md, OVERVIEW.md, and IMPLEMENTATION_PLAN.md. This logic has been broken multiple times, so it's critical to maintain consistency.
+
 ### Real-time Data (Client-Side WebSocket)
 - **Direct Binance WebSocket** from user's browser
 - **No server dependency** for market data

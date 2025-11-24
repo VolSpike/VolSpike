@@ -292,7 +292,9 @@ adminUserRoutes.get('/', async (c) => {
 
         // Batch fetch crypto payment expirations for all users
         const userIds = users.map(u => u.id)
-        const cryptoPaymentsMap = new Map<string, { expiresAt: Date; status: string }>()
+        // CRITICAL: Map to store both expiration and currency for each user's active subscription
+        // This ensures we always show the correct payment method currency that matches the active subscription
+        const cryptoPaymentsMap = new Map<string, { expiresAt: Date; status: string; currency: string | null }>()
         if (userIds.length > 0) {
             const activeCryptoPayments = await prisma.cryptoPayment.findMany({
                 where: {
@@ -309,13 +311,15 @@ adminUserRoutes.get('/', async (c) => {
                     userId: true,
                     expiresAt: true,
                     paymentStatus: true,
+                    actuallyPaidCurrency: true, // Include currency to match with subscription
                 },
                 orderBy: {
                     expiresAt: 'desc',
                 } as any,
             })
             
-            // Group by userId, keeping only the most recent expiration
+            // Group by userId, keeping only the most recent expiration AND its currency
+            // This ensures the displayed currency matches the active subscription
             activeCryptoPayments.forEach(payment => {
                 if (payment.expiresAt) {
                     const existing = cryptoPaymentsMap.get(payment.userId)
@@ -323,6 +327,7 @@ adminUserRoutes.get('/', async (c) => {
                         cryptoPaymentsMap.set(payment.userId, {
                             expiresAt: payment.expiresAt,
                             status: payment.paymentStatus || 'finished',
+                            currency: payment.actuallyPaidCurrency || null, // Store currency from the active subscription payment
                         })
                     }
                 }
@@ -370,8 +375,14 @@ adminUserRoutes.get('/', async (c) => {
             if (cryptoInfo) {
                 subscriptionExpiresAt = cryptoInfo.expiresAt
                 subscriptionMethod = 'crypto'
-                // Get currency from crypto payment
-                if (hasCryptoPayment && user.cryptoPayments && user.cryptoPayments.length > 0) {
+                // CRITICAL: Get currency from the payment that matches the active subscription
+                // This ensures we show the correct payment method (e.g., "USDC on ETH" not "USDCE")
+                // The currency is stored in cryptoPaymentsMap which is built from the most recent active payment
+                cryptoCurrency = cryptoInfo.currency || null
+                
+                // Fallback: if currency not in map, try to get from user's crypto payments
+                // This should rarely happen, but provides a safety net
+                if (!cryptoCurrency && hasCryptoPayment && user.cryptoPayments && user.cryptoPayments.length > 0) {
                     cryptoCurrency = user.cryptoPayments[0].actuallyPaidCurrency || null
                 }
             }
