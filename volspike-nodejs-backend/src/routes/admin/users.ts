@@ -241,10 +241,11 @@ adminUserRoutes.get('/', async (c) => {
                         expiresAt: true,
                         paidAt: true,
                     },
-                    take: 1,
-                    orderBy: {
-                        paidAt: 'desc',
-                    },
+                    take: 5, // Get recent payments to find the most recent one
+                    orderBy: [
+                        { paidAt: 'desc' },
+                        { createdAt: 'desc' },
+                    ],
                 },
             },
             orderBy: { [params.sortBy]: params.sortOrder },
@@ -296,6 +297,8 @@ adminUserRoutes.get('/', async (c) => {
         // This ensures we always show the correct payment method currency that matches the active subscription
         const cryptoPaymentsMap = new Map<string, { expiresAt: Date; status: string; currency: string | null }>()
         if (userIds.length > 0) {
+            // Get all finished/confirmed crypto payments, including those without expiresAt
+            // We'll calculate expiresAt from paidAt if missing (30 days from payment)
             const activeCryptoPayments = await prisma.cryptoPayment.findMany({
                 where: {
                     userId: { in: userIds },
@@ -303,35 +306,78 @@ adminUserRoutes.get('/', async (c) => {
                     paymentStatus: {
                         in: COMPLETED_CRYPTO_STATUSES,
                     },
-                    expiresAt: {
-                        not: null,
-                    },
                 } as any,
                 select: {
+                    id: true, // Include ID for database updates
                     userId: true,
                     expiresAt: true,
+                    paidAt: true,
                     paymentStatus: true,
                     actuallyPaidCurrency: true, // Include currency to match with subscription
                 },
-                orderBy: {
-                    expiresAt: 'desc',
-                } as any,
+                orderBy: [
+                    // Order by expiresAt desc first (if exists), then by paidAt desc
+                    { expiresAt: 'desc' },
+                    { paidAt: 'desc' },
+                ] as any,
             })
             
-            // Group by userId, keeping only the most recent expiration AND its currency
+            // Group by userId, keeping only the most recent payment AND calculate expiresAt if missing
             // This ensures the displayed currency matches the active subscription
+            const paymentsToUpdate: Array<{ id: string; expiresAt: Date }> = []
+            
             activeCryptoPayments.forEach(payment => {
-                if (payment.expiresAt) {
-                    const existing = cryptoPaymentsMap.get(payment.userId)
-                    if (!existing || payment.expiresAt > existing.expiresAt) {
-                        cryptoPaymentsMap.set(payment.userId, {
-                            expiresAt: payment.expiresAt,
-                            status: payment.paymentStatus || 'finished',
-                            currency: payment.actuallyPaidCurrency || null, // Store currency from the active subscription payment
-                        })
+                // Calculate expiration date: use expiresAt if exists, otherwise calculate from paidAt (30 days)
+                let expiresAt: Date | null = payment.expiresAt
+                let needsUpdate = false
+                
+                if (!expiresAt && payment.paidAt) {
+                    // Calculate 30 days from payment date
+                    expiresAt = new Date(payment.paidAt)
+                    expiresAt.setDate(expiresAt.getDate() + 30)
+                    needsUpdate = true
+                }
+                
+                // Only include if expiration is in the future or we can calculate it
+                if (expiresAt) {
+                    const now = new Date()
+                    // Only show active subscriptions (not expired)
+                    if (expiresAt > now) {
+                        const existing = cryptoPaymentsMap.get(payment.userId)
+                        if (!existing || expiresAt > existing.expiresAt) {
+                            cryptoPaymentsMap.set(payment.userId, {
+                                expiresAt: expiresAt,
+                                status: payment.paymentStatus || 'finished',
+                                currency: payment.actuallyPaidCurrency || null, // Store currency from the active subscription payment
+                            })
+                            
+                            // Track payments that need expiresAt update in database
+                            if (needsUpdate && payment.id) {
+                                paymentsToUpdate.push({
+                                    id: payment.id,
+                                    expiresAt: expiresAt,
+                                })
+                            }
+                        }
                     }
                 }
             })
+            
+            // Update database for payments missing expiresAt (non-blocking, don't fail if update fails)
+            if (paymentsToUpdate.length > 0) {
+                Promise.all(
+                    paymentsToUpdate.map(({ id, expiresAt }) =>
+                        prisma.cryptoPayment.update({
+                            where: { id },
+                            data: { expiresAt },
+                        }).catch((error) => {
+                            logger.warn('Failed to update expiresAt for payment', { paymentId: id, error: error.message })
+                        })
+                    )
+                ).catch(() => {
+                    // Silently fail - this is a background update
+                })
+            }
         }
 
         // Batch fetch Stripe checkout sessions for users with Stripe customer IDs
