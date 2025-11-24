@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
 import { useAlertSounds } from '@/hooks/use-alert-sounds'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,18 +32,19 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
   const [testAlerts, setTestAlerts] = useState<typeof alerts>([])
   const prevAlertsRef = useRef<typeof alerts>([])
   const searchParams = useSearchParams()
-  const { data: session } = useSession()
   
-  // Test mode: Show test buttons only for admins or when ?debug=true
-  const isTestMode = 
-    searchParams?.get('debug') === 'true' || 
-    (session?.user as any)?.role === 'ADMIN' ||
-    process.env.NODE_ENV === 'development'
+  const debugParamEnabled = searchParams?.get('debug') === 'true'
+  const isLocalDevBuild = process.env.NODE_ENV !== 'production'
+  const showTestHarness = debugParamEnabled || isLocalDevBuild
   
   // Sound test controls stay limited to explicit debug/dev contexts
-  const showSoundTestControls = 
-    searchParams?.get('debug') === 'true' ||
-    process.env.NODE_ENV === 'development'
+  const showSoundTestControls = debugParamEnabled || isLocalDevBuild
+  
+  // Surface console debugging so we can verify when test controls are intentionally hidden
+  useEffect(() => {
+    const reason = debugParamEnabled ? 'debug-param' : isLocalDevBuild ? 'local-dev-build' : 'disabled'
+    console.debug(`[VolumeAlertsPanel] Test harness ${showTestHarness ? 'visible' : 'hidden'} (${reason}).`)
+  }, [debugParamEnabled, isLocalDevBuild, showTestHarness])
   
   // Create mock test alerts
   const createTestAlert = (type: 'spike' | 'half_update' | 'full_update', direction: 'bullish' | 'bearish' = 'bullish') => {
@@ -237,18 +237,21 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
           </div>
         )}
         
-        {/* Test Buttons - Only visible in test mode */}
-        {isTestMode && (
+        {/* Test Buttons - Only visible when the explicit debug harness is enabled */}
+        {showTestHarness && (
           <div className="mb-4 p-3 rounded-lg bg-warning-500/10 border border-warning-500/30">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <Badge variant="outline" className="text-xs bg-warning-500/20 border-warning-500/50 text-warning-600">
-                Test Mode
+                Test Harness
               </Badge>
-              <span className="text-xs text-muted-foreground">
-                {searchParams?.get('debug') === 'true' && 'Debug enabled'}
-                {(session?.user as any)?.role === 'ADMIN' && 'Admin user'}
-                {process.env.NODE_ENV === 'development' && 'Development mode'}
-              </span>
+              <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+                {debugParamEnabled && (
+                  <span className="px-2 py-0.5 rounded-full bg-muted/50">?debug=true active</span>
+                )}
+                {!debugParamEnabled && isLocalDevBuild && (
+                  <span className="px-2 py-0.5 rounded-full bg-muted/50">Local dev build</span>
+                )}
+              </div>
             </div>
             <div className="space-y-3">
               {showSoundTestControls && (
