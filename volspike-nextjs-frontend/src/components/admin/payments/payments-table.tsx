@@ -47,6 +47,7 @@ import {
 import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
+import { formatCryptoCurrency } from '@/lib/admin/currency-format'
 
 interface Payment {
     id: string
@@ -318,7 +319,7 @@ export function PaymentsTable({ payments, pagination, currentQuery }: PaymentsTa
                                                     <div className="font-medium">${payment.payAmount.toFixed(2)}</div>
                                                     {payment.actuallyPaid && (
                                                         <div className="text-xs text-muted-foreground">
-                                                            {payment.actuallyPaid.toFixed(6)} {payment.actuallyPaidCurrency}
+                                                            {payment.actuallyPaid.toFixed(6)} {formatCryptoCurrency(payment.actuallyPaidCurrency)}
                                                         </div>
                                                     )}
                                                 </div>

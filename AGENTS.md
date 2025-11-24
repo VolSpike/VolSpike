@@ -529,14 +529,16 @@ NODE_ENV=production
   - Fetches active crypto payments ordered by `expiresAt: 'desc'` to get the most recent subscription
   - Stores both expiration date AND currency in `cryptoPaymentsMap` for each user
   - Uses the currency from the payment that matches the active subscription (not just any payment)
-- **Frontend Formatting** (`volspike-nextjs-frontend/src/components/admin/users/users-table.tsx`):
-  - `formatCryptoCurrency()` function handles all NowPayments currency codes:
+- **Frontend Formatting** (`volspike-nextjs-frontend/src/lib/admin/currency-format.ts`):
+  - `formatCryptoCurrency()` function is shared across all admin components (Users table, Payments table, etc.)
+  - Handles all NowPayments currency codes consistently:
     - `'usdce'` → `'USDC on ETH'` (CRITICAL: This must be checked FIRST before generic USDC checks)
     - `'usdceerc20'`, `'usdcerc20'`, `'usdc_eth'` → `'USDC on ETH'`
     - `'usdterc20'`, `'usdt_eth'` → `'USDT on ETH'`
     - `'usdtsol'`, `'usdt_sol'` → `'USDT on SOL'`
     - Native tokens: `'sol'`, `'eth'`, `'btc'` → `'SOL'`, `'ETH'`, `'BTC'`
     - **INVALID legacy values** (missing network identifier): `'usdt'` → `'USDT (Unknown Network)'`, `'usdc'` → `'USDC (Unknown Network)'` - these indicate data quality issues
+  - Used in: Admin Users table (payment method), Admin Payments table (currency display)
 - **Valid Currency Values**: The `actuallyPaidCurrency` field MUST always include network identifier:
   - **USDT**: `'usdtsol'` (Solana) or `'usdterc20'` / `'usdt_eth'` (Ethereum) - NEVER just `'usdt'`
   - **USDC**: `'usdce'` / `'usdcerc20'` / `'usdc_eth'` (Ethereum) - NEVER just `'usdc'`
