@@ -133,6 +133,8 @@ export interface SubscriptionSummary {
     stripeSubscriptionId?: string
     stripePriceId?: string
     status: string
+    billingStatus?: string
+    accountStatus?: UserStatus
     tier: 'free' | 'pro' | 'elite'
     currentPeriodStart?: Date
     currentPeriodEnd?: Date

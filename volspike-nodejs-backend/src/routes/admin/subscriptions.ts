@@ -54,6 +54,7 @@ adminSubscriptionRoutes.get('/', async (c) => {
                     id: true,
                     email: true,
                     tier: true,
+                    status: true,
                     stripeCustomerId: true,
                     createdAt: true,
                     updatedAt: true,
@@ -65,21 +66,27 @@ adminSubscriptionRoutes.get('/', async (c) => {
         ])
 
         // Return subscription data with tier from user
-        const subscriptions = users.map(user => ({
-            id: user.id,
-            userId: user.id,
-            userEmail: user.email || '',
-            stripeCustomerId: user.stripeCustomerId || '',
-            stripeSubscriptionId: null,
-            stripePriceId: null,
-            status: user.stripeCustomerId ? 'active' : 'none',
-            tier: user.tier || 'free',
-            currentPeriodStart: null,
-            currentPeriodEnd: null,
-            cancelAtPeriodEnd: false,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt,
-        }))
+        const subscriptions = users.map(user => {
+            const billingStatus = user.stripeCustomerId ? 'active' : 'none'
+
+            return {
+                id: user.id,
+                userId: user.id,
+                userEmail: user.email || '',
+                stripeCustomerId: user.stripeCustomerId || '',
+                stripeSubscriptionId: null,
+                stripePriceId: null,
+                status: billingStatus,
+                billingStatus,
+                accountStatus: user.status || 'ACTIVE',
+                tier: user.tier || 'free',
+                currentPeriodStart: null,
+                currentPeriodEnd: null,
+                cancelAtPeriodEnd: false,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+            }
+        })
 
         return c.json({
             subscriptions,

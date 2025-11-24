@@ -35,7 +35,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { format } from 'date-fns'
 import { toast } from 'react-hot-toast'
-import { SubscriptionSummary } from '@/types/admin'
+import { SubscriptionSummary, UserStatus } from '@/types/admin'
 import { adminAPI } from '@/lib/admin/api-client'
 import { SyncResultDialog } from './sync-result-dialog'
 
@@ -56,6 +56,7 @@ const statusIcons = {
     past_due: AlertTriangle,
     canceled: XCircle,
     unpaid: AlertTriangle,
+    none: AlertTriangle,
 }
 
 const statusColors = {
@@ -64,7 +65,35 @@ const statusColors = {
     past_due: 'bg-yellow-100 text-yellow-800',
     canceled: 'bg-red-100 text-red-800',
     unpaid: 'bg-red-100 text-red-800',
+    none: 'bg-slate-200 text-slate-800',
 }
+
+const accountStatusColors: Record<UserStatus, string> = {
+    ACTIVE: 'bg-emerald-100 text-emerald-800',
+    SUSPENDED: 'bg-amber-100 text-amber-800',
+    BANNED: 'bg-red-100 text-red-800',
+}
+
+const accountStatusCopy: Record<UserStatus, string> = {
+    ACTIVE: 'User can sign in and access their tier.',
+    SUSPENDED: 'User is temporarily blocked by an admin.',
+    BANNED: 'Account is permanently disabled.',
+}
+
+const billingStatusCopy: Record<string, string> = {
+    active: 'Stripe subscription is active and billing normally.',
+    trialing: 'Stripe reports an active trial period.',
+    past_due: 'Latest Stripe charge failed; awaiting payment.',
+    canceled: 'Stripe subscription has been cancelled.',
+    unpaid: 'Stripe marked this subscription as unpaid.',
+    none: 'No Stripe subscription detected for this user.',
+}
+
+const formatAccountStatusLabel = (status: UserStatus) =>
+    status === 'ACTIVE' ? 'Active' : status === 'SUSPENDED' ? 'Suspended' : 'Banned'
+
+const formatBillingStatusLabel = (status: string) =>
+    status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 
 export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: SubscriptionsTableProps) {
     const router = useRouter()
@@ -208,10 +237,11 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                 onClick={() => handleSort('status')}
                             >
                                 <div className="flex items-center space-x-1">
-                                    <span>Status</span>
+                                    <span>Billing Status</span>
                                     {getSortIcon('status')}
                                 </div>
                             </TableHead>
+                            <TableHead>Account Status</TableHead>
                             <TableHead>Tier</TableHead>
                             <TableHead
                                 className="cursor-pointer hover:bg-muted/50"
@@ -238,7 +268,7 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                     <TableBody>
                         {subscriptions.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="h-64">
+                                <TableCell colSpan={8} className="h-64">
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
                                             <CreditCard className="h-8 w-8 text-muted-foreground/50" />
@@ -254,8 +284,10 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                             </TableRow>
                         ) : (
                             subscriptions.map((subscription) => {
-                                const StatusIcon = statusIcons[subscription.status as keyof typeof statusIcons] || CheckCircle
-                                const statusColorClass = statusColors[subscription.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
+                                const billingStatus = subscription.billingStatus || subscription.status || 'none'
+                                const accountStatus = (subscription.accountStatus || 'ACTIVE') as UserStatus
+                                const StatusIcon = statusIcons[billingStatus as keyof typeof statusIcons] || CheckCircle
+                                const statusColorClass = statusColors[billingStatus as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'
                                 // Use tier from subscription data (from backend) instead of deriving from stripePriceId
                                 const tier = subscription.tier || 'free'
 
@@ -282,25 +314,30 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                                 <TooltipTrigger asChild>
                                                     <Badge className={statusColorClass}>
                                                         <StatusIcon className="h-3 w-3 mr-1" />
-                                                        {subscription.status}
+                                                        {formatBillingStatusLabel(billingStatus)}
                                                     </Badge>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
                                                     <p className="text-xs">
-                                                        {subscription.status === 'active' 
-                                                            ? 'Subscription is active and billing normally'
-                                                            : subscription.status === 'none'
-                                                            ? 'No active subscription found'
-                                                            : subscription.status === 'trialing'
-                                                            ? 'Subscription is in trial period'
-                                                            : subscription.status === 'past_due'
-                                                            ? 'Payment failed - subscription is past due'
-                                                            : subscription.status === 'canceled'
-                                                            ? 'Subscription has been canceled'
-                                                            : subscription.status === 'unpaid'
-                                                            ? 'Payment failed - subscription is unpaid'
-                                                            : `Subscription status: ${subscription.status}`
-                                                        }
+                                                        {billingStatusCopy[billingStatus] ||
+                                                            `Subscription status: ${formatBillingStatusLabel(billingStatus)}`}
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableCell>
+                                    <TableCell>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Badge className={accountStatusColors[accountStatus] || 'bg-slate-100 text-slate-700'}>
+                                                        {formatAccountStatusLabel(accountStatus)}
+                                                    </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p className="text-xs max-w-xs">
+                                                        {accountStatusCopy[accountStatus] ||
+                                                            'Account status reflects manual admin controls.'}
                                                     </p>
                                                 </TooltipContent>
                                             </Tooltip>
@@ -371,7 +408,7 @@ export function SubscriptionsTable({ subscriptions, pagination, currentQuery }: 
                                                         <DropdownMenuSeparator />
                                                     </>
                                                 )}
-                                                {subscription.status === 'active' && (
+                                                {billingStatus === 'active' && (
                                                     <DropdownMenuItem
                                                         onClick={() => handleAction('cancel', subscription.id)}
                                                         className="text-red-600"
