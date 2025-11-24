@@ -22,9 +22,10 @@ type AssetInfo = {
 }
 
 type QrPayload = {
-  uri: string
+  qrUri: string
   scheme: 'solana' | 'ethereum' | 'bitcoin' | 'address'
   walletHint: string
+  openUri?: string
   fallbackUri?: string
 }
 
@@ -156,9 +157,10 @@ const isValidEthereumAddress = (address: string) => /^0x[a-fA-F0-9]{40}$/.test(a
 const buildQrPayload = (assetKey: AssetKey, asset: AssetInfo): QrPayload => {
   const config = QR_BEHAVIOR[assetKey]
   const defaultPayload: QrPayload = {
-    uri: asset.address,
+    qrUri: asset.address,
     scheme: 'address',
     walletHint: 'Copy the address manually if the QR cannot open your wallet.',
+    openUri: asset.address,
   }
 
   if (!config) {
@@ -180,17 +182,18 @@ const buildQrPayload = (assetKey: AssetKey, asset: AssetInfo): QrPayload => {
     if (config.solanaMint) {
       params.set('spl-token', config.solanaMint)
     }
-    const uri = `solana:${asset.address}${params.size ? `?${params.toString()}` : ''}`
+    const qrUri = `solana:${asset.address}${params.size ? `?${params.toString()}` : ''}`
     console.debug('[DonatePage] Generated Solana QR payload', {
       assetKey,
-      uri,
+      uri: qrUri,
       params: Object.fromEntries(params),
       hasSplToken: params.has('spl-token'),
     })
     return {
-      uri,
+      qrUri,
       scheme: 'solana',
       walletHint: config.walletHint,
+      openUri: qrUri,
     }
   }
 
@@ -202,39 +205,41 @@ const buildQrPayload = (assetKey: AssetKey, asset: AssetInfo): QrPayload => {
       })
     }
     const chainId = config.chainId || ETH_MAINNET_CHAIN_ID
-    let uri: string
-    let fallbackUri: string | undefined
+    let qrUri: string
+    let metamaskUri: string
     if (config.evmContract) {
       const params = new URLSearchParams({ address: asset.address })
-      uri = `https://link.metamask.io/send/${config.evmContract}@${chainId}/transfer?${params.toString()}`
-      fallbackUri = `ethereum:${config.evmContract}@${chainId}/transfer?${params.toString()}`
+      qrUri = `ethereum:${config.evmContract}@${chainId}/transfer?${params.toString()}`
+      metamaskUri = `https://metamask.app.link/send/${config.evmContract}@${chainId}/transfer?${params.toString()}`
     } else {
-      uri = `https://link.metamask.io/send/${asset.address}@${chainId}`
-      fallbackUri = `ethereum:${asset.address}@${chainId}`
+      qrUri = `ethereum:${asset.address}@${chainId}`
+      metamaskUri = `https://metamask.app.link/send/${asset.address}@${chainId}`
     }
     console.debug('[DonatePage] Generated Ethereum QR payload', {
       assetKey,
-      uri,
-      fallbackUri,
+      qrUri,
+      metamaskUri,
       chainId,
       contract: config.evmContract ?? null,
     })
     return {
-      uri,
+      qrUri,
       scheme: 'ethereum',
-      walletHint: config.walletHint,
-      fallbackUri,
+      walletHint: `${config.walletHint} (adds EIP-681 QR + MetaMask deep link)`,
+      openUri: metamaskUri,
+      fallbackUri: qrUri,
     }
   }
 
   if (config.scheme === 'bitcoin') {
     const params = new URLSearchParams({ message: 'VolSpike Donation' })
-    const uri = `bitcoin:${asset.address}?${params.toString()}`
-    console.debug('[DonatePage] Generated Bitcoin QR payload', { assetKey, uri })
+    const qrUri = `bitcoin:${asset.address}?${params.toString()}`
+    console.debug('[DonatePage] Generated Bitcoin QR payload', { assetKey, uri: qrUri })
     return {
-      uri,
+      qrUri,
       scheme: 'bitcoin',
       walletHint: config.walletHint,
+      openUri: qrUri,
     }
   }
 
@@ -266,7 +271,7 @@ function useQrData(urlOrText: string) {
 
 function AssetCard({ assetKey, asset }: { assetKey: AssetKey; asset: AssetInfo }) {
   const qrPayload = useMemo(() => buildQrPayload(assetKey, asset), [assetKey, asset])
-  const qr = useQrData(qrPayload.uri)
+  const qr = useQrData(qrPayload.qrUri)
   const [copied, setCopied] = useState(false)
 
   const copy = async () => {
@@ -334,7 +339,7 @@ function AssetCard({ assetKey, asset }: { assetKey: AssetKey; asset: AssetInfo }
           )}
           <p className="text-xs text-muted-foreground/80">{qrPayload.walletHint}</p>
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button size="sm" variant="secondary" onClick={() => openWalletLink(qrPayload.uri)}>
+            <Button size="sm" variant="secondary" onClick={() => openWalletLink(qrPayload.openUri ?? qrPayload.qrUri)}>
               Open in wallet
             </Button>
             {qrPayload.fallbackUri && (
@@ -346,7 +351,7 @@ function AssetCard({ assetKey, asset }: { assetKey: AssetKey; asset: AssetInfo }
           <div className="rounded-md border border-border/50 bg-muted/30 p-2 text-left">
             <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wide mb-1">QR payload</p>
             <code className="block text-[11px] leading-relaxed break-all text-muted-foreground">
-              {qrPayload.uri}
+              {qrPayload.qrUri}
             </code>
           </div>
         </div>
