@@ -41,6 +41,11 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     (session?.user as any)?.role === 'ADMIN' ||
     process.env.NODE_ENV === 'development'
   
+  // Sound test controls stay limited to explicit debug/dev contexts
+  const showSoundTestControls = 
+    searchParams?.get('debug') === 'true' ||
+    process.env.NODE_ENV === 'development'
+  
   // Create mock test alerts
   const createTestAlert = (type: 'spike' | 'half_update' | 'full_update', direction: 'bullish' | 'bearish' = 'bullish') => {
     const now = new Date().toISOString()
@@ -246,38 +251,40 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
               </span>
             </div>
             <div className="space-y-3">
-              <div>
-                <p className="text-xs font-semibold mb-2 text-muted-foreground">Test Sounds:</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => playSound('spike')}
-                    className="text-xs"
-                  >
-                    <Play className="h-3 w-3 mr-1" />
-                    Spike Alert
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => playSound('half_update')}
-                    className="text-xs"
-                  >
-                    <Play className="h-3 w-3 mr-1" />
-                    30m Update
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => playSound('full_update')}
-                    className="text-xs"
-                  >
-                    <Play className="h-3 w-3 mr-1" />
-                    Hourly Update
-                  </Button>
+              {showSoundTestControls && (
+                <div>
+                  <p className="text-xs font-semibold mb-2 text-muted-foreground">Test Sounds:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => playSound('spike')}
+                      className="text-xs"
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Spike Alert
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => playSound('half_update')}
+                      className="text-xs"
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      30m Update
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => playSound('full_update')}
+                      className="text-xs"
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Hourly Update
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
               
               <div>
                 <p className="text-xs font-semibold mb-2 text-muted-foreground">Create Test Alerts (click them to test):</p>
