@@ -536,6 +536,12 @@ NODE_ENV=production
     - `'usdterc20'`, `'usdt_eth'` → `'USDT on ETH'`
     - `'usdtsol'`, `'usdt_sol'` → `'USDT on SOL'`
     - Native tokens: `'sol'`, `'eth'`, `'btc'` → `'SOL'`, `'ETH'`, `'BTC'`
+    - **INVALID legacy values** (missing network identifier): `'usdt'` → `'USDT (Unknown Network)'`, `'usdc'` → `'USDC (Unknown Network)'` - these indicate data quality issues
+- **Valid Currency Values**: The `actuallyPaidCurrency` field MUST always include network identifier:
+  - **USDT**: `'usdtsol'` (Solana) or `'usdterc20'` / `'usdt_eth'` (Ethereum) - NEVER just `'usdt'`
+  - **USDC**: `'usdce'` / `'usdcerc20'` / `'usdc_eth'` (Ethereum) - NEVER just `'usdc'`
+  - **Native**: `'sol'`, `'eth'`, `'btc'`
+- **Data Quality Issue**: If you see "USDT (Unknown Network)" or "USDC (Unknown Network)", the database contains invalid currency codes without network identifiers. These should be fixed by updating the `actuallyPaidCurrency` field to include the correct network (e.g., change `'usdt'` to `'usdterc20'` or `'usdtsol'`).
 - **IMPORTANT**: Any changes to currency formatting or payment method display logic MUST be documented in AGENTS.md, OVERVIEW.md, and IMPLEMENTATION_PLAN.md. This logic has been broken multiple times, so it's critical to maintain consistency.
 
 ### Real-time Data (Client-Side WebSocket)
