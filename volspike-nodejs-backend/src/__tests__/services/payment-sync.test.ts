@@ -51,6 +51,13 @@ describe('Payment Sync Service', () => {
 
     vi.mocked(NowPaymentsService.getInstance).mockReturnValue(mockNowPayments)
     vi.mocked(EmailService.getInstance).mockReturnValue(mockEmailService)
+
+    mockPrisma.$transaction = vi.fn(async (callback: any) =>
+      callback({
+        user: mockPrisma.user,
+        cryptoPayment: mockPrisma.cryptoPayment,
+      }),
+    )
   })
 
   describe('syncPendingPayments', () => {
@@ -169,14 +176,13 @@ describe('Payment Sync Service', () => {
         where: { id: 'user-1' },
         data: {
           tier: 'PRO',
-          refreshInterval: expect.any(Number),
         },
       })
 
       expect(result.upgraded).toBe(1)
     })
 
-    it('should handle partially_paid status', async () => {
+    it('should handle partially_paid status with currency normalization', async () => {
       const mockPayment = {
         id: 'payment-1',
         paymentId: 'np-payment-123',
@@ -185,7 +191,7 @@ describe('Payment Sync Service', () => {
         tier: 'PRO',
         orderId: 'order-123',
         payAmount: 9,
-        payCurrency: 'USDT',
+        payCurrency: 'USD',
         updatedAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago (recent)
         user: {
           id: 'user-1',
@@ -199,14 +205,15 @@ describe('Payment Sync Service', () => {
       mockNowPayments.getPaymentStatus.mockResolvedValue({
         payment_id: 'np-payment-123',
         payment_status: 'partially_paid',
-        actually_paid: 8.5,
-        pay_currency: 'USDT',
+        pay_currency: 'SOL',
+        pay_amount: 0.5,
+        actually_paid: 0.25,
       })
 
       mockPrisma.cryptoPayment.update.mockResolvedValue({
         ...mockPayment,
         paymentStatus: 'partially_paid',
-        actuallyPaid: 8.5,
+        actuallyPaid: 0.25,
         updatedAt: new Date(),
         user: mockPayment.user,
       })
@@ -219,22 +226,36 @@ describe('Payment Sync Service', () => {
       expect(result.upgraded).toBe(0)
 
       // Should send alert emails
-      expect(mockEmailService.sendPaymentIssueAlertEmail).toHaveBeenCalled()
+      expect(mockEmailService.sendPaymentIssueAlertEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'CRYPTO_PAYMENT_PARTIALLY_PAID_SYNC',
+          details: expect.objectContaining({
+            paymentId: 'np-payment-123',
+            amounts: expect.objectContaining({
+              requestedUsd: 9,
+              requestedCrypto: 0.5,
+              actuallyPaidCrypto: 0.25,
+              shortfallCrypto: 0.25,
+              shortfallPercent: '50.00%',
+            }),
+          }),
+        }),
+      )
       expect(mockEmailService.sendPartialPaymentEmail).toHaveBeenCalledWith({
         email: 'test@example.com',
         name: undefined,
         tier: 'PRO',
-        requestedAmount: 9,
-        actuallyPaid: 8.5,
-        payCurrency: 'USDT',
-        shortfall: 0.5,
-        shortfallPercent: '5.56%',
+        requestedAmount: 0.5,
+        actuallyPaid: 0.25,
+        payCurrency: 'SOL',
+        shortfall: 0.25,
+        shortfallPercent: '50.00%',
         paymentId: 'np-payment-123',
         orderId: 'order-123',
       })
     })
 
-    it('should not send duplicate emails for old partially_paid status', async () => {
+    it('should not send duplicate emails for unchanged partially_paid status', async () => {
       const mockPayment = {
         id: 'payment-1',
         paymentId: 'np-payment-123',
@@ -243,8 +264,9 @@ describe('Payment Sync Service', () => {
         tier: 'PRO',
         orderId: 'order-123',
         payAmount: 9,
-        payCurrency: 'USDT',
-        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago (old)
+        payCurrency: 'SOL',
+        actuallyPaid: 0.25,
+        updatedAt: new Date(),
         user: {
           id: 'user-1',
           email: 'test@example.com',
@@ -257,23 +279,73 @@ describe('Payment Sync Service', () => {
       mockNowPayments.getPaymentStatus.mockResolvedValue({
         payment_id: 'np-payment-123',
         payment_status: 'partially_paid',
-        actually_paid: 8.5,
-        pay_currency: 'USDT',
+        pay_currency: 'SOL',
+        pay_amount: 0.5,
+        actually_paid: 0.25,
       })
 
       mockPrisma.cryptoPayment.update.mockResolvedValue({
         ...mockPayment,
         paymentStatus: 'partially_paid',
-        actuallyPaid: 8.5,
-        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        actuallyPaid: 0.25,
+        updatedAt: new Date(),
         user: mockPayment.user,
       })
 
       const result = await syncPendingPayments()
 
-      // Should NOT send emails for old status
+      // Should NOT send emails for unchanged status/amount
       expect(mockEmailService.sendPaymentIssueAlertEmail).not.toHaveBeenCalled()
       expect(mockEmailService.sendPartialPaymentEmail).not.toHaveBeenCalled()
+    })
+
+    it('should resend partial email when additional funds arrive', async () => {
+      const mockPayment = {
+        id: 'payment-1',
+        paymentId: 'np-payment-123',
+        paymentStatus: 'partially_paid',
+        userId: 'user-1',
+        tier: 'PRO',
+        orderId: 'order-123',
+        payAmount: 9,
+        payCurrency: 'SOL',
+        actuallyPaid: 0.2,
+        updatedAt: new Date(),
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          tier: 'FREE',
+        },
+      }
+
+      mockPrisma.cryptoPayment.findMany.mockResolvedValue([mockPayment])
+
+      mockNowPayments.getPaymentStatus.mockResolvedValue({
+        payment_id: 'np-payment-123',
+        payment_status: 'partially_paid',
+        pay_currency: 'SOL',
+        pay_amount: 0.5,
+        actually_paid: 0.26,
+      })
+
+      mockPrisma.cryptoPayment.update.mockResolvedValue({
+        ...mockPayment,
+        paymentStatus: 'partially_paid',
+        actuallyPaid: 0.26,
+        updatedAt: new Date(),
+        user: mockPayment.user,
+      })
+
+      await syncPendingPayments()
+
+      expect(mockEmailService.sendPaymentIssueAlertEmail).toHaveBeenCalled()
+      expect(mockEmailService.sendPartialPaymentEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestedAmount: 0.5,
+          actuallyPaid: 0.26,
+          payCurrency: 'SOL',
+        }),
+      )
     })
 
     it('should process multiple payments in batch', async () => {
