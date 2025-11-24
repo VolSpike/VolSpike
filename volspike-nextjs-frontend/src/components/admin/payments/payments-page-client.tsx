@@ -176,7 +176,7 @@ export function PaymentsPageClient({ initialData, query, accessToken }: Payments
                     {paymentsToSyncCount > 0 && (
                         <Button
                             onClick={() => {
-                                syncAllPayments()
+                                syncAllPayments('manual')
                                 toast.success('Syncing payments from NowPayments...', { duration: 2000 })
                             }}
                             variant="outline"
