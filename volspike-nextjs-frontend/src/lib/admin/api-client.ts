@@ -448,24 +448,65 @@ class AdminAPIClient {
         })
     }
 
-    async runRefreshCycle(): Promise<{
+    async getRefreshStatus(): Promise<{
         success: boolean
-        refreshed: number
-        candidates: string[]
-        total: number
-        results?: Array<{ symbol: string; success: boolean; error?: string }>
-        message: string
+        progress: {
+            isRunning: boolean
+            current: number
+            total: number
+            currentSymbol?: string
+            startedAt?: number
+            lastUpdated?: number
+            refreshed: number
+            failed: number
+        }
     }> {
         return this.request<{
             success: boolean
-            refreshed: number
-            candidates: string[]
+            progress: {
+                isRunning: boolean
+                current: number
+                total: number
+                currentSymbol?: string
+                startedAt?: number
+                lastUpdated?: number
+                refreshed: number
+                failed: number
+            }
+        }>('/api/admin/assets/refresh-status', {
+            method: 'GET',
+        })
+    }
+
+    async runRefreshCycle(): Promise<{
+        success: boolean
+        message: string
+        progress?: {
+            isRunning: boolean
+            current: number
             total: number
-            results?: Array<{ symbol: string; success: boolean; error?: string }>
+            currentSymbol?: string
+            startedAt?: number
+            lastUpdated?: number
+            refreshed: number
+            failed: number
+        }
+    }> {
+        return this.request<{
+            success: boolean
             message: string
+            progress?: {
+                isRunning: boolean
+                current: number
+                total: number
+                currentSymbol?: string
+                startedAt?: number
+                lastUpdated?: number
+                refreshed: number
+                failed: number
+            }
         }>('/api/admin/assets/refresh/cycle', {
             method: 'POST',
-            timeout: 180000, // 180 seconds (3 minutes) for cycle (30 assets × 3s delay = ~90s + API time)
         })
     }
 

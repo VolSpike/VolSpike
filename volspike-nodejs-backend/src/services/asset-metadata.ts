@@ -9,10 +9,35 @@ const COINGECKO_API = 'https://api.coingecko.com/api/v3'
 const BINANCE_FUTURES_INFO = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
 
 const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week
-const MAX_REFRESH_PER_RUN_BULK = 30 // Bulk mode: when many assets need refresh
-const MAX_REFRESH_PER_RUN_MAINTENANCE = 15 // Maintenance mode: normal operation
 const REQUEST_GAP_MS = 3000 // 3 seconds between requests (~20 calls/minute, safe for CoinGecko)
 const MAX_NEW_SYMBOLS_PER_RUN = 60 // cap to avoid long startup loops
+
+// Progress tracking for continuous refresh cycle
+interface RefreshProgress {
+    isRunning: boolean
+    current: number
+    total: number
+    currentSymbol?: string
+    startedAt?: number
+    lastUpdated?: number
+    refreshed: number
+    failed: number
+}
+
+let refreshProgress: RefreshProgress = {
+    isRunning: false,
+    current: 0,
+    total: 0,
+    refreshed: 0,
+    failed: 0,
+}
+
+/**
+ * Get current refresh cycle progress
+ */
+export const getRefreshProgress = (): RefreshProgress => {
+    return { ...refreshProgress }
+}
 
 export interface AssetManifestEntry {
     baseSymbol: string
@@ -328,6 +353,103 @@ export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
     }
 }
 
+/**
+ * Detect new assets from Market Data symbols (WebSocket-based detection)
+ * Compares symbols from Market Data against existing Asset database
+ * Creates new Asset records for symbols that don't exist yet
+ * 
+ * @param symbols Array of symbols from Market Data (e.g., ["BTCUSDT", "ETHUSDT"])
+ * @returns Object with created assets count and list of new base symbols
+ */
+export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<{ created: number; newSymbols: string[] }> => {
+    try {
+        // Extract base symbols from Market Data symbols (e.g., "BTCUSDT" -> "BTC")
+        const baseSymbols = symbols
+            .filter((sym) => sym && typeof sym === 'string' && sym.endsWith('USDT'))
+            .map((sym) => {
+                // Remove "USDT" suffix and normalize to uppercase
+                const base = sym.replace(/USDT$/i, '').toUpperCase()
+                return base
+            })
+            .filter((base) => base.length > 0) // Filter out empty strings
+
+        if (!baseSymbols.length) {
+            logger.debug('[AssetMetadata] No valid base symbols to check')
+            return { created: 0, newSymbols: [] }
+        }
+
+        // Get existing assets from database
+        const existing = await prisma.asset.findMany({
+            select: { baseSymbol: true },
+        })
+        const existingSet = new Set(existing.map((a) => a.baseSymbol.toUpperCase()))
+
+        // Find new symbols that don't exist in database
+        const newBaseSymbols = baseSymbols.filter((base) => !existingSet.has(base))
+        const uniqueNewSymbols = Array.from(new Set(newBaseSymbols)) // Remove duplicates
+
+        if (!uniqueNewSymbols.length) {
+            logger.debug('[AssetMetadata] No new assets detected from Market Data')
+            return { created: 0, newSymbols: [] }
+        }
+
+        logger.info(`[AssetMetadata] Detected ${uniqueNewSymbols.length} new assets from Market Data`, {
+            newSymbols: uniqueNewSymbols.slice(0, 10), // Log first 10
+        })
+
+        // Create new Asset records
+        let created = 0
+        const createdSymbols: string[] = []
+
+        for (const baseSymbol of uniqueNewSymbols) {
+            try {
+                // Reconstruct binanceSymbol from baseSymbol (e.g., "BTC" -> "BTCUSDT")
+                const binanceSymbol = `${baseSymbol}USDT`
+
+                await prisma.asset.create({
+                    data: {
+                        baseSymbol,
+                        binanceSymbol,
+                        status: 'AUTO',
+                    },
+                })
+
+                created++
+                createdSymbols.push(baseSymbol)
+                logger.debug(`[AssetMetadata] Created new asset: ${baseSymbol}`)
+            } catch (error: any) {
+                // Handle unique constraint violations (race condition)
+                if (error?.code === 'P2002') {
+                    logger.debug(`[AssetMetadata] Asset ${baseSymbol} already exists (race condition)`)
+                } else {
+                    logger.warn(`[AssetMetadata] Failed to create asset ${baseSymbol}:`, {
+                        error: error instanceof Error ? error.message : String(error),
+                    })
+                }
+            }
+        }
+
+        if (created > 0) {
+            logger.info(`[AssetMetadata] ✅ Created ${created} new assets from Market Data`, {
+                createdSymbols: createdSymbols.slice(0, 10),
+            })
+        }
+
+        return { created, newSymbols: createdSymbols }
+    } catch (error) {
+        logger.error('[AssetMetadata] Failed to detect new assets from Market Data', {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        })
+        return { created: 0, newSymbols: [] }
+    }
+}
+
+/**
+ * Legacy function: Sync Binance universe via API (deprecated, kept for fallback)
+ * Note: This uses Binance API which may be blocked by IP restrictions
+ * Prefer using detectNewAssetsFromMarketData() instead
+ */
 const ensureBinanceUniverse = async (): Promise<number> => {
     try {
         const { data } = await axios.get(BINANCE_FUTURES_INFO, { timeout: 20000 })
@@ -377,94 +499,171 @@ const ensureBinanceUniverse = async (): Promise<number> => {
     }
 }
 
+/**
+ * Run continuous asset refresh cycle - processes ALL assets needing refresh
+ * Respects CoinGecko rate limits but processes continuously without batch limits
+ * Updates progress tracker for admin visibility
+ */
 export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
+    // Prevent concurrent refresh cycles
+    if (refreshProgress.isRunning) {
+        logger.info('[AssetMetadata] Refresh cycle already running, skipping')
+        return {
+            refreshed: 0,
+            candidates: [],
+            total: 0,
+            needsRefreshCount: 0,
+            remaining: 0,
+            mode: 'SKIPPED',
+            results: [],
+            message: 'Refresh cycle already running',
+        }
+    }
+
     const now = Date.now()
     logger.info(`[AssetMetadata] 🔄 Refresh cycle started (${reason})`)
 
-    // Check if database is empty and sync Binance universe first
-    const assetCount = await prisma.asset.count()
-    if (assetCount === 0) {
-        logger.info('[AssetMetadata] Database is empty, syncing Binance universe first...')
-        const synced = await ensureBinanceUniverse()
-        logger.info(`[AssetMetadata] Initial Binance sync completed: ${synced} assets created`)
-    } else {
-        // Ensure Binance universe is synced (non-blocking, runs in background)
-        ensureBinanceUniverse().catch((error) => {
-            logger.warn('[AssetMetadata] Binance universe sync failed (non-critical)', {
-                error: error instanceof Error ? error.message : String(error),
-            })
+    // Initialize progress tracker
+    refreshProgress = {
+        isRunning: true,
+        current: 0,
+        total: 0,
+        startedAt: now,
+        lastUpdated: now,
+        refreshed: 0,
+        failed: 0,
+    }
+
+    try {
+        // Check if database is empty and sync Binance universe first
+        const assetCount = await prisma.asset.count()
+        if (assetCount === 0) {
+            logger.info('[AssetMetadata] Database is empty, syncing Binance universe first...')
+            const synced = await ensureBinanceUniverse()
+            logger.info(`[AssetMetadata] Initial Binance sync completed: ${synced} assets created`)
+        }
+
+        const assets = await prisma.asset.findMany({
+            orderBy: { updatedAt: 'asc' },
         })
-    }
 
-    const assets = await prisma.asset.findMany({
-        orderBy: { updatedAt: 'asc' },
-    })
+        logger.debug(`[AssetMetadata] Found ${assets.length} total assets in database`)
 
-    logger.debug(`[AssetMetadata] Found ${assets.length} total assets in database`)
+        // Filter assets that need refresh (no batch limits - process ALL)
+        const assetsNeedingRefresh = assets.filter((asset) => shouldRefresh(asset, now))
+        const needsRefreshCount = assetsNeedingRefresh.length
 
-    // Count how many assets need refresh to determine mode
-    const assetsNeedingRefresh = assets.filter((asset) => shouldRefresh(asset, now))
-    const needsRefreshCount = assetsNeedingRefresh.length
-
-    // Adaptive batch size: bulk mode for initial setup, maintenance mode for normal operation
-    const isBulkMode = needsRefreshCount > 20
-    const maxPerRun = isBulkMode ? MAX_REFRESH_PER_RUN_BULK : MAX_REFRESH_PER_RUN_MAINTENANCE
-    const mode = isBulkMode ? 'BULK' : 'MAINTENANCE'
-
-    const candidates = assetsNeedingRefresh.slice(0, maxPerRun)
-
-    if (!candidates.length) {
-        logger.info('[AssetMetadata] ✅ No assets need refresh')
-        return { refreshed: 0, candidates: [], total: assets.length, needsRefreshCount: 0 }
-    }
-
-    logger.info(`[AssetMetadata] 🔄 Mode: ${mode} | Found ${needsRefreshCount} assets needing refresh (processing ${candidates.length} this cycle)`)
-
-    let refreshed = 0
-    const results: Array<{ symbol: string; success: boolean; error?: string }> = []
-
-    for (let i = 0; i < candidates.length; i++) {
-        const asset = candidates[i]
-        const progress = `[${i + 1}/${candidates.length}]`
-
-        logger.info(`[AssetMetadata] ${progress} Processing ${asset.baseSymbol}...`)
-
-        const updated = await refreshSingleAsset(asset)
-
-        if (updated) {
-            refreshed += 1
-            results.push({ symbol: asset.baseSymbol, success: true })
-            logger.info(`[AssetMetadata] ${progress} ✅ ${asset.baseSymbol} enriched (${refreshed} successful so far)`)
-        } else {
-            results.push({ symbol: asset.baseSymbol, success: false })
-            logger.info(`[AssetMetadata] ${progress} ⚠️  ${asset.baseSymbol} skipped (no CoinGecko ID found)`)
+        if (!needsRefreshCount) {
+            logger.info('[AssetMetadata] ✅ No assets need refresh')
+            refreshProgress.isRunning = false
+            return {
+                refreshed: 0,
+                candidates: [],
+                total: assets.length,
+                needsRefreshCount: 0,
+                remaining: 0,
+                mode: 'COMPLETE',
+                results: [],
+            }
         }
 
-        // Rate limit: wait between requests (except for the last one)
-        if (i < candidates.length - 1) {
-            await sleep(REQUEST_GAP_MS)
+        // Update progress tracker with total count
+        refreshProgress.total = needsRefreshCount
+
+        logger.info(
+            `[AssetMetadata] 🔄 Continuous processing mode | Found ${needsRefreshCount} assets needing refresh (processing ALL)`
+        )
+
+        const results: Array<{ symbol: string; success: boolean; error?: string }> = []
+
+        // Process ALL assets continuously, respecting rate limits
+        for (let i = 0; i < assetsNeedingRefresh.length; i++) {
+            const asset = assetsNeedingRefresh[i]
+
+            // Update progress tracker
+            refreshProgress.current = i + 1
+            refreshProgress.currentSymbol = asset.baseSymbol
+            refreshProgress.lastUpdated = Date.now()
+
+            const progress = `[${i + 1}/${needsRefreshCount}]`
+            logger.info(`[AssetMetadata] ${progress} Processing ${asset.baseSymbol}...`)
+
+            try {
+                const updated = await refreshSingleAsset(asset)
+
+                if (updated) {
+                    refreshProgress.refreshed++
+                    results.push({ symbol: asset.baseSymbol, success: true })
+                    logger.info(
+                        `[AssetMetadata] ${progress} ✅ ${asset.baseSymbol} enriched (${refreshProgress.refreshed} successful so far)`
+                    )
+                } else {
+                    refreshProgress.failed++
+                    results.push({ symbol: asset.baseSymbol, success: false })
+                    logger.info(
+                        `[AssetMetadata] ${progress} ⚠️  ${asset.baseSymbol} skipped (no CoinGecko ID found)`
+                    )
+                }
+            } catch (error) {
+                refreshProgress.failed++
+                results.push({
+                    symbol: asset.baseSymbol,
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                })
+                logger.warn(`[AssetMetadata] ${progress} ❌ ${asset.baseSymbol} failed:`, error)
+            }
+
+            // Rate limit: wait between requests (except for the last one)
+            if (i < assetsNeedingRefresh.length - 1) {
+                await sleep(REQUEST_GAP_MS)
+            }
         }
-    }
 
-    const elapsedMs = Date.now() - now
-    const remaining = needsRefreshCount - refreshed
-    logger.info(`[AssetMetadata] ✅ Refresh cycle complete`, {
-        mode,
-        refreshed,
-        remaining,
-        total: candidates.length,
-        elapsedMs,
-        reason,
-    })
+        const elapsedMs = Date.now() - now
+        const remaining = needsRefreshCount - refreshProgress.refreshed - refreshProgress.failed
 
-    return {
-        refreshed,
-        candidates: candidates.map((c) => c.baseSymbol),
-        total: assets.length,
-        needsRefreshCount,
-        remaining,
-        mode,
-        results,
+        logger.info(`[AssetMetadata] ✅ Refresh cycle complete`, {
+            refreshed: refreshProgress.refreshed,
+            failed: refreshProgress.failed,
+            remaining,
+            total: needsRefreshCount,
+            elapsedMs,
+            reason,
+        })
+
+        const finalResult = {
+            refreshed: refreshProgress.refreshed,
+            failed: refreshProgress.failed,
+            candidates: assetsNeedingRefresh.map((c) => c.baseSymbol),
+            total: assets.length,
+            needsRefreshCount,
+            remaining,
+            mode: 'CONTINUOUS',
+            results,
+            elapsedMs,
+        }
+
+        // Reset progress tracker
+        refreshProgress.isRunning = false
+        refreshProgress.current = 0
+        refreshProgress.total = 0
+        refreshProgress.currentSymbol = undefined
+
+        return finalResult
+    } catch (error) {
+        logger.error('[AssetMetadata] ❌ Refresh cycle failed:', {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        })
+
+        // Reset progress tracker on error
+        refreshProgress.isRunning = false
+        refreshProgress.current = 0
+        refreshProgress.total = 0
+        refreshProgress.currentSymbol = undefined
+
+        throw error
     }
 }
 

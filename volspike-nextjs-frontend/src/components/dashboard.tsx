@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useSocket } from '@/hooks/use-socket'
 import { useTierChangeListener } from '@/hooks/use-tier-change-listener'
 import { useClientOnlyMarketData } from '@/hooks/use-client-only-market-data'
+import { useAssetDetection } from '@/hooks/use-asset-detection'
 import { HeaderWithBanner } from '@/components/header-with-banner'
 import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
@@ -82,6 +83,9 @@ export function Dashboard() {
         tier: userTier as 'elite' | 'pro' | 'free',
         onDataUpdate: handleDataUpdate
     })
+
+    // Automatically detect new assets from Market Data (runs in background)
+    useAssetDetection(marketData)
 
     useEffect(() => {
         if (!socket) return

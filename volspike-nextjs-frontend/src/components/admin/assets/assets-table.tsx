@@ -26,7 +26,14 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [query, setQuery] = useState('')
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards') // Default to cards for better UX
     const [recentlyRefreshed, setRecentlyRefreshed] = useState<Set<string>>(new Set())
-    const [refreshProgress, setRefreshProgress] = useState<{current: number, total: number} | null>(null)
+    const [refreshProgress, setRefreshProgress] = useState<{
+        isRunning: boolean
+        current: number
+        total: number
+        currentSymbol?: string
+        refreshed: number
+        failed: number
+    } | null>(null)
     const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; pages: number } | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
 
@@ -152,65 +159,78 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         }
     }
 
+    // Poll refresh progress when cycle is running
+    useEffect(() => {
+        if (!refreshProgress?.isRunning) return
+
+        const pollProgress = async () => {
+            try {
+                const status = await adminAPI.getRefreshStatus()
+                if (status.success && status.progress) {
+                    setRefreshProgress(status.progress)
+
+                    // If cycle completed, refresh assets list
+                    if (!status.progress.isRunning && refreshProgress.isRunning) {
+                        await fetchAssets()
+                        toast.success(
+                            `✅ Refresh cycle completed: ${status.progress.refreshed} refreshed, ${status.progress.failed} failed`,
+                            { duration: 5000 }
+                        )
+                    }
+                }
+            } catch (error) {
+                console.debug('[AdminAssetsTable] Failed to poll refresh status:', error)
+            }
+        }
+
+        const interval = setInterval(pollProgress, 2000) // Poll every 2 seconds
+        return () => clearInterval(interval)
+    }, [refreshProgress?.isRunning, accessToken])
+
+    // Check refresh status on mount and periodically
+    useEffect(() => {
+        const checkStatus = async () => {
+            try {
+                const status = await adminAPI.getRefreshStatus()
+                if (status.success && status.progress?.isRunning) {
+                    setRefreshProgress(status.progress)
+                }
+            } catch (error) {
+                // Silently fail - status check is optional
+            }
+        }
+
+        checkStatus()
+        const interval = setInterval(checkStatus, 10000) // Check every 10 seconds
+        return () => clearInterval(interval)
+    }, [accessToken])
+
     const handleRunCycle = async () => {
         if (!accessToken) return
         setBulkRefreshing(true)
-        setRefreshProgress({ current: 0, total: 15 }) // Assume max 15 assets per cycle
 
         try {
             console.log('[AdminAssetsTable] 🔄 Starting refresh cycle...')
             const res = await adminAPI.runRefreshCycle()
 
-            console.log('[AdminAssetsTable] ✅ Refresh cycle response:', res)
+            console.log('[AdminAssetsTable] ✅ Refresh cycle started:', res)
 
-            // Extract refreshed asset symbols from results
-            const refreshedSymbols = new Set<string>()
-            if (res.results && Array.isArray(res.results)) {
-                res.results
-                    .filter((r: any) => r.success)
-                    .forEach((r: any) => refreshedSymbols.add(r.symbol))
+            if (res.progress) {
+                setRefreshProgress(res.progress)
             }
 
-            // If we have candidates list, use that
-            if (res.candidates && Array.isArray(res.candidates)) {
-                res.candidates.forEach((symbol: string) => refreshedSymbols.add(symbol))
+            if (res.success) {
+                toast.success(res.message || 'Refresh cycle started in background', {
+                    duration: 3000,
+                })
+            } else {
+                toast.error(res.message || 'Failed to start refresh cycle')
             }
-
-            setRecentlyRefreshed(refreshedSymbols)
-
-            // Show detailed success message
-            const successSymbols = Array.from(refreshedSymbols).slice(0, 5).join(', ')
-            const moreCount = refreshedSymbols.size > 5 ? ` (+${refreshedSymbols.size - 5} more)` : ''
-
-            toast.success(
-                `✅ Refreshed ${res.refreshed || 0} assets: ${successSymbols || 'No assets'}${moreCount}`,
-                { duration: 6000 }
-            )
-
-            // Log failed assets if any
-            if (res.results) {
-                const failed = res.results.filter((r: any) => !r.success)
-                if (failed.length > 0) {
-                    console.warn('[AdminAssetsTable] ⚠️ Some assets failed to refresh:', failed)
-                    toast.error(`⚠️ ${failed.length} assets failed to refresh (check console)`, {
-                        duration: 5000,
-                    })
-                }
-            }
-
-            await fetchAssets() // Reload to show updated data
-
-            // Clear highlight after 10 seconds
-            setTimeout(() => {
-                setRecentlyRefreshed(new Set())
-            }, 10000)
-
         } catch (err: any) {
-            console.error('[AdminAssetsTable] ❌ Failed to run refresh cycle', err)
-            toast.error(err.response?.error || err.response?.details || 'Failed to run refresh cycle')
+            console.error('[AdminAssetsTable] ❌ Failed to start refresh cycle', err)
+            toast.error(err.response?.error || err.response?.details || 'Failed to start refresh cycle')
         } finally {
             setBulkRefreshing(false)
-            setRefreshProgress(null)
         }
     }
 
@@ -425,6 +445,40 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 </div>
             )}
 
+            {/* Refresh Progress Display */}
+            {refreshProgress && refreshProgress.isRunning && (
+                <div className="mb-4 p-4 rounded-lg border border-blue-500/30 bg-blue-500/10 backdrop-blur-sm">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                            <span className="text-sm font-medium text-foreground">
+                                Refreshing assets from CoinGecko...
+                            </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                            {refreshProgress.current} / {refreshProgress.total}
+                        </span>
+                    </div>
+                    {refreshProgress.currentSymbol && (
+                        <div className="text-xs text-muted-foreground mb-2">
+                            Current: <span className="font-mono font-medium">{refreshProgress.currentSymbol}</span>
+                        </div>
+                    )}
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-300"
+                            style={{
+                                width: `${refreshProgress.total > 0 ? (refreshProgress.current / refreshProgress.total) * 100 : 0}%`,
+                            }}
+                        />
+                    </div>
+                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                        <span>✅ {refreshProgress.refreshed} refreshed</span>
+                        {refreshProgress.failed > 0 && <span>❌ {refreshProgress.failed} failed</span>}
+                    </div>
+                </div>
+            )}
+
             <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                     <Input
@@ -490,15 +544,15 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         size="sm" 
                         variant="outline"
                         onClick={handleRunCycle}
-                        disabled={bulkRefreshing || syncingBinance}
-                        title="Run scheduled refresh cycle (respects rate limits)"
+                        disabled={bulkRefreshing || syncingBinance || (refreshProgress?.isRunning ?? false)}
+                        title={refreshProgress?.isRunning ? "Refresh cycle is already running" : "Manually trigger refresh cycle (runs automatically in background)"}
                     >
-                        {bulkRefreshing ? (
+                        {bulkRefreshing || refreshProgress?.isRunning ? (
                             <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                         ) : (
                             <RefreshCw className="h-4 w-4 mr-1" />
                         )}
-                        Run Cycle
+                        {refreshProgress?.isRunning ? 'Running...' : 'Run Cycle'}
                     </Button>
                     <Button size="sm" onClick={handleAdd}>
                         <Plus className="h-4 w-4 mr-1" />

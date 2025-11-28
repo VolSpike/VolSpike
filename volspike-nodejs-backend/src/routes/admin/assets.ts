@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../../index'
 import { createLogger } from '../../lib/logger'
-import { refreshSingleAsset, runAssetRefreshCycle } from '../../services/asset-metadata'
+import { refreshSingleAsset, runAssetRefreshCycle, detectNewAssetsFromMarketData, getRefreshProgress } from '../../services/asset-metadata'
 import axios from 'axios'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
@@ -282,22 +282,60 @@ adminAssetRoutes.post('/refresh/bulk', async (c) => {
     }
 })
 
-// POST /api/admin/assets/refresh/cycle - Run scheduled refresh cycle
+// GET /api/admin/assets/refresh-status - Get current refresh cycle progress
+adminAssetRoutes.get('/refresh-status', async (c) => {
+    try {
+        const progress = getRefreshProgress()
+        return c.json({
+            success: true,
+            progress,
+        })
+    } catch (error) {
+        logger.error('[AdminAssets] Failed to get refresh status:', error)
+        return c.json(
+            {
+                error: 'Failed to get refresh status',
+                details: error instanceof Error ? error.message : String(error),
+            },
+            500
+        )
+    }
+})
+
+// POST /api/admin/assets/refresh/cycle - Run scheduled refresh cycle (non-blocking)
 adminAssetRoutes.post('/refresh/cycle', async (c) => {
     try {
         logger.info('[AdminAssets] Manual refresh cycle triggered')
-        const result = await runAssetRefreshCycle('manual')
+
+        // Check if cycle is already running
+        const currentProgress = getRefreshProgress()
+        if (currentProgress.isRunning) {
+            return c.json({
+                success: false,
+                message: 'Refresh cycle is already running',
+                progress: currentProgress,
+            })
+        }
+
+        // Start refresh cycle in background (non-blocking)
+        runAssetRefreshCycle('manual').catch((error) => {
+            logger.error('[AdminAssets] Background refresh cycle error:', error)
+        })
+
         return c.json({
             success: true,
-            ...result,
-            message: `Refresh cycle completed: ${result.refreshed} assets refreshed`
+            message: 'Refresh cycle started in background',
+            progress: getRefreshProgress(),
         })
     } catch (error) {
-        logger.error('Admin refresh cycle error:', error)
-        return c.json({ 
-            error: 'Failed to run refresh cycle',
-            details: error instanceof Error ? error.message : String(error)
-        }, 500)
+        logger.error('[AdminAssets] Failed to start refresh cycle:', error)
+        return c.json(
+            {
+                error: 'Failed to start refresh cycle',
+                details: error instanceof Error ? error.message : String(error),
+            },
+            500
+        )
     }
 })
 
@@ -541,6 +579,75 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
             code: error?.code || 'UNKNOWN',
             duration: `${duration}ms`,
         }, 500)
+    }
+})
+
+// POST /api/admin/assets/detect-new - Detect new assets from Market Data symbols
+const detectNewSchema = z.object({
+    symbols: z.array(z.string()).min(1),
+})
+
+adminAssetRoutes.post('/detect-new', async (c) => {
+    try {
+        const body = await c.req.json()
+        const data = detectNewSchema.parse(body)
+
+        logger.info('[AdminAssets] New asset detection requested', {
+            symbolCount: data.symbols.length,
+            sampleSymbols: data.symbols.slice(0, 5),
+        })
+
+        const result = await detectNewAssetsFromMarketData(data.symbols)
+
+        if (result.created > 0) {
+            // Trigger automatic enrichment for newly created assets (non-blocking)
+            logger.info(`[AdminAssets] Triggering automatic enrichment for ${result.created} new assets`)
+            setImmediate(async () => {
+                try {
+                    // Enrich new assets one by one, respecting rate limits
+                    const newAssets = await prisma.asset.findMany({
+                        where: {
+                            baseSymbol: { in: result.newSymbols },
+                        },
+                    })
+
+                    // Process enrichment with rate limiting (3s gap between requests)
+                    for (let i = 0; i < newAssets.length; i++) {
+                        const asset = newAssets[i]
+                        await refreshSingleAsset(asset)
+                        // Rate limit: wait 3 seconds between requests (except for last one)
+                        if (i < newAssets.length - 1) {
+                            await new Promise((resolve) => setTimeout(resolve, 3000))
+                        }
+                    }
+
+                    logger.info(`[AdminAssets] ✅ Enriched ${newAssets.length} new assets`)
+                } catch (enrichError) {
+                    logger.warn('[AdminAssets] ⚠️ Background enrichment failed (non-critical):', enrichError)
+                }
+            })
+        }
+
+        return c.json({
+            success: true,
+            created: result.created,
+            newSymbols: result.newSymbols,
+            message: result.created > 0
+                ? `Detected and created ${result.created} new assets. Enrichment started in background.`
+                : 'No new assets detected.',
+        })
+    } catch (error) {
+        logger.error('[AdminAssets] New asset detection error:', {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        })
+        return c.json(
+            {
+                error: 'Failed to detect new assets',
+                details: error instanceof Error ? error.message : String(error),
+            },
+            500
+        )
     }
 })
 

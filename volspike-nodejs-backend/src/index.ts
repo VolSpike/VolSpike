@@ -337,16 +337,44 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         }
     }, EXPIRATION_CHECK_INTERVAL)
 
-    // Adaptive asset metadata refresh with smart intervals
-    const ASSET_REFRESH_INTERVAL_BULK = 10 * 60 * 1000 // 10 minutes (bulk mode: >20 assets need refresh)
-    const ASSET_REFRESH_INTERVAL_MAINTENANCE = 60 * 60 * 1000 // 1 hour (maintenance mode: <20 assets need refresh)
+    // Automatic asset metadata refresh - runs continuously, processing all assets
+    // Respects CoinGecko rate limits (3s gap between requests)
+    const ASSET_REFRESH_INTERVAL = 60 * 60 * 1000 // Check every hour
     const assetRefreshEnabled = process.env.ENABLE_ASSET_ENRICHMENT?.toLowerCase() !== 'false'
 
-    // TEMPORARY: Automatic enrichment disabled to fix Railway deployment issues
-    // User can manually trigger enrichment via "Run Cycle" button in admin panel
     if (assetRefreshEnabled) {
-        logger.info('ℹ️ Automatic enrichment temporarily disabled for Railway stability')
-        logger.info('💡 Use "Run Cycle" button in admin panel to enrich assets manually')
+        logger.info('✅ Automatic asset enrichment enabled (continuous processing mode)')
+        
+        // Run initial refresh cycle after 5 minutes (let server stabilize)
+        setTimeout(async () => {
+            try {
+                logger.info('🔄 Running initial asset refresh cycle')
+                await runAssetRefreshCycle('initial')
+                logger.info('✅ Initial asset refresh cycle completed')
+            } catch (error) {
+                logger.error('❌ Initial asset refresh cycle failed:', error)
+            }
+        }, 5 * 60 * 1000) // 5 minutes
+
+        // Schedule periodic refresh cycles (hourly check)
+        setInterval(async () => {
+            try {
+                // Import getRefreshProgress dynamically to avoid circular dependencies
+                const { getRefreshProgress } = await import('./services/asset-metadata')
+                const progress = getRefreshProgress()
+                
+                // Only start new cycle if one isn't already running
+                if (!progress.isRunning) {
+                    logger.info('🔄 Running scheduled asset refresh cycle')
+                    await runAssetRefreshCycle('scheduled')
+                    logger.info('✅ Scheduled asset refresh cycle completed')
+                } else {
+                    logger.info('ℹ️ Asset refresh cycle already running, skipping scheduled run')
+                }
+            } catch (error) {
+                logger.error('❌ Scheduled asset refresh cycle failed:', error)
+            }
+        }, ASSET_REFRESH_INTERVAL)
     } else {
         logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
     }
