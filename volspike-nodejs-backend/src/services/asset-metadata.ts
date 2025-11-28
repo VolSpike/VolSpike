@@ -20,6 +20,7 @@ export interface AssetManifestEntry {
     extraSymbols?: string[]
     coingeckoId?: string | null
     displayName?: string | null
+    description?: string | null
     websiteUrl?: string | null
     twitterUrl?: string | null
     logoUrl?: string | null
@@ -108,6 +109,7 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
         extraSymbols: parseExtraSymbols(asset.extraSymbols),
         coingeckoId: asset.coingeckoId,
         displayName: asset.displayName,
+        description: asset.description,
         websiteUrl: asset.websiteUrl,
         twitterUrl: asset.twitterUrl,
         logoUrl: asset.logoUrl,
@@ -133,7 +135,8 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
 
 const shouldRefresh = (asset: Asset, now: number): boolean => {
     if (asset.status === 'HIDDEN') return false
-    if (!asset.logoUrl || !asset.displayName || !asset.coingeckoId) return true
+    // Refresh if missing critical fields (including description)
+    if (!asset.logoUrl || !asset.displayName || !asset.description || !asset.coingeckoId) return true
     const updatedAt = asset.updatedAt?.getTime?.() ?? Date.now()
     return now - updatedAt > REFRESH_INTERVAL_MS
 }
@@ -194,10 +197,23 @@ const fetchCoinProfile = async (coingeckoId: string) => {
 
     const twitterUrl = twitterName ? `https://x.com/${twitterName}` : undefined
 
-    const logoUrl: string | undefined = data?.image?.small || data?.image?.thumb || data?.image?.large || undefined
+    // Prefer high-quality logo images: large > small > thumb (for better visibility on dark backgrounds)
+    const logoUrl: string | undefined = data?.image?.large || data?.image?.small || data?.image?.thumb || undefined
 
     // Extract description from CoinGecko (supports both 'en' localized and direct description)
-    const description: string | undefined = data?.description?.en || data?.description || undefined
+    // Strip HTML tags and entities for clean text storage
+    const rawDescription: string | undefined = data?.description?.en || data?.description || undefined
+    const description: string | undefined = rawDescription
+        ? rawDescription
+              .replace(/<[^>]+>/g, ' ') // Remove HTML tags
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'")
+              .replace(/\s+/g, ' ') // Normalize whitespace
+              .trim()
+        : undefined
 
     return {
         name: data?.name as string | undefined,

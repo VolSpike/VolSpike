@@ -188,6 +188,31 @@ export function AssetCardView({
                                 )}
                             </div>
 
+                            {/* Project Description */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">Project Description</label>
+                                {editing ? (
+                                    <Textarea
+                                        value={editForm.description ?? ''}
+                                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                                        placeholder="Project description from CoinGecko..."
+                                        className="min-h-[80px] text-xs resize-none"
+                                        rows={4}
+                                    />
+                                ) : currentAsset.description ? (
+                                    <div className="px-3 py-2 bg-muted/30 border border-border/40 rounded-lg">
+                                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">
+                                            {currentAsset.description}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="px-3 py-2 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 italic flex items-center gap-2">
+                                        <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                                        <span>No description available</span>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Links */}
                             <div className="space-y-1.5">
                                 <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">Links</label>

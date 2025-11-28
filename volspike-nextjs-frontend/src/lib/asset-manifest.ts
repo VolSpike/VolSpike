@@ -7,6 +7,7 @@ export interface AssetRecord {
     extraSymbols?: string[] | null
     coingeckoId?: string | null
     displayName?: string | null
+    description?: string | null
     websiteUrl?: string | null
     twitterUrl?: string | null
     logoUrl?: string | null
@@ -92,6 +93,7 @@ const normalizeRecord = (record: AssetRecord): AssetRecord => {
         extraSymbols,
         coingeckoId: record.coingeckoId || null,
         displayName: record.displayName || null,
+        description: record.description || null,
         websiteUrl: record.websiteUrl || null,
         twitterUrl: record.twitterUrl || null,
         logoUrl: record.logoUrl || null,
