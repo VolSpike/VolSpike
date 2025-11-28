@@ -152,6 +152,10 @@ const buildProfileFromManifest = (symbol: string, entry?: AssetRecord | AssetPro
     // Handle both AssetRecord (from manifest) and AssetProfileOverride (from overrides)
     const displayName = 'displayName' in entry ? entry.displayName : undefined
     const name = 'name' in entry ? entry.name : displayName
+    // Handle description: convert null to undefined for type compatibility
+    const description = 'description' in entry 
+        ? (entry.description ?? undefined) 
+        : undefined
     return {
         id: entry.coingeckoId ?? upper,
         symbol: upper,
@@ -159,7 +163,7 @@ const buildProfileFromManifest = (symbol: string, entry?: AssetRecord | AssetPro
         logoUrl: entry.logoUrl ?? undefined,
         websiteUrl: entry.websiteUrl ?? undefined,
         twitterUrl: entry.twitterUrl ?? undefined,
-        description: 'description' in entry ? entry.description : undefined,
+        description,
         categories: 'categories' in entry ? entry.categories : undefined,
     }
 }
