@@ -119,16 +119,21 @@ adminAssetRoutes.post('/', async (c) => {
             }, 400)
         }
         
-        const normalizedBody = {
+        const normalizedBody: any = {
             ...body,
             baseSymbol: body.baseSymbol.trim(), // Ensure baseSymbol is trimmed
-            websiteUrl: body.websiteUrl === '' ? null : body.websiteUrl,
-            twitterUrl: body.twitterUrl === '' ? null : body.twitterUrl,
-            logoUrl: body.logoUrl === '' ? null : body.logoUrl,
-            coingeckoId: body.coingeckoId === '' ? null : (body.coingeckoId?.trim() || null),
-            displayName: body.displayName === '' ? null : body.displayName,
-            description: body.description === '' ? null : body.description,
-            notes: body.notes === '' ? null : body.notes,
+        }
+        
+        // Normalize optional fields: empty strings → null, undefined → omit
+        const optionalFields = ['websiteUrl', 'twitterUrl', 'logoUrl', 'coingeckoId', 'displayName', 'description', 'notes']
+        for (const field of optionalFields) {
+            if (body[field] === '' || body[field] === undefined) {
+                normalizedBody[field] = null
+            } else if (typeof body[field] === 'string') {
+                normalizedBody[field] = body[field].trim() || null
+            } else {
+                normalizedBody[field] = body[field]
+            }
         }
         
         logger.debug('[AdminAssets] Normalized body:', {
