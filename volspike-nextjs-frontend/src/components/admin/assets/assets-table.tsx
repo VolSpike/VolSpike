@@ -1002,6 +1002,36 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                             </div>
                                         </div>
                                     </td>
+                                    <td className="px-3 py-2 align-top">
+                                        <div className="flex items-center gap-2">
+                                            <Switch
+                                                checked={asset.isComplete ?? false}
+                                                onCheckedChange={async (checked) => {
+                                                    try {
+                                                        const updatedAsset = { ...asset, isComplete: checked }
+                                                        await handleSave(updatedAsset)
+                                                        toast.success(checked ? 'Asset marked as Complete' : 'Asset marked as Incomplete', { duration: 2000 })
+                                                    } catch (error: any) {
+                                                        toast.error(`Failed to update: ${error.message || 'Unknown error'}`, { duration: 3000 })
+                                                    }
+                                                }}
+                                                disabled={savingId === (asset.id ?? asset.baseSymbol)}
+                                            />
+                                            <span className="text-xs text-muted-foreground">
+                                                {asset.isComplete ? 'Complete' : 'Incomplete'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2 align-top text-xs text-muted-foreground">
+                                        {asset.isComplete && asset.updatedAt ? (
+                                            <div className="flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                <span>{formatNextRefresh(asset.updatedAt) || 'Soon'}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground/50">—</span>
+                                        )}
+                                    </td>
                                     <td className="px-3 py-2 align-top text-xs text-muted-foreground">
                                         {formatUpdatedAt(asset.updatedAt)}
                                     </td>
