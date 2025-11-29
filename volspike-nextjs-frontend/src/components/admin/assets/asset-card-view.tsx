@@ -36,13 +36,17 @@ export function AssetCardView({
     const [editForm, setEditForm] = useState<Partial<AssetRecord>>({})
     const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
 
-    // Extract base symbol from trading pair (e.g., "1000000BOB" -> "BOB", "1000PEPE" -> "PEPE")
-    // Only extracts if there's a meaningful numeric prefix (10, 100, 1000, etc.), not single "0"
+    // Extract base symbol from trading pair (e.g., "1000000BOB" -> "BOB", "1000PEPE" -> "PEPE", "1MBABYDOGE" -> "BABYDOGE")
+    // Handles both pure numeric prefixes (1000, 1000000) and numeric+letter prefixes (1M, 1K, 1B)
+    // Excludes single "0" prefix (like "0G")
     const extractBaseSymbol = (baseSymbol: string): string | null => {
-        // Match numeric prefixes like 10, 100, 1000, 10000, 100000, 1000000 (at least 2 digits)
-        const match = baseSymbol.match(/^(\d{2,})(.+)$/)
+        // Match patterns like:
+        // - Pure numeric: 10, 100, 1000, 1000000 (2+ digits)
+        // - Numeric + letter: 1M, 1K, 1B (1+ digits followed by K/M/B, case insensitive)
+        // Exclude single "0" (like "0G")
+        const match = baseSymbol.match(/^(\d{2,}|[1-9]\d*[KMkmBb])(.+)$/)
         if (match) {
-            return match[2] // Return the symbol part after the numeric prefix
+            return match[2] // Return the symbol part after the prefix
         }
         return null // No meaningful prefix found
     }
