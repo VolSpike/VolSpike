@@ -134,6 +134,20 @@ adminAssetRoutes.post('/', async (c) => {
             })
         }
 
+        // If CoinGecko ID was just added and asset is missing data, trigger refresh in background
+        const needsRefresh = payload.coingeckoId && (!asset.logoUrl || !asset.displayName || !asset.description)
+        if (needsRefresh && asset.status !== 'VERIFIED') {
+            // Trigger refresh in background (non-blocking)
+            process.nextTick(async () => {
+                try {
+                    await refreshSingleAsset(asset)
+                    logger.info(`[AdminAssets] Auto-refreshed ${asset.baseSymbol} after CoinGecko ID was set`)
+                } catch (error) {
+                    logger.warn(`[AdminAssets] Auto-refresh failed for ${asset.baseSymbol}:`, error)
+                }
+            })
+        }
+
         return c.json({ asset })
     } catch (error) {
         logger.error('Admin asset upsert error:', error)

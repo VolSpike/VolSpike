@@ -168,14 +168,28 @@ export function AssetCardView({
 
                             {/* CoinGecko ID */}
                             <div className="space-y-1.5">
-                                <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">CoinGecko</label>
+                                <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">
+                                    CoinGecko ID
+                                    {editing && (
+                                        <span className="ml-1 text-[9px] text-muted-foreground/60 font-normal">
+                                            (e.g., build-on-bnb, bitcoin, ethereum)
+                                        </span>
+                                    )}
+                                </label>
                                 {editing ? (
-                                    <Input
-                                        value={editForm.coingeckoId ?? ''}
-                                        onChange={(e) => setEditForm({ ...editForm, coingeckoId: e.target.value })}
-                                        placeholder="coingecko-id"
-                                        className="h-7 text-xs font-mono"
-                                    />
+                                    <div>
+                                        <Input
+                                            value={editForm.coingeckoId ?? ''}
+                                            onChange={(e) => setEditForm({ ...editForm, coingeckoId: e.target.value.toLowerCase().trim() })}
+                                            placeholder="build-on-bnb"
+                                            className="h-7 text-xs font-mono"
+                                        />
+                                        {editForm.coingeckoId && (
+                                            <p className="mt-1 text-[10px] text-muted-foreground/70">
+                                                💡 Asset will auto-refresh from CoinGecko after saving
+                                            </p>
+                                        )}
+                                    </div>
                                 ) : currentAsset.coingeckoId ? (
                                     <div className="px-3 py-2 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg text-xs font-mono text-foreground truncate">
                                         {currentAsset.coingeckoId}

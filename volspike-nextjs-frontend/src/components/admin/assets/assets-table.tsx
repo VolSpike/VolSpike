@@ -111,14 +111,32 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         setSavingId(asset.id ?? asset.baseSymbol)
         try {
             const res = await adminAPI.saveAsset(asset)
+            const updatedAsset = res.asset
+            
             setAssets((prev) =>
                 prev.map((a) =>
-                    (a.id && res.asset.id && a.id === res.asset.id) || (!a.id && a.baseSymbol === res.asset.baseSymbol)
-                        ? res.asset
+                    (a.id && updatedAsset.id && a.id === updatedAsset.id) || (!a.id && a.baseSymbol === updatedAsset.baseSymbol)
+                        ? updatedAsset
                         : a
                 )
             )
-            toast.success(`Saved ${asset.baseSymbol}`)
+            
+            // If CoinGecko ID was just added or changed, automatically trigger refresh
+            const hadCoingeckoId = asset.coingeckoId
+            const hasCoingeckoId = updatedAsset.coingeckoId
+            const coingeckoIdChanged = hadCoingeckoId !== hasCoingeckoId
+            
+            if (hasCoingeckoId && (coingeckoIdChanged || !updatedAsset.logoUrl || !updatedAsset.displayName || !updatedAsset.description)) {
+                toast.success(`Saved ${asset.baseSymbol}. Refreshing from CoinGecko...`, { duration: 3000 })
+                // Auto-refresh after a short delay to let save complete
+                setTimeout(async () => {
+                    if (updatedAsset.id) {
+                        await handleRefresh(updatedAsset)
+                    }
+                }, 500)
+            } else {
+                toast.success(`Saved ${asset.baseSymbol}`)
+            }
         } catch (err: any) {
             console.error('[AdminAssetsTable] Failed to save asset', err)
             toast.error(err.response?.error || 'Failed to save asset')
