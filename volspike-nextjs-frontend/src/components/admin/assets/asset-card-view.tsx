@@ -207,7 +207,7 @@ export function AssetCardView({
                                                         <p className="font-semibold mb-1">Symbol & Name</p>
                                                         <p className="text-muted-foreground">
                                                             The symbol ({extractBaseSymbol(currentAsset.baseSymbol)}) is the trading identifier, 
-                                                            while the name ({currentAsset.displayName}) is the project's display name.
+                                                            while the name ({currentAsset.displayName}) is the project&apos;s display name.
                                                         </p>
                                                     </div>
                                                 </div>
