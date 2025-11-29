@@ -43,23 +43,32 @@ export function AssetCardView({
         return baseSymbol
     }
 
+    // Normalize string for comparison (lowercase, alphanumeric only)
+    const normalizeForComparison = (str: string): string => {
+        return str.toLowerCase().replace(/[^a-z0-9]/g, '')
+    }
+
     // Check if we should show the symbol line (when baseSymbol doesn't match displayName/coingeckoId)
     const shouldShowSymbol = (asset: AssetRecord): boolean => {
+        if (!asset.displayName) return false
+        
         const extractedSymbol = extractBaseSymbol(asset.baseSymbol)
-        // Show if extracted symbol is different from baseSymbol (meaning there's a prefix)
-        // AND displayName exists
-        // AND displayName doesn't match the extracted symbol (case-insensitive, ignoring spaces and special chars)
-        if (extractedSymbol !== asset.baseSymbol && asset.displayName) {
-            const displayNameNormalized = asset.displayName.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '')
-            const symbolNormalized = extractedSymbol.toLowerCase().replace(/[^a-z0-9]/g, '')
-            // Show symbol line if displayName doesn't exactly equal the symbol
-            // Examples:
-            // - "MOG" vs "Mog Coin" → different (show "MOG - Mog Coin")
-            // - "BONK" vs "Bonk" → same (don't show symbol line, just "BONK")
-            // - "BOB" vs "Build On BNB" → different (show "BOB - Build On BNB")
-            return symbolNormalized !== displayNameNormalized
-        }
-        return false
+        const hasPrefix = extractedSymbol !== asset.baseSymbol
+        
+        // Only show symbol line if there's a numeric prefix (like 1000000BOB, 1000BONK)
+        if (!hasPrefix) return false
+        
+        // Normalize both for comparison
+        const symbolNormalized = normalizeForComparison(extractedSymbol)
+        const displayNameNormalized = normalizeForComparison(asset.displayName)
+        
+        // Show symbol line only if they're different
+        // Examples:
+        // - "MOG" vs "Mog Coin" → different (show "MOG - Mog Coin")
+        // - "BONK" vs "Bonk" → same (don't show, just "BONK")
+        // - "BOB" vs "Build On BNB" → different (show "BOB - Build On BNB")
+        // - "G" vs "OG" → different (but 0G has no prefix, so won't show anyway)
+        return symbolNormalized !== displayNameNormalized
     }
 
     const getAssetStatus = (asset: AssetRecord) => {
