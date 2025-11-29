@@ -130,8 +130,54 @@ const writeManifestCache = (assets: AssetRecord[]) => {
             timestamp: Date.now(),
         }
         manifestMemory = assets
-        localStorage.setItem(MANIFEST_CACHE_KEY, JSON.stringify(payload))
+        
+        // Check for 1000PEPE before writing
+        const pepAsset = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
+        if (pepAsset) {
+            console.log('[writeManifestCache] 1000PEPE before localStorage write:', {
+                hasLogoUrl: !!pepAsset.logoUrl,
+                logoUrlLength: pepAsset.logoUrl?.length || 0,
+                hasDescription: !!pepAsset.description,
+                descriptionLength: pepAsset.description?.length || 0,
+            })
+        }
+        
+        const jsonString = JSON.stringify(payload)
+        console.log('[writeManifestCache] JSON size:', jsonString.length, 'bytes')
+        
+        // Check if localStorage has size limits (usually 5-10MB)
+        try {
+            localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
+            
+            // Verify it was written correctly
+            const verify = localStorage.getItem(MANIFEST_CACHE_KEY)
+            if (verify) {
+                const parsed = JSON.parse(verify)
+                const pepAfter = parsed?.assets?.find((a: AssetRecord) => a.baseSymbol.toUpperCase() === '1000PEPE')
+                if (pepAfter) {
+                    console.log('[writeManifestCache] 1000PEPE after localStorage write:', {
+                        hasLogoUrl: !!pepAfter.logoUrl,
+                        logoUrlLength: pepAfter.logoUrl?.length || 0,
+                        hasDescription: !!pepAfter.description,
+                        descriptionLength: pepAfter.description?.length || 0,
+                    })
+                }
+            }
+        } catch (storageError: any) {
+            if (storageError.name === 'QuotaExceededError') {
+                console.error('[writeManifestCache] localStorage quota exceeded!', {
+                    jsonSize: jsonString.length,
+                    error: storageError.message,
+                })
+                // Try to clear old cache and retry
+                localStorage.removeItem(MANIFEST_CACHE_KEY)
+                localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
+            } else {
+                throw storageError
+            }
+        }
     } catch (error) {
+        console.error('[writeManifestCache] Failed to persist manifest cache:', error)
         logDebug('Failed to persist manifest cache', error)
     }
 }
