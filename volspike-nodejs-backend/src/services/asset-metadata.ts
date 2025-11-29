@@ -791,21 +791,6 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
     const now = Date.now()
     logger.info(`[AssetMetadata] 🔄 Refresh cycle started (${reason})`)
 
-        // Initialize progress tracker
-        refreshProgress = {
-            isRunning: true,
-            current: 0,
-            total: 0,
-            startedAt: now,
-            lastUpdated: now,
-            refreshed: 0,
-            failed: 0,
-            skipped: 0,
-            noUpdate: 0,
-            errors: [],
-            successes: [],
-        }
-
     try {
         // Check if database is empty and sync Binance universe first
         const assetCount = await prisma.asset.count()
@@ -827,8 +812,8 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
 
         if (!needsRefreshCount) {
             logger.info('[AssetMetadata] ✅ No assets need refresh')
-            // Don't set isRunning to true if there's nothing to refresh
-            // This prevents frontend from showing completion popup for empty cycles
+            // Don't initialize progress tracker if there's nothing to refresh
+            // This prevents frontend from showing "0/0" progress
             return {
                 refreshed: 0,
                 candidates: [],
@@ -840,8 +825,20 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
             }
         }
 
-        // Update progress tracker with total count
-        refreshProgress.total = needsRefreshCount
+        // Only initialize progress tracker AFTER we know there are assets to refresh
+        refreshProgress = {
+            isRunning: true,
+            current: 0,
+            total: needsRefreshCount,
+            startedAt: now,
+            lastUpdated: now,
+            refreshed: 0,
+            failed: 0,
+            skipped: 0,
+            noUpdate: 0,
+            errors: [],
+            successes: [],
+        }
 
         logger.info(
             `[AssetMetadata] 🔄 Continuous processing mode | Found ${needsRefreshCount} assets needing refresh (processing ALL)`

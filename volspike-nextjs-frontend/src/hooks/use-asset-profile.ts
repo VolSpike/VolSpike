@@ -431,34 +431,16 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
             setState((prev) => ({ ...prev, loading: true, error: null }))
 
             try {
-                const cache = safeParseCache()
-                const entry = cache[upper]
-                const now = Date.now()
-
-                if (entry) {
-                    const isFresh = now - entry.updatedAt < CACHE_TTL_MS
-                    if (!cancelled) {
-                        // Always show cached data immediately; if it's stale,
-                        // keep loading=true while we revalidate in the background.
-                        setState({
-                            loading: !isFresh,
-                            profile: entry.profile,
-                            error: null,
-                        })
-                    }
-                    if (isFresh) {
-                        return
-                    }
-                }
-
-                // Try synchronous lookup first (fast path - uses cached manifest)
+                // PRIORITY 1: Try synchronous manifest lookup first (fastest - uses cached manifest)
+                // This ensures we use database data, not stale localStorage cache
                 let manifestEntry = findAssetInManifestSync(upper)
                 
-                // If not found synchronously, try async lookup (might need to fetch manifest)
+                // PRIORITY 2: If not found synchronously, try async lookup (might need to fetch manifest)
                 if (!manifestEntry) {
                     manifestEntry = await findAssetInManifest(upper)
                 }
                 
+                // If manifest entry exists, use it (database is source of truth)
                 if (manifestEntry) {
                     const manifestProfile = buildProfileFromManifest(upper, manifestEntry)
                     if (manifestProfile) {
