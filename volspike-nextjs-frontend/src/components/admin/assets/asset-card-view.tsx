@@ -71,7 +71,14 @@ export function AssetCardView({
     }
 
     const handleSaveEdit = async (asset: AssetRecord) => {
-        await onSave({ ...asset, ...editForm })
+        // Ensure baseSymbol is always included (required field)
+        const dataToSave = {
+            ...asset,
+            ...editForm,
+            baseSymbol: editForm.baseSymbol || asset.baseSymbol, // Preserve baseSymbol
+            id: asset.id, // Preserve ID
+        }
+        await onSave(dataToSave)
         setEditingId(null)
         setEditForm({})
     }

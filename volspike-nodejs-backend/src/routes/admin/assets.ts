@@ -101,8 +101,18 @@ adminAssetRoutes.post('/', async (c) => {
         const body = await c.req.json()
         
         // Normalize empty strings to null for optional fields before validation
+        // Also ensure baseSymbol is present and not empty
+        if (!body.baseSymbol || body.baseSymbol.trim() === '') {
+            logger.warn('[AdminAssets] Missing or empty baseSymbol in request body:', body)
+            return c.json({ 
+                error: 'Validation failed',
+                details: 'baseSymbol is required and cannot be empty',
+            }, 400)
+        }
+        
         const normalizedBody = {
             ...body,
+            baseSymbol: body.baseSymbol.trim(), // Ensure baseSymbol is trimmed
             websiteUrl: body.websiteUrl === '' ? null : body.websiteUrl,
             twitterUrl: body.twitterUrl === '' ? null : body.twitterUrl,
             logoUrl: body.logoUrl === '' ? null : body.logoUrl,
