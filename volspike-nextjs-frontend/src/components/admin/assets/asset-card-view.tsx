@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Loader2, RefreshCw, Save, Trash2, CheckCircle2, AlertCircle, Clock, ExternalLink, Twitter } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import toast from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 
@@ -191,19 +192,57 @@ export function AssetCardView({
                             {/* Header with status badges */}
                             <div className="flex items-start justify-between gap-2 pb-3 border-b border-border/40">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <Badge 
-                                        variant="secondary" 
-                                        className="text-[10px] uppercase font-semibold px-2 py-0.5"
-                                        title={
-                                            asset.status === 'VERIFIED' 
-                                                ? 'Manually verified - locked from automatic updates' 
-                                                : asset.status === 'HIDDEN'
-                                                ? 'Hidden from public asset manifest'
-                                                : 'Automatically managed - can be updated by refresh cycles'
-                                        }
-                                    >
-                                        {asset.status || 'AUTO'}
-                                    </Badge>
+                                    {editing ? (
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">
+                                                Status
+                                            </label>
+                                            <Select
+                                                value={editForm.status || asset.status || 'AUTO'}
+                                                onValueChange={(value: 'AUTO' | 'VERIFIED' | 'HIDDEN') => {
+                                                    setEditForm({ ...editForm, status: value })
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-7 w-[120px] text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="AUTO">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">AUTO</span>
+                                                            <span className="text-[10px] text-muted-foreground">Auto-managed</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                    <SelectItem value="VERIFIED">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">VERIFIED</span>
+                                                            <span className="text-[10px] text-muted-foreground">Locked from updates</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                    <SelectItem value="HIDDEN">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-medium">HIDDEN</span>
+                                                            <span className="text-[10px] text-muted-foreground">Hidden from public</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    ) : (
+                                        <Badge 
+                                            variant="secondary" 
+                                            className="text-[10px] uppercase font-semibold px-2 py-0.5"
+                                            title={
+                                                asset.status === 'VERIFIED' 
+                                                    ? 'Manually verified - locked from automatic updates' 
+                                                    : asset.status === 'HIDDEN'
+                                                    ? 'Hidden from public asset manifest'
+                                                    : 'Automatically managed - can be updated by refresh cycles'
+                                            }
+                                        >
+                                            {asset.status || 'AUTO'}
+                                        </Badge>
+                                    )}
                                     {wasRecentlyRefreshed && (
                                         <Badge className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-green-500 text-white animate-bounce">
                                             ✨ Just Updated!
