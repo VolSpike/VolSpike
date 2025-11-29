@@ -385,6 +385,18 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         return `${Math.floor(diffDays / 30)} months ago`
     }
 
+    // Calculate stats (must be before early returns for useMemo)
+    const assetsNeedingRefresh = assets.filter(a => {
+        if (!a.logoUrl || !a.displayName || !a.coingeckoId) return true
+        if (!a.updatedAt) return true
+        const updatedAt = new Date(a.updatedAt).getTime()
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+        return updatedAt < weekAgo
+    }).length
+
+    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
+    const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
+
     // Filter assets based on selected filter (must be before early returns)
     const filteredAssets = useMemo(() => {
         let filtered = assets
@@ -420,17 +432,6 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
 
         return filtered
     }, [assets, query, filterStatus, refreshProgress?.errors])
-
-    const assetsNeedingRefresh = assets.filter(a => {
-        if (!a.logoUrl || !a.displayName || !a.coingeckoId) return true
-        if (!a.updatedAt) return true
-        const updatedAt = new Date(a.updatedAt).getTime()
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-        return updatedAt < weekAgo
-    }).length
-
-    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
-    const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
 
     if (!accessToken) {
         return (
