@@ -367,9 +367,9 @@ export function AssetCardView({
                                         rows={4}
                                     />
                                 ) : currentAsset.description ? (
-                                    <div className={`px-3 py-2 bg-muted/30 border border-border/40 rounded-lg ${expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) ? '' : 'min-h-[80px]'}`}>
+                                    <div className={`px-3 py-2 bg-muted/30 border border-border/40 rounded-lg ${expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) ? '' : 'min-h-[80px] flex flex-col'}`}>
                                         <p 
-                                            className={`text-xs text-muted-foreground leading-relaxed ${
+                                            className={`text-xs text-muted-foreground leading-relaxed flex-1 ${
                                                 expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) 
                                                     ? '' 
                                                     : 'line-clamp-4'
@@ -391,7 +391,7 @@ export function AssetCardView({
                                                         return next
                                                     })
                                                 }}
-                                                className="mt-2 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+                                                className="mt-2 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors self-start"
                                             >
                                                 {expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) 
                                                     ? 'Read less' 
@@ -400,7 +400,7 @@ export function AssetCardView({
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="px-3 py-2 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 italic flex items-center gap-2 min-h-[80px]">
+                                    <div className="px-3 py-2 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 flex items-center gap-2 min-h-[80px]">
                                         <AlertCircle className="h-3 w-3 flex-shrink-0" />
                                         <span>No description available</span>
                                     </div>
