@@ -175,6 +175,7 @@ model Asset {
   logoUrl         String?     // Optional custom logo URL
   status          AssetStatus @default(AUTO)
   isComplete      Boolean     @default(false) // Admin-reviewed and ready for weekly refresh cycles
+  lastFailureReason String?   // Track last failure reason (RATE_LIMIT, NOT_FOUND, etc.) for retry logic
   notes           String?     @db.Text
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

@@ -17,7 +17,7 @@ import openInterestRouter from './routes/open-interest'
 import { paymentRoutes } from './routes/payments'
 import { adminRoutes } from './routes/admin'
 import renewalRoutes from './routes/renewal'
-import { runAssetRefreshCycle } from './services/asset-metadata'
+import { runAssetRefreshCycle, retryRateLimitedAssets } from './services/asset-metadata'
 import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
 import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
@@ -369,7 +369,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                     // Only Complete assets with CoinGecko ID that are missing fields OR stale (>1 week)
                     const now = Date.now()
                     const oneWeekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
-                    
+
                     const assetsNeedingRefresh = await prisma.asset.findMany({
                         where: {
                             status: { not: 'HIDDEN' },
@@ -405,6 +405,48 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         }, ASSET_REFRESH_INTERVAL)
     } else {
         logger.info('ℹ️ Asset metadata refresh disabled (ENABLE_ASSET_ENRICHMENT=false)')
+    }
+
+    // ============================================
+    // RATE LIMIT RETRY CYCLE (for incomplete assets)
+    // ============================================
+    // Retry incomplete assets that failed due to rate limit errors
+    // Runs every 30 minutes to give rate-limited assets another chance
+    const RATE_LIMIT_RETRY_INTERVAL = 30 * 60 * 1000 // 30 minutes
+
+    if (assetRefreshEnabled) {
+        logger.info('✅ Rate limit retry cycle enabled (every 30 minutes)')
+
+        // Run initial retry after 10 minutes (let initial enrichment attempts complete first)
+        setTimeout(async () => {
+            try {
+                logger.info('🔄 Running initial rate limit retry cycle')
+                await retryRateLimitedAssets()
+                logger.info('✅ Initial rate limit retry cycle completed')
+            } catch (error) {
+                logger.error('❌ Initial rate limit retry cycle failed:', error)
+            }
+        }, 10 * 60 * 1000) // 10 minutes
+
+        // Schedule periodic retry cycles (every 30 minutes)
+        setInterval(async () => {
+            try {
+                // Import getRefreshProgress dynamically to avoid circular dependencies
+                const { getRefreshProgress } = await import('./services/asset-metadata')
+                const progress = getRefreshProgress()
+
+                // Only retry if main refresh cycle isn't running (avoid conflicts)
+                if (!progress.isRunning) {
+                    logger.info('🔄 Running scheduled rate limit retry cycle')
+                    await retryRateLimitedAssets()
+                    logger.info('✅ Scheduled rate limit retry cycle completed')
+                } else {
+                    logger.debug('ℹ️ Main refresh cycle running, skipping rate limit retry')
+                }
+            } catch (error) {
+                logger.error('❌ Scheduled rate limit retry cycle failed:', error)
+            }
+        }, RATE_LIMIT_RETRY_INTERVAL)
     }
 
     // Run initial checks after 2 minutes (to allow server and database to fully start)

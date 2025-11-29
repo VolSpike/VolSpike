@@ -521,7 +521,10 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
 
         await prisma.asset.update({
             where: { id: asset.id },
-            data: payload,
+            data: {
+                ...payload,
+                lastFailureReason: null, // Clear failure reason on success
+            },
         })
 
         const elapsedMs = Date.now() - now
@@ -546,6 +549,18 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
             reason = 'TIMEOUT'
         } else if (errorMessage.includes('network') || errorMessage.includes('ECONNREFUSED')) {
             reason = 'NETWORK_ERROR'
+        }
+
+        // Store failure reason in database for retry logic (only for incomplete assets)
+        if (!asset.isComplete) {
+            try {
+                await prisma.asset.update({
+                    where: { id: asset.id },
+                    data: { lastFailureReason: reason },
+                })
+            } catch (updateError) {
+                logger.warn(`[AssetMetadata] Failed to update lastFailureReason for ${symbol}:`, updateError)
+            }
         }
 
         logger.warn(`[AssetMetadata] ❌ Failed to refresh ${symbol}`, {
