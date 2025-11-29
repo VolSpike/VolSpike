@@ -343,18 +343,20 @@ const validateUrl = async (url: string): Promise<boolean> => {
             return false
         }
 
-        // Check for common invalid patterns
+        // Check for obviously invalid patterns (local/private addresses only)
+        // Don't hardcode specific domains - let HEAD request check actual accessibility
         const invalidPatterns = [
-            /^https?:\/\/www\.simons\.cat/, // Known broken URL
-            /^https?:\/\/simons\.cat/, // Known broken URL
             /^https?:\/\/localhost/,
             /^https?:\/\/127\.0\.0\.1/,
             /^https?:\/\/0\.0\.0\.0/,
+            /^https?:\/\/192\.168\./, // Private network
+            /^https?:\/\/10\./, // Private network
+            /^https?:\/\/172\.(1[6-9]|2[0-9]|3[01])\./, // Private network
         ]
 
         for (const pattern of invalidPatterns) {
             if (pattern.test(url)) {
-                logger.debug(`[AssetMetadata] URL matches invalid pattern: ${url}`)
+                logger.debug(`[AssetMetadata] URL matches invalid pattern (local/private): ${url}`)
                 return false
             }
         }
