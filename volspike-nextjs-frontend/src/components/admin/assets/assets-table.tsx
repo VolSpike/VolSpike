@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { adminAPI } from '@/lib/admin/api-client'
 import type { AssetRecord } from '@/lib/asset-manifest'
