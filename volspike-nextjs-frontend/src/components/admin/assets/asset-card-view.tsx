@@ -367,7 +367,7 @@ export function AssetCardView({
                                         rows={4}
                                     />
                                 ) : currentAsset.description ? (
-                                    <div className={`px-3 py-2 bg-muted/30 border border-border/40 rounded-lg ${expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) ? '' : 'min-h-[80px] flex flex-col'}`}>
+                                    <div className={`px-3 py-2 bg-muted/30 border border-border/40 rounded-lg min-h-[80px] flex flex-col ${expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) ? '' : ''}`}>
                                         <p 
                                             className={`text-xs text-muted-foreground leading-relaxed flex-1 ${
                                                 expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) 
