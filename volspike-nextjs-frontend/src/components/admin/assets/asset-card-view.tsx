@@ -289,11 +289,7 @@ export function AssetCardView({
                                     <div className="text-xl font-bold text-foreground truncate tracking-tight">
                                         {currentAsset.baseSymbol}
                                     </div>
-                                    {shouldShowSymbol(currentAsset) ? (
-                                        <div className="text-sm text-muted-foreground mt-1 font-medium truncate">
-                                            {extractBaseSymbol(currentAsset.baseSymbol)} - {currentAsset.displayName}
-                                        </div>
-                                    ) : editing ? (
+                                    {editing ? (
                                         <Input
                                             value={editForm.displayName ?? ''}
                                             onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
@@ -303,16 +299,22 @@ export function AssetCardView({
                                     ) : (
                                         <div className="text-sm text-muted-foreground truncate mt-1 font-medium">
                                             {(() => {
-                                                // If displayName matches the symbol (case-insensitive), show uppercase symbol instead
+                                                if (!currentAsset.displayName) {
+                                                    return <span className="italic text-muted-foreground/50">No name</span>
+                                                }
+                                                
+                                                // If displayName matches the extracted symbol (case-insensitive), show uppercase symbol instead
                                                 const extractedSymbol = extractBaseSymbol(currentAsset.baseSymbol)
-                                                if (extractedSymbol && currentAsset.displayName) {
+                                                if (extractedSymbol) {
                                                     const symbolNormalized = normalizeForComparison(extractedSymbol)
                                                     const displayNameNormalized = normalizeForComparison(currentAsset.displayName)
                                                     if (symbolNormalized === displayNameNormalized) {
-                                                        return extractedSymbol.toUpperCase() // Always show symbol in uppercase
+                                                        return extractedSymbol.toUpperCase() // Show uppercase symbol if name matches
                                                     }
                                                 }
-                                                return currentAsset.displayName || <span className="italic text-muted-foreground/50">No name</span>
+                                                
+                                                // Otherwise, just show the display name
+                                                return currentAsset.displayName
                                             })()}
                                         </div>
                                     )}
