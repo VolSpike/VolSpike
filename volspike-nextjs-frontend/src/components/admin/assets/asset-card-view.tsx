@@ -367,9 +367,9 @@ export function AssetCardView({
                                         rows={4}
                                     />
                                 ) : currentAsset.description ? (
-                                    <div className={`px-3 py-2 bg-muted/30 border border-border/40 rounded-lg min-h-[80px] flex flex-col ${expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) ? '' : ''}`}>
+                                    <div className="px-3 py-2 bg-muted/30 border border-border/40 rounded-lg">
                                         <p 
-                                            className={`text-xs text-muted-foreground leading-relaxed flex-1 ${
+                                            className={`text-xs text-muted-foreground leading-relaxed ${
                                                 expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) 
                                                     ? '' 
                                                     : 'line-clamp-4'
@@ -391,7 +391,7 @@ export function AssetCardView({
                                                         return next
                                                     })
                                                 }}
-                                                className="mt-2 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors self-start"
+                                                className="mt-2 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
                                             >
                                                 {expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) 
                                                     ? 'Read less' 
