@@ -362,7 +362,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                 // Import getRefreshProgress dynamically to avoid circular dependencies
                 const { getRefreshProgress } = await import('./services/asset-metadata')
                 const progress = getRefreshProgress()
-                
+
                 // Only start new cycle if one isn't already running
                 if (!progress.isRunning) {
                     // Check if there are assets needing refresh
@@ -384,7 +384,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                         },
                         take: 1,
                     })
-                    
+
                     if (assetsNeedingRefresh.length > 0) {
                         logger.info(`🔄 Running scheduled asset refresh cycle (${assetsNeedingRefresh.length} assets need refresh)`)
                         await runAssetRefreshCycle('scheduled')
