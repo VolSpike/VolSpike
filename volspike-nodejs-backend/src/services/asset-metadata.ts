@@ -344,21 +344,33 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
 
         const payload: Partial<Asset> = {}
 
+        // Always update displayName if we have it from CoinGecko (when allowOverwrite is true)
         if (allowOverwrite || !asset.displayName) {
             payload.displayName = profile.name || asset.displayName || symbol
         }
+        
+        // Always update description if we have it from CoinGecko (when allowOverwrite is true)
         if (allowOverwrite || !asset.description) {
             payload.description = profile.description ?? asset.description
         }
+        
+        // For websiteUrl: if CoinGecko has no homepage, set to null (don't keep old wrong URLs)
+        // Only update if allowOverwrite is true OR if we don't have a websiteUrl yet
         if (allowOverwrite || !asset.websiteUrl) {
-            payload.websiteUrl = profile.homepage ?? asset.websiteUrl
+            payload.websiteUrl = profile.homepage || null // Explicitly set to null if CoinGecko has no homepage
         }
+        
+        // For twitterUrl: if CoinGecko has no Twitter, set to null (don't keep old wrong URLs)
         if (allowOverwrite || !asset.twitterUrl) {
-            payload.twitterUrl = profile.twitterUrl ?? asset.twitterUrl
+            payload.twitterUrl = profile.twitterUrl || null // Explicitly set to null if CoinGecko has no Twitter
         }
+        
+        // Always update logo if we successfully fetched it
         if (logoDataUrl && (allowOverwrite || !asset.logoUrl)) {
             payload.logoUrl = logoDataUrl
         }
+        
+        // Always update CoinGecko ID to ensure it matches what we just fetched
         if (allowOverwrite || !asset.coingeckoId) {
             payload.coingeckoId = coingeckoId
         }

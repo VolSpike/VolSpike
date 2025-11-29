@@ -189,18 +189,33 @@ adminAssetRoutes.post('/', async (c) => {
         }
 
         // Return immediately - save is fast
-        // If CoinGecko ID was just added and asset is missing data, trigger refresh in background
-        const needsRefresh = payload.coingeckoId && (!asset.logoUrl || !asset.displayName || !asset.description)
+        // If CoinGecko ID was just added/changed and asset is missing data, trigger refresh in background
+        const hadCoingeckoId = asset.coingeckoId
+        const coingeckoIdChanged = hadCoingeckoId !== payload.coingeckoId
+        const needsRefresh = payload.coingeckoId && (coingeckoIdChanged || !asset.logoUrl || !asset.displayName || !asset.description)
+        
         if (needsRefresh && asset.status !== 'VERIFIED') {
             // Trigger refresh in background (non-blocking) - don't wait for it
+            // IMPORTANT: Refetch the asset from DB to ensure we have the latest data (including the new CoinGecko ID)
             process.nextTick(async () => {
                 try {
-                    logger.info(`[AdminAssets] Auto-refreshing ${asset.baseSymbol} in background after CoinGecko ID was set`)
-                    const refreshResult = await refreshSingleAsset(asset)
+                    // Refetch asset from DB to ensure we have the latest CoinGecko ID
+                    const latestAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
+                    if (!latestAsset) {
+                        logger.warn(`[AdminAssets] Asset ${asset.baseSymbol} not found for refresh`)
+                        return
+                    }
+                    
+                    logger.info(`[AdminAssets] Auto-refreshing ${latestAsset.baseSymbol} in background after CoinGecko ID was set/changed`, {
+                        oldCoingeckoId: hadCoingeckoId,
+                        newCoingeckoId: latestAsset.coingeckoId,
+                    })
+                    
+                    const refreshResult = await refreshSingleAsset(latestAsset)
                     if (refreshResult.success) {
-                        logger.info(`[AdminAssets] ✅ Auto-refreshed ${asset.baseSymbol} successfully in background`)
+                        logger.info(`[AdminAssets] ✅ Auto-refreshed ${latestAsset.baseSymbol} successfully in background`)
                     } else {
-                        logger.warn(`[AdminAssets] Auto-refresh failed for ${asset.baseSymbol}: ${refreshResult.reason} - ${refreshResult.error}`)
+                        logger.warn(`[AdminAssets] Auto-refresh failed for ${latestAsset.baseSymbol}: ${refreshResult.reason} - ${refreshResult.error}`)
                     }
                 } catch (error) {
                     logger.error(`[AdminAssets] Auto-refresh error for ${asset.baseSymbol}:`, error)
