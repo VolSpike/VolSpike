@@ -171,16 +171,20 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
 const shouldRefresh = (asset: Asset, now: number): boolean => {
     if (asset.status === 'HIDDEN') return false
     
-    // Only process assets marked as Complete by admin (weekly refresh cycles)
-    // Incomplete assets are still auto-refreshed when new Binance pairs are detected,
-    // but they don't go into scheduled weekly cycles until admin marks them Complete
-    if (!asset.isComplete) return false
-    
     // Skip assets without CoinGecko ID - they can't be refreshed until admin adds one
     // These will appear in "Missing Data" filter for admin review
     if (!asset.coingeckoId) return false
     
-    // Refresh if missing other critical fields (logo, displayName, description)
+    // If asset is marked Complete by admin, only refresh if stale (>1 week old)
+    // Complete status means admin reviewed and approved - refresh weekly regardless of missing fields
+    if (asset.isComplete) {
+        const updatedAt = asset.updatedAt?.getTime?.() ?? Date.now()
+        return now - updatedAt > REFRESH_INTERVAL_MS
+    }
+    
+    // For incomplete assets: refresh if missing critical fields OR stale
+    // Incomplete assets are auto-refreshed when new Binance pairs are detected,
+    // but they don't go into scheduled weekly cycles until admin marks them Complete
     if (!asset.logoUrl || !asset.displayName || !asset.description) return true
     
     // Refresh if data is stale (>1 week old)
