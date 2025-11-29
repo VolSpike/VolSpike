@@ -5,10 +5,9 @@ import Image from 'next/image'
 import type { AssetRecord } from '@/lib/asset-manifest'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, RefreshCw, Save, Trash2, CheckCircle2, AlertCircle, Clock, ExternalLink, Twitter, Info } from 'lucide-react'
+import { Loader2, RefreshCw, Save, Trash2, CheckCircle2, AlertCircle, Clock, ExternalLink, Twitter } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import toast from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 
@@ -197,37 +196,8 @@ export function AssetCardView({
                                         {currentAsset.baseSymbol}
                                     </div>
                                     {shouldShowSymbol(currentAsset) ? (
-                                        <div className="text-sm text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
-                                            <span className="truncate">
-                                                {extractBaseSymbol(currentAsset.baseSymbol)} - {currentAsset.displayName}
-                                            </span>
-                                            <TooltipProvider delayDuration={200}>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <button
-                                                            type="button"
-                                                            className="flex-shrink-0 p-0.5 rounded-full hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
-                                                            aria-label="Symbol and name explanation"
-                                                        >
-                                                            <Info className="h-3.5 w-3.5 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
-                                                        </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent 
-                                                        side="top" 
-                                                        align="start"
-                                                        className="max-w-[240px] bg-popover border border-border/60 shadow-xl p-3 z-[100]"
-                                                        sideOffset={6}
-                                                    >
-                                                        <div className="space-y-1.5">
-                                                            <p className="font-semibold text-xs text-popover-foreground">Symbol & Name</p>
-                                                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                                                The <span className="font-medium text-foreground">{extractBaseSymbol(currentAsset.baseSymbol)}</span> symbol is the trading identifier, 
-                                                                while <span className="font-medium text-foreground">{currentAsset.displayName}</span> is the project&apos;s display name.
-                                                            </p>
-                                                        </div>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
+                                        <div className="text-sm text-muted-foreground mt-1 font-medium truncate">
+                                            {extractBaseSymbol(currentAsset.baseSymbol)} - {currentAsset.displayName}
                                         </div>
                                     ) : editing ? (
                                         <Input
