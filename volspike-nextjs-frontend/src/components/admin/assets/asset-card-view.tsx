@@ -294,9 +294,36 @@ export function AssetCardView({
                                     />
                                 ) : currentAsset.description ? (
                                     <div className="px-3 py-2 bg-muted/30 border border-border/40 rounded-lg">
-                                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-4">
+                                        <p 
+                                            className={`text-xs text-muted-foreground leading-relaxed ${
+                                                expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) 
+                                                    ? '' 
+                                                    : 'line-clamp-4'
+                                            }`}
+                                        >
                                             {currentAsset.description}
                                         </p>
+                                        {currentAsset.description.length > 200 && (
+                                            <button
+                                                onClick={() => {
+                                                    const key = currentAsset.id || currentAsset.baseSymbol
+                                                    setExpandedDescriptions(prev => {
+                                                        const next = new Set(prev)
+                                                        if (next.has(key)) {
+                                                            next.delete(key)
+                                                        } else {
+                                                            next.add(key)
+                                                        }
+                                                        return next
+                                                    })
+                                                }}
+                                                className="mt-2 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+                                            >
+                                                {expandedDescriptions.has(currentAsset.id || currentAsset.baseSymbol) 
+                                                    ? 'Read less' 
+                                                    : 'Read full overview'}
+                                            </button>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="px-3 py-2 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 italic flex items-center gap-2">
