@@ -77,10 +77,15 @@ export function AssetCardView({
             Object.entries(editForm).filter(([_, value]) => value !== undefined)
         )
         
-        const dataToSave = {
+        // Ensure baseSymbol is a string (not array) and always present
+        const baseSymbol = typeof cleanedEditForm.baseSymbol === 'string' 
+            ? cleanedEditForm.baseSymbol 
+            : (typeof asset.baseSymbol === 'string' ? asset.baseSymbol : String(asset.baseSymbol || ''))
+        
+        const dataToSave: AssetRecord = {
             ...asset,
             ...cleanedEditForm,
-            baseSymbol: cleanedEditForm.baseSymbol || asset.baseSymbol, // Preserve baseSymbol
+            baseSymbol, // Ensure it's always a string
             id: asset.id, // Preserve ID
         }
         
