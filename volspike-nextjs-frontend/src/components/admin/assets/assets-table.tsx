@@ -121,21 +121,27 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 )
             )
             
-            // If CoinGecko ID was just added or changed, automatically trigger refresh
-            const hadCoingeckoId = asset.coingeckoId
-            const hasCoingeckoId = updatedAsset.coingeckoId
-            const coingeckoIdChanged = hadCoingeckoId !== hasCoingeckoId
-            
-            if (hasCoingeckoId && (coingeckoIdChanged || !updatedAsset.logoUrl || !updatedAsset.displayName || !updatedAsset.description)) {
-                toast.success(`Saved ${asset.baseSymbol}. Refreshing from CoinGecko...`, { duration: 3000 })
-                // Auto-refresh after a short delay to let save complete
-                setTimeout(async () => {
-                    if (updatedAsset.id) {
-                        await handleRefresh(updatedAsset)
-                    }
-                }, 500)
+            // Check if backend already refreshed the asset
+            if (res.refreshed) {
+                // Backend already refreshed, just update the UI
+                toast.success(`Saved and refreshed ${asset.baseSymbol}`, { duration: 3000 })
             } else {
-                toast.success(`Saved ${asset.baseSymbol}`)
+                // If CoinGecko ID was just added or changed, automatically trigger refresh
+                const hadCoingeckoId = asset.coingeckoId
+                const hasCoingeckoId = updatedAsset.coingeckoId
+                const coingeckoIdChanged = hadCoingeckoId !== hasCoingeckoId
+                
+                if (hasCoingeckoId && (coingeckoIdChanged || !updatedAsset.logoUrl || !updatedAsset.displayName || !updatedAsset.description)) {
+                    toast.success(`Saved ${asset.baseSymbol}. Refreshing from CoinGecko...`, { duration: 3000 })
+                    // Auto-refresh after a short delay to let save complete
+                    setTimeout(async () => {
+                        if (updatedAsset.id) {
+                            await handleRefresh(updatedAsset)
+                        }
+                    }, 500)
+                } else {
+                    toast.success(`Saved ${asset.baseSymbol}`)
+                }
             }
         } catch (err: any) {
             console.error('[AdminAssetsTable] Failed to save asset', {

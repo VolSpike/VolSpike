@@ -188,21 +188,30 @@ adminAssetRoutes.post('/', async (c) => {
             })
         }
 
-        // If CoinGecko ID was just added and asset is missing data, trigger refresh in background
+        // If CoinGecko ID was just added and asset is missing data, trigger refresh immediately
         const needsRefresh = payload.coingeckoId && (!asset.logoUrl || !asset.displayName || !asset.description)
         if (needsRefresh && asset.status !== 'VERIFIED') {
-            // Trigger refresh in background (non-blocking)
-            process.nextTick(async () => {
-                try {
-                    await refreshSingleAsset(asset)
-                    logger.info(`[AdminAssets] Auto-refreshed ${asset.baseSymbol} after CoinGecko ID was set`)
-                } catch (error) {
-                    logger.warn(`[AdminAssets] Auto-refresh failed for ${asset.baseSymbol}:`, error)
+            try {
+                logger.info(`[AdminAssets] Auto-refreshing ${asset.baseSymbol} after CoinGecko ID was set`)
+                const refreshResult = await refreshSingleAsset(asset)
+                
+                if (refreshResult.success) {
+                    // Refetch the updated asset from database
+                    const refreshedAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
+                    if (refreshedAsset) {
+                        logger.info(`[AdminAssets] ✅ Auto-refreshed ${asset.baseSymbol} successfully`)
+                        return c.json({ asset: refreshedAsset, refreshed: true })
+                    }
+                } else {
+                    logger.warn(`[AdminAssets] Auto-refresh failed for ${asset.baseSymbol}: ${refreshResult.reason} - ${refreshResult.error}`)
                 }
-            })
+            } catch (error) {
+                logger.error(`[AdminAssets] Auto-refresh error for ${asset.baseSymbol}:`, error)
+                // Continue to return the asset even if refresh failed
+            }
         }
 
-        return c.json({ asset })
+        return c.json({ asset, refreshed: false })
     } catch (error) {
         logger.error('Admin asset upsert error:', error)
         
