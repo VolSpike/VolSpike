@@ -224,7 +224,18 @@ export function AssetCardView({
                                         />
                                     ) : (
                                         <div className="text-sm text-muted-foreground truncate mt-1 font-medium">
-                                            {currentAsset.displayName || <span className="italic text-muted-foreground/50">No name</span>}
+                                            {(() => {
+                                                // If displayName matches the symbol (case-insensitive), show uppercase symbol instead
+                                                const extractedSymbol = extractBaseSymbol(currentAsset.baseSymbol)
+                                                if (extractedSymbol && currentAsset.displayName) {
+                                                    const symbolNormalized = normalizeForComparison(extractedSymbol)
+                                                    const displayNameNormalized = normalizeForComparison(currentAsset.displayName)
+                                                    if (symbolNormalized === displayNameNormalized) {
+                                                        return extractedSymbol.toUpperCase() // Always show symbol in uppercase
+                                                    }
+                                                }
+                                                return currentAsset.displayName || <span className="italic text-muted-foreground/50">No name</span>
+                                            })()}
                                         </div>
                                     )}
                                     <div className="text-[11px] text-muted-foreground/60 mt-1 font-mono truncate">
