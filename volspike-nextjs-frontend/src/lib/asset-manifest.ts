@@ -210,15 +210,39 @@ export const prefetchAssetManifest = async (): Promise<void> => {
  */
 export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined => {
     const cached = readCachedManifest()
-    if (!cached) return undefined
+    if (!cached) {
+        console.log(`[findAssetInManifestSync] No cached manifest for "${symbol}"`)
+        return undefined
+    }
     
     const upper = symbol.toUpperCase()
-    return cached.find((asset) => {
+    console.log(`[findAssetInManifestSync] Searching for "${upper}" in ${cached.length} cached assets`)
+    
+    const found = cached.find((asset) => {
         const baseMatch = asset.baseSymbol?.toUpperCase() === upper
         const binanceMatch = asset.binanceSymbol?.toUpperCase().replace(/USDT$/i, '') === upper
         const extraMatch = Array.isArray(asset.extraSymbols) && asset.extraSymbols.some((s) => s.toUpperCase() === upper)
+        
+        if (baseMatch || binanceMatch || extraMatch) {
+            console.log(`[findAssetInManifestSync] ✅ Match found:`, {
+                baseSymbol: asset.baseSymbol,
+                binanceSymbol: asset.binanceSymbol,
+                baseMatch,
+                binanceMatch,
+                extraMatch,
+            })
+        }
+        
         return baseMatch || binanceMatch || extraMatch
     })
+    
+    if (!found) {
+        // Log sample of what we're searching through
+        const sample = cached.slice(0, 5).map(a => a.baseSymbol)
+        console.log(`[findAssetInManifestSync] ❌ No match. Sample symbols in cache:`, sample)
+    }
+    
+    return found
 }
 
 export const findAssetInManifest = async (symbol: string): Promise<AssetRecord | undefined> => {

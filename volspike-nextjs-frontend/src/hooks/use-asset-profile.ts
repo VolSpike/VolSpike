@@ -428,27 +428,44 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
         const upper = symbol.toUpperCase()
 
         const run = async () => {
+            // ALWAYS log (not just debug mode) to trace issues
+            console.log(`[useAssetProfile] 🔍 Looking up asset: "${symbol}" -> "${upper}"`)
+            
             setState((prev) => ({ ...prev, loading: true, error: null }))
 
             try {
                 // PRIORITY 1: Try synchronous manifest lookup first (fastest - uses cached manifest)
                 // This ensures we use database data, not stale localStorage cache
                 let manifestEntry = findAssetInManifestSync(upper)
+                console.log(`[useAssetProfile] Sync lookup result for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
                 
                 // PRIORITY 2: If not found synchronously, ensure manifest is loaded and try again
                 if (!manifestEntry) {
+                    console.log(`[useAssetProfile] Manifest not in cache, loading...`)
                     // Ensure manifest is loaded (will use cache if available, fetch if needed)
-                    await loadAssetManifest()
+                    const manifest = await loadAssetManifest()
+                    console.log(`[useAssetProfile] Manifest loaded: ${manifest.length} assets`)
                     // Try sync lookup again after ensuring manifest is loaded
                     manifestEntry = findAssetInManifestSync(upper)
+                    console.log(`[useAssetProfile] Sync lookup after load for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
                     // If still not found, try async lookup (shouldn't happen, but safety net)
                     if (!manifestEntry) {
+                        console.log(`[useAssetProfile] Trying async lookup for ${upper}...`)
                         manifestEntry = await findAssetInManifest(upper)
+                        console.log(`[useAssetProfile] Async lookup result for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
                     }
                 }
                 
                 // Debug logging
                 if (manifestEntry) {
+                    console.log(`[useAssetProfile] ✅ Found manifest entry for ${upper}:`, {
+                        baseSymbol: manifestEntry.baseSymbol,
+                        binanceSymbol: manifestEntry.binanceSymbol,
+                        hasLogo: !!manifestEntry.logoUrl,
+                        hasDescription: !!manifestEntry.description,
+                        logoUrl: manifestEntry.logoUrl ? manifestEntry.logoUrl.substring(0, 50) + '...' : 'MISSING',
+                        description: manifestEntry.description ? manifestEntry.description.substring(0, 50) + '...' : 'MISSING',
+                    })
                     debugLog(`✅ Found manifest entry for ${upper}:`, {
                         baseSymbol: manifestEntry.baseSymbol,
                         hasLogo: !!manifestEntry.logoUrl,
@@ -456,6 +473,7 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                         logoUrl: manifestEntry.logoUrl?.substring(0, 50) + '...',
                     })
                 } else {
+                    console.log(`[useAssetProfile] ❌ No manifest entry found for ${upper}`)
                     debugLog(`❌ No manifest entry found for ${upper}`)
                 }
                 
