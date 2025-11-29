@@ -206,7 +206,8 @@ adminAssetRoutes.post('/', async (c) => {
         const normalizedOldId = (oldCoingeckoId || '').trim().toLowerCase()
         const normalizedNewId = (payload.coingeckoId || '').trim().toLowerCase()
         const coingeckoIdChanged = normalizedOldId !== normalizedNewId
-        const needsRefresh = normalizedNewId && coingeckoIdChanged
+        // needsRefresh: CoinGecko ID exists AND (it changed OR it was just added)
+        const needsRefresh = normalizedNewId && (coingeckoIdChanged || !normalizedOldId)
         
         logger.info(`[AdminAssets] Save asset ${asset.baseSymbol}`, {
             oldCoingeckoId: oldCoingeckoId,
@@ -215,10 +216,13 @@ adminAssetRoutes.post('/', async (c) => {
             normalizedNewId,
             coingeckoIdChanged,
             needsRefresh,
+            wasAdded: !normalizedOldId && normalizedNewId,
             assetStatus: asset.status,
         })
         
-        if (needsRefresh && asset.status !== 'VERIFIED') {
+        // Always refresh when CoinGecko ID is added/changed, regardless of status
+        // (VERIFIED status only prevents auto-updates from refresh cycles, not manual admin edits)
+        if (needsRefresh) {
             // Trigger refresh in background (non-blocking) - don't wait for it
             // IMPORTANT: Refetch the asset from DB to ensure we have the latest data (including the new CoinGecko ID)
             process.nextTick(async () => {
@@ -577,7 +581,19 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
                 baseSymbol: String(s.baseAsset || '').toUpperCase(),
                 binanceSymbol: String(s.symbol || '').toUpperCase(),
             }))
-            .filter((c) => c.baseSymbol && c.binanceSymbol) // Remove invalid entries
+            .filter((c) => {
+                // Validate: baseSymbol must exist, binanceSymbol must exist and end with USDT
+                // Also ensure binanceSymbol matches expected format (baseSymbol + USDT)
+                if (!c.baseSymbol || !c.binanceSymbol) return false
+                if (!c.binanceSymbol.endsWith('USDT')) return false
+                // Ensure binanceSymbol matches expected format (baseSymbol + USDT)
+                const expectedSymbol = `${c.baseSymbol}USDT`
+                if (c.binanceSymbol !== expectedSymbol) {
+                    logger.warn(`[AdminAssets] Symbol mismatch: baseSymbol=${c.baseSymbol}, binanceSymbol=${c.binanceSymbol}, expected=${expectedSymbol}`)
+                    return false
+                }
+                return true
+            })
 
         logger.info(`[AdminAssets] ✅ Filtered to ${candidates.length} valid perpetual USDT pairs`)
 
