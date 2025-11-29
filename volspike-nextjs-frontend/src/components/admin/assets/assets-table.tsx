@@ -415,15 +415,22 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     }
 
     // Calculate stats (must be before early returns for useMemo)
+    // Match backend logic: shouldRefresh checks logoUrl, displayName, description, coingeckoId, and update age
+    const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week (matches backend)
+    const now = Date.now()
+    
     const assetsNeedingRefresh = assets.filter(a => {
-        if (!a.logoUrl || !a.displayName || !a.coingeckoId) return true
+        // Match backend shouldRefresh logic exactly
+        if (a.status === 'HIDDEN') return false
+        // Refresh if missing critical fields (including description)
+        if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return true
+        // Refresh if older than 1 week
         if (!a.updatedAt) return true
         const updatedAt = new Date(a.updatedAt).getTime()
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-        return updatedAt < weekAgo
+        return now - updatedAt > REFRESH_INTERVAL_MS
     }).length
 
-    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
+    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId && a.description).length
     const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
 
     // Filter assets based on selected filter (must be before early returns)
@@ -442,14 +449,18 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             )
         }
 
-        // Apply status filter
+        // Apply status filter (match backend shouldRefresh logic)
         if (filterStatus === 'needs-refresh') {
+            const refreshInterval = 7 * 24 * 60 * 60 * 1000 // 1 week
+            const now = Date.now()
             filtered = filtered.filter((a) => {
-                if (!a.logoUrl || !a.displayName || !a.coingeckoId) return true
+                if (a.status === 'HIDDEN') return false
+                // Refresh if missing critical fields (including description)
+                if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return true
+                // Refresh if older than 1 week
                 if (!a.updatedAt) return true
                 const updatedAt = new Date(a.updatedAt).getTime()
-                const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-                return updatedAt < weekAgo
+                return now - updatedAt > refreshInterval
             })
         } else if (filterStatus === 'missing-data') {
             filtered = filtered.filter((a) => !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description)
@@ -589,13 +600,24 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
 
             {/* Optimized Action Bar - Single line on larger screens */}
             <div className="flex items-center gap-3 flex-wrap lg:flex-nowrap">
-                {/* Search */}
-                <Input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search assets..."
-                    className="flex-1 min-w-[200px] lg:min-w-[250px]"
-                />
+                {/* Search with clear button */}
+                <div className="relative flex-1 min-w-[200px] lg:min-w-[250px]">
+                    <Input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search assets..."
+                        className="pr-8"
+                    />
+                    {query && (
+                        <button
+                            onClick={() => setQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
+                            aria-label="Clear search"
+                        >
+                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                        </button>
+                    )}
+                </div>
                 
                 {/* Compact Filter Pills */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
