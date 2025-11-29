@@ -937,3 +937,74 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
     }
 }
 
+/**
+ * Retry incomplete assets that failed due to rate limit errors
+ * This runs separately from the main refresh cycle to give rate-limited assets another chance
+ */
+export const retryRateLimitedAssets = async (): Promise<{ retried: number; succeeded: number; failed: number }> => {
+    const now = Date.now()
+    logger.info('[AssetMetadata] 🔄 Starting retry cycle for rate-limited incomplete assets')
+
+    try {
+        // Find incomplete assets that failed due to rate limits
+        const rateLimitedAssets = await prisma.asset.findMany({
+            where: {
+                isComplete: false,
+                lastFailureReason: 'RATE_LIMIT',
+                coingeckoId: { not: null }, // Must have CoinGecko ID to retry
+            },
+            orderBy: { updatedAt: 'asc' }, // Retry oldest failures first
+        })
+
+        if (rateLimitedAssets.length === 0) {
+            logger.debug('[AssetMetadata] No rate-limited assets to retry')
+            return { retried: 0, succeeded: 0, failed: 0 }
+        }
+
+        logger.info(`[AssetMetadata] Found ${rateLimitedAssets.length} rate-limited assets to retry`)
+
+        let succeeded = 0
+        let failed = 0
+
+        // Retry each asset with rate limiting (3s gap between requests)
+        for (let i = 0; i < rateLimitedAssets.length; i++) {
+            const asset = rateLimitedAssets[i]
+            const progress = `[${i + 1}/${rateLimitedAssets.length}]`
+
+            try {
+                logger.info(`[AssetMetadata] ${progress} Retrying ${asset.baseSymbol}...`)
+                const result = await refreshSingleAsset(asset)
+
+                if (result.success) {
+                    succeeded++
+                    logger.info(`[AssetMetadata] ${progress} ✅ ${asset.baseSymbol} retry succeeded`)
+                } else {
+                    failed++
+                    logger.warn(`[AssetMetadata] ${progress} ❌ ${asset.baseSymbol} retry failed: ${result.reason}`)
+                }
+
+                // Rate limit: wait 3 seconds between requests (except for last one)
+                if (i < rateLimitedAssets.length - 1) {
+                    await sleep(REQUEST_GAP_MS)
+                }
+            } catch (error) {
+                failed++
+                logger.error(`[AssetMetadata] ${progress} ❌ Unexpected error retrying ${asset.baseSymbol}:`, error)
+            }
+        }
+
+        const elapsedMs = Date.now() - now
+        logger.info(`[AssetMetadata] ✅ Rate limit retry cycle complete`, {
+            retried: rateLimitedAssets.length,
+            succeeded,
+            failed,
+            elapsedMs,
+        })
+
+        return { retried: rateLimitedAssets.length, succeeded, failed }
+    } catch (error) {
+        logger.error('[AssetMetadata] ❌ Rate limit retry cycle failed:', error)
+        return { retried: 0, succeeded: 0, failed: 0 }
+    }
+}
+
