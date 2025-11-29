@@ -433,10 +433,11 @@ const validateUrl = async (url: string): Promise<boolean> => {
     }
 }
 
-export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boolean; reason?: string; error?: string }> => {
+export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = false): Promise<{ success: boolean; reason?: string; error?: string }> => {
     const now = Date.now()
     const symbol = asset.baseSymbol.toUpperCase()
-    const allowOverwrite = asset.status !== 'VERIFIED'
+    // If forceRefresh is true, always overwrite (used when CoinGecko ID changes)
+    const allowOverwrite = forceRefresh || asset.status !== 'VERIFIED'
 
     try {
         logger.debug(`[AssetMetadata] Starting refresh for ${symbol}`, {
@@ -476,18 +477,20 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
 
         const payload: Partial<Asset> = {}
 
-        // Always update displayName if we have it from CoinGecko (when allowOverwrite is true)
+        // When forceRefresh is true (CoinGecko ID changed), always overwrite all fields
+        // Otherwise, only update if allowOverwrite is true OR field is missing
+        
+        // Always update displayName if we have it from CoinGecko
         if (allowOverwrite || !asset.displayName) {
             payload.displayName = profile.name || asset.displayName || symbol
         }
         
-        // Always update description if we have it from CoinGecko (when allowOverwrite is true)
+        // Always update description - if CoinGecko has no description, set to null (clear old wrong data)
         if (allowOverwrite || !asset.description) {
-            payload.description = profile.description ?? asset.description
+            payload.description = profile.description ?? null // Explicitly set to null if CoinGecko has no description
         }
         
         // For websiteUrl: if CoinGecko has no homepage, set to null (don't keep old wrong URLs)
-        // Only update if allowOverwrite is true OR if we don't have a websiteUrl yet
         if (allowOverwrite || !asset.websiteUrl) {
             const newWebsiteUrl = profile.homepage || null
             logger.debug(`[AssetMetadata] Setting websiteUrl for ${symbol}:`, {
@@ -495,6 +498,7 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
                 newWebsiteUrl: newWebsiteUrl,
                 fromCoinGecko: !!profile.homepage,
                 allowOverwrite,
+                forceRefresh,
             })
             payload.websiteUrl = newWebsiteUrl // Explicitly set to null if CoinGecko has no homepage
         }
@@ -507,6 +511,9 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
         // Always update logo if we successfully fetched it
         if (logoDataUrl && (allowOverwrite || !asset.logoUrl)) {
             payload.logoUrl = logoDataUrl
+        } else if (forceRefresh && !logoDataUrl) {
+            // If forceRefresh and no logo from CoinGecko, clear old logo (might be from wrong ID)
+            payload.logoUrl = null
         }
         
         // Always update CoinGecko ID to ensure it matches what we just fetched

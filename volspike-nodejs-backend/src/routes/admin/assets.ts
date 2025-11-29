@@ -235,7 +235,8 @@ adminAssetRoutes.post('/', async (c) => {
                         newCoingeckoId: latestAsset.coingeckoId,
                     })
                     
-                    const refreshResult = await refreshSingleAsset(latestAsset)
+                    // When CoinGecko ID changes, force refresh all fields (don't preserve old data from wrong ID)
+                    const refreshResult = await refreshSingleAsset(latestAsset, true) // forceRefresh = true
                     if (refreshResult.success) {
                         logger.info(`[AdminAssets] ✅ Auto-refreshed ${latestAsset.baseSymbol} successfully in background`)
                     } else {

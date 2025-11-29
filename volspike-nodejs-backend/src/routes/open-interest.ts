@@ -67,11 +67,7 @@ const handleIngest = async (c: any) => {
       updatedAt: Date.now()
     }
 
-    const sampleEntries = Object.entries(oiMap).slice(0, 5).map(([sym, oi]) => `${sym}: $${oi.toLocaleString()}`)
-    console.log(`✅ [Open Interest Debug] Cached ${Object.keys(oiMap).length} symbols`, {
-      sample: sampleEntries,
-      timestamp: new Date().toISOString()
-    })
+    // Debug logging removed - Open Interest caching is working correctly
 
     return c.json({
       success: true,
@@ -95,7 +91,6 @@ app.get('/', async (c) => {
   try {
     // Always return last known data if available (never return empty {} when we have data)
     if (!oiCache) {
-      console.log('ℹ️  [Open Interest Debug] Cache empty - returning empty response')
       return c.json({
         data: {},
         stale: true,
@@ -108,23 +103,6 @@ app.get('/', async (c) => {
     const stale = age > FIVE_MIN_MS
     const dangerouslyStale = age > (FIVE_MIN_MS + STALE_GRACE_MS)
 
-    // Enhanced logging for debugging
-    const cacheKeys = Object.keys(oiCache.data)
-    const sampleData = cacheKeys.slice(0, 5).map(key => ({
-      symbol: key,
-      oiUsd: oiCache!.data[key]
-    }))
-    
-    console.log('📊 [Open Interest Debug] GET request:', {
-        updatedAt: new Date(oiCache.updatedAt).toISOString(),
-      count: cacheKeys.length,
-      sample: sampleData,
-        ageSeconds: Math.floor(age / 1000),
-        stale,
-      dangerouslyStale,
-      userAgent: c.req.header('user-agent')?.substring(0, 50)
-      })
-
     // Always return last known data; let client decide how to render stale
     return c.json({
       data: oiCache.data,
@@ -134,7 +112,7 @@ app.get('/', async (c) => {
     })
 
   } catch (error) {
-    console.error('❌ [Open Interest Debug] GET error:', error)
+    console.error('❌ Open Interest GET error:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
