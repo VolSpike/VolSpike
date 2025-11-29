@@ -244,13 +244,20 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
         imageKeys: data?.image ? Object.keys(data.image) : [],
     })
 
-    const homepage: string | undefined = Array.isArray(data?.links?.homepage)
+    const homepageRaw: string | undefined = Array.isArray(data?.links?.homepage)
         ? data.links.homepage.find((url: string | null | undefined) => !!url?.trim())
         : undefined
 
-    // Log what we extracted
-    if (homepage) {
-        logger.info(`[AssetMetadata] ✅ Extracted homepage from CoinGecko for ${coingeckoId}: ${homepage}`)
+    // Validate homepage URL before using it
+    let homepage: string | undefined = undefined
+    if (homepageRaw) {
+        const isValid = await validateUrl(homepageRaw)
+        if (isValid) {
+            homepage = homepageRaw
+            logger.info(`[AssetMetadata] ✅ Extracted and validated homepage from CoinGecko for ${coingeckoId}: ${homepage}`)
+        } else {
+            logger.warn(`[AssetMetadata] ⚠️  Homepage URL failed validation for ${coingeckoId}: ${homepageRaw} (filtered out)`)
+        }
     } else {
         logger.info(`[AssetMetadata] ⚠️  No homepage found in CoinGecko response for ${coingeckoId}`)
     }
@@ -319,6 +326,77 @@ const fetchAsDataUrl = async (url?: string | null): Promise<string | undefined> 
             error: error instanceof Error ? error.message : String(error),
         })
         return url
+    }
+}
+
+/**
+ * Validate if a URL is accessible and not broken
+ * Returns true if URL is valid and accessible, false otherwise
+ */
+const validateUrl = async (url: string): Promise<boolean> => {
+    try {
+        // Basic URL format validation
+        try {
+            new URL(url)
+        } catch {
+            logger.debug(`[AssetMetadata] Invalid URL format: ${url}`)
+            return false
+        }
+
+        // Check for common invalid patterns
+        const invalidPatterns = [
+            /^https?:\/\/www\.simons\.cat/, // Known broken URL
+            /^https?:\/\/simons\.cat/, // Known broken URL
+            /^https?:\/\/localhost/,
+            /^https?:\/\/127\.0\.0\.1/,
+            /^https?:\/\/0\.0\.0\.0/,
+        ]
+
+        for (const pattern of invalidPatterns) {
+            if (pattern.test(url)) {
+                logger.debug(`[AssetMetadata] URL matches invalid pattern: ${url}`)
+                return false
+            }
+        }
+
+        // Try a HEAD request to check if URL is accessible (with short timeout)
+        try {
+            const response = await axios.head(url, {
+                timeout: 5000, // 5 second timeout
+                maxRedirects: 5,
+                validateStatus: (status) => status < 500, // Accept 2xx, 3xx, 4xx but not 5xx
+            })
+
+            // Consider 4xx (client errors) as potentially broken, but 2xx/3xx as valid
+            if (response.status >= 400 && response.status < 500) {
+                logger.debug(`[AssetMetadata] URL returned client error (${response.status}): ${url}`)
+                return false
+            }
+
+            return true
+        } catch (error: any) {
+            // Network errors, timeouts, or 5xx errors mean URL is likely broken
+            if (axios.isAxiosError(error)) {
+                const status = error.response?.status
+                if (status && status >= 500) {
+                    logger.debug(`[AssetMetadata] URL returned server error (${status}): ${url}`)
+                    return false
+                }
+                if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
+                    logger.debug(`[AssetMetadata] URL is not accessible (${error.code}): ${url}`)
+                    return false
+                }
+            }
+            logger.debug(`[AssetMetadata] URL validation failed: ${url}`, {
+                error: error instanceof Error ? error.message : String(error),
+            })
+            return false
+        }
+    } catch (error) {
+        logger.debug(`[AssetMetadata] URL validation error: ${url}`, {
+            error: error instanceof Error ? error.message : String(error),
+        })
+        return false
     }
 }
 
