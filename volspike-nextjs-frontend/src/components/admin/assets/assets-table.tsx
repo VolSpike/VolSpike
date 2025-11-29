@@ -135,99 +135,34 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 )
             )
             
-            // Save is instant - always show success immediately
-            toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
-            
-            // If CoinGecko ID changed, refresh happens in background with retry logic
-            // Poll for updates until we see actual data changes (logo, description, etc.)
-            if (res.needsRefresh) {
-                console.log(`[AdminAssetsTable] CoinGecko ID changed for ${asset.baseSymbol}, background refresh with retry logic triggered`)
-                
-                // Store initial state to detect changes
-                const initialLogoUrl = updatedAsset.logoUrl
-                const initialDescription = updatedAsset.description
-                const initialDisplayName = updatedAsset.displayName
-                const initialWebsiteUrl = updatedAsset.websiteUrl
-                const initialTwitterUrl = updatedAsset.twitterUrl
-                
-                // Poll multiple times until we see data actually updated or timeout
-                // Use faster polling at first (every 1 second), then slower (every 3 seconds) after 10 polls
-                const MAX_POLLS = 20 // Poll up to 20 times (faster initial polling)
-                const FAST_POLL_INTERVAL_MS = 1000 // Poll every 1 second for first 10 polls
-                const SLOW_POLL_INTERVAL_MS = 3000 // Poll every 3 seconds after that
-                let pollCount = 0
-                
-                const pollForUpdates = async () => {
-                    try {
-                        pollCount++
-                        console.log(`[AdminAssetsTable] Polling ${asset.baseSymbol} for updates (attempt ${pollCount}/${MAX_POLLS})...`)
-                        
-                        // Fetch updated asset
-                        const refreshedRes = await adminAPI.getAssets({ q: updatedAsset.baseSymbol, limit: 1, page: 1 })
-                        const refreshedAsset = refreshedRes.assets?.find(a => 
-                            (a.id && updatedAsset.id && a.id === updatedAsset.id) || 
-                            a.baseSymbol === updatedAsset.baseSymbol
+            // If CoinGecko ID changed, trigger refresh immediately (same as Refresh button)
+            if (res.needsRefresh && updatedAsset.id) {
+                console.log(`[AdminAssetsTable] CoinGecko ID changed for ${asset.baseSymbol}, triggering refresh...`)
+                setRefreshingId(updatedAsset.id)
+                try {
+                    // Call the same refresh endpoint that the Refresh button uses
+                    const refreshRes = await adminAPI.refreshAsset(updatedAsset.id)
+                    
+                    // Update asset state with refreshed data (same as Refresh button)
+                    setAssets((prev) =>
+                        prev.map((a) =>
+                            a.id === updatedAsset.id ? refreshRes.asset : a
                         )
-                        
-                        if (refreshedAsset) {
-                            // Check if data actually changed (logo, description, displayName, website, twitter)
-                            const logoChanged = refreshedAsset.logoUrl !== initialLogoUrl
-                            const descriptionChanged = refreshedAsset.description !== initialDescription
-                            const displayNameChanged = refreshedAsset.displayName !== initialDisplayName
-                            const websiteChanged = refreshedAsset.websiteUrl !== initialWebsiteUrl
-                            const twitterChanged = refreshedAsset.twitterUrl !== initialTwitterUrl
-                            const dataChanged = logoChanged || descriptionChanged || displayNameChanged || websiteChanged || twitterChanged
-                            
-                            // ALWAYS update asset in state (even if no changes detected) to ensure UI is in sync
-                            setAssets((prev) =>
-                                prev.map((a) =>
-                                    (a.id && refreshedAsset.id && a.id === refreshedAsset.id) || 
-                                    (!a.id && a.baseSymbol === refreshedAsset.baseSymbol)
-                                        ? refreshedAsset
-                                        : a
-                                )
-                            )
-                            
-                            // Only show success if data actually changed
-                            if (dataChanged) {
-                                console.log(`[AdminAssetsTable] ✅ Updated ${asset.baseSymbol} with refreshed data`, {
-                                    logoChanged,
-                                    descriptionChanged,
-                                    displayNameChanged,
-                                    websiteChanged,
-                                    twitterChanged,
-                                    pollCount,
-                                })
-                                toast.success(`Refreshed ${asset.baseSymbol} from CoinGecko`, { duration: 2000 })
-                                return // Success - stop polling
-                            }
-                            
-                            // If no changes yet but we haven't hit max polls, keep polling
-                            if (pollCount < MAX_POLLS) {
-                                // Use faster polling for first 10 attempts, then slower
-                                const pollInterval = pollCount <= 10 ? FAST_POLL_INTERVAL_MS : SLOW_POLL_INTERVAL_MS
-                                setTimeout(pollForUpdates, pollInterval)
-                            } else {
-                                console.warn(`[AdminAssetsTable] ⚠️ Refresh for ${asset.baseSymbol} completed but no data changes detected after ${MAX_POLLS} polls`)
-                                // Don't show error - refresh might have succeeded but data was the same
-                            }
-                        } else {
-                            // Asset not found - stop polling
-                            console.warn(`[AdminAssetsTable] Asset ${asset.baseSymbol} not found during polling`)
-                        }
-                    } catch (err) {
-                        console.debug(`[AdminAssetsTable] Failed to fetch refreshed asset ${asset.baseSymbol}:`, err)
-                        // Retry polling if we haven't hit max polls
-                        if (pollCount < MAX_POLLS) {
-                            const pollInterval = pollCount <= 10 ? FAST_POLL_INTERVAL_MS : SLOW_POLL_INTERVAL_MS
-                            setTimeout(pollForUpdates, pollInterval)
-                        }
-                    }
+                    )
+                    
+                    toast.success(refreshRes.message || `Saved and refreshed ${asset.baseSymbol} from CoinGecko`, { duration: 2000 })
+                    console.log(`[AdminAssetsTable] ✅ Saved and refreshed ${asset.baseSymbol}`)
+                } catch (refreshErr: any) {
+                    console.error('[AdminAssetsTable] Failed to refresh asset after save', refreshErr)
+                    // Show save success even if refresh fails
+                    toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
+                    toast.error(refreshErr.response?.error || refreshErr.response?.details || 'Failed to refresh from CoinGecko', { duration: 4000 })
+                } finally {
+                    setRefreshingId(null)
                 }
-                
-                // Start polling immediately (backend refresh is fast, ~500ms)
-                setTimeout(pollForUpdates, 1000) // Start polling after 1 second
             } else {
+                // No refresh needed - just show save success
+                toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
                 console.log(`[AdminAssetsTable] Saved ${asset.baseSymbol} (no refresh needed)`)
             }
         } catch (err: any) {
