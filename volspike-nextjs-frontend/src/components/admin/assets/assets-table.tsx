@@ -342,18 +342,6 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         }
     }
 
-    const handleAdd = () => {
-        setAssets((prev) => [
-            {
-                baseSymbol: '',
-                binanceSymbol: '',
-                coingeckoId: '',
-                displayName: '',
-                status: 'AUTO',
-            },
-            ...prev,
-        ])
-    }
 
     const handleDelete = async (asset: AssetRecord) => {
         if (!asset.id) {
@@ -699,16 +687,6 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         </div>
                     </div>
 
-                    {/* Add Asset Button */}
-                    <Button
-                        size="default"
-                        variant="default"
-                        onClick={handleAdd}
-                        className="bg-green-600 hover:bg-green-700 text-white shadow-md"
-                    >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Asset
-                    </Button>
                 </div>
             </div>
 
