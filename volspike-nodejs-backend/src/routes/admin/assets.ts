@@ -22,14 +22,14 @@ const upsertSchema = z.object({
     baseSymbol: z.string().min(1),
     binanceSymbol: z.string().optional(),
     extraSymbols: z.array(z.string()).optional(),
-    coingeckoId: z.string().optional(),
-    displayName: z.string().optional(),
-    description: z.string().optional(),
-    websiteUrl: z.string().url().optional(),
-    twitterUrl: z.string().url().optional(),
-    logoUrl: z.string().url().optional(),
+    coingeckoId: z.string().optional().nullable(),
+    displayName: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    websiteUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional().nullable(),
+    twitterUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional().nullable(),
+    logoUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional().nullable(),
     status: z.enum(['AUTO', 'VERIFIED', 'HIDDEN']).optional(),
-    notes: z.string().optional(),
+    notes: z.string().optional().nullable(),
 })
 
 // GET /api/admin/assets
@@ -151,7 +151,22 @@ adminAssetRoutes.post('/', async (c) => {
         return c.json({ asset })
     } catch (error) {
         logger.error('Admin asset upsert error:', error)
-        return c.json({ error: 'Failed to save asset' }, 500)
+        
+        // Provide detailed error message for validation errors
+        if (error instanceof z.ZodError) {
+            const errorMessages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+            logger.warn(`[AdminAssets] Validation error: ${errorMessages}`)
+            return c.json({ 
+                error: 'Validation failed',
+                details: errorMessages,
+                errors: error.errors
+            }, 400)
+        }
+        
+        return c.json({ 
+            error: 'Failed to save asset',
+            details: error instanceof Error ? error.message : String(error)
+        }, 500)
     }
 })
 

@@ -139,7 +139,8 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             }
         } catch (err: any) {
             console.error('[AdminAssetsTable] Failed to save asset', err)
-            toast.error(err.response?.error || 'Failed to save asset')
+            const errorMessage = err.response?.data?.details || err.response?.data?.error || err.response?.error || 'Failed to save asset'
+            toast.error(errorMessage, { duration: 5000 })
         } finally {
             setSavingId(null)
         }
