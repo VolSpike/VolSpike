@@ -99,11 +99,20 @@ adminAssetRoutes.get('/', async (c) => {
 adminAssetRoutes.post('/', async (c) => {
     try {
         const body = await c.req.json()
+        logger.debug('[AdminAssets] Received save request:', {
+            id: body.id,
+            baseSymbol: body.baseSymbol,
+            coingeckoId: body.coingeckoId,
+            hasEditForm: !!body.baseSymbol,
+        })
         
         // Normalize empty strings to null for optional fields before validation
         // Also ensure baseSymbol is present and not empty
         if (!body.baseSymbol || body.baseSymbol.trim() === '') {
-            logger.warn('[AdminAssets] Missing or empty baseSymbol in request body:', body)
+            logger.warn('[AdminAssets] Missing or empty baseSymbol in request body:', {
+                bodyKeys: Object.keys(body),
+                body,
+            })
             return c.json({ 
                 error: 'Validation failed',
                 details: 'baseSymbol is required and cannot be empty',
@@ -116,11 +125,16 @@ adminAssetRoutes.post('/', async (c) => {
             websiteUrl: body.websiteUrl === '' ? null : body.websiteUrl,
             twitterUrl: body.twitterUrl === '' ? null : body.twitterUrl,
             logoUrl: body.logoUrl === '' ? null : body.logoUrl,
-            coingeckoId: body.coingeckoId === '' ? null : body.coingeckoId,
+            coingeckoId: body.coingeckoId === '' ? null : (body.coingeckoId?.trim() || null),
             displayName: body.displayName === '' ? null : body.displayName,
             description: body.description === '' ? null : body.description,
             notes: body.notes === '' ? null : body.notes,
         }
+        
+        logger.debug('[AdminAssets] Normalized body:', {
+            baseSymbol: normalizedBody.baseSymbol,
+            coingeckoId: normalizedBody.coingeckoId,
+        })
         
         const data = upsertSchema.parse(normalizedBody)
 
