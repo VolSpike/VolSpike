@@ -168,8 +168,15 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
 
 const shouldRefresh = (asset: Asset, now: number): boolean => {
     if (asset.status === 'HIDDEN') return false
-    // Refresh if missing critical fields (including description)
-    if (!asset.logoUrl || !asset.displayName || !asset.description || !asset.coingeckoId) return true
+    
+    // Skip assets without CoinGecko ID - they can't be refreshed until admin adds one
+    // These will appear in "Missing Data" filter for admin review
+    if (!asset.coingeckoId) return false
+    
+    // Refresh if missing other critical fields (logo, displayName, description)
+    if (!asset.logoUrl || !asset.displayName || !asset.description) return true
+    
+    // Refresh if data is stale (>1 week old)
     const updatedAt = asset.updatedAt?.getTime?.() ?? Date.now()
     return now - updatedAt > REFRESH_INTERVAL_MS
 }
