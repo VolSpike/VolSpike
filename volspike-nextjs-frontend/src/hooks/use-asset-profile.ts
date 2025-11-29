@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { STATIC_ASSET_MANIFEST, findAssetInManifest, findAssetInManifestSync, prefetchAssetManifest, type AssetRecord } from '@/lib/asset-manifest'
+import { STATIC_ASSET_MANIFEST, findAssetInManifest, findAssetInManifestSync, prefetchAssetManifest, loadAssetManifest, type AssetRecord } from '@/lib/asset-manifest'
 import { rateLimitedFetch } from '@/lib/coingecko-rate-limiter'
 
 export interface AssetProfile {
@@ -435,17 +435,28 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                 // This ensures we use database data, not stale localStorage cache
                 let manifestEntry = findAssetInManifestSync(upper)
                 
-                // PRIORITY 2: If not found synchronously, try async lookup (might need to fetch manifest)
-                // This will load manifest from API if not cached, then search again
+                // PRIORITY 2: If not found synchronously, ensure manifest is loaded and try again
                 if (!manifestEntry) {
-                    // Load manifest first to ensure it's in memory/localStorage
-                    await prefetchAssetManifest()
-                    // Try sync lookup again after loading
+                    // Ensure manifest is loaded (will use cache if available, fetch if needed)
+                    await loadAssetManifest()
+                    // Try sync lookup again after ensuring manifest is loaded
                     manifestEntry = findAssetInManifestSync(upper)
-                    // If still not found, try async lookup
+                    // If still not found, try async lookup (shouldn't happen, but safety net)
                     if (!manifestEntry) {
                         manifestEntry = await findAssetInManifest(upper)
                     }
+                }
+                
+                // Debug logging
+                if (manifestEntry) {
+                    debugLog(`✅ Found manifest entry for ${upper}:`, {
+                        baseSymbol: manifestEntry.baseSymbol,
+                        hasLogo: !!manifestEntry.logoUrl,
+                        hasDescription: !!manifestEntry.description,
+                        logoUrl: manifestEntry.logoUrl?.substring(0, 50) + '...',
+                    })
+                } else {
+                    debugLog(`❌ No manifest entry found for ${upper}`)
                 }
                 
                 // If manifest entry exists, use it (database is source of truth)
