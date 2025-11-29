@@ -365,19 +365,23 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
 
                 // Only start new cycle if one isn't already running
                 if (!progress.isRunning) {
-                    // Check if there are assets needing refresh
-                    const assetCount = await prisma.asset.count()
+                    // Check if there are Complete assets needing refresh (matches shouldRefresh logic)
+                    // Only Complete assets with CoinGecko ID that are missing fields OR stale (>1 week)
+                    const now = Date.now()
+                    const oneWeekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
+                    
                     const assetsNeedingRefresh = await prisma.asset.findMany({
                         where: {
                             status: { not: 'HIDDEN' },
+                            isComplete: true, // Only Complete assets
+                            coingeckoId: { not: null }, // Must have CoinGecko ID
                             OR: [
                                 { logoUrl: null },
                                 { displayName: null },
-                                { coingeckoId: null },
                                 { description: null },
                                 {
                                     updatedAt: {
-                                        lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Older than 7 days
+                                        lt: oneWeekAgo, // Older than 1 week
                                     },
                                 },
                             ],
@@ -386,11 +390,11 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                     })
 
                     if (assetsNeedingRefresh.length > 0) {
-                        logger.info(`🔄 Running scheduled asset refresh cycle (${assetsNeedingRefresh.length} assets need refresh)`)
+                        logger.info(`🔄 Running scheduled asset refresh cycle (Complete assets need refresh)`)
                         await runAssetRefreshCycle('scheduled')
                         logger.info('✅ Scheduled asset refresh cycle completed')
                     } else {
-                        logger.debug('ℹ️ No assets need refresh, skipping scheduled cycle')
+                        logger.debug('ℹ️ No Complete assets need refresh, skipping scheduled cycle')
                     }
                 } else {
                     logger.info('ℹ️ Asset refresh cycle already running, skipping scheduled run')

@@ -217,9 +217,19 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 if (status.success && status.progress) {
                     setRefreshProgress(status.progress)
 
-                    // If cycle completed, refresh assets list
+                    // If cycle completed, silently refresh assets list without showing loading state
                     if (!status.progress.isRunning && refreshProgress.isRunning) {
-                        await fetchAssets()
+                        // Silently update assets without triggering loading state
+                        try {
+                            const res = await adminAPI.getAssets({ q: '', limit: 1000, page: currentPage })
+                            setAssets(res.assets || [])
+                            setPagination(res.pagination)
+                        } catch (err) {
+                            console.debug('[AdminAssetsTable] Failed to silently refresh assets:', err)
+                            // If silent refresh fails, do a normal refresh
+                            await fetchAssets(currentPage, false)
+                        }
+                        
                         const refreshed = status.progress.refreshed || 0
                         const failed = status.progress.failed || 0
                         const skipped = status.progress.skipped || 0
