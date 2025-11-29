@@ -385,34 +385,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         return `${Math.floor(diffDays / 30)} months ago`
     }
 
-    if (!accessToken) {
-        return (
-            <div className="p-4 text-sm text-muted-foreground">
-                Admin access token missing – sign in as admin to manage asset mappings.
-            </div>
-        )
-    }
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
-            </div>
-        )
-    }
-
-    const assetsNeedingRefresh = assets.filter(a => {
-        if (!a.logoUrl || !a.displayName || !a.coingeckoId) return true
-        if (!a.updatedAt) return true
-        const updatedAt = new Date(a.updatedAt).getTime()
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-        return updatedAt < weekAgo
-    }).length
-
-    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
-    const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
-
-    // Filter assets based on selected filter
+    // Filter assets based on selected filter (must be before early returns)
     const filteredAssets = useMemo(() => {
         let filtered = assets
 
@@ -447,6 +420,33 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
 
         return filtered
     }, [assets, query, filterStatus, refreshProgress?.errors])
+
+    const assetsNeedingRefresh = assets.filter(a => {
+        if (!a.logoUrl || !a.displayName || !a.coingeckoId) return true
+        if (!a.updatedAt) return true
+        const updatedAt = new Date(a.updatedAt).getTime()
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+        return updatedAt < weekAgo
+    }).length
+
+    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
+    const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
+
+    if (!accessToken) {
+        return (
+            <div className="p-4 text-sm text-muted-foreground">
+                Admin access token missing – sign in as admin to manage asset mappings.
+            </div>
+        )
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-4">

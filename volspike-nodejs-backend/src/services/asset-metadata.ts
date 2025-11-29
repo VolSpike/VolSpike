@@ -207,7 +207,15 @@ const pickCoingeckoId = async (baseSymbol: string, knownId?: string | null): Pro
     }
 }
 
-const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Promise<ReturnType<typeof fetchCoinProfile>> => {
+interface CoinProfile {
+    name?: string
+    description?: string
+    homepage?: string
+    twitterUrl?: string
+    logoUrl?: string
+}
+
+const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Promise<CoinProfile> => {
     const maxRetries = 3
     const baseDelay = 5000 // 5 seconds base delay
     
