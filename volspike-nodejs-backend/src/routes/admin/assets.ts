@@ -20,8 +20,8 @@ const listSchema = z.object({
 const upsertSchema = z.object({
     id: z.string().optional(),
     baseSymbol: z.string().min(1),
-    binanceSymbol: z.string().optional(),
-    extraSymbols: z.array(z.string()).optional(),
+    binanceSymbol: z.string().optional().nullable(),
+    extraSymbols: z.array(z.string()).optional(), // If omitted, Zod treats as undefined (valid)
     coingeckoId: z.string().optional().nullable(),
     displayName: z.string().optional().nullable(),
     description: z.string().optional().nullable(),
@@ -134,6 +134,18 @@ adminAssetRoutes.post('/', async (c) => {
             } else {
                 normalizedBody[field] = body[field]
             }
+        }
+        
+        // Handle extraSymbols specially: null → undefined (so Zod treats it as optional)
+        // If it's an array, keep it; if null/undefined, omit it from the schema validation
+        if (body.extraSymbols === null || body.extraSymbols === undefined) {
+            // Omit from normalizedBody so Zod treats it as optional
+            delete normalizedBody.extraSymbols
+        } else if (Array.isArray(body.extraSymbols)) {
+            normalizedBody.extraSymbols = body.extraSymbols
+        } else {
+            // Invalid type, set to empty array
+            normalizedBody.extraSymbols = []
         }
         
         logger.debug('[AdminAssets] Normalized body:', {
