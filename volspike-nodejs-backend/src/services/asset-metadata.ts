@@ -58,6 +58,7 @@ export interface AssetManifestEntry {
     twitterUrl?: string | null
     logoUrl?: string | null
     status?: AssetStatus
+    isComplete?: boolean
     updatedAt?: string
     source: 'db' | 'fallback'
 }
@@ -147,6 +148,7 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
         twitterUrl: asset.twitterUrl,
         logoUrl: asset.logoUrl,
         status: asset.status,
+        isComplete: asset.isComplete ?? false,
         updatedAt: asset.updatedAt.toISOString(),
         source: 'db',
     }))
@@ -168,6 +170,11 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
 
 const shouldRefresh = (asset: Asset, now: number): boolean => {
     if (asset.status === 'HIDDEN') return false
+    
+    // Only process assets marked as Complete by admin (weekly refresh cycles)
+    // Incomplete assets are still auto-refreshed when new Binance pairs are detected,
+    // but they don't go into scheduled weekly cycles until admin marks them Complete
+    if (!asset.isComplete) return false
     
     // Skip assets without CoinGecko ID - they can't be refreshed until admin adds one
     // These will appear in "Missing Data" filter for admin review

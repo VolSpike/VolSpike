@@ -12,6 +12,7 @@ export interface AssetRecord {
     twitterUrl?: string | null
     logoUrl?: string | null
     status?: AssetStatus
+    isComplete?: boolean
     notes?: string | null
     updatedAt?: string | null
     source?: 'db' | 'fallback'
@@ -98,6 +99,7 @@ const normalizeRecord = (record: AssetRecord): AssetRecord => {
         twitterUrl: record.twitterUrl || null,
         logoUrl: record.logoUrl || null,
         status: record.status || 'AUTO',
+        isComplete: record.isComplete ?? false,
     }
 }
 

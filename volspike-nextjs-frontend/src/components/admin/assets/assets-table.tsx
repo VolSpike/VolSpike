@@ -26,7 +26,8 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [query, setQuery] = useState('')
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards') // Default to cards for better UX
     const [recentlyRefreshed, setRecentlyRefreshed] = useState<Set<string>>(new Set())
-    const [filterStatus, setFilterStatus] = useState<'all' | 'needs-refresh' | 'missing-data' | 'errors'>('all')
+    const [filterStatus, setFilterStatus] = useState<'all' | 'needs-refresh' | 'missing-data' | 'incomplete' | 'complete' | 'errors'>('all')
+    const [missingDataFilter, setMissingDataFilter] = useState<'all' | 'website' | 'description' | 'coingecko-id' | 'image' | 'twitter' | null>(null)
     const [refreshProgress, setRefreshProgress] = useState<{
         isRunning: boolean
         current: number
@@ -435,6 +436,16 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId && a.description).length
     const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
 
+    // Calculate missing data counts
+    const missingDataCount = assets.filter(a => !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description || !a.websiteUrl || !a.twitterUrl).length
+    const missingWebsiteCount = assets.filter(a => !a.websiteUrl).length
+    const missingDescriptionCount = assets.filter(a => !a.description).length
+    const missingCoingeckoIdCount = assets.filter(a => !a.coingeckoId).length
+    const missingImageCount = assets.filter(a => !a.logoUrl).length
+    const missingTwitterCount = assets.filter(a => !a.twitterUrl).length
+    const incompleteCount = assets.filter(a => !a.isComplete).length
+    const completeCount = assets.filter(a => a.isComplete).length
+
     // Filter assets based on selected filter (must be before early returns)
     const filteredAssets = useMemo(() => {
         let filtered = assets
@@ -453,13 +464,12 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
 
         // Apply status filter
         if (filterStatus === 'needs-refresh') {
-            // Needs Refresh: Assets with all critical fields but stale (>1 week old)
-            // Excludes assets with missing data - those go in "Missing Data" filter
+            // Needs Refresh: Complete assets with all critical fields but stale (>1 week old)
             const refreshInterval = 7 * 24 * 60 * 60 * 1000 // 1 week
             const now = Date.now()
             filtered = filtered.filter((a) => {
-                if (a.status === 'HIDDEN') return false
-                // Must have all critical fields (exclude missing data)
+                if (a.status === 'HIDDEN' || !a.isComplete) return false
+                // Must have all critical fields
                 if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return false
                 // Must have updatedAt timestamp
                 if (!a.updatedAt) return false
@@ -468,8 +478,22 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 return now - updatedAt > refreshInterval
             })
         } else if (filterStatus === 'missing-data') {
-            // Missing Data: Assets missing critical fields
-            filtered = filtered.filter((a) => !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description)
+            // Missing Data: Assets missing any field (with sub-filters)
+            filtered = filtered.filter((a) => {
+                if (missingDataFilter === 'website') return !a.websiteUrl
+                if (missingDataFilter === 'description') return !a.description
+                if (missingDataFilter === 'coingecko-id') return !a.coingeckoId
+                if (missingDataFilter === 'image') return !a.logoUrl
+                if (missingDataFilter === 'twitter') return !a.twitterUrl
+                // Show all missing data (any field missing)
+                return !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description || !a.websiteUrl || !a.twitterUrl
+            })
+        } else if (filterStatus === 'incomplete') {
+            // Incomplete: Assets not marked as Complete by admin
+            filtered = filtered.filter((a) => !a.isComplete)
+        } else if (filterStatus === 'complete') {
+            // Complete: Assets marked as Complete by admin
+            filtered = filtered.filter((a) => a.isComplete)
         } else if (filterStatus === 'errors') {
             // Show assets that failed in the last refresh cycle
             const errorSymbols = new Set(refreshProgress?.errors?.map((e) => e.symbol) || [])
@@ -477,7 +501,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         }
 
         return filtered
-    }, [assets, query, filterStatus, refreshProgress?.errors])
+    }, [assets, query, filterStatus, missingDataFilter, refreshProgress?.errors])
 
     if (!accessToken) {
         return (
@@ -626,40 +650,78 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 </div>
                 
                 {/* Compact Filter Pills */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
                     <button
-                        onClick={() => setFilterStatus('all')}
+                        onClick={() => {
+                            setFilterStatus('all')
+                            setMissingDataFilter(null)
+                        }}
                         className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
                             filterStatus === 'all'
                                 ? 'bg-primary text-primary-foreground shadow-sm'
                                 : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                         }`}
                     >
-                        All
+                        All {filterStatus === 'all' && missingDataCount > 0 && `(${missingDataCount} missing)`}
                     </button>
                     <button
-                        onClick={() => setFilterStatus('needs-refresh')}
+                        onClick={() => {
+                            setFilterStatus('incomplete')
+                            setMissingDataFilter(null)
+                        }}
                         className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
-                            filterStatus === 'needs-refresh'
+                            filterStatus === 'incomplete'
                                 ? 'bg-primary text-primary-foreground shadow-sm'
                                 : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                         }`}
                     >
-                        Needs Refresh
+                        Incomplete ({incompleteCount})
                     </button>
                     <button
-                        onClick={() => setFilterStatus('missing-data')}
+                        onClick={() => {
+                            setFilterStatus('complete')
+                            setMissingDataFilter(null)
+                        }}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                            filterStatus === 'complete'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        }`}
+                    >
+                        Complete ({completeCount})
+                    </button>
+                    <button
+                        onClick={() => {
+                            setFilterStatus('missing-data')
+                            setMissingDataFilter('all')
+                        }}
                         className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
                             filterStatus === 'missing-data'
                                 ? 'bg-primary text-primary-foreground shadow-sm'
                                 : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                         }`}
                     >
-                        Missing Data
+                        Missing Data ({missingDataCount})
+                    </button>
+                    <button
+                        onClick={() => {
+                            setFilterStatus('needs-refresh')
+                            setMissingDataFilter(null)
+                        }}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                            filterStatus === 'needs-refresh'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        }`}
+                    >
+                        Needs Refresh ({assetsNeedingRefresh})
                     </button>
                     {refreshProgress?.errors && refreshProgress.errors.length > 0 && (
                         <button
-                            onClick={() => setFilterStatus('errors')}
+                            onClick={() => {
+                                setFilterStatus('errors')
+                                setMissingDataFilter(null)
+                            }}
                             className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
                                 filterStatus === 'errors'
                                     ? 'bg-destructive text-destructive-foreground shadow-sm'
@@ -670,6 +732,72 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         </button>
                     )}
                 </div>
+                
+                {/* Missing Data Sub-filters */}
+                {filterStatus === 'missing-data' && (
+                    <div className="flex items-center gap-1.5 flex-wrap mt-2 pl-2 border-l-2 border-primary/30">
+                        <button
+                            onClick={() => setMissingDataFilter('all')}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
+                                missingDataFilter === 'all'
+                                    ? 'bg-primary/20 text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            All ({missingDataCount})
+                        </button>
+                        <button
+                            onClick={() => setMissingDataFilter('website')}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
+                                missingDataFilter === 'website'
+                                    ? 'bg-primary/20 text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Website ({missingWebsiteCount})
+                        </button>
+                        <button
+                            onClick={() => setMissingDataFilter('description')}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
+                                missingDataFilter === 'description'
+                                    ? 'bg-primary/20 text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Description ({missingDescriptionCount})
+                        </button>
+                        <button
+                            onClick={() => setMissingDataFilter('coingecko-id')}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
+                                missingDataFilter === 'coingecko-id'
+                                    ? 'bg-primary/20 text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            CoinGecko ID ({missingCoingeckoIdCount})
+                        </button>
+                        <button
+                            onClick={() => setMissingDataFilter('image')}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
+                                missingDataFilter === 'image'
+                                    ? 'bg-primary/20 text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Image ({missingImageCount})
+                        </button>
+                        <button
+                            onClick={() => setMissingDataFilter('twitter')}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded transition-all ${
+                                missingDataFilter === 'twitter'
+                                    ? 'bg-primary/20 text-primary-foreground'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Twitter ({missingTwitterCount})
+                        </button>
+                    </div>
+                )}
 
                 {/* Divider (hidden on mobile) */}
                 <div className="hidden md:block w-px h-6 bg-border/50 flex-shrink-0" />

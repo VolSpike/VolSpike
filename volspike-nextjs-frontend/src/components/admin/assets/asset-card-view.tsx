@@ -5,6 +5,7 @@ import Image from 'next/image'
 import type { AssetRecord } from '@/lib/asset-manifest'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { Loader2, RefreshCw, Save, Trash2, CheckCircle2, AlertCircle, Clock, ExternalLink, Twitter } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -73,22 +74,42 @@ export function AssetCardView({
         return symbolNormalized !== displayNameNormalized
     }
 
-    const getAssetStatus = (asset: AssetRecord) => {
-        const hasLogo = !!asset.logoUrl
-        const hasName = !!asset.displayName
-        const hasCoingeckoId = !!asset.coingeckoId
-        const isComplete = hasLogo && hasName && hasCoingeckoId
+    // Format next refresh time (e.g., "3 days 7 hours")
+    const formatNextRefresh = (updatedAt?: string | null): string | null => {
+        if (!updatedAt) return null
+        const updated = new Date(updatedAt).getTime()
+        const nextRefresh = updated + (7 * 24 * 60 * 60 * 1000) // +7 days
+        const now = Date.now()
+        const diffMs = nextRefresh - now
+        
+        if (diffMs <= 0) return 'Due now'
+        
+        const days = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+        const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+        const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000))
+        
+        const parts: string[] = []
+        if (days > 0) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`)
+        if (hours > 0) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`)
+        if (days === 0 && hours === 0 && minutes > 0) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`)
+        
+        return parts.length > 0 ? parts.join(' ') : 'Soon'
+    }
 
-        if (isComplete) {
+    const getAssetStatus = (asset: AssetRecord) => {
+        // Complete status is manually set by admin, not auto-detected
+        if (asset.isComplete) {
             return { icon: CheckCircle2, color: 'text-green-500', bgColor: 'bg-green-500/10', label: 'Complete' }
         }
-        if (!hasLogo) {
-            return { icon: AlertCircle, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', label: 'Missing Logo' }
-        }
-        if (!hasCoingeckoId) {
+        
+        // Incomplete assets show what's missing
+        if (!asset.coingeckoId) {
             return { icon: AlertCircle, color: 'text-orange-500', bgColor: 'bg-orange-500/10', label: 'No CoinGecko ID' }
         }
-        return { icon: Clock, color: 'text-blue-500', bgColor: 'bg-blue-500/10', label: 'Partial' }
+        if (!asset.logoUrl) {
+            return { icon: AlertCircle, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', label: 'Missing Logo' }
+        }
+        return { icon: Clock, color: 'text-blue-500', bgColor: 'bg-blue-500/10', label: 'Incomplete' }
     }
 
     const formatUpdatedAt = (updatedAt?: string | null) => {
@@ -384,8 +405,39 @@ export function AssetCardView({
                                 )}
                             </div>
 
+                            {/* Complete toggle and Next refresh */}
+                            <div className="space-y-2 pt-2 border-t border-border/40">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-medium text-foreground flex items-center gap-2">
+                                        <span>Complete</span>
+                                        <span className="text-[10px] text-muted-foreground font-normal">
+                                            (Ready for weekly refresh)
+                                        </span>
+                                    </label>
+                                    <Switch
+                                        checked={currentAsset.isComplete ?? false}
+                                        onCheckedChange={async (checked) => {
+                                            try {
+                                                const updatedAsset = { ...currentAsset, isComplete: checked }
+                                                await onSave(updatedAsset)
+                                                toast.success(checked ? 'Asset marked as Complete' : 'Asset marked as Incomplete', { duration: 2000 })
+                                            } catch (error: any) {
+                                                toast.error(`Failed to update: ${error.message || 'Unknown error'}`, { duration: 3000 })
+                                            }
+                                        }}
+                                        disabled={editing || savingId === (asset.id ?? asset.baseSymbol)}
+                                    />
+                                </div>
+                                {currentAsset.isComplete && currentAsset.updatedAt && (
+                                    <div className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
+                                        <Clock className="h-3 w-3" />
+                                        <span>Next refresh: {formatNextRefresh(currentAsset.updatedAt) || 'Soon'}</span>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Updated timestamp */}
-                            <div className="text-xs text-muted-foreground/60 pt-2 border-t border-border/40">
+                            <div className="text-xs text-muted-foreground/60">
                                 Updated {formatUpdatedAt(currentAsset.updatedAt)}
                             </div>
 
@@ -457,3 +509,4 @@ export function AssetCardView({
         </div>
     )
 }
+

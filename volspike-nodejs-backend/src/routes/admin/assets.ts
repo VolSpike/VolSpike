@@ -29,6 +29,7 @@ const upsertSchema = z.object({
     twitterUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional().nullable(),
     logoUrl: z.union([z.string().url(), z.literal(''), z.null()]).optional().nullable(),
     status: z.enum(['AUTO', 'VERIFIED', 'HIDDEN']).optional(),
+    isComplete: z.boolean().optional(), // Admin-reviewed and ready for weekly refresh cycles
     notes: z.string().optional().nullable(),
 })
 
@@ -171,6 +172,7 @@ adminAssetRoutes.post('/', async (c) => {
             twitterUrl: data.twitterUrl ?? null,
             logoUrl: data.logoUrl ?? null,
             status: data.status ?? 'AUTO',
+            isComplete: data.isComplete ?? false, // Default to false if not provided
             notes: data.notes ?? null,
         }
 
