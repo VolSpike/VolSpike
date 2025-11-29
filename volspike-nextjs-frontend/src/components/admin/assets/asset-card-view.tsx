@@ -33,6 +33,29 @@ export function AssetCardView({
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editForm, setEditForm] = useState<Partial<AssetRecord>>({})
 
+    // Extract base symbol from trading pair (e.g., "1000000BOB" -> "BOB", "1000PEPE" -> "PEPE")
+    const extractBaseSymbol = (baseSymbol: string): string => {
+        // Remove leading numbers (e.g., "1000000", "1000")
+        const match = baseSymbol.match(/^\d+(.+)$/)
+        if (match) {
+            return match[1]
+        }
+        return baseSymbol
+    }
+
+    // Check if we should show the symbol line (when baseSymbol doesn't match displayName/coingeckoId)
+    const shouldShowSymbol = (asset: AssetRecord): boolean => {
+        const extractedSymbol = extractBaseSymbol(asset.baseSymbol)
+        // Show if extracted symbol is different from baseSymbol (meaning there's a prefix)
+        // AND displayName exists and doesn't match the extracted symbol
+        if (extractedSymbol !== asset.baseSymbol && asset.displayName) {
+            const displayNameLower = asset.displayName.toLowerCase().replace(/\s+/g, '')
+            const symbolLower = extractedSymbol.toLowerCase()
+            return !displayNameLower.includes(symbolLower) && symbolLower !== displayNameLower
+        }
+        return false
+    }
+
     const getAssetStatus = (asset: AssetRecord) => {
         const hasLogo = !!asset.logoUrl
         const hasName = !!asset.displayName
@@ -172,7 +195,25 @@ export function AssetCardView({
                                     <div className="text-xl font-bold text-foreground truncate tracking-tight">
                                         {currentAsset.baseSymbol}
                                     </div>
-                                    {editing ? (
+                                    {shouldShowSymbol(currentAsset) ? (
+                                        <div className="text-sm text-muted-foreground mt-1 font-medium flex items-center gap-1.5">
+                                            <span className="truncate">
+                                                {extractBaseSymbol(currentAsset.baseSymbol)} - {currentAsset.displayName}
+                                            </span>
+                                            <div className="group relative flex-shrink-0">
+                                                <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                                                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs text-popover-foreground shadow-lg whitespace-nowrap max-w-[200px]">
+                                                        <p className="font-semibold mb-1">Symbol & Name</p>
+                                                        <p className="text-muted-foreground">
+                                                            The symbol ({extractBaseSymbol(currentAsset.baseSymbol)}) is the trading identifier, 
+                                                            while the name ({currentAsset.displayName}) is the project's display name.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : editing ? (
                                         <Input
                                             value={editForm.displayName ?? ''}
                                             onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
@@ -196,7 +237,7 @@ export function AssetCardView({
                                     CoinGecko ID
                                     {editing && (
                                         <span className="ml-1 text-[9px] text-muted-foreground/60 font-normal">
-                                            (e.g., build-on-bnb, bitcoin, ethereum)
+                                            (e.g., bitcoin, ethereum, solana)
                                         </span>
                                     )}
                                 </label>
@@ -205,7 +246,7 @@ export function AssetCardView({
                                         <Input
                                             value={editForm.coingeckoId ?? ''}
                                             onChange={(e) => setEditForm({ ...editForm, coingeckoId: e.target.value.toLowerCase().trim() })}
-                                            placeholder="build-on-bnb"
+                                            placeholder="ethereum"
                                             className="h-7 text-xs font-mono"
                                         />
                                         {editForm.coingeckoId && (
