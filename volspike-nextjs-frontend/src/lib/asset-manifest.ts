@@ -64,7 +64,7 @@ export const STATIC_ASSET_MANIFEST: Record<string, AssetRecord> = {
     },
 }
 
-const MANIFEST_CACHE_KEY = 'volspike:asset-manifest-v1'
+const MANIFEST_CACHE_KEY = 'volspike:asset-manifest-v2' // Bump version to clear stale cache
 const MANIFEST_TTL_MS = 6.9 * 24 * 60 * 60 * 1000 // slightly under a week to stagger refreshes
 
 const debugEnabled = () => {
@@ -200,7 +200,32 @@ const fetchManifestFromApi = async (): Promise<AssetRecord[]> => {
     const json = await res.json()
     const assets: AssetRecord[] = Array.isArray(json?.assets) ? json.assets : []
     logDebug(`Fetched manifest from API (${assets.length} assets, source=${json?.source})`)
-    return assets.map(normalizeRecord)
+    
+    // Debug: Check 1000PEPE in API response
+    const pepInApi = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
+    if (pepInApi) {
+        console.log('[fetchManifestFromApi] 1000PEPE from API:', {
+            hasLogoUrl: !!pepInApi.logoUrl,
+            logoUrlLength: pepInApi.logoUrl?.length || 0,
+            hasDescription: !!pepInApi.description,
+            descriptionLength: pepInApi.description?.length || 0,
+        })
+    }
+    
+    const normalized = assets.map(normalizeRecord)
+    
+    // Debug: Check 1000PEPE after normalization
+    const pepAfterNorm = normalized.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
+    if (pepAfterNorm) {
+        console.log('[fetchManifestFromApi] 1000PEPE after normalizeRecord:', {
+            hasLogoUrl: !!pepAfterNorm.logoUrl,
+            logoUrlLength: pepAfterNorm.logoUrl?.length || 0,
+            hasDescription: !!pepAfterNorm.description,
+            descriptionLength: pepAfterNorm.description?.length || 0,
+        })
+    }
+    
+    return normalized
 }
 
 /**
