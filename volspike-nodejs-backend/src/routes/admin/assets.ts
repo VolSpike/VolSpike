@@ -202,8 +202,21 @@ adminAssetRoutes.post('/', async (c) => {
 
         // Return immediately - save is fast
         // If CoinGecko ID was just added/changed, trigger refresh in background
-        const coingeckoIdChanged = oldCoingeckoId !== payload.coingeckoId
-        const needsRefresh = payload.coingeckoId && coingeckoIdChanged
+        // Normalize null/undefined/empty string for comparison
+        const normalizedOldId = (oldCoingeckoId || '').trim().toLowerCase()
+        const normalizedNewId = (payload.coingeckoId || '').trim().toLowerCase()
+        const coingeckoIdChanged = normalizedOldId !== normalizedNewId
+        const needsRefresh = normalizedNewId && coingeckoIdChanged
+        
+        logger.info(`[AdminAssets] Save asset ${asset.baseSymbol}`, {
+            oldCoingeckoId: oldCoingeckoId,
+            newCoingeckoId: payload.coingeckoId,
+            normalizedOldId,
+            normalizedNewId,
+            coingeckoIdChanged,
+            needsRefresh,
+            assetStatus: asset.status,
+        })
         
         if (needsRefresh && asset.status !== 'VERIFIED') {
             // Trigger refresh in background (non-blocking) - don't wait for it

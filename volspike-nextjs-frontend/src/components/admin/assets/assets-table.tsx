@@ -129,19 +129,13 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             // Save is fast - always show success immediately
             toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
             
-            // If CoinGecko ID was just added or changed, automatically trigger refresh in background
-            const hadCoingeckoId = asset.coingeckoId
-            const hasCoingeckoId = updatedAsset.coingeckoId
-            const coingeckoIdChanged = hadCoingeckoId !== hasCoingeckoId
-            
-            if (hasCoingeckoId && (coingeckoIdChanged || !updatedAsset.logoUrl || !updatedAsset.displayName || !updatedAsset.description)) {
-                // Trigger refresh asynchronously - don't block the save
-                if (updatedAsset.id) {
-                    // Small delay to let save complete, then refresh
-                    setTimeout(async () => {
-                        await handleRefresh(updatedAsset)
-                    }, 300)
-                }
+            // Backend handles auto-refresh when CoinGecko ID changes
+            // Just refresh the asset list after a short delay to show updated data
+            if (res.needsRefresh) {
+                setTimeout(async () => {
+                    // Refresh the asset list to show updated data from backend refresh
+                    await fetchAssets(currentPage, false)
+                }, 2000) // Wait 2 seconds for backend refresh to complete
             }
         } catch (err: any) {
             console.error('[AdminAssetsTable] Failed to save asset', {
