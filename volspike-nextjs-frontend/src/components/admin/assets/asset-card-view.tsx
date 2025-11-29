@@ -32,6 +32,7 @@ export function AssetCardView({
 }: AssetCardViewProps) {
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editForm, setEditForm] = useState<Partial<AssetRecord>>({})
+    const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
 
     // Extract base symbol from trading pair (e.g., "1000000BOB" -> "BOB", "1000PEPE" -> "PEPE")
     // Only extracts if there's a meaningful numeric prefix (10, 100, 1000, etc.), not single "0"

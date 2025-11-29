@@ -281,6 +281,15 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
         rawDescription = data.description
     }
     
+    // Log raw description for debugging
+    if (rawDescription) {
+        logger.debug(`[AssetMetadata] Raw description from CoinGecko for ${coingeckoId}:`, {
+            length: rawDescription.length,
+            first100Chars: rawDescription.substring(0, 100),
+            hasUnicodeBrackets: rawDescription.includes('【') || rawDescription.includes('】'),
+        })
+    }
+    
     const description: string | undefined = rawDescription
         ? rawDescription
               .replace(/<[^>]+>/g, ' ') // Remove HTML tags
@@ -292,6 +301,14 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
               .replace(/\s+/g, ' ') // Normalize whitespace
               .trim()
         : undefined
+    
+    // Log cleaned description
+    if (description) {
+        logger.debug(`[AssetMetadata] Cleaned description for ${coingeckoId}:`, {
+            length: description.length,
+            first100Chars: description.substring(0, 100),
+        })
+    }
 
         return {
             name: data?.name as string | undefined,
