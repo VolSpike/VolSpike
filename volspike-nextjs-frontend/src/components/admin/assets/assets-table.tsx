@@ -565,6 +565,49 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         placeholder="Search by symbol, name, or CoinGecko id..."
                         className="w-72"
                     />
+                    {/* Filter buttons */}
+                    <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-1">
+                        <button
+                            onClick={() => setFilterStatus('all')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                                filterStatus === 'all'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setFilterStatus('needs-refresh')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                                filterStatus === 'needs-refresh'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Needs Refresh
+                        </button>
+                        <button
+                            onClick={() => setFilterStatus('missing-data')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                                filterStatus === 'missing-data'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Missing Data
+                        </button>
+                        <button
+                            onClick={() => setFilterStatus('errors')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                                filterStatus === 'errors'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            Errors ({refreshProgress?.errors?.length || 0})
+                        </button>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* View mode toggle */}
