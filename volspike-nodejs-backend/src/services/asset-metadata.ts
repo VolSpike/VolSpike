@@ -615,6 +615,9 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
  */
 export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<{ created: number; newSymbols: string[] }> => {
     try {
+        // Known Binance indices (not actual tokens) - filter these out
+        const BINANCE_INDICES = new Set(['ALL', 'DEFI', 'ALT', 'BUSD', 'BTC', 'ETH', 'BNB'])
+        
         // Extract base symbols from Market Data symbols (e.g., "BTCUSDT" -> "BTC")
         const baseSymbols = symbols
             .filter((sym) => sym && typeof sym === 'string' && sym.endsWith('USDT'))
@@ -623,7 +626,16 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
                 const base = sym.replace(/USDT$/i, '').toUpperCase()
                 return base
             })
-            .filter((base) => base.length > 0) // Filter out empty strings
+            .filter((base) => {
+                // Filter out empty strings
+                if (base.length === 0) return false
+                // Filter out Binance indices (not actual tokens)
+                if (BINANCE_INDICES.has(base)) {
+                    logger.debug(`[AssetMetadata] Filtering out Binance index from Market Data: ${base}`)
+                    return false
+                }
+                return true
+            })
 
         if (!baseSymbols.length) {
             logger.debug('[AssetMetadata] No valid base symbols to check')

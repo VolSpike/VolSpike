@@ -200,12 +200,11 @@ adminAssetRoutes.post('/', async (c) => {
             })
         }
 
-        // Return immediately - save is fast
-        // If CoinGecko ID was just added/changed, trigger refresh in background
         // Normalize null/undefined/empty string for comparison
         const normalizedOldId = (oldCoingeckoId || '').trim().toLowerCase()
         const normalizedNewId = (payload.coingeckoId || '').trim().toLowerCase()
         const coingeckoIdChanged = normalizedOldId !== normalizedNewId
+        const coingeckoIdRemoved = normalizedOldId && !normalizedNewId // CoinGecko ID was removed
         // needsRefresh: CoinGecko ID exists AND (it changed OR it was just added)
         const needsRefresh = normalizedNewId && (coingeckoIdChanged || !normalizedOldId)
         
@@ -215,10 +214,39 @@ adminAssetRoutes.post('/', async (c) => {
             normalizedOldId,
             normalizedNewId,
             coingeckoIdChanged,
+            coingeckoIdRemoved,
             needsRefresh,
             wasAdded: !normalizedOldId && normalizedNewId,
             assetStatus: asset.status,
         })
+        
+        // If CoinGecko ID was removed, clear all CoinGecko-related data
+        if (coingeckoIdRemoved) {
+            logger.info(`[AdminAssets] CoinGecko ID removed for ${asset.baseSymbol} - clearing all CoinGecko data`)
+            payload.displayName = null
+            payload.description = null
+            payload.websiteUrl = null
+            payload.twitterUrl = null
+            payload.logoUrl = null
+            // Update asset with cleared data
+            if (data.id) {
+                asset = await prisma.asset.update({
+                    where: { id: data.id },
+                    data: payload,
+                })
+            } else {
+                asset = await prisma.asset.upsert({
+                    where: { baseSymbol: payload.baseSymbol },
+                    create: payload,
+                    update: payload,
+                })
+            }
+            return c.json({ 
+                asset, 
+                needsRefresh: false,
+                coingeckoIdRemoved: true,
+            })
+        }
         
         // Always refresh when CoinGecko ID is added/changed, regardless of status
         // (VERIFIED status only prevents auto-updates from refresh cycles, not manual admin edits)
@@ -589,6 +617,9 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
             }, 500)
         }
 
+        // Known Binance indices (not actual tokens) - filter these out
+        const BINANCE_INDICES = new Set(['ALL', 'DEFI', 'ALT', 'BUSD', 'BTC', 'ETH', 'BNB'])
+        
         // Step 3: Filter and map candidates
         logger.info('[AdminAssets] 🔍 Filtering perpetual USDT pairs...')
         const candidates = symbols
@@ -604,9 +635,15 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
             }))
             .filter((c) => {
                 // Validate: baseSymbol must exist, binanceSymbol must exist and end with USDT
-                // Also ensure binanceSymbol matches expected format (baseSymbol + USDT)
                 if (!c.baseSymbol || !c.binanceSymbol) return false
                 if (!c.binanceSymbol.endsWith('USDT')) return false
+                
+                // Filter out Binance indices (not actual tokens)
+                if (BINANCE_INDICES.has(c.baseSymbol)) {
+                    logger.debug(`[AdminAssets] Filtering out Binance index: ${c.baseSymbol}`)
+                    return false
+                }
+                
                 // Ensure binanceSymbol matches expected format (baseSymbol + USDT)
                 const expectedSymbol = `${c.baseSymbol}USDT`
                 if (c.binanceSymbol !== expectedSymbol) {
