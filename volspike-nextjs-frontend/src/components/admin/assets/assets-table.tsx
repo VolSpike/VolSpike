@@ -42,7 +42,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; pages: number } | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
 
-    const fetchAssets = useCallback(async (page: number = 1, append: boolean = false) => {
+    const fetchAssets = useCallback(async (page: number = 1, append: boolean = false, searchQuery?: string) => {
         if (!accessToken) {
             console.warn('[AdminAssetsTable] No access token, skipping fetch')
             setLoading(false)
@@ -54,8 +54,10 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             } else {
                 setLoading(true)
             }
-            console.debug('[AdminAssetsTable] Fetching assets...', { query, page, accessToken: accessToken.substring(0, 10) + '...' })
-            const res = await adminAPI.getAssets({ q: query, limit: 1000, page })
+            // Use searchQuery parameter if provided, otherwise use empty string (client-side filtering)
+            const apiQuery = searchQuery !== undefined ? searchQuery : ''
+            console.debug('[AdminAssetsTable] Fetching assets...', { apiQuery, page, accessToken: accessToken.substring(0, 10) + '...' })
+            const res = await adminAPI.getAssets({ q: apiQuery, limit: 1000, page })
             console.debug('[AdminAssetsTable] Assets fetched:', { count: res.assets?.length || 0, pagination: res.pagination })
 
             if (append) {
@@ -81,7 +83,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             setLoading(false)
             setLoadingMore(false)
         }
-    }, [accessToken, query])
+    }, [accessToken]) // Remove query from dependencies - we'll filter client-side
 
     const handleLoadMore = () => {
         if (pagination && currentPage < pagination.pages) {
@@ -89,12 +91,13 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         }
     }
 
+    // Initial fetch - only when accessToken changes
     useEffect(() => {
         if (!accessToken) return
         adminAPI.setAccessToken(accessToken)
-        setCurrentPage(1) // Reset to page 1 when query changes
-        fetchAssets(1, false)
-    }, [accessToken, query, fetchAssets])
+        setCurrentPage(1)
+        fetchAssets(1, false) // Fetch all assets, filter client-side
+    }, [accessToken, fetchAssets])
 
     const handleFieldChange = (id: string | undefined, field: keyof AssetRecord, value: string) => {
         setAssets((prev) =>

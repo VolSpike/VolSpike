@@ -47,11 +47,14 @@ export function AssetCardView({
     const shouldShowSymbol = (asset: AssetRecord): boolean => {
         const extractedSymbol = extractBaseSymbol(asset.baseSymbol)
         // Show if extracted symbol is different from baseSymbol (meaning there's a prefix)
-        // AND displayName exists and doesn't match the extracted symbol
+        // AND displayName exists
+        // AND displayName doesn't exactly match the extracted symbol (case-insensitive, ignoring spaces)
         if (extractedSymbol !== asset.baseSymbol && asset.displayName) {
-            const displayNameLower = asset.displayName.toLowerCase().replace(/\s+/g, '')
-            const symbolLower = extractedSymbol.toLowerCase()
-            return !displayNameLower.includes(symbolLower) && symbolLower !== displayNameLower
+            const displayNameNormalized = asset.displayName.toLowerCase().replace(/\s+/g, '')
+            const symbolNormalized = extractedSymbol.toLowerCase()
+            // Show symbol line if displayName doesn't exactly equal the symbol (allowing for "Mog Coin" vs "MOG")
+            // But hide if displayName is just the symbol with spaces (e.g., "M O G" = "MOG")
+            return symbolNormalized !== displayNameNormalized
         }
         return false
     }

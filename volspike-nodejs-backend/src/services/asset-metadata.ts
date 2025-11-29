@@ -329,8 +329,10 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
         const profile = await fetchCoinProfile(coingeckoId)
         logger.debug(`[AssetMetadata] Fetched profile for ${symbol}`, {
             hasName: !!profile.name,
+            name: profile.name,
             hasDescription: !!profile.description,
             hasHomepage: !!profile.homepage,
+            homepage: profile.homepage, // Log actual homepage value
             hasTwitter: !!profile.twitterUrl,
             hasLogoUrl: !!profile.logoUrl,
         })
