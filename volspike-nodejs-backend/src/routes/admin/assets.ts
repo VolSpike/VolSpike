@@ -99,7 +99,20 @@ adminAssetRoutes.get('/', async (c) => {
 adminAssetRoutes.post('/', async (c) => {
     try {
         const body = await c.req.json()
-        const data = upsertSchema.parse(body)
+        
+        // Normalize empty strings to null for optional fields before validation
+        const normalizedBody = {
+            ...body,
+            websiteUrl: body.websiteUrl === '' ? null : body.websiteUrl,
+            twitterUrl: body.twitterUrl === '' ? null : body.twitterUrl,
+            logoUrl: body.logoUrl === '' ? null : body.logoUrl,
+            coingeckoId: body.coingeckoId === '' ? null : body.coingeckoId,
+            displayName: body.displayName === '' ? null : body.displayName,
+            description: body.description === '' ? null : body.description,
+            notes: body.notes === '' ? null : body.notes,
+        }
+        
+        const data = upsertSchema.parse(normalizedBody)
 
         const extraSymbolsJson =
             data.extraSymbols && data.extraSymbols.length > 0
