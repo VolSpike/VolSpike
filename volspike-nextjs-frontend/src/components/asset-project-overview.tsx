@@ -85,9 +85,8 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
                     </>
                 )}
                 {!loading && !description && (
-                    <p className="text-xs leading-relaxed text-muted-foreground/80">
-                        A quick snapshot of the underlying project powering this perpetual contract. We pull public
-                        metadata from CoinGecko so you can stay oriented without leaving VolSpike.
+                    <p className="text-xs leading-relaxed text-muted-foreground/80 italic">
+                        No description available on CoinGecko for this asset.
                     </p>
                 )}
             </div>
