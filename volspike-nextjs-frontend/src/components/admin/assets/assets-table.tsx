@@ -419,13 +419,15 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const REFRESH_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week (matches backend)
     const now = Date.now()
     
+    // Needs Refresh: Assets with all critical fields but stale (>1 week old)
+    // Excludes assets with missing data - those are counted separately
     const assetsNeedingRefresh = assets.filter(a => {
-        // Match backend shouldRefresh logic exactly
         if (a.status === 'HIDDEN') return false
-        // Refresh if missing critical fields (including description)
-        if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return true
-        // Refresh if older than 1 week
-        if (!a.updatedAt) return true
+        // Must have all critical fields (exclude missing data)
+        if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return false
+        // Must have updatedAt timestamp
+        if (!a.updatedAt) return false
+        // Check if older than 1 week
         const updatedAt = new Date(a.updatedAt).getTime()
         return now - updatedAt > REFRESH_INTERVAL_MS
     }).length
@@ -449,20 +451,24 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             )
         }
 
-        // Apply status filter (match backend shouldRefresh logic)
+        // Apply status filter
         if (filterStatus === 'needs-refresh') {
+            // Needs Refresh: Assets with all critical fields but stale (>1 week old)
+            // Excludes assets with missing data - those go in "Missing Data" filter
             const refreshInterval = 7 * 24 * 60 * 60 * 1000 // 1 week
             const now = Date.now()
             filtered = filtered.filter((a) => {
                 if (a.status === 'HIDDEN') return false
-                // Refresh if missing critical fields (including description)
-                if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return true
-                // Refresh if older than 1 week
-                if (!a.updatedAt) return true
+                // Must have all critical fields (exclude missing data)
+                if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return false
+                // Must have updatedAt timestamp
+                if (!a.updatedAt) return false
+                // Check if older than 1 week
                 const updatedAt = new Date(a.updatedAt).getTime()
                 return now - updatedAt > refreshInterval
             })
         } else if (filterStatus === 'missing-data') {
+            // Missing Data: Assets missing critical fields
             filtered = filtered.filter((a) => !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description)
         } else if (filterStatus === 'errors') {
             // Show assets that failed in the last refresh cycle
