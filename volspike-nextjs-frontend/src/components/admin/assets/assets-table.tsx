@@ -139,13 +139,25 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
             
             // If CoinGecko ID changed, refresh happens in background with retry logic
-            // Poll for updates after a delay to show refreshed data
+            // Poll for updates until we see actual data changes (logo, description, etc.)
             if (res.needsRefresh) {
                 console.log(`[AdminAssetsTable] CoinGecko ID changed for ${asset.baseSymbol}, background refresh with retry logic triggered`)
-                // Wait for background refresh to complete (with retries), then update asset
-                setTimeout(async () => {
+                
+                // Store initial state to detect changes
+                const initialLogoUrl = updatedAsset.logoUrl
+                const initialDescription = updatedAsset.description
+                const initialDisplayName = updatedAsset.displayName
+                const initialWebsiteUrl = updatedAsset.websiteUrl
+                const initialTwitterUrl = updatedAsset.twitterUrl
+                
+                // Poll multiple times until we see data actually updated or timeout
+                const MAX_POLLS = 12 // Poll up to 12 times (60 seconds total)
+                const POLL_INTERVAL_MS = 5000 // Poll every 5 seconds
+                let pollCount = 0
+                
+                const pollForUpdates = async () => {
                     try {
-                        // Fetch updated asset after refresh completes
+                        // Fetch updated asset
                         const refreshedRes = await adminAPI.getAssets({ q: updatedAsset.baseSymbol, limit: 1, page: 1 })
                         const refreshedAsset = refreshedRes.assets?.find(a => 
                             (a.id && updatedAsset.id && a.id === updatedAsset.id) || 
@@ -153,7 +165,15 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         )
                         
                         if (refreshedAsset) {
-                            // Silently update the asset in state without triggering loading
+                            // Check if data actually changed (logo, description, displayName, website, twitter)
+                            const logoChanged = refreshedAsset.logoUrl !== initialLogoUrl
+                            const descriptionChanged = refreshedAsset.description !== initialDescription
+                            const displayNameChanged = refreshedAsset.displayName !== initialDisplayName
+                            const websiteChanged = refreshedAsset.websiteUrl !== initialWebsiteUrl
+                            const twitterChanged = refreshedAsset.twitterUrl !== initialTwitterUrl
+                            const dataChanged = logoChanged || descriptionChanged || displayNameChanged || websiteChanged || twitterChanged
+                            
+                            // Update asset in state
                             setAssets((prev) =>
                                 prev.map((a) =>
                                     (a.id && refreshedAsset.id && a.id === refreshedAsset.id) || 
@@ -162,13 +182,45 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                         : a
                                 )
                             )
-                            console.log(`[AdminAssetsTable] ✅ Updated ${asset.baseSymbol} with refreshed data`)
-                            toast.success(`Refreshed ${asset.baseSymbol} from CoinGecko`, { duration: 2000 })
+                            
+                            // Only show success if data actually changed
+                            if (dataChanged) {
+                                console.log(`[AdminAssetsTable] ✅ Updated ${asset.baseSymbol} with refreshed data`, {
+                                    logoChanged,
+                                    descriptionChanged,
+                                    displayNameChanged,
+                                    websiteChanged,
+                                    twitterChanged,
+                                })
+                                toast.success(`Refreshed ${asset.baseSymbol} from CoinGecko`, { duration: 2000 })
+                                return // Success - stop polling
+                            }
+                            
+                            // If no changes yet but we haven't hit max polls, keep polling
+                            if (pollCount < MAX_POLLS) {
+                                pollCount++
+                                console.log(`[AdminAssetsTable] Polling ${asset.baseSymbol} for updates (attempt ${pollCount}/${MAX_POLLS})...`)
+                                setTimeout(pollForUpdates, POLL_INTERVAL_MS)
+                            } else {
+                                console.warn(`[AdminAssetsTable] ⚠️ Refresh for ${asset.baseSymbol} completed but no data changes detected after ${MAX_POLLS} polls`)
+                                // Don't show error - refresh might have succeeded but data was the same
+                            }
+                        } else {
+                            // Asset not found - stop polling
+                            console.warn(`[AdminAssetsTable] Asset ${asset.baseSymbol} not found during polling`)
                         }
                     } catch (err) {
                         console.debug(`[AdminAssetsTable] Failed to fetch refreshed asset ${asset.baseSymbol}:`, err)
+                        // Retry polling if we haven't hit max polls
+                        if (pollCount < MAX_POLLS) {
+                            pollCount++
+                            setTimeout(pollForUpdates, POLL_INTERVAL_MS)
+                        }
                     }
-                }, 15000) // Wait 15 seconds for retry logic to complete (10 retries × 5s delay + API call time)
+                }
+                
+                // Start polling after initial delay (give backend time to start refresh)
+                setTimeout(pollForUpdates, 5000) // Start polling after 5 seconds
             } else {
                 console.log(`[AdminAssetsTable] Saved ${asset.baseSymbol} (no refresh needed)`)
             }
