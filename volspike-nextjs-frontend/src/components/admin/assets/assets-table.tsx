@@ -130,13 +130,37 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
             
             // Backend handles auto-refresh when CoinGecko ID changes
-            // Refresh the asset list after a delay to show updated data from backend refresh
+            // Silently update the single asset after backend refresh completes (no page reload)
             if (res.needsRefresh) {
                 console.log(`[AdminAssetsTable] CoinGecko ID changed for ${asset.baseSymbol}, backend refresh triggered`)
-                // Wait for backend refresh to complete, then refresh the asset list
+                // Wait for backend refresh to complete, then silently fetch just this asset
                 setTimeout(async () => {
-                    console.log(`[AdminAssetsTable] Refreshing asset list after backend refresh for ${asset.baseSymbol}`)
-                    await fetchAssets(currentPage, false)
+                    try {
+                        console.log(`[AdminAssetsTable] Silently updating asset ${asset.baseSymbol} after backend refresh`)
+                        // Fetch just this asset without triggering loading state
+                        const refreshedRes = await adminAPI.getAssets({ q: updatedAsset.baseSymbol, limit: 1, page: 1 })
+                        const refreshedAsset = refreshedRes.assets?.find(a => 
+                            (a.id && updatedAsset.id && a.id === updatedAsset.id) || 
+                            a.baseSymbol === updatedAsset.baseSymbol
+                        )
+                        
+                        if (refreshedAsset) {
+                            // Silently update the asset in state without triggering loading
+                            setAssets((prev) =>
+                                prev.map((a) =>
+                                    (a.id && refreshedAsset.id && a.id === refreshedAsset.id) || 
+                                    (!a.id && a.baseSymbol === refreshedAsset.baseSymbol)
+                                        ? refreshedAsset
+                                        : a
+                                )
+                            )
+                            console.log(`[AdminAssetsTable] ✅ Silently updated ${asset.baseSymbol} with refreshed data`)
+                        }
+                    } catch (err) {
+                        console.debug(`[AdminAssetsTable] Failed to silently update asset ${asset.baseSymbol}:`, err)
+                        // Fallback: refresh the whole list if single asset fetch fails
+                        await fetchAssets(currentPage, false)
+                    }
                 }, 3000) // Wait 3 seconds for backend refresh to complete
             } else {
                 console.log(`[AdminAssetsTable] No refresh needed for ${asset.baseSymbol}`, {
