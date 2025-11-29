@@ -459,6 +459,10 @@ class AdminAPIClient {
             lastUpdated?: number
             refreshed: number
             failed: number
+            skipped?: number
+            noUpdate?: number
+            errors?: Array<{ symbol: string; reason: string; error?: string }>
+            successes?: string[]
         }
     }> {
         return this.request<{
@@ -472,6 +476,10 @@ class AdminAPIClient {
                 lastUpdated?: number
                 refreshed: number
                 failed: number
+                skipped?: number
+                noUpdate?: number
+                errors?: Array<{ symbol: string; reason: string; error?: string }>
+                successes?: string[]
             }
         }>('/api/admin/assets/refresh-status', {
             method: 'GET',
