@@ -151,12 +151,17 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 const initialTwitterUrl = updatedAsset.twitterUrl
                 
                 // Poll multiple times until we see data actually updated or timeout
-                const MAX_POLLS = 12 // Poll up to 12 times (60 seconds total)
-                const POLL_INTERVAL_MS = 5000 // Poll every 5 seconds
+                // Use faster polling at first (every 1 second), then slower (every 3 seconds) after 10 polls
+                const MAX_POLLS = 20 // Poll up to 20 times (faster initial polling)
+                const FAST_POLL_INTERVAL_MS = 1000 // Poll every 1 second for first 10 polls
+                const SLOW_POLL_INTERVAL_MS = 3000 // Poll every 3 seconds after that
                 let pollCount = 0
                 
                 const pollForUpdates = async () => {
                     try {
+                        pollCount++
+                        console.log(`[AdminAssetsTable] Polling ${asset.baseSymbol} for updates (attempt ${pollCount}/${MAX_POLLS})...`)
+                        
                         // Fetch updated asset
                         const refreshedRes = await adminAPI.getAssets({ q: updatedAsset.baseSymbol, limit: 1, page: 1 })
                         const refreshedAsset = refreshedRes.assets?.find(a => 
@@ -173,7 +178,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                             const twitterChanged = refreshedAsset.twitterUrl !== initialTwitterUrl
                             const dataChanged = logoChanged || descriptionChanged || displayNameChanged || websiteChanged || twitterChanged
                             
-                            // Update asset in state
+                            // ALWAYS update asset in state (even if no changes detected) to ensure UI is in sync
                             setAssets((prev) =>
                                 prev.map((a) =>
                                     (a.id && refreshedAsset.id && a.id === refreshedAsset.id) || 
@@ -191,6 +196,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                     displayNameChanged,
                                     websiteChanged,
                                     twitterChanged,
+                                    pollCount,
                                 })
                                 toast.success(`Refreshed ${asset.baseSymbol} from CoinGecko`, { duration: 2000 })
                                 return // Success - stop polling
@@ -198,9 +204,9 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                             
                             // If no changes yet but we haven't hit max polls, keep polling
                             if (pollCount < MAX_POLLS) {
-                                pollCount++
-                                console.log(`[AdminAssetsTable] Polling ${asset.baseSymbol} for updates (attempt ${pollCount}/${MAX_POLLS})...`)
-                                setTimeout(pollForUpdates, POLL_INTERVAL_MS)
+                                // Use faster polling for first 10 attempts, then slower
+                                const pollInterval = pollCount <= 10 ? FAST_POLL_INTERVAL_MS : SLOW_POLL_INTERVAL_MS
+                                setTimeout(pollForUpdates, pollInterval)
                             } else {
                                 console.warn(`[AdminAssetsTable] ⚠️ Refresh for ${asset.baseSymbol} completed but no data changes detected after ${MAX_POLLS} polls`)
                                 // Don't show error - refresh might have succeeded but data was the same
@@ -213,14 +219,14 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         console.debug(`[AdminAssetsTable] Failed to fetch refreshed asset ${asset.baseSymbol}:`, err)
                         // Retry polling if we haven't hit max polls
                         if (pollCount < MAX_POLLS) {
-                            pollCount++
-                            setTimeout(pollForUpdates, POLL_INTERVAL_MS)
+                            const pollInterval = pollCount <= 10 ? FAST_POLL_INTERVAL_MS : SLOW_POLL_INTERVAL_MS
+                            setTimeout(pollForUpdates, pollInterval)
                         }
                     }
                 }
                 
-                // Start polling after initial delay (give backend time to start refresh)
-                setTimeout(pollForUpdates, 5000) // Start polling after 5 seconds
+                // Start polling immediately (backend refresh is fast, ~500ms)
+                setTimeout(pollForUpdates, 1000) // Start polling after 1 second
             } else {
                 console.log(`[AdminAssetsTable] Saved ${asset.baseSymbol} (no refresh needed)`)
             }
