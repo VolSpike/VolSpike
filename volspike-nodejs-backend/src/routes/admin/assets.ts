@@ -252,19 +252,31 @@ adminAssetRoutes.post('/', async (c) => {
         // (VERIFIED status only prevents auto-updates from refresh cycles, not manual admin edits)
         // IMPORTANT: Return immediately - refresh happens in background with retry logic
         if (needsRefresh) {
+            logger.info(`[AdminAssets] ✅ Refresh will be triggered for ${asset.baseSymbol}`, {
+                needsRefresh,
+                oldCoingeckoId,
+                newCoingeckoId: payload.coingeckoId,
+            })
+            
             // Trigger refresh in background with retry logic for rate limits
-            process.nextTick(async () => {
+            // Use setImmediate instead of process.nextTick for better reliability
+            setImmediate(async () => {
+                const refreshStartTime = Date.now()
                 try {
+                    // Small delay to ensure database write is committed
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                    
                     // Refetch asset from DB to ensure we have the latest CoinGecko ID
                     const latestAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
                     if (!latestAsset) {
-                        logger.warn(`[AdminAssets] Asset ${asset.baseSymbol} not found for refresh`)
+                        logger.error(`[AdminAssets] ❌ Asset ${asset.baseSymbol} not found for refresh (ID: ${asset.id})`)
                         return
                     }
                     
-                    logger.info(`[AdminAssets] Auto-refreshing ${latestAsset.baseSymbol} in background after CoinGecko ID was set/changed`, {
+                    logger.info(`[AdminAssets] 🔄 Starting auto-refresh for ${latestAsset.baseSymbol}`, {
                         oldCoingeckoId: oldCoingeckoId,
                         newCoingeckoId: latestAsset.coingeckoId,
+                        assetId: latestAsset.id,
                     })
                     
                     // Retry logic: Keep trying until success or invalid ID confirmed
@@ -274,54 +286,81 @@ adminAssetRoutes.post('/', async (c) => {
                     let lastResult: { success: boolean; reason?: string; error?: string } | null = null
                     
                     while (retryCount < MAX_RETRIES) {
-                        // When CoinGecko ID changes, force refresh all fields (don't preserve old data from wrong ID)
-                        const refreshResult = await refreshSingleAsset(latestAsset, true) // forceRefresh = true
-                        
-                        if (refreshResult.success) {
-                            logger.info(`[AdminAssets] ✅ Auto-refreshed ${latestAsset.baseSymbol} successfully after ${retryCount} retries`)
-                            return // Success - exit retry loop
-                        }
-                        
-                        // If NOT_FOUND, CoinGecko ID is invalid - stop retrying
-                        if (refreshResult.reason === 'NOT_FOUND') {
-                            logger.warn(`[AdminAssets] Invalid CoinGecko ID for ${latestAsset.baseSymbol}: ${latestAsset.coingeckoId} - stopping retries`)
-                            return // Invalid ID - exit retry loop (data already cleared by refreshSingleAsset)
-                        }
-                        
-                        // If rate limit, wait and retry
-                        if (refreshResult.reason === 'RATE_LIMIT') {
+                        try {
+                            // Refetch asset before each attempt to ensure we have latest CoinGecko ID
+                            const currentAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
+                            if (!currentAsset) {
+                                logger.error(`[AdminAssets] ❌ Asset ${latestAsset.baseSymbol} disappeared during refresh`)
+                                return
+                            }
+                            
+                            // When CoinGecko ID changes, force refresh all fields (don't preserve old data from wrong ID)
+                            const refreshResult = await refreshSingleAsset(currentAsset, true) // forceRefresh = true
+                            
+                            if (refreshResult.success) {
+                                const elapsedMs = Date.now() - refreshStartTime
+                                logger.info(`[AdminAssets] ✅ Auto-refreshed ${latestAsset.baseSymbol} successfully after ${retryCount} retries (${elapsedMs}ms)`)
+                                return // Success - exit retry loop
+                            }
+                            
+                            // If NOT_FOUND, CoinGecko ID is invalid - stop retrying
+                            if (refreshResult.reason === 'NOT_FOUND') {
+                                logger.warn(`[AdminAssets] Invalid CoinGecko ID for ${latestAsset.baseSymbol}: ${currentAsset.coingeckoId} - stopping retries`)
+                                return // Invalid ID - exit retry loop (data already cleared by refreshSingleAsset)
+                            }
+                            
+                            // If rate limit, wait and retry
+                            if (refreshResult.reason === 'RATE_LIMIT') {
+                                retryCount++
+                                lastResult = refreshResult
+                                logger.warn(`[AdminAssets] Rate limit hit for ${latestAsset.baseSymbol} (attempt ${retryCount}/${MAX_RETRIES}), retrying in ${RETRY_DELAY_MS}ms...`)
+                                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+                                continue // Retry
+                            }
+                            
+                            // Other errors (network, timeout) - retry a few times then give up
                             retryCount++
                             lastResult = refreshResult
-                            logger.warn(`[AdminAssets] Rate limit hit for ${latestAsset.baseSymbol} (attempt ${retryCount}/${MAX_RETRIES}), retrying in ${RETRY_DELAY_MS}ms...`)
-                            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
-                            // Refetch asset to ensure we have latest data
-                            const refreshedAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
-                            if (refreshedAsset) {
-                                Object.assign(latestAsset, refreshedAsset)
+                            if (retryCount < MAX_RETRIES) {
+                                logger.warn(`[AdminAssets] Refresh failed for ${latestAsset.baseSymbol} (attempt ${retryCount}/${MAX_RETRIES}): ${refreshResult.reason} - ${refreshResult.error}, retrying...`)
+                                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+                                continue
+                            } else {
+                                const elapsedMs = Date.now() - refreshStartTime
+                                logger.error(`[AdminAssets] ❌ Failed to refresh ${latestAsset.baseSymbol} after ${MAX_RETRIES} attempts (${elapsedMs}ms): ${refreshResult.reason} - ${refreshResult.error}`)
+                                return // Max retries reached
                             }
-                            continue // Retry
-                        }
-                        
-                        // Other errors (network, timeout) - retry a few times then give up
-                        retryCount++
-                        lastResult = refreshResult
-                        if (retryCount < MAX_RETRIES) {
-                            logger.warn(`[AdminAssets] Refresh failed for ${latestAsset.baseSymbol} (attempt ${retryCount}/${MAX_RETRIES}): ${refreshResult.reason} - ${refreshResult.error}, retrying...`)
-                            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
-                            continue
-                        } else {
-                            logger.error(`[AdminAssets] ❌ Failed to refresh ${latestAsset.baseSymbol} after ${MAX_RETRIES} attempts: ${refreshResult.reason} - ${refreshResult.error}`)
-                            return // Max retries reached
+                        } catch (attemptError) {
+                            retryCount++
+                            logger.error(`[AdminAssets] Unexpected error during refresh attempt ${retryCount} for ${latestAsset.baseSymbol}:`, attemptError)
+                            if (retryCount < MAX_RETRIES) {
+                                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+                                continue
+                            } else {
+                                logger.error(`[AdminAssets] ❌ Failed to refresh ${latestAsset.baseSymbol} after ${MAX_RETRIES} attempts due to unexpected errors`)
+                                return
+                            }
                         }
                     }
                     
                     // Max retries reached
                     if (lastResult) {
-                        logger.error(`[AdminAssets] ❌ Failed to refresh ${latestAsset.baseSymbol} after ${MAX_RETRIES} attempts: ${lastResult.reason} - ${lastResult.error}`)
+                        const elapsedMs = Date.now() - refreshStartTime
+                        logger.error(`[AdminAssets] ❌ Failed to refresh ${latestAsset.baseSymbol} after ${MAX_RETRIES} attempts (${elapsedMs}ms): ${lastResult.reason} - ${lastResult.error}`)
                     }
                 } catch (error) {
-                    logger.error(`[AdminAssets] Auto-refresh error for ${asset.baseSymbol}:`, error)
+                    const elapsedMs = Date.now() - refreshStartTime
+                    logger.error(`[AdminAssets] ❌ Critical error during auto-refresh for ${asset.baseSymbol} (${elapsedMs}ms):`, {
+                        error: error instanceof Error ? error.message : String(error),
+                        stack: error instanceof Error ? error.stack : undefined,
+                    })
                 }
+            })
+        } else {
+            logger.debug(`[AdminAssets] No refresh needed for ${asset.baseSymbol}`, {
+                needsRefresh,
+                oldCoingeckoId,
+                newCoingeckoId: payload.coingeckoId,
             })
         }
 
