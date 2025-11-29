@@ -138,9 +138,27 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 toast.success(`Saved ${asset.baseSymbol}`)
             }
         } catch (err: any) {
-            console.error('[AdminAssetsTable] Failed to save asset', err)
-            const errorMessage = err.response?.data?.details || err.response?.data?.error || err.response?.error || 'Failed to save asset'
-            toast.error(errorMessage, { duration: 5000 })
+            console.error('[AdminAssetsTable] Failed to save asset', {
+                error: err,
+                message: err.message,
+                response: err.response,
+                status: err.status,
+            })
+            
+            // AdminAPIError stores response in err.response directly (not nested under data)
+            const errorResponse = err.response || {}
+            const errorMessage = errorResponse.details || errorResponse.error || err.message || 'Failed to save asset'
+            
+            // If we have detailed validation errors, show them
+            if (errorResponse.errors && Array.isArray(errorResponse.errors)) {
+                const detailMessages = errorResponse.errors.map((e: any) => `${e.path.join('.')}: ${e.message}`).join(', ')
+                toast.error(`${errorMessage}: ${detailMessages}`, { duration: 6000 })
+            } else if (errorResponse.details) {
+                // Show details if available
+                toast.error(`${errorMessage}`, { duration: 6000 })
+            } else {
+                toast.error(errorMessage, { duration: 5000 })
+            }
         } finally {
             setSavingId(null)
         }
