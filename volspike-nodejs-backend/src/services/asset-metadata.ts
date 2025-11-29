@@ -570,11 +570,36 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
             }
         }
 
+        // When forceRefresh is true and CoinGecko ID is invalid (404/Not Found), clear all CoinGecko data
+        if (forceRefresh && reason === 'NOT_FOUND') {
+            logger.warn(`[AssetMetadata] Invalid CoinGecko ID for ${symbol}: ${asset.coingeckoId} - clearing all CoinGecko data`)
+            try {
+                await prisma.asset.update({
+                    where: { id: asset.id },
+                    data: {
+                        displayName: null,
+                        description: null,
+                        websiteUrl: null,
+                        twitterUrl: null,
+                        logoUrl: null,
+                        // Keep the CoinGecko ID so admin can see what was attempted
+                        // Admin can fix it or clear it manually
+                        lastFailureReason: reason,
+                    },
+                })
+                logger.info(`[AssetMetadata] ✅ Cleared CoinGecko data for ${symbol} due to invalid CoinGecko ID`)
+            } catch (clearError) {
+                logger.error(`[AssetMetadata] Failed to clear CoinGecko data for ${symbol}:`, clearError)
+            }
+        }
+
         logger.warn(`[AssetMetadata] ❌ Failed to refresh ${symbol}`, {
             error: errorMessage,
             reason,
             stack: errorStack,
             elapsedMs,
+            forceRefresh,
+            clearedData: forceRefresh && reason === 'NOT_FOUND',
         })
         return { success: false, reason, error: errorMessage }
     }

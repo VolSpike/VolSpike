@@ -223,18 +223,15 @@ adminAssetRoutes.post('/', async (c) => {
         // Always refresh when CoinGecko ID is added/changed, regardless of status
         // (VERIFIED status only prevents auto-updates from refresh cycles, not manual admin edits)
         if (needsRefresh) {
-            // Trigger refresh in background (non-blocking) - don't wait for it
-            // IMPORTANT: Refetch the asset from DB to ensure we have the latest data (including the new CoinGecko ID)
-            process.nextTick(async () => {
-                try {
-                    // Refetch asset from DB to ensure we have the latest CoinGecko ID
-                    const latestAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
-                    if (!latestAsset) {
-                        logger.warn(`[AdminAssets] Asset ${asset.baseSymbol} not found for refresh`)
-                        return
-                    }
-                    
-                    logger.info(`[AdminAssets] Auto-refreshing ${latestAsset.baseSymbol} in background after CoinGecko ID was set/changed`, {
+            // IMPORTANT: Wait for refresh to complete so we can return proper error/success status
+            // This ensures immediate feedback and proper data clearing on invalid CoinGecko IDs
+            try {
+                // Refetch asset from DB to ensure we have the latest CoinGecko ID
+                const latestAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
+                if (!latestAsset) {
+                    logger.warn(`[AdminAssets] Asset ${asset.baseSymbol} not found for refresh`)
+                } else {
+                    logger.info(`[AdminAssets] Auto-refreshing ${latestAsset.baseSymbol} immediately after CoinGecko ID was set/changed`, {
                         oldCoingeckoId: oldCoingeckoId,
                         newCoingeckoId: latestAsset.coingeckoId,
                     })
@@ -242,14 +239,38 @@ adminAssetRoutes.post('/', async (c) => {
                     // When CoinGecko ID changes, force refresh all fields (don't preserve old data from wrong ID)
                     const refreshResult = await refreshSingleAsset(latestAsset, true) // forceRefresh = true
                     if (refreshResult.success) {
-                        logger.info(`[AdminAssets] ✅ Auto-refreshed ${latestAsset.baseSymbol} successfully in background`)
+                        logger.info(`[AdminAssets] ✅ Auto-refreshed ${latestAsset.baseSymbol} successfully`)
+                        // Refetch updated asset to return latest data
+                        const refreshedAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
+                        if (refreshedAsset) {
+                            asset = refreshedAsset
+                        }
                     } else {
                         logger.warn(`[AdminAssets] Auto-refresh failed for ${latestAsset.baseSymbol}: ${refreshResult.reason} - ${refreshResult.error}`)
+                        // Refetch asset to get cleared data if CoinGecko ID was invalid
+                        const refreshedAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
+                        if (refreshedAsset) {
+                            asset = refreshedAsset
+                        }
+                        // Return error info so frontend can show it
+                        return c.json({ 
+                            asset, 
+                            needsRefresh: true,
+                            refreshError: refreshResult.reason === 'NOT_FOUND' 
+                                ? `Invalid CoinGecko ID: "${latestAsset.coingeckoId}" not found. All CoinGecko data has been cleared.`
+                                : `Refresh failed: ${refreshResult.error}`,
+                            refreshReason: refreshResult.reason,
+                        })
                     }
-                } catch (error) {
-                    logger.error(`[AdminAssets] Auto-refresh error for ${asset.baseSymbol}:`, error)
                 }
-            })
+            } catch (error) {
+                logger.error(`[AdminAssets] Auto-refresh error for ${asset.baseSymbol}:`, error)
+                return c.json({ 
+                    asset, 
+                    needsRefresh: true,
+                    refreshError: `Refresh error: ${error instanceof Error ? error.message : String(error)}`,
+                })
+            }
         }
 
         return c.json({ asset, needsRefresh })

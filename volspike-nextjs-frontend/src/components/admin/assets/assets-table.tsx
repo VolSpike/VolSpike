@@ -126,47 +126,30 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 )
             )
             
-            // Save is fast - always show success immediately
-            toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
+            // Update asset in state immediately (backend refresh is now synchronous)
+            setAssets((prev) =>
+                prev.map((a) =>
+                    (a.id && updatedAsset.id && a.id === updatedAsset.id) || (!a.id && a.baseSymbol === updatedAsset.baseSymbol)
+                        ? updatedAsset
+                        : a
+                )
+            )
             
-            // Backend handles auto-refresh when CoinGecko ID changes
-            // Silently update the single asset after backend refresh completes (no page reload)
+            // Show success or error message based on refresh result
             if (res.needsRefresh) {
-                console.log(`[AdminAssetsTable] CoinGecko ID changed for ${asset.baseSymbol}, backend refresh triggered`)
-                // Wait for backend refresh to complete, then silently fetch just this asset
-                setTimeout(async () => {
-                    try {
-                        console.log(`[AdminAssetsTable] Silently updating asset ${asset.baseSymbol} after backend refresh`)
-                        // Fetch just this asset without triggering loading state
-                        const refreshedRes = await adminAPI.getAssets({ q: updatedAsset.baseSymbol, limit: 1, page: 1 })
-                        const refreshedAsset = refreshedRes.assets?.find(a => 
-                            (a.id && updatedAsset.id && a.id === updatedAsset.id) || 
-                            a.baseSymbol === updatedAsset.baseSymbol
-                        )
-                        
-                        if (refreshedAsset) {
-                            // Silently update the asset in state without triggering loading
-                            setAssets((prev) =>
-                                prev.map((a) =>
-                                    (a.id && refreshedAsset.id && a.id === refreshedAsset.id) || 
-                                    (!a.id && a.baseSymbol === refreshedAsset.baseSymbol)
-                                        ? refreshedAsset
-                                        : a
-                                )
-                            )
-                            console.log(`[AdminAssetsTable] ✅ Silently updated ${asset.baseSymbol} with refreshed data`)
-                        }
-                    } catch (err) {
-                        console.debug(`[AdminAssetsTable] Failed to silently update asset ${asset.baseSymbol}:`, err)
-                        // Fallback: refresh the whole list if single asset fetch fails
-                        await fetchAssets(currentPage, false)
-                    }
-                }, 3000) // Wait 3 seconds for backend refresh to complete
+                if (res.refreshError) {
+                    // Refresh failed - show error
+                    toast.error(res.refreshError, { duration: 6000 })
+                    console.error(`[AdminAssetsTable] Refresh failed for ${asset.baseSymbol}:`, res.refreshError)
+                } else {
+                    // Refresh succeeded
+                    toast.success(`Saved and refreshed ${asset.baseSymbol}`, { duration: 3000 })
+                    console.log(`[AdminAssetsTable] ✅ Saved and refreshed ${asset.baseSymbol}`)
+                }
             } else {
-                console.log(`[AdminAssetsTable] No refresh needed for ${asset.baseSymbol}`, {
-                    needsRefresh: res.needsRefresh,
-                    coingeckoId: updatedAsset.coingeckoId,
-                })
+                // No refresh needed
+                toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
+                console.log(`[AdminAssetsTable] Saved ${asset.baseSymbol} (no refresh needed)`)
             }
         } catch (err: any) {
             console.error('[AdminAssetsTable] Failed to save asset', {
