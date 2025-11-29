@@ -137,6 +137,20 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
         orderBy: { baseSymbol: 'asc' },
     })
 
+    // Debug: Check 1000PEPE specifically
+    const pepAsset = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
+    if (pepAsset) {
+        logger.info('[AssetManifest] 1000PEPE asset from DB:', {
+            baseSymbol: pepAsset.baseSymbol,
+            hasLogoUrl: !!pepAsset.logoUrl,
+            logoUrlLength: pepAsset.logoUrl?.length || 0,
+            logoUrlPreview: pepAsset.logoUrl?.substring(0, 50) || 'NULL',
+            hasDescription: !!pepAsset.description,
+            descriptionLength: pepAsset.description?.length || 0,
+            descriptionPreview: pepAsset.description?.substring(0, 50) || 'NULL',
+        })
+    }
+
     const manifest = assets.map<AssetManifestEntry>((asset) => ({
         baseSymbol: asset.baseSymbol,
         binanceSymbol: asset.binanceSymbol,
