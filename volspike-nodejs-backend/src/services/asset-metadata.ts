@@ -779,7 +779,8 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
 
         if (!needsRefreshCount) {
             logger.info('[AssetMetadata] ✅ No assets need refresh')
-            refreshProgress.isRunning = false
+            // Don't set isRunning to true if there's nothing to refresh
+            // This prevents frontend from showing completion popup for empty cycles
             return {
                 refreshed: 0,
                 candidates: [],
