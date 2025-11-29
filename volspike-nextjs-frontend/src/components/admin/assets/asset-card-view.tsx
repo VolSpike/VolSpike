@@ -71,13 +71,25 @@ export function AssetCardView({
     }
 
     const handleSaveEdit = async (asset: AssetRecord) => {
-        // Ensure baseSymbol is always included (required field)
+        // Ensure baseSymbol and id are always included (required fields)
+        // Only include editForm fields that are actually set (not undefined)
+        const cleanedEditForm = Object.fromEntries(
+            Object.entries(editForm).filter(([_, value]) => value !== undefined)
+        )
+        
         const dataToSave = {
             ...asset,
-            ...editForm,
-            baseSymbol: editForm.baseSymbol || asset.baseSymbol, // Preserve baseSymbol
+            ...cleanedEditForm,
+            baseSymbol: cleanedEditForm.baseSymbol || asset.baseSymbol, // Preserve baseSymbol
             id: asset.id, // Preserve ID
         }
+        
+        console.log('[AssetCardView] Saving asset:', {
+            originalAsset: { baseSymbol: asset.baseSymbol, id: asset.id },
+            editForm: cleanedEditForm,
+            finalData: { baseSymbol: dataToSave.baseSymbol, id: dataToSave.id, coingeckoId: dataToSave.coingeckoId },
+        })
+        
         await onSave(dataToSave)
         setEditingId(null)
         setEditForm({})
