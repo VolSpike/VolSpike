@@ -662,7 +662,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                 : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                         }`}
                     >
-                        All {filterStatus === 'all' && missingDataCount > 0 && `(${missingDataCount} missing)`}
+                        All ({assets.length})
                     </button>
                     <button
                         onClick={() => {

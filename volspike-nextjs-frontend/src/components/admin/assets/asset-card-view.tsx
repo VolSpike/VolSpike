@@ -191,7 +191,17 @@ export function AssetCardView({
                             {/* Header with status badges */}
                             <div className="flex items-start justify-between gap-2 pb-3 border-b border-border/40">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <Badge variant="secondary" className="text-[10px] uppercase font-semibold px-2 py-0.5">
+                                    <Badge 
+                                        variant="secondary" 
+                                        className="text-[10px] uppercase font-semibold px-2 py-0.5"
+                                        title={
+                                            asset.status === 'VERIFIED' 
+                                                ? 'Manually verified - locked from automatic updates' 
+                                                : asset.status === 'HIDDEN'
+                                                ? 'Hidden from public asset manifest'
+                                                : 'Automatically managed - can be updated by refresh cycles'
+                                        }
+                                    >
                                         {asset.status || 'AUTO'}
                                     </Badge>
                                     {wasRecentlyRefreshed && (
