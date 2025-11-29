@@ -409,8 +409,8 @@ class AdminAPIClient {
         }
     }
 
-    async saveAsset(data: AssetRecord & { id?: string }): Promise<{ asset: AssetRecord; refreshed?: boolean }> {
-        return this.request<{ asset: AssetRecord; refreshed?: boolean }>('/api/admin/assets', {
+    async saveAsset(data: AssetRecord & { id?: string }): Promise<{ asset: AssetRecord; needsRefresh?: boolean }> {
+        return this.request<{ asset: AssetRecord; needsRefresh?: boolean }>('/api/admin/assets', {
             method: 'POST',
             body: JSON.stringify(data),
         })
