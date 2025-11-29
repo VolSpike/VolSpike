@@ -352,12 +352,28 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
         return { success: true }
     } catch (error) {
         const elapsedMs = Date.now() - now
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+        
+        // Categorize errors
+        let reason = 'UNKNOWN_ERROR'
+        if (errorMessage.includes('429') || errorMessage.includes('rate limit')) {
+            reason = 'RATE_LIMIT'
+        } else if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+            reason = 'NOT_FOUND'
+        } else if (errorMessage.includes('timeout') || errorMessage.includes('ECONNABORTED')) {
+            reason = 'TIMEOUT'
+        } else if (errorMessage.includes('network') || errorMessage.includes('ECONNREFUSED')) {
+            reason = 'NETWORK_ERROR'
+        }
+
         logger.warn(`[AssetMetadata] ❌ Failed to refresh ${symbol}`, {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
+            error: errorMessage,
+            reason,
+            stack: errorStack,
             elapsedMs,
         })
-        return false
+        return { success: false, reason, error: errorMessage }
     }
 }
 
