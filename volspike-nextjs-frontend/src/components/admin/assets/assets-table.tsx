@@ -126,7 +126,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 )
             )
             
-            // Update asset in state immediately (backend refresh is now synchronous)
+            // Update asset in state immediately (save is instant, refresh happens in background)
             setAssets((prev) =>
                 prev.map((a) =>
                     (a.id && updatedAsset.id && a.id === updatedAsset.id) || (!a.id && a.baseSymbol === updatedAsset.baseSymbol)
@@ -135,20 +135,41 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 )
             )
             
-            // Show success or error message based on refresh result
+            // Save is instant - always show success immediately
+            toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
+            
+            // If CoinGecko ID changed, refresh happens in background with retry logic
+            // Poll for updates after a delay to show refreshed data
             if (res.needsRefresh) {
-                if (res.refreshError) {
-                    // Refresh failed - show error
-                    toast.error(res.refreshError, { duration: 6000 })
-                    console.error(`[AdminAssetsTable] Refresh failed for ${asset.baseSymbol}:`, res.refreshError)
-                } else {
-                    // Refresh succeeded
-                    toast.success(`Saved and refreshed ${asset.baseSymbol}`, { duration: 3000 })
-                    console.log(`[AdminAssetsTable] ✅ Saved and refreshed ${asset.baseSymbol}`)
-                }
+                console.log(`[AdminAssetsTable] CoinGecko ID changed for ${asset.baseSymbol}, background refresh with retry logic triggered`)
+                // Wait for background refresh to complete (with retries), then update asset
+                setTimeout(async () => {
+                    try {
+                        // Fetch updated asset after refresh completes
+                        const refreshedRes = await adminAPI.getAssets({ q: updatedAsset.baseSymbol, limit: 1, page: 1 })
+                        const refreshedAsset = refreshedRes.assets?.find(a => 
+                            (a.id && updatedAsset.id && a.id === updatedAsset.id) || 
+                            a.baseSymbol === updatedAsset.baseSymbol
+                        )
+                        
+                        if (refreshedAsset) {
+                            // Silently update the asset in state without triggering loading
+                            setAssets((prev) =>
+                                prev.map((a) =>
+                                    (a.id && refreshedAsset.id && a.id === refreshedAsset.id) || 
+                                    (!a.id && a.baseSymbol === refreshedAsset.baseSymbol)
+                                        ? refreshedAsset
+                                        : a
+                                )
+                            )
+                            console.log(`[AdminAssetsTable] ✅ Updated ${asset.baseSymbol} with refreshed data`)
+                            toast.success(`Refreshed ${asset.baseSymbol} from CoinGecko`, { duration: 2000 })
+                        }
+                    } catch (err) {
+                        console.debug(`[AdminAssetsTable] Failed to fetch refreshed asset ${asset.baseSymbol}:`, err)
+                    }
+                }, 15000) // Wait 15 seconds for retry logic to complete (10 retries × 5s delay + API call time)
             } else {
-                // No refresh needed
-                toast.success(`Saved ${asset.baseSymbol}`, { duration: 2000 })
                 console.log(`[AdminAssetsTable] Saved ${asset.baseSymbol} (no refresh needed)`)
             }
         } catch (err: any) {
