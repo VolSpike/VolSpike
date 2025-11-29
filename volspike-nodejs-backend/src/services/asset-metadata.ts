@@ -207,18 +207,22 @@ const pickCoingeckoId = async (baseSymbol: string, knownId?: string | null): Pro
     }
 }
 
-const fetchCoinProfile = async (coingeckoId: string) => {
-    const { data } = await axios.get(`${COINGECKO_API}/coins/${encodeURIComponent(coingeckoId)}`, {
-        params: {
-            localization: 'false',
-            tickers: 'false',
-            market_data: 'false',
-            community_data: 'true',
-            developer_data: 'false',
-            sparkline: 'false',
-        },
-        timeout: 10000, // Reduced from 15s to 10s
-    })
+const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Promise<ReturnType<typeof fetchCoinProfile>> => {
+    const maxRetries = 3
+    const baseDelay = 5000 // 5 seconds base delay
+    
+    try {
+        const { data } = await axios.get(`${COINGECKO_API}/coins/${encodeURIComponent(coingeckoId)}`, {
+            params: {
+                localization: 'false',
+                tickers: 'false',
+                market_data: 'false',
+                community_data: 'true',
+                developer_data: 'false',
+                sparkline: 'false',
+            },
+            timeout: 10000, // Reduced from 15s to 10s
+        })
 
     const homepage: string | undefined = Array.isArray(data?.links?.homepage)
         ? data.links.homepage.find((url: string | null | undefined) => !!url?.trim())
@@ -235,7 +239,14 @@ const fetchCoinProfile = async (coingeckoId: string) => {
 
     // Extract description from CoinGecko (supports both 'en' localized and direct description)
     // Strip HTML tags and entities for clean text storage
-    const rawDescription: string | undefined = data?.description?.en || data?.description || undefined
+    // Handle case where description might be an object or non-string value
+    let rawDescription: string | undefined = undefined
+    if (data?.description?.en && typeof data.description.en === 'string') {
+        rawDescription = data.description.en
+    } else if (data?.description && typeof data.description === 'string') {
+        rawDescription = data.description
+    }
+    
     const description: string | undefined = rawDescription
         ? rawDescription
               .replace(/<[^>]+>/g, ' ') // Remove HTML tags
@@ -248,12 +259,23 @@ const fetchCoinProfile = async (coingeckoId: string) => {
               .trim()
         : undefined
 
-    return {
-        name: data?.name as string | undefined,
-        description,
-        homepage,
-        twitterUrl,
-        logoUrl,
+        return {
+            name: data?.name as string | undefined,
+            description,
+            homepage,
+            twitterUrl,
+            logoUrl,
+        }
+    } catch (error: any) {
+        // Handle rate limit errors with exponential backoff
+        if (error?.response?.status === 429 && retryCount < maxRetries) {
+            const delay = baseDelay * Math.pow(2, retryCount) // Exponential backoff: 5s, 10s, 20s
+            logger.warn(`[AssetMetadata] Rate limit hit for ${coingeckoId}, retrying after ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`)
+            await sleep(delay)
+            return fetchCoinProfile(coingeckoId, retryCount + 1)
+        }
+        // Re-throw other errors
+        throw error
     }
 }
 

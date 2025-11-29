@@ -26,6 +26,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [query, setQuery] = useState('')
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards') // Default to cards for better UX
     const [recentlyRefreshed, setRecentlyRefreshed] = useState<Set<string>>(new Set())
+    const [filterStatus, setFilterStatus] = useState<'all' | 'needs-refresh' | 'missing-data' | 'errors'>('all')
     const [refreshProgress, setRefreshProgress] = useState<{
         isRunning: boolean
         current: number
@@ -411,6 +412,42 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId).length
     const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
 
+    // Filter assets based on selected filter
+    const filteredAssets = useMemo(() => {
+        let filtered = assets
+
+        // Apply search query
+        if (query.trim()) {
+            const q = query.toLowerCase()
+            filtered = filtered.filter(
+                (a) =>
+                    a.baseSymbol?.toLowerCase().includes(q) ||
+                    a.displayName?.toLowerCase().includes(q) ||
+                    a.coingeckoId?.toLowerCase().includes(q) ||
+                    a.binanceSymbol?.toLowerCase().includes(q)
+            )
+        }
+
+        // Apply status filter
+        if (filterStatus === 'needs-refresh') {
+            filtered = filtered.filter((a) => {
+                if (!a.logoUrl || !a.displayName || !a.coingeckoId) return true
+                if (!a.updatedAt) return true
+                const updatedAt = new Date(a.updatedAt).getTime()
+                const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+                return updatedAt < weekAgo
+            })
+        } else if (filterStatus === 'missing-data') {
+            filtered = filtered.filter((a) => !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description)
+        } else if (filterStatus === 'errors') {
+            // Show assets that failed in the last refresh cycle
+            const errorSymbols = new Set(refreshProgress?.errors?.map((e) => e.symbol) || [])
+            filtered = filtered.filter((a) => errorSymbols.has(a.baseSymbol))
+        }
+
+        return filtered
+    }, [assets, query, filterStatus, refreshProgress?.errors])
+
     return (
         <div className="space-y-4">
             {/* Enrichment Status Banner - Shows overall enrichment progress (not current cycle) */}
@@ -602,10 +639,17 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 </div>
             </div>
 
+            {/* Show filter results count */}
+            {filteredAssets.length !== assets.length && (
+                <div className="text-xs text-muted-foreground">
+                    Showing {filteredAssets.length} of {assets.length} assets
+                </div>
+            )}
+
             {/* Conditional rendering based on view mode */}
             {viewMode === 'cards' ? (
                 <AssetCardView
-                    assets={assets}
+                    assets={filteredAssets}
                     onRefresh={handleRefresh}
                     onSave={handleSave}
                     onDelete={handleDelete}
@@ -631,7 +675,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                         </tr>
                     </thead>
                     <tbody>
-                        {assets.map((asset) => {
+                        {filteredAssets.map((asset) => {
                             const status = getAssetStatus(asset)
                             const StatusIcon = status.icon
                             return (
