@@ -185,11 +185,23 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     return manifestPromise
 }
 
-export const prefetchAssetManifest = () => {
-    if (manifestMemory || manifestPromise) return
-    loadAssetManifest().catch(() => {
-        // ignore – fallback already handled by loadAssetManifest
+export const prefetchAssetManifest = async (): Promise<void> => {
+    // If already in memory, return immediately
+    if (manifestMemory) return Promise.resolve()
+    
+    // If already loading, wait for it
+    if (manifestPromise) return manifestPromise.then(() => undefined)
+    
+    // Start loading
+    manifestPromise = loadAssetManifest().then((assets) => {
+        manifestPromise = null
+        return assets
+    }).catch((err) => {
+        manifestPromise = null
+        throw err
     })
+    
+    return manifestPromise.then(() => undefined)
 }
 
 /**

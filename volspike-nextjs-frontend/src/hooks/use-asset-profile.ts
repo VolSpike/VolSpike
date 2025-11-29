@@ -436,8 +436,16 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                 let manifestEntry = findAssetInManifestSync(upper)
                 
                 // PRIORITY 2: If not found synchronously, try async lookup (might need to fetch manifest)
+                // This will load manifest from API if not cached, then search again
                 if (!manifestEntry) {
-                    manifestEntry = await findAssetInManifest(upper)
+                    // Load manifest first to ensure it's in memory/localStorage
+                    await prefetchAssetManifest()
+                    // Try sync lookup again after loading
+                    manifestEntry = findAssetInManifestSync(upper)
+                    // If still not found, try async lookup
+                    if (!manifestEntry) {
+                        manifestEntry = await findAssetInManifest(upper)
+                    }
                 }
                 
                 // If manifest entry exists, use it (database is source of truth)

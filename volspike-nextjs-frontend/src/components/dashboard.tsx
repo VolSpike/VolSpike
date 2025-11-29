@@ -88,9 +88,14 @@ export function Dashboard() {
     // Automatically detect new assets from Market Data (runs in background)
     useAssetDetection(marketData)
 
-    // Preload asset manifest on dashboard mount for instant asset card display
+    // Load asset manifest immediately on dashboard mount for instant asset card display
     useEffect(() => {
-        prefetchAssetManifest()
+        // Load manifest immediately (not just prefetch) to ensure it's ready
+        import('@/lib/asset-manifest').then(({ loadAssetManifest }) => {
+            loadAssetManifest().catch((err) => {
+                console.error('[Dashboard] Failed to load asset manifest:', err)
+            })
+        })
     }, [])
 
     useEffect(() => {
