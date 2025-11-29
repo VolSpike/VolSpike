@@ -436,8 +436,11 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         if (!updatedAt) return 'Never'
         const date = new Date(updatedAt)
         const now = new Date()
-        const diffMs = now.getTime() - date.getTime()
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+        
+        // Use local timezone for date comparison (not UTC)
+        const localDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+        const localNow = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const diffDays = Math.floor((localNow.getTime() - localDate.getTime()) / (1000 * 60 * 60 * 24))
         
         if (diffDays === 0) return 'Today'
         if (diffDays === 1) return 'Yesterday'
