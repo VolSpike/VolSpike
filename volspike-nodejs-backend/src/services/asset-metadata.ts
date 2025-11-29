@@ -22,6 +22,10 @@ interface RefreshProgress {
     lastUpdated?: number
     refreshed: number
     failed: number
+    skipped: number // Assets skipped (no CoinGecko ID found)
+    noUpdate: number // Assets that didn't need updates
+    errors: Array<{ symbol: string; reason: string; error?: string }> // Detailed error list
+    successes: string[] // List of successfully refreshed symbols
 }
 
 let refreshProgress: RefreshProgress = {
@@ -30,6 +34,10 @@ let refreshProgress: RefreshProgress = {
     total: 0,
     refreshed: 0,
     failed: 0,
+    skipped: 0,
+    noUpdate: 0,
+    errors: [],
+    successes: [],
 }
 
 /**
@@ -265,7 +273,7 @@ const fetchAsDataUrl = async (url?: string | null): Promise<string | undefined> 
     }
 }
 
-export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
+export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boolean; reason?: string; error?: string }> => {
     const now = Date.now()
     const symbol = asset.baseSymbol.toUpperCase()
     const allowOverwrite = asset.status !== 'VERIFIED'
@@ -283,7 +291,7 @@ export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
             logger.warn(`[AssetMetadata] No CoinGecko id found for ${symbol}`, {
                 hadKnownId: !!asset.coingeckoId,
             })
-            return false
+            return { success: false, reason: 'NO_COINGECKO_ID', error: 'No CoinGecko ID found for this symbol' }
         }
 
         logger.debug(`[AssetMetadata] Found CoinGecko id for ${symbol}: ${coingeckoId} (source: ${source})`)
@@ -327,7 +335,7 @@ export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
 
         if (!Object.keys(payload).length) {
             logger.debug(`[AssetMetadata] No updates needed for ${symbol} (all fields present and verified)`)
-            return false
+            return { success: false, reason: 'NO_UPDATE_NEEDED', error: 'Asset already has all required data' }
         }
 
         await prisma.asset.update({
@@ -341,7 +349,7 @@ export const refreshSingleAsset = async (asset: Asset): Promise<boolean> => {
             updatedFields: Object.keys(payload),
             coingeckoId,
         })
-        return true
+        return { success: true }
     } catch (error) {
         const elapsedMs = Date.now() - now
         logger.warn(`[AssetMetadata] ❌ Failed to refresh ${symbol}`, {
@@ -523,16 +531,20 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
     const now = Date.now()
     logger.info(`[AssetMetadata] 🔄 Refresh cycle started (${reason})`)
 
-    // Initialize progress tracker
-    refreshProgress = {
-        isRunning: true,
-        current: 0,
-        total: 0,
-        startedAt: now,
-        lastUpdated: now,
-        refreshed: 0,
-        failed: 0,
-    }
+        // Initialize progress tracker
+        refreshProgress = {
+            isRunning: true,
+            current: 0,
+            total: 0,
+            startedAt: now,
+            lastUpdated: now,
+            refreshed: 0,
+            failed: 0,
+            skipped: 0,
+            noUpdate: 0,
+            errors: [],
+            successes: [],
+        }
 
     try {
         // Check if database is empty and sync Binance universe first
@@ -574,7 +586,7 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
             `[AssetMetadata] 🔄 Continuous processing mode | Found ${needsRefreshCount} assets needing refresh (processing ALL)`
         )
 
-        const results: Array<{ symbol: string; success: boolean; error?: string }> = []
+        const results: Array<{ symbol: string; success: boolean; reason?: string; error?: string }> = []
 
         // Process ALL assets continuously, respecting rate limits
         for (let i = 0; i < assetsNeedingRefresh.length; i++) {
@@ -589,29 +601,59 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
             logger.info(`[AssetMetadata] ${progress} Processing ${asset.baseSymbol}...`)
 
             try {
-                const updated = await refreshSingleAsset(asset)
+                const result = await refreshSingleAsset(asset)
 
-                if (updated) {
+                if (result.success) {
                     refreshProgress.refreshed++
+                    refreshProgress.successes.push(asset.baseSymbol)
                     results.push({ symbol: asset.baseSymbol, success: true })
                     logger.info(
                         `[AssetMetadata] ${progress} ✅ ${asset.baseSymbol} enriched (${refreshProgress.refreshed} successful so far)`
                     )
                 } else {
-                    refreshProgress.failed++
-                    results.push({ symbol: asset.baseSymbol, success: false })
-                    logger.info(
-                        `[AssetMetadata] ${progress} ⚠️  ${asset.baseSymbol} skipped (no CoinGecko ID found)`
-                    )
+                    // Categorize non-success results
+                    if (result.reason === 'NO_COINGECKO_ID') {
+                        refreshProgress.skipped++
+                        results.push({ symbol: asset.baseSymbol, success: false, reason: result.reason, error: result.error })
+                        logger.info(
+                            `[AssetMetadata] ${progress} ⚠️  ${asset.baseSymbol} skipped (no CoinGecko ID found)`
+                        )
+                    } else if (result.reason === 'NO_UPDATE_NEEDED') {
+                        refreshProgress.noUpdate++
+                        results.push({ symbol: asset.baseSymbol, success: false, reason: result.reason, error: result.error })
+                        logger.info(
+                            `[AssetMetadata] ${progress} ℹ️  ${asset.baseSymbol} skipped (no updates needed)`
+                        )
+                    } else {
+                        // Actual error
+                        refreshProgress.failed++
+                        refreshProgress.errors.push({
+                            symbol: asset.baseSymbol,
+                            reason: result.reason || 'UNKNOWN',
+                            error: result.error,
+                        })
+                        results.push({ symbol: asset.baseSymbol, success: false, reason: result.reason, error: result.error })
+                        logger.warn(
+                            `[AssetMetadata] ${progress} ❌ ${asset.baseSymbol} failed: ${result.reason} - ${result.error}`
+                        )
+                    }
                 }
             } catch (error) {
+                // Unexpected error (shouldn't happen, but catch just in case)
                 refreshProgress.failed++
+                const errorMessage = error instanceof Error ? error.message : String(error)
+                refreshProgress.errors.push({
+                    symbol: asset.baseSymbol,
+                    reason: 'UNEXPECTED_ERROR',
+                    error: errorMessage,
+                })
                 results.push({
                     symbol: asset.baseSymbol,
                     success: false,
-                    error: error instanceof Error ? error.message : String(error),
+                    reason: 'UNEXPECTED_ERROR',
+                    error: errorMessage,
                 })
-                logger.warn(`[AssetMetadata] ${progress} ❌ ${asset.baseSymbol} failed:`, error)
+                logger.error(`[AssetMetadata] ${progress} ❌ ${asset.baseSymbol} unexpected error:`, error)
             }
 
             // Rate limit: wait between requests (except for the last one)
@@ -621,34 +663,42 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
         }
 
         const elapsedMs = Date.now() - now
-        const remaining = needsRefreshCount - refreshProgress.refreshed - refreshProgress.failed
+        const remaining = needsRefreshCount - refreshProgress.refreshed - refreshProgress.failed - refreshProgress.skipped - refreshProgress.noUpdate
 
         logger.info(`[AssetMetadata] ✅ Refresh cycle complete`, {
             refreshed: refreshProgress.refreshed,
             failed: refreshProgress.failed,
+            skipped: refreshProgress.skipped,
+            noUpdate: refreshProgress.noUpdate,
             remaining,
             total: needsRefreshCount,
             elapsedMs,
             reason,
+            errorCount: refreshProgress.errors.length,
         })
 
         const finalResult = {
             refreshed: refreshProgress.refreshed,
             failed: refreshProgress.failed,
+            skipped: refreshProgress.skipped,
+            noUpdate: refreshProgress.noUpdate,
             candidates: assetsNeedingRefresh.map((c) => c.baseSymbol),
             total: assets.length,
             needsRefreshCount,
             remaining,
             mode: 'CONTINUOUS',
             results,
+            errors: refreshProgress.errors,
+            successes: refreshProgress.successes,
             elapsedMs,
         }
 
-        // Reset progress tracker
+        // Reset progress tracker (but keep errors/successes for admin panel display)
         refreshProgress.isRunning = false
         refreshProgress.current = 0
         refreshProgress.total = 0
         refreshProgress.currentSymbol = undefined
+        // Keep errors and successes arrays for admin panel display
 
         return finalResult
     } catch (error) {

@@ -344,7 +344,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
 
     if (assetRefreshEnabled) {
         logger.info('✅ Automatic asset enrichment enabled (continuous processing mode)')
-        
+
         // Run initial refresh cycle after 5 minutes (let server stabilize)
         setTimeout(async () => {
             try {
@@ -362,7 +362,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                 // Import getRefreshProgress dynamically to avoid circular dependencies
                 const { getRefreshProgress } = await import('./services/asset-metadata')
                 const progress = getRefreshProgress()
-                
+
                 // Only start new cycle if one isn't already running
                 if (!progress.isRunning) {
                     logger.info('🔄 Running scheduled asset refresh cycle')

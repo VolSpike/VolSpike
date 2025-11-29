@@ -247,12 +247,17 @@ adminAssetRoutes.post('/refresh/bulk', async (c) => {
         
         for (const asset of assets) {
             try {
-                const updated = await refreshSingleAsset(asset)
-                if (updated) {
+                const result = await refreshSingleAsset(asset)
+                if (result.success) {
                     refreshed++
                     results.push({ symbol: asset.baseSymbol, success: true })
                 } else {
-                    results.push({ symbol: asset.baseSymbol, success: false, reason: 'No updates needed' })
+                    results.push({ 
+                        symbol: asset.baseSymbol, 
+                        success: false, 
+                        reason: result.reason || 'Unknown',
+                        error: result.error 
+                    })
                 }
                 // Small delay to respect CoinGecko rate limits
                 await new Promise(resolve => setTimeout(resolve, 7000)) // ~8 calls/minute
@@ -260,7 +265,8 @@ adminAssetRoutes.post('/refresh/bulk', async (c) => {
                 logger.warn(`[AdminAssets] Failed to refresh ${asset.baseSymbol}:`, error)
                 results.push({ 
                     symbol: asset.baseSymbol, 
-                    success: false, 
+                    success: false,
+                    reason: 'UNEXPECTED_ERROR',
                     error: error instanceof Error ? error.message : String(error)
                 })
             }

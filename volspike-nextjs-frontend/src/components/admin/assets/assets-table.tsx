@@ -472,10 +472,31 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                             }}
                         />
                     </div>
-                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                        <span>✅ {refreshProgress.refreshed} refreshed</span>
-                        {refreshProgress.failed > 0 && <span>❌ {refreshProgress.failed} failed</span>}
+                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground flex-wrap gap-2">
+                        <span>✅ {refreshProgress.refreshed || 0} refreshed</span>
+                        {refreshProgress.skipped > 0 && <span>⚠️ {refreshProgress.skipped} skipped (no CoinGecko ID)</span>}
+                        {refreshProgress.noUpdate > 0 && <span>ℹ️ {refreshProgress.noUpdate} no update needed</span>}
+                        {refreshProgress.failed > 0 && <span className="text-red-400">❌ {refreshProgress.failed} failed</span>}
                     </div>
+                    {refreshProgress.errors && refreshProgress.errors.length > 0 && (
+                        <details className="mt-3 text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                View error details ({refreshProgress.errors.length} errors)
+                            </summary>
+                            <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+                                {refreshProgress.errors.slice(0, 20).map((err, idx) => (
+                                    <div key={idx} className="font-mono text-[10px] text-red-400/80">
+                                        {err.symbol}: {err.reason} - {err.error}
+                                    </div>
+                                ))}
+                                {refreshProgress.errors.length > 20 && (
+                                    <div className="text-muted-foreground italic">
+                                        ... and {refreshProgress.errors.length - 20} more errors
+                                    </div>
+                                )}
+                            </div>
+                        </details>
+                    )}
                 </div>
             )}
 
