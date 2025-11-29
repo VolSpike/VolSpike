@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { STATIC_ASSET_MANIFEST, findAssetInManifest, prefetchAssetManifest, type AssetRecord } from '@/lib/asset-manifest'
+import { STATIC_ASSET_MANIFEST, findAssetInManifest, findAssetInManifestSync, prefetchAssetManifest, type AssetRecord } from '@/lib/asset-manifest'
 import { rateLimitedFetch } from '@/lib/coingecko-rate-limiter'
 
 export interface AssetProfile {
@@ -451,7 +451,14 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                     }
                 }
 
-                const manifestEntry = await findAssetInManifest(upper)
+                // Try synchronous lookup first (fast path - uses cached manifest)
+                let manifestEntry = findAssetInManifestSync(upper)
+                
+                // If not found synchronously, try async lookup (might need to fetch manifest)
+                if (!manifestEntry) {
+                    manifestEntry = await findAssetInManifest(upper)
+                }
+                
                 if (manifestEntry) {
                     const manifestProfile = buildProfileFromManifest(upper, manifestEntry)
                     if (manifestProfile) {
@@ -478,8 +485,7 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                         // This avoids unnecessary CoinGecko calls when backend just needs to refresh
                         if (!manifestProfile.logoUrl && manifestEntry.coingeckoId) {
                             debugLog(`🔄 Fetching missing logo for ${upper} from CoinGecko (has coingeckoId: ${manifestEntry.coingeckoId})`)
-                            // Fetch immediately (not background) when user is actively viewing the asset
-                            // Use the manifest's coingeckoId directly to avoid search
+                            // Fetch in background - user already sees manifest data
                             fetchProfileFromCoinGeckoWithId(upper, manifestEntry.coingeckoId)
                                 .then((profile) => {
                                     if (profile && !cancelled) {

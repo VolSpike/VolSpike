@@ -6,6 +6,7 @@ import { useSocket } from '@/hooks/use-socket'
 import { useTierChangeListener } from '@/hooks/use-tier-change-listener'
 import { useClientOnlyMarketData } from '@/hooks/use-client-only-market-data'
 import { useAssetDetection } from '@/hooks/use-asset-detection'
+import { prefetchAssetManifest } from '@/lib/asset-manifest'
 import { HeaderWithBanner } from '@/components/header-with-banner'
 import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
@@ -86,6 +87,11 @@ export function Dashboard() {
 
     // Automatically detect new assets from Market Data (runs in background)
     useAssetDetection(marketData)
+
+    // Preload asset manifest on dashboard mount for instant asset card display
+    useEffect(() => {
+        prefetchAssetManifest()
+    }, [])
 
     useEffect(() => {
         if (!socket) return

@@ -192,7 +192,29 @@ export const prefetchAssetManifest = () => {
     })
 }
 
+/**
+ * Synchronously find asset in manifest if manifest is already loaded in memory
+ * Falls back to async lookup if manifest needs to be fetched
+ */
+export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined => {
+    const cached = readCachedManifest()
+    if (!cached) return undefined
+    
+    const upper = symbol.toUpperCase()
+    return cached.find((asset) => {
+        const baseMatch = asset.baseSymbol?.toUpperCase() === upper
+        const binanceMatch = asset.binanceSymbol?.toUpperCase().replace(/USDT$/i, '') === upper
+        const extraMatch = Array.isArray(asset.extraSymbols) && asset.extraSymbols.some((s) => s.toUpperCase() === upper)
+        return baseMatch || binanceMatch || extraMatch
+    })
+}
+
 export const findAssetInManifest = async (symbol: string): Promise<AssetRecord | undefined> => {
+    // Try synchronous lookup first (fast path)
+    const syncResult = findAssetInManifestSync(symbol)
+    if (syncResult) return syncResult
+    
+    // Fallback to async if manifest not in memory
     const manifest = await loadAssetManifest()
     const upper = symbol.toUpperCase()
 
