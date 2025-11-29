@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Plus, Save, Trash2, RefreshCw, RefreshCcw, AlertCircle, CheckCircle2, Clock, Database, LayoutGrid, LayoutList, X } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
 import { AssetCardView } from './asset-card-view'
 
@@ -383,22 +384,42 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         }
     }
 
-    const getAssetStatus = (asset: AssetRecord) => {
-        const hasLogo = !!asset.logoUrl
-        const hasName = !!asset.displayName
-        const hasCoingeckoId = !!asset.coingeckoId
-        const isComplete = hasLogo && hasName && hasCoingeckoId
+    // Format next refresh time (e.g., "3 days 7 hours")
+    const formatNextRefresh = (updatedAt?: string | null): string | null => {
+        if (!updatedAt) return null
+        const updated = new Date(updatedAt).getTime()
+        const nextRefresh = updated + (7 * 24 * 60 * 60 * 1000) // +7 days
+        const now = Date.now()
+        const diffMs = nextRefresh - now
+        
+        if (diffMs <= 0) return 'Due now'
+        
+        const days = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+        const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+        const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000))
+        
+        const parts: string[] = []
+        if (days > 0) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`)
+        if (hours > 0) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`)
+        if (days === 0 && hours === 0 && minutes > 0) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`)
+        
+        return parts.length > 0 ? parts.join(' ') : 'Soon'
+    }
 
-        if (isComplete) {
-            return { icon: CheckCircle2, color: 'text-green-500', label: 'Complete' }
+    const getAssetStatus = (asset: AssetRecord) => {
+        // Complete status is manually set by admin, not auto-detected
+        if (asset.isComplete) {
+            return { icon: CheckCircle2, color: 'text-green-500', bgColor: 'bg-green-500/10', label: 'Complete' }
         }
-        if (!hasLogo) {
-            return { icon: AlertCircle, color: 'text-yellow-500', label: 'Missing Logo' }
+        
+        // Incomplete assets show what's missing
+        if (!asset.coingeckoId) {
+            return { icon: AlertCircle, color: 'text-orange-500', bgColor: 'bg-orange-500/10', label: 'No CoinGecko ID' }
         }
-        if (!hasCoingeckoId) {
-            return { icon: AlertCircle, color: 'text-orange-500', label: 'No CoinGecko ID' }
+        if (!asset.logoUrl) {
+            return { icon: AlertCircle, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', label: 'Missing Logo' }
         }
-        return { icon: Clock, color: 'text-blue-500', label: 'Partial' }
+        return { icon: Clock, color: 'text-blue-500', bgColor: 'bg-blue-500/10', label: 'Incomplete' }
     }
 
     const formatUpdatedAt = (updatedAt?: string | null) => {
@@ -896,6 +917,8 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                             <th className="px-3 py-2 text-left font-medium">Website</th>
                             <th className="px-3 py-2 text-left font-medium">Twitter / X</th>
                             <th className="px-3 py-2 text-left font-medium">Status</th>
+                            <th className="px-3 py-2 text-left font-medium">Complete</th>
+                            <th className="px-3 py-2 text-left font-medium">Next Refresh</th>
                             <th className="px-3 py-2 text-left font-medium">Updated</th>
                             <th className="px-3 py-2 text-right font-medium">Actions</th>
                         </tr>
