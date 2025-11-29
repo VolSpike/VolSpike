@@ -564,129 +564,125 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 </div>
             )}
 
-            {/* Simplified Action Bar */}
-            <div className="space-y-3">
-                {/* Top Row: Search + Filters */}
-                <div className="flex items-center gap-3 flex-wrap">
-                    <Input
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search assets..."
-                        className="flex-1 min-w-[200px] max-w-md"
-                    />
-                    {/* Compact Filter Pills */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Optimized Action Bar - Single line on larger screens */}
+            <div className="flex items-center gap-3 flex-wrap lg:flex-nowrap">
+                {/* Search */}
+                <Input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search assets..."
+                    className="flex-1 min-w-[200px] lg:min-w-[250px]"
+                />
+                
+                {/* Compact Filter Pills */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                        onClick={() => setFilterStatus('all')}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                            filterStatus === 'all'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        }`}
+                    >
+                        All
+                    </button>
+                    <button
+                        onClick={() => setFilterStatus('needs-refresh')}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                            filterStatus === 'needs-refresh'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        }`}
+                    >
+                        Needs Refresh
+                    </button>
+                    <button
+                        onClick={() => setFilterStatus('missing-data')}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                            filterStatus === 'missing-data'
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                        }`}
+                    >
+                        Missing Data
+                    </button>
+                    {refreshProgress?.errors && refreshProgress.errors.length > 0 && (
                         <button
-                            onClick={() => setFilterStatus('all')}
-                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                                filterStatus === 'all'
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                            onClick={() => setFilterStatus('errors')}
+                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all whitespace-nowrap ${
+                                filterStatus === 'errors'
+                                    ? 'bg-destructive text-destructive-foreground shadow-sm'
                                     : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                             }`}
                         >
-                            All
+                            Errors ({refreshProgress.errors.length})
                         </button>
-                        <button
-                            onClick={() => setFilterStatus('needs-refresh')}
-                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                                filterStatus === 'needs-refresh'
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                            }`}
-                        >
-                            Needs Refresh
-                        </button>
-                        <button
-                            onClick={() => setFilterStatus('missing-data')}
-                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                                filterStatus === 'missing-data'
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
-                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                            }`}
-                        >
-                            Missing Data
-                        </button>
-                        {refreshProgress?.errors && refreshProgress.errors.length > 0 && (
-                            <button
-                                onClick={() => setFilterStatus('errors')}
-                                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                                    filterStatus === 'errors'
-                                        ? 'bg-destructive text-destructive-foreground shadow-sm'
-                                        : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-                                }`}
-                            >
-                                Errors ({refreshProgress.errors.length})
-                            </button>
-                        )}
-                    </div>
+                    )}
                 </div>
 
-                {/* Bottom Row: Primary Actions */}
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2">
-                        {/* Primary Action: Run Cycle */}
+                {/* Divider (hidden on mobile) */}
+                <div className="hidden md:block w-px h-6 bg-border/50 flex-shrink-0" />
+
+                {/* Primary Action: Run Cycle */}
+                <Button
+                    size="default"
+                    variant="default"
+                    onClick={handleRunCycle}
+                    disabled={bulkRefreshing || syncingBinance || (refreshProgress?.isRunning ?? false)}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md flex-shrink-0 whitespace-nowrap"
+                >
+                    {bulkRefreshing || refreshProgress?.isRunning ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        <>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Run Refresh Cycle
+                        </>
+                    )}
+                </Button>
+
+                {/* Secondary Actions: View Toggle + Sync */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* View Mode Toggle */}
+                    <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
                         <Button
-                            size="default"
-                            variant="default"
-                            onClick={handleRunCycle}
-                            disabled={bulkRefreshing || syncingBinance || (refreshProgress?.isRunning ?? false)}
-                            className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md"
+                            size="sm"
+                            variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                            onClick={() => setViewMode('cards')}
+                            className="h-7 px-2"
+                            title="Card view"
                         >
-                            {bulkRefreshing || refreshProgress?.isRunning ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Processing...
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                    Run Refresh Cycle
-                                </>
-                            )}
+                            <LayoutGrid className="h-3.5 w-3.5" />
                         </Button>
-
-                        {/* Secondary Actions: View Toggle + More */}
-                        <div className="flex items-center gap-2">
-                            {/* View Mode Toggle */}
-                            <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
-                                <Button
-                                    size="sm"
-                                    variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                                    onClick={() => setViewMode('cards')}
-                                    className="h-7 px-2"
-                                    title="Card view"
-                                >
-                                    <LayoutGrid className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant={viewMode === 'table' ? 'default' : 'ghost'}
-                                    onClick={() => setViewMode('table')}
-                                    className="h-7 px-2"
-                                    title="Table view"
-                                >
-                                    <LayoutList className="h-3.5 w-3.5" />
-                                </Button>
-                            </div>
-
-                            {/* Sync from Binance (Secondary - Icon Only) */}
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={handleSyncBinance}
-                                disabled={syncingBinance || bulkRefreshing}
-                                title="Sync all Binance perpetual symbols"
-                                className="hidden sm:flex"
-                            >
-                                {syncingBinance ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                    <Database className="h-3.5 w-3.5" />
-                                )}
-                            </Button>
-                        </div>
+                        <Button
+                            size="sm"
+                            variant={viewMode === 'table' ? 'default' : 'ghost'}
+                            onClick={() => setViewMode('table')}
+                            className="h-7 px-2"
+                            title="Table view"
+                        >
+                            <LayoutList className="h-3.5 w-3.5" />
+                        </Button>
                     </div>
 
+                    {/* Sync from Binance (Icon Only) */}
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSyncBinance}
+                        disabled={syncingBinance || bulkRefreshing}
+                        title="Sync all Binance perpetual symbols"
+                        className="hidden sm:flex"
+                    >
+                        {syncingBinance ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                            <Database className="h-3.5 w-3.5" />
+                        )}
+                    </Button>
                 </div>
             </div>
 
