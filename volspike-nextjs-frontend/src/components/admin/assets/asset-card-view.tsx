@@ -34,13 +34,14 @@ export function AssetCardView({
     const [editForm, setEditForm] = useState<Partial<AssetRecord>>({})
 
     // Extract base symbol from trading pair (e.g., "1000000BOB" -> "BOB", "1000PEPE" -> "PEPE")
-    const extractBaseSymbol = (baseSymbol: string): string => {
-        // Remove leading numbers (e.g., "1000000", "1000")
-        const match = baseSymbol.match(/^\d+(.+)$/)
+    // Only extracts if there's a meaningful numeric prefix (10, 100, 1000, etc.), not single "0"
+    const extractBaseSymbol = (baseSymbol: string): string | null => {
+        // Match numeric prefixes like 10, 100, 1000, 10000, 100000, 1000000 (at least 2 digits)
+        const match = baseSymbol.match(/^(\d{2,})(.+)$/)
         if (match) {
-            return match[1]
+            return match[2] // Return the symbol part after the numeric prefix
         }
-        return baseSymbol
+        return null // No meaningful prefix found
     }
 
     // Normalize string for comparison (lowercase, alphanumeric only)
@@ -53,10 +54,10 @@ export function AssetCardView({
         if (!asset.displayName) return false
         
         const extractedSymbol = extractBaseSymbol(asset.baseSymbol)
-        const hasPrefix = extractedSymbol !== asset.baseSymbol
         
-        // Only show symbol line if there's a numeric prefix (like 1000000BOB, 1000BONK)
-        if (!hasPrefix) return false
+        // Only show symbol line if there's a meaningful numeric prefix (like 1000000BOB, 1000BONK)
+        // Don't show for assets without prefix (0G, OG, BTC, ETH, etc.)
+        if (!extractedSymbol) return false
         
         // Normalize both for comparison
         const symbolNormalized = normalizeForComparison(extractedSymbol)
@@ -67,7 +68,7 @@ export function AssetCardView({
         // - "MOG" vs "Mog Coin" → different (show "MOG - Mog Coin")
         // - "BONK" vs "Bonk" → same (don't show, just "BONK")
         // - "BOB" vs "Build On BNB" → different (show "BOB - Build On BNB")
-        // - "G" vs "OG" → different (but 0G has no prefix, so won't show anyway)
+        // - "0G" → no prefix (extractedSymbol is null), so won't show symbol line
         return symbolNormalized !== displayNameNormalized
     }
 
