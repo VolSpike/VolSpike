@@ -709,12 +709,20 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
             elapsedMs,
         }
 
-        // Reset progress tracker (but keep errors/successes for admin panel display)
-        refreshProgress.isRunning = false
-        refreshProgress.current = 0
-        refreshProgress.total = 0
-        refreshProgress.currentSymbol = undefined
-        // Keep errors and successes arrays for admin panel display
+        // Keep progress data for a short time so frontend can display final results
+        // Reset after a delay to allow frontend to poll and get final state
+        setTimeout(() => {
+            refreshProgress.isRunning = false
+            refreshProgress.current = 0
+            refreshProgress.total = 0
+            refreshProgress.currentSymbol = undefined
+            refreshProgress.refreshed = 0
+            refreshProgress.failed = 0
+            refreshProgress.skipped = 0
+            refreshProgress.noUpdate = 0
+            refreshProgress.errors = []
+            refreshProgress.successes = []
+        }, 30000) // Keep for 30 seconds after completion
 
         return finalResult
     } catch (error) {

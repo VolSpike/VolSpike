@@ -400,7 +400,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
 
     return (
         <div className="space-y-4">
-            {/* Enrichment Status Banner */}
+            {/* Enrichment Status Banner - Shows overall enrichment progress (not current cycle) */}
             {assets.length > 0 && assetsNeedingRefresh > 0 && (
                 <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-4">
                     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -410,10 +410,13 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                             </div>
                             <div>
                                 <h3 className="font-semibold text-sm text-foreground">
-                                    Enrichment in Progress
+                                    Overall Enrichment Status
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
-                                    {fullyEnriched} of {assets.length} assets enriched ({enrichmentPercentage}%) • {assetsNeedingRefresh} pending
+                                    {fullyEnriched} of {assets.length} total assets enriched ({enrichmentPercentage}%) • {assetsNeedingRefresh} need refresh
+                                </p>
+                                <p className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                    Note: Refresh cycles process assets that need updates, not all {assets.length} assets
                                 </p>
                             </div>
                         </div>
@@ -478,8 +481,8 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                     </div>
                     <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground flex-wrap gap-2">
                         <span>✅ {refreshProgress.refreshed || 0} refreshed</span>
-                        {refreshProgress.skipped > 0 && <span>⚠️ {refreshProgress.skipped} skipped (no CoinGecko ID)</span>}
-                        {refreshProgress.noUpdate > 0 && <span>ℹ️ {refreshProgress.noUpdate} no update needed</span>}
+                        {(refreshProgress.skipped ?? 0) > 0 && <span>⚠️ {refreshProgress.skipped} skipped (no CoinGecko ID)</span>}
+                        {(refreshProgress.noUpdate ?? 0) > 0 && <span>ℹ️ {refreshProgress.noUpdate} no update needed</span>}
                         {refreshProgress.failed > 0 && <span className="text-red-400">❌ {refreshProgress.failed} failed</span>}
                     </div>
                     {refreshProgress.errors && refreshProgress.errors.length > 0 && (
