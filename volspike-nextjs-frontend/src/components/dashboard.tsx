@@ -91,10 +91,8 @@ export function Dashboard() {
     // Load asset manifest immediately on dashboard mount for instant asset card display
     useEffect(() => {
         // Load manifest immediately (not just prefetch) to ensure it's ready
-        import('@/lib/asset-manifest').then(({ loadAssetManifest }) => {
-            loadAssetManifest().catch((err) => {
-                console.error('[Dashboard] Failed to load asset manifest:', err)
-            })
+        loadAssetManifest().catch((err) => {
+            console.error('[Dashboard] Failed to load asset manifest:', err)
         })
     }, [])
 
