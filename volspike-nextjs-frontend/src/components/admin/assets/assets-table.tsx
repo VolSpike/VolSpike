@@ -576,126 +576,137 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 </div>
             )}
 
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+            {/* Simplified Action Bar */}
+            <div className="space-y-3">
+                {/* Top Row: Search + Filters */}
+                <div className="flex items-center gap-3 flex-wrap">
                     <Input
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search by symbol, name, or CoinGecko id..."
-                        className="w-72"
+                        placeholder="Search assets..."
+                        className="flex-1 min-w-[200px] max-w-md"
                     />
-                    {/* Filter buttons */}
-                    <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-1">
+                    {/* Compact Filter Pills */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                             onClick={() => setFilterStatus('all')}
-                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
                                 filterStatus === 'all'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground'
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                             }`}
                         >
                             All
                         </button>
                         <button
                             onClick={() => setFilterStatus('needs-refresh')}
-                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
                                 filterStatus === 'needs-refresh'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground'
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                             }`}
                         >
                             Needs Refresh
                         </button>
                         <button
                             onClick={() => setFilterStatus('missing-data')}
-                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
                                 filterStatus === 'missing-data'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground'
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
                             }`}
                         >
                             Missing Data
                         </button>
-                        <button
-                            onClick={() => setFilterStatus('errors')}
-                            className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${
-                                filterStatus === 'errors'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            Errors ({refreshProgress?.errors?.length || 0})
-                        </button>
+                        {refreshProgress?.errors && refreshProgress.errors.length > 0 && (
+                            <button
+                                onClick={() => setFilterStatus('errors')}
+                                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                                    filterStatus === 'errors'
+                                        ? 'bg-destructive text-destructive-foreground shadow-sm'
+                                        : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                                }`}
+                            >
+                                Errors ({refreshProgress.errors.length})
+                            </button>
+                        )}
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {/* View mode toggle */}
-                    <div className="flex items-center rounded-lg border border-border/60 bg-muted/30 p-1">
+
+                {/* Bottom Row: Primary Actions */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                        {/* Primary Action: Run Cycle */}
                         <Button
-                            size="sm"
-                            variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                            onClick={() => setViewMode('cards')}
-                            className="h-7 px-2"
-                            title="Card view"
+                            size="default"
+                            variant="default"
+                            onClick={handleRunCycle}
+                            disabled={bulkRefreshing || syncingBinance || (refreshProgress?.isRunning ?? false)}
+                            className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md"
                         >
-                            <LayoutGrid className="h-4 w-4" />
+                            {bulkRefreshing || refreshProgress?.isRunning ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                    Run Refresh Cycle
+                                </>
+                            )}
                         </Button>
-                        <Button
-                            size="sm"
-                            variant={viewMode === 'table' ? 'default' : 'ghost'}
-                            onClick={() => setViewMode('table')}
-                            className="h-7 px-2"
-                            title="Table view"
-                        >
-                            <LayoutList className="h-4 w-4" />
-                        </Button>
+
+                        {/* Secondary Actions: View Toggle + More */}
+                        <div className="flex items-center gap-2">
+                            {/* View Mode Toggle */}
+                            <div className="flex items-center rounded-md border border-border bg-muted/30 p-0.5">
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                                    onClick={() => setViewMode('cards')}
+                                    className="h-7 px-2"
+                                    title="Card view"
+                                >
+                                    <LayoutGrid className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={viewMode === 'table' ? 'default' : 'ghost'}
+                                    onClick={() => setViewMode('table')}
+                                    className="h-7 px-2"
+                                    title="Table view"
+                                >
+                                    <LayoutList className="h-3.5 w-3.5" />
+                                </Button>
+                            </div>
+
+                            {/* Sync from Binance (Secondary - Icon Only) */}
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleSyncBinance}
+                                disabled={syncingBinance || bulkRefreshing}
+                                title="Sync all Binance perpetual symbols"
+                                className="hidden sm:flex"
+                            >
+                                {syncingBinance ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Database className="h-3.5 w-3.5" />
+                                )}
+                            </Button>
+                        </div>
                     </div>
 
+                    {/* Add Asset Button */}
                     <Button
-                        size="sm"
+                        size="default"
                         variant="default"
-                        onClick={handleSyncBinance}
-                        disabled={syncingBinance || bulkRefreshing}
-                        title="Sync all Binance perpetual symbols to database"
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={handleAdd}
+                        className="bg-green-600 hover:bg-green-700 text-white shadow-md"
                     >
-                        {syncingBinance ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        ) : (
-                            <Database className="h-4 w-4 mr-1" />
-                        )}
-                        Sync from Binance
-                    </Button>
-                    <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={handleBulkRefresh}
-                        disabled={bulkRefreshing || syncingBinance || assetsNeedingRefresh === 0}
-                        title="Refresh up to 10 assets that need refresh"
-                    >
-                        {bulkRefreshing ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        ) : (
-                            <RefreshCcw className="h-4 w-4 mr-1" />
-                        )}
-                        Bulk Refresh
-                    </Button>
-                    <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={handleRunCycle}
-                        disabled={bulkRefreshing || syncingBinance || (refreshProgress?.isRunning ?? false)}
-                        title={refreshProgress?.isRunning ? "Refresh cycle is already running" : "Manually trigger refresh cycle (runs automatically in background)"}
-                    >
-                        {bulkRefreshing || refreshProgress?.isRunning ? (
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        ) : (
-                            <RefreshCw className="h-4 w-4 mr-1" />
-                        )}
-                        {refreshProgress?.isRunning ? 'Running...' : 'Run Cycle'}
-                    </Button>
-                    <Button size="sm" onClick={handleAdd}>
-                        <Plus className="h-4 w-4 mr-1" />
+                        <Plus className="h-4 w-4 mr-2" />
                         Add Asset
                     </Button>
                 </div>
