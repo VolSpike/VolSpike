@@ -176,10 +176,23 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                     // If cycle completed, refresh assets list
                     if (!status.progress.isRunning && refreshProgress.isRunning) {
                         await fetchAssets()
-                        toast.success(
-                            `✅ Refresh cycle completed: ${status.progress.refreshed} refreshed, ${status.progress.failed} failed`,
-                            { duration: 5000 }
-                        )
+                        const refreshed = status.progress.refreshed || 0
+                        const failed = status.progress.failed || 0
+                        const skipped = status.progress.skipped || 0
+                        const noUpdate = status.progress.noUpdate || 0
+                        
+                        // Build detailed success message
+                        const parts: string[] = []
+                        if (refreshed > 0) parts.push(`${refreshed} refreshed`)
+                        if (skipped > 0) parts.push(`${skipped} skipped (no CoinGecko ID)`)
+                        if (noUpdate > 0) parts.push(`${noUpdate} no update needed`)
+                        if (failed > 0) parts.push(`${failed} failed`)
+                        
+                        const message = parts.length > 0 
+                            ? `✅ Refresh cycle completed: ${parts.join(', ')}`
+                            : '✅ Refresh cycle completed'
+                        
+                        toast.success(message, { duration: 6000 })
                     }
                 }
             } catch (error) {
