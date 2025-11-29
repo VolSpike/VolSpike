@@ -576,7 +576,7 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
                 const base = sym.replace(/USDT$/i, '').toUpperCase()
                 return base
             })
-            .filter((base) => base.length >= 2) // Filter out empty strings and single-character symbols (e.g., "A" from "AUSDT")
+            .filter((base) => base.length > 0) // Filter out empty strings
 
         if (!baseSymbols.length) {
             logger.debug('[AssetMetadata] No valid base symbols to check')

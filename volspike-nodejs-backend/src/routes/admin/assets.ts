@@ -554,7 +554,7 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
                 baseSymbol: String(s.baseAsset || '').toUpperCase(),
                 binanceSymbol: String(s.symbol || '').toUpperCase(),
             }))
-            .filter((c) => c.baseSymbol && c.binanceSymbol && c.baseSymbol.length >= 2) // Remove invalid entries and single-character symbols
+            .filter((c) => c.baseSymbol && c.binanceSymbol) // Remove invalid entries
 
         logger.info(`[AdminAssets] ✅ Filtered to ${candidates.length} valid perpetual USDT pairs`)
 
