@@ -176,6 +176,16 @@ adminAssetRoutes.post('/', async (c) => {
             notes: data.notes ?? null,
         }
 
+        // IMPORTANT: Read old CoinGecko ID BEFORE updating, so we can detect changes
+        let oldCoingeckoId: string | null = null
+        if (data.id) {
+            const existingAsset = await prisma.asset.findUnique({ where: { id: data.id } })
+            oldCoingeckoId = existingAsset?.coingeckoId ?? null
+        } else {
+            const existingAsset = await prisma.asset.findUnique({ where: { baseSymbol: payload.baseSymbol } })
+            oldCoingeckoId = existingAsset?.coingeckoId ?? null
+        }
+
         let asset
         if (data.id) {
             asset = await prisma.asset.update({
@@ -191,10 +201,9 @@ adminAssetRoutes.post('/', async (c) => {
         }
 
         // Return immediately - save is fast
-        // If CoinGecko ID was just added/changed and asset is missing data, trigger refresh in background
-        const hadCoingeckoId = asset.coingeckoId
-        const coingeckoIdChanged = hadCoingeckoId !== payload.coingeckoId
-        const needsRefresh = payload.coingeckoId && (coingeckoIdChanged || !asset.logoUrl || !asset.displayName || !asset.description)
+        // If CoinGecko ID was just added/changed, trigger refresh in background
+        const coingeckoIdChanged = oldCoingeckoId !== payload.coingeckoId
+        const needsRefresh = payload.coingeckoId && coingeckoIdChanged
         
         if (needsRefresh && asset.status !== 'VERIFIED') {
             // Trigger refresh in background (non-blocking) - don't wait for it
@@ -209,7 +218,7 @@ adminAssetRoutes.post('/', async (c) => {
                     }
                     
                     logger.info(`[AdminAssets] Auto-refreshing ${latestAsset.baseSymbol} in background after CoinGecko ID was set/changed`, {
-                        oldCoingeckoId: hadCoingeckoId,
+                        oldCoingeckoId: oldCoingeckoId,
                         newCoingeckoId: latestAsset.coingeckoId,
                     })
                     
