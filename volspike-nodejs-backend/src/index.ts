@@ -366,7 +366,8 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                 // Only start new cycle if one isn't already running
                 if (!progress.isRunning) {
                     // Check if there are Complete assets needing refresh (matches shouldRefresh logic)
-                    // Only Complete assets with CoinGecko ID that are missing fields OR stale (>1 week)
+                    // Complete assets only refresh if stale (>1 week), NOT if missing fields
+                    // Missing fields check only applies to incomplete assets
                     const now = Date.now()
                     const oneWeekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
 
@@ -375,16 +376,10 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
                             status: { not: 'HIDDEN' },
                             isComplete: true, // Only Complete assets
                             coingeckoId: { not: null }, // Must have CoinGecko ID
-                            OR: [
-                                { logoUrl: null },
-                                { displayName: null },
-                                { description: null },
-                                {
-                                    updatedAt: {
-                                        lt: oneWeekAgo, // Older than 1 week
-                                    },
-                                },
-                            ],
+                            // Complete assets only refresh if stale (>1 week), not if missing fields
+                            updatedAt: {
+                                lt: oneWeekAgo, // Older than 1 week
+                            },
                         },
                         take: 1,
                     })
