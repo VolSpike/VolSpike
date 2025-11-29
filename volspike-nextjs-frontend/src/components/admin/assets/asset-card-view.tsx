@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, RefreshCw, Save, Trash2, CheckCircle2, AlertCircle, Clock, ExternalLink, Twitter, Info } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import toast from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 
@@ -200,18 +201,33 @@ export function AssetCardView({
                                             <span className="truncate">
                                                 {extractBaseSymbol(currentAsset.baseSymbol)} - {currentAsset.displayName}
                                             </span>
-                                            <div className="group relative flex-shrink-0">
-                                                <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
-                                                    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs text-popover-foreground shadow-lg whitespace-nowrap max-w-[200px]">
-                                                        <p className="font-semibold mb-1">Symbol & Name</p>
-                                                        <p className="text-muted-foreground">
-                                                            The symbol ({extractBaseSymbol(currentAsset.baseSymbol)}) is the trading identifier, 
-                                                            while the name ({currentAsset.displayName}) is the project&apos;s display name.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                            <TooltipProvider delayDuration={200}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            className="flex-shrink-0 p-0.5 rounded-full hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                                                            aria-label="Symbol and name explanation"
+                                                        >
+                                                            <Info className="h-3.5 w-3.5 text-muted-foreground/70 hover:text-muted-foreground transition-colors" />
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent 
+                                                        side="top" 
+                                                        align="start"
+                                                        className="max-w-[240px] bg-popover border border-border/60 shadow-xl p-3 z-[100]"
+                                                        sideOffset={6}
+                                                    >
+                                                        <div className="space-y-1.5">
+                                                            <p className="font-semibold text-xs text-popover-foreground">Symbol & Name</p>
+                                                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                                                The <span className="font-medium text-foreground">{extractBaseSymbol(currentAsset.baseSymbol)}</span> symbol is the trading identifier, 
+                                                                while <span className="font-medium text-foreground">{currentAsset.displayName}</span> is the project&apos;s display name.
+                                                            </p>
+                                                        </div>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </div>
                                     ) : editing ? (
                                         <Input
