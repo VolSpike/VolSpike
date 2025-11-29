@@ -616,7 +616,7 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
 export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<{ created: number; newSymbols: string[] }> => {
     try {
         // Known Binance indices (not actual tokens) - filter these out
-        const BINANCE_INDICES = new Set(['ALL', 'DEFI', 'ALT', 'BUSD', 'BTC', 'ETH', 'BNB'])
+        const BINANCE_INDICES = new Set(['ALL', 'DEFI', 'ALT', 'BUSD', 'BTC', 'ETH', 'BNB', 'BTCDOM'])
         
         // Extract base symbols from Market Data symbols (e.g., "BTCUSDT" -> "BTC")
         const baseSymbols = symbols

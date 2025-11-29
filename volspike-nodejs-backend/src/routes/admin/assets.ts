@@ -642,7 +642,7 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
         }
 
         // Known Binance indices (not actual tokens) - filter these out
-        const BINANCE_INDICES = new Set(['ALL', 'DEFI', 'ALT', 'BUSD', 'BTC', 'ETH', 'BNB'])
+        const BINANCE_INDICES = new Set(['ALL', 'DEFI', 'ALT', 'BUSD', 'BTC', 'ETH', 'BNB', 'BTCDOM'])
         
         // Step 3: Filter and map candidates
         logger.info('[AdminAssets] 🔍 Filtering perpetual USDT pairs...')
