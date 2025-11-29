@@ -232,9 +232,28 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
             timeout: 10000, // Reduced from 15s to 10s
         })
 
+    // Log raw CoinGecko response for debugging
+    logger.debug(`[AssetMetadata] CoinGecko API response for ${coingeckoId}:`, {
+        hasLinks: !!data?.links,
+        linksKeys: data?.links ? Object.keys(data.links) : [],
+        homepageRaw: data?.links?.homepage,
+        homepageType: Array.isArray(data?.links?.homepage) ? 'array' : typeof data?.links?.homepage,
+        homepageArrayLength: Array.isArray(data?.links?.homepage) ? data.links.homepage.length : undefined,
+        twitterScreenName: data?.links?.twitter_screen_name,
+        hasImage: !!data?.image,
+        imageKeys: data?.image ? Object.keys(data.image) : [],
+    })
+
     const homepage: string | undefined = Array.isArray(data?.links?.homepage)
         ? data.links.homepage.find((url: string | null | undefined) => !!url?.trim())
         : undefined
+
+    // Log what we extracted
+    if (homepage) {
+        logger.info(`[AssetMetadata] ✅ Extracted homepage from CoinGecko for ${coingeckoId}: ${homepage}`)
+    } else {
+        logger.info(`[AssetMetadata] ⚠️  No homepage found in CoinGecko response for ${coingeckoId}`)
+    }
 
     const twitterName: string | undefined = data?.links?.twitter_screen_name
         ? String(data.links.twitter_screen_name).trim()
@@ -359,7 +378,14 @@ export const refreshSingleAsset = async (asset: Asset): Promise<{ success: boole
         // For websiteUrl: if CoinGecko has no homepage, set to null (don't keep old wrong URLs)
         // Only update if allowOverwrite is true OR if we don't have a websiteUrl yet
         if (allowOverwrite || !asset.websiteUrl) {
-            payload.websiteUrl = profile.homepage || null // Explicitly set to null if CoinGecko has no homepage
+            const newWebsiteUrl = profile.homepage || null
+            logger.debug(`[AssetMetadata] Setting websiteUrl for ${symbol}:`, {
+                oldWebsiteUrl: asset.websiteUrl,
+                newWebsiteUrl: newWebsiteUrl,
+                fromCoinGecko: !!profile.homepage,
+                allowOverwrite,
+            })
+            payload.websiteUrl = newWebsiteUrl // Explicitly set to null if CoinGecko has no homepage
         }
         
         // For twitterUrl: if CoinGecko has no Twitter, set to null (don't keep old wrong URLs)
