@@ -24,6 +24,32 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
         return `https://www.tradingview.com/chart/?symbol=BINANCE:${upper}USDT.P`
     }, [baseSymbol])
 
+    const tradingViewDesktopUrl = useMemo(() => {
+        const upper = baseSymbol.toUpperCase()
+        return `tradingview://chart/?symbol=BINANCE:${upper}USDT.P`
+    }, [baseSymbol])
+
+    const handleTradingViewClick = (e: React.MouseEvent) => {
+        e.preventDefault()
+        
+        // Try to open desktop app first
+        const wasFocused = document.hasFocus()
+        const desktopLink = document.createElement('a')
+        desktopLink.href = tradingViewDesktopUrl
+        desktopLink.style.display = 'none'
+        document.body.appendChild(desktopLink)
+        desktopLink.click()
+        document.body.removeChild(desktopLink)
+
+        // Check if desktop app opened (page loses focus) or fallback to browser
+        setTimeout(() => {
+            // If page is still focused, desktop app likely didn't open, so open browser
+            if (document.hasFocus() && wasFocused) {
+                window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
+            }
+        }, 300)
+    }
+
     const displayName = profile?.name || baseSymbol.toUpperCase()
     const description = profile?.description ?? ''
 
@@ -126,18 +152,16 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
                 )}
 
                 <Button
-                    asChild
                     size="sm"
                     variant="outline"
                     className="h-8 rounded-full border-border/60 bg-background/60 hover:bg-elite-500/10"
+                    onClick={handleTradingViewClick}
                 >
-                    <a href={tradingViewUrl} target="_blank" rel="noreferrer">
-                        <span className="inline-flex items-center gap-1.5">
-                            <BarChart3 className="h-3.5 w-3.5" />
-                            <span className="text-xs font-medium">TradingView Perp</span>
-                            <ExternalLink className="h-3 w-3 opacity-60" />
-                        </span>
-                    </a>
+                    <span className="inline-flex items-center gap-1.5">
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        <span className="text-xs font-medium">TradingView Perp</span>
+                        <ExternalLink className="h-3 w-3 opacity-60" />
+                    </span>
                 </Button>
 
                 <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground/70">
