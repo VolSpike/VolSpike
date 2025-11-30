@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useUserIdentity } from '@/hooks/use-user-identity'
 import { generateInitials, getAvatarColor, isLikelyGoogleLetterTile } from '@/lib/avatar-utils'
+import { AdminNotificationBell } from '@/components/admin/notifications/admin-notification-bell'
 
 export function AdminHeader() {
     const { data: session } = useSession()
@@ -87,6 +88,7 @@ export function AdminHeader() {
         if (pathname.startsWith('/admin/audit')) return 'Audit Logs'
         if (pathname.startsWith('/admin/metrics')) return 'Metrics'
         if (pathname.startsWith('/admin/assets')) return 'Assets'
+        if (pathname.startsWith('/admin/notifications')) return 'Notifications'
         if (pathname.startsWith('/admin/settings')) return 'Settings'
         return 'Overview'
     }
@@ -100,6 +102,7 @@ export function AdminHeader() {
         'Audit Logs': 'Review system activity and security events.',
         'Metrics': 'Analyze system performance and user analytics.',
         'Assets': 'Manage cryptocurrency asset metadata, logos, and CoinGecko mappings.',
+        'Notifications': 'View and manage system notifications for admin review.',
         'Settings': 'Configure platform settings and preferences.',
     }
 
@@ -118,10 +121,13 @@ export function AdminHeader() {
                     </div>
                 </div>
 
-                {/* Right side - theme and user menu */}
+                {/* Right side - theme, notifications, and user menu */}
                 <div className="flex items-center space-x-2 md:space-x-4">
                     {/* Theme toggle */}
                     <ThemeToggle />
+
+                    {/* Notifications bell */}
+                    <AdminNotificationBell />
 
                     {/* User menu - Minimal trigger, details in dropdown */}
                     <DropdownMenu>

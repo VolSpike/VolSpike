@@ -2,6 +2,7 @@ import axios from 'axios'
 import type { Asset, AssetStatus } from '@prisma/client'
 import { prisma } from '../index'
 import { createLogger } from '../lib/logger'
+import { notifyNewAssetDetected } from './notifications'
 
 const logger = createLogger()
 
@@ -682,13 +683,14 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
         // Create new Asset records
         let created = 0
         const createdSymbols: string[] = []
+        const createdAssetIds: string[] = []
 
         for (const baseSymbol of uniqueNewSymbols) {
             try {
                 // Reconstruct binanceSymbol from baseSymbol (e.g., "BTC" -> "BTCUSDT")
                 const binanceSymbol = `${baseSymbol}USDT`
 
-                await prisma.asset.create({
+                const asset = await prisma.asset.create({
                     data: {
                         baseSymbol,
                         binanceSymbol,
@@ -698,6 +700,7 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
 
                 created++
                 createdSymbols.push(baseSymbol)
+                createdAssetIds.push(asset.id)
                 logger.debug(`[AssetMetadata] Created new asset: ${baseSymbol}`)
             } catch (error: any) {
                 // Handle unique constraint violations (race condition)
@@ -714,6 +717,20 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
         if (created > 0) {
             logger.info(`[AssetMetadata] ✅ Created ${created} new assets from Market Data`, {
                 createdSymbols: createdSymbols.slice(0, 10),
+            })
+
+            // Create notifications for newly detected assets (non-blocking)
+            setImmediate(async () => {
+                try {
+                    // Create a notification for each new asset
+                    for (let i = 0; i < createdSymbols.length; i++) {
+                        await notifyNewAssetDetected(createdSymbols[i], createdAssetIds[i])
+                    }
+                } catch (notifyError) {
+                    logger.warn('[AssetMetadata] Failed to create notifications (non-critical):', {
+                        error: notifyError instanceof Error ? notifyError.message : String(notifyError),
+                    })
+                }
             })
         }
 

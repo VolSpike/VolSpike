@@ -18,7 +18,8 @@ import {
     Shield,
     User,
     TrendingUp,
-    Coins
+    Coins,
+    Bell
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -64,6 +65,11 @@ const navigation = [
         name: 'Assets',
         href: '/admin/assets',
         icon: Coins,
+    },
+    {
+        name: 'Notifications',
+        href: '/admin/notifications',
+        icon: Bell,
     },
     {
         name: 'Settings',

@@ -68,6 +68,7 @@ model User {
   adminSessions      AdminSession[]
   walletAccounts     WalletAccount[]
   cryptoPayments     CryptoPayment[]
+  adminNotifications AdminNotification[] @relation("AdminNotifications")
 
   @@map("users")
 }
@@ -365,4 +366,22 @@ model CryptoPayment {
   @@index([paymentStatus])
   @@index([expiresAt]) // Index for expiration queries
   @@map("crypto_payments")
+}
+
+// Admin notifications for system events
+model AdminNotification {
+  id        String   @id @default(cuid())
+  userId    String   // Admin user ID
+  user      User     @relation("AdminNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // e.g., "NEW_ASSET_DETECTED", "ASSET_ENRICHMENT_FAILED", etc.
+  title     String   // Notification title
+  message   String   @db.Text // Notification message
+  metadata  Json?    // Additional data (e.g., { assetSymbol: "BTC", assetId: "..." })
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+  @@map("admin_notifications")
 }
