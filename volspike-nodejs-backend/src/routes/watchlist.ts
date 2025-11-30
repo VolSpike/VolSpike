@@ -135,10 +135,19 @@ watchlist.post('/', async (c) => {
         })
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return c.json({ error: 'Validation error', details: error.errors }, 400)
+            logger.warn('Watchlist validation error:', error.errors)
+            return c.json({ 
+                error: 'Validation error', 
+                message: error.errors.map(e => e.message).join(', '),
+                details: error.errors 
+            }, 400)
         }
         logger.error('Create watchlist error:', error)
-        return c.json({ error: 'Failed to create watchlist' }, 500)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        return c.json({ 
+            error: 'Failed to create watchlist',
+            message: errorMessage 
+        }, 500)
     }
 })
 

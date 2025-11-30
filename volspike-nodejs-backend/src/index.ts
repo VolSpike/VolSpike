@@ -188,6 +188,8 @@ app.route('/api/assets', assetsRoutes)
 app.use('/api/market/*', authMiddleware)
 app.route('/api/market', marketRoutes)
 
+// Apply auth middleware to watchlist routes (require authentication)
+app.use('/api/watchlist/*', authMiddleware)
 app.route('/api/watchlist', watchlistRoutes)
 app.route('/api/alerts', alertRoutes)
 app.route('/api/volume-alerts', volumeAlertsRouter)

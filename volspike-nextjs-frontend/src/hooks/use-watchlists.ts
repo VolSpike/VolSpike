@@ -79,28 +79,54 @@ export function useWatchlists() {
   // Create watchlist mutation
   const createWatchlist = useMutation({
     mutationFn: async (name: string) => {
-      const response = await fetch(`${API_URL}/api/watchlist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ name }),
-      })
+      try {
+        const response = await fetch(`${API_URL}/api/watchlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ name }),
+        })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || error.error || 'Failed to create watchlist')
+        if (!response.ok) {
+          let errorData
+          try {
+            errorData = await response.json()
+          } catch (e) {
+            // If response is not JSON, use status text
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+          
+          // Extract error message from various possible formats
+          const errorMessage = errorData.message || errorData.error || `Failed to create watchlist (${response.status})`
+          
+          // Include validation details if available
+          if (errorData.details && Array.isArray(errorData.details)) {
+            const validationErrors = errorData.details.map((d: any) => d.message).join(', ')
+            throw new Error(`${errorMessage}: ${validationErrors}`)
+          }
+          
+          throw new Error(errorMessage)
+        }
+
+        return response.json()
+      } catch (error) {
+        // Re-throw with better error message
+        if (error instanceof Error) {
+          throw error
+        }
+        throw new Error('Failed to create watchlist: Unknown error')
       }
-
-      return response.json()
     },
     onSuccess: (data) => {
       // Invalidate and refetch watchlists
       queryClient.invalidateQueries({ queryKey: ['watchlists'] })
+      queryClient.invalidateQueries({ queryKey: ['watchlist-limits'] })
       toast.success(`Watchlist "${data.watchlist.name}" created`)
       // Return data so it can be accessed in component
       return data
     },
     onError: (error: Error) => {
+      console.error('Create watchlist error:', error)
       toast.error(error.message || 'Failed to create watchlist')
     },
   })
