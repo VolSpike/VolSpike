@@ -47,7 +47,7 @@ export async function createAdminNotification(
             type,
             title,
             message,
-            metadata: metadata || null,
+            metadata: metadata || undefined, // Use undefined instead of null for Prisma JSON type
             isRead: false,
         }))
 
