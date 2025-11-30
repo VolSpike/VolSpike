@@ -250,7 +250,7 @@ model Watchlist {
   createdAt DateTime @default(now())
 
   items WatchlistItem[]
-  user  User            @relation(fields: [userId], references: [id])
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("watchlists")
 }
@@ -260,7 +260,7 @@ model WatchlistItem {
   watchlistId String
   contractId  String
 
-  watchlist Watchlist @relation(fields: [watchlistId], references: [id])
+  watchlist Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
   contract  Contract  @relation(fields: [contractId], references: [id])
 
   @@unique([watchlistId, contractId])
