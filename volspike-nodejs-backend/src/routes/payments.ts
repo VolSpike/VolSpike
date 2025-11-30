@@ -8,6 +8,7 @@ import { User } from '../types'
 import { getUser, requireUser } from '../lib/hono-extensions'
 import { EmailService } from '../services/email'
 import { NowPaymentsService } from '../services/nowpayments'
+import { WatchlistService } from '../services/watchlist-service'
 
 const logger = createLogger()
 
@@ -530,6 +531,25 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
             previousTiers.set(user.id, user.tier)
         })
 
+        // If downgrading to free tier, delete all watchlists (no grandfathering)
+        if (tier === 'free') {
+            for (const user of existingUsers) {
+                const previousTier = previousTiers.get(user.id)
+                // Only delete if actually downgrading (not already free)
+                if (previousTier && previousTier !== 'free') {
+                    try {
+                        const deletedCount = await WatchlistService.deleteAllWatchlists(user.id)
+                        if (deletedCount > 0) {
+                            logger.info(`Deleted ${deletedCount} watchlists for user ${user.id} due to tier downgrade to free`)
+                        }
+                    } catch (error) {
+                        logger.error(`Failed to delete watchlists for user ${user.id}:`, error)
+                        // Continue with tier update even if watchlist deletion fails
+                    }
+                }
+            }
+        }
+
         // Update user tier
         const result = await prisma.user.updateMany({
             where: { stripeCustomerId: customerId },
@@ -587,6 +607,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+    // Import WatchlistService at top of file if not already imported
     const customerId = subscription.customer as string
 
     // Get user's previous tier before downgrading (for email notification)
@@ -600,6 +621,26 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
         previousTiers.set(user.id, user.tier)
     })
 
+    // Delete all watchlists before downgrading (no grandfathering on downgrade)
+    // Get user IDs first
+    const usersToDowngrade = await prisma.user.findMany({
+        where: { stripeCustomerId: customerId },
+        select: { id: true },
+    })
+
+    // Delete watchlists for all users being downgraded
+    for (const user of usersToDowngrade) {
+        try {
+            const deletedCount = await WatchlistService.deleteAllWatchlists(user.id)
+            if (deletedCount > 0) {
+                logger.info(`Deleted ${deletedCount} watchlists for user ${user.id} due to tier downgrade`)
+            }
+        } catch (error) {
+            logger.error(`Failed to delete watchlists for user ${user.id}:`, error)
+            // Continue with downgrade even if watchlist deletion fails
+        }
+    }
+
     // Downgrade to free tier
     const result = await prisma.user.updateMany({
         where: { stripeCustomerId: customerId },
@@ -609,6 +650,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     logger.info(`User downgraded to free tier for customer ${customerId}`, {
         customerId,
         usersUpdated: result.count,
+        watchlistsDeleted: usersToDowngrade.length,
     })
 
     // If no users were updated, log a warning and try fallback

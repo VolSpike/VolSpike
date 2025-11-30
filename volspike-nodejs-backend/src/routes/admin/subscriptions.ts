@@ -265,6 +265,20 @@ adminSubscriptionRoutes.post('/:userId/sync', async (c) => {
 
             // Update user if tier changed or if force sync
             if (newTier !== user.tier || forceSync) {
+                // If downgrading to free tier, delete all watchlists (no grandfathering)
+                if (newTier === 'free' && user.tier !== 'free') {
+                    const { WatchlistService } = await import('../../services/watchlist-service')
+                    try {
+                        const deletedCount = await WatchlistService.deleteAllWatchlists(userId)
+                        if (deletedCount > 0) {
+                            logger.info(`Deleted ${deletedCount} watchlists for user ${userId} due to admin tier change to free`)
+                        }
+                    } catch (watchlistError) {
+                        logger.error(`Failed to delete watchlists for user ${userId}:`, watchlistError)
+                        // Continue with tier update even if watchlist deletion fails
+                    }
+                }
+
                 await prisma.user.update({
                     where: { id: userId },
                     data: { tier: newTier },

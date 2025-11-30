@@ -50,6 +50,11 @@ market.options('/health', (c) => {
     return c.text('', 200)
 })
 
+market.options('/watchlist/:id', (c) => {
+    logger.debug('OPTIONS /api/market/watchlist/:id - preflight request')
+    return c.text('', 200)
+})
+
 // ============================================
 // GET /data - Market data with tier-based throttling
 // ============================================
@@ -302,6 +307,82 @@ market.get('/health', async (c) => {
             error: 'Health check failed',
             timestamp: Date.now()
         }, 500)
+    }
+})
+
+// ============================================
+// GET /watchlist/:id - Market data for watchlist symbols
+// Fetches individual symbol data for all symbols in a watchlist
+// Used when filtering Market Data table by watchlist
+// ============================================
+
+market.get('/watchlist/:id', async (c) => {
+    try {
+        const user = requireUser(c)
+        const watchlistId = c.req.param('id')
+
+        // Verify watchlist ownership
+        const watchlist = await prisma.watchlist.findFirst({
+            where: {
+                id: watchlistId,
+                userId: user.id,
+            },
+            include: {
+                items: {
+                    include: {
+                        contract: {
+                            select: { symbol: true, isActive: true },
+                        },
+                    },
+                },
+            },
+        })
+
+        if (!watchlist) {
+            return c.json({ error: 'Watchlist not found' }, 404)
+        }
+
+        // Extract symbols from watchlist items
+        const symbols = watchlist.items
+            .map(item => item.contract.symbol)
+            .filter(symbol => symbol) // Filter out any null/undefined
+
+        if (symbols.length === 0) {
+            return c.json({
+                watchlistId: watchlist.id,
+                watchlistName: watchlist.name,
+                symbols: [],
+                fetchedAt: Date.now(),
+            })
+        }
+
+        // Fetch market data for each symbol individually
+        // This allows symbols outside tier's normal visibility to be displayed
+        const symbolDataPromises = symbols.map(symbol => 
+            getMarketData(symbol).catch(error => {
+                logger.warn(`Failed to fetch data for symbol ${symbol}:`, error)
+                return null // Return null for failed fetches
+            })
+        )
+
+        const symbolDataResults = await Promise.all(symbolDataPromises)
+        
+        // Filter out null results and ensure we have MarketData objects
+        const marketData = symbolDataResults
+            .filter((data): data is MarketData => data !== null && typeof data === 'object' && 'symbol' in data)
+            .map(data => data as MarketData)
+
+        logger.info(`Fetched market data for ${marketData.length}/${symbols.length} symbols in watchlist ${watchlistId} by ${user.email}`)
+
+        return c.json({
+            watchlistId: watchlist.id,
+            watchlistName: watchlist.name,
+            symbols: marketData,
+            fetchedAt: Date.now(),
+        })
+    } catch (error) {
+        logger.error('Watchlist market data error:', error)
+        return c.json({ error: 'Failed to fetch watchlist market data' }, 500)
     }
 })
 

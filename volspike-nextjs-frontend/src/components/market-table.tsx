@@ -28,6 +28,12 @@ import { AssetProjectOverview } from '@/components/asset-project-overview'
 import { prefetchAssetProfile } from '@/hooks/use-asset-profile'
 import { WatchlistExportButton } from '@/components/watchlist-export-button'
 import { GuestCTA } from '@/components/guest-cta'
+import { WatchlistSelector } from '@/components/watchlist-selector'
+import { WatchlistFilter } from '@/components/watchlist-filter'
+import { useWatchlists } from '@/hooks/use-watchlists'
+import { useQuery } from '@tanstack/react-query'
+import { useSession } from 'next-auth/react'
+import toast from 'react-hot-toast'
 
 const FUNDING_ALERT_THRESHOLD = 0.0003
 
@@ -54,6 +60,9 @@ interface MarketTableProps {
     // Guest preview controls
     guestMode?: boolean
     guestVisibleRows?: number
+    // Watchlist filtering
+    watchlistFilterId?: string | null
+    onWatchlistFilterChange?: (watchlistId: string | null) => void
 }
 
 // Optimized number formatters
@@ -74,11 +83,64 @@ export function MarketTable({
     openInterestAsOf,
     guestMode = false,
     guestVisibleRows = 5,
+    watchlistFilterId,
+    onWatchlistFilterChange,
 }: MarketTableProps) {
+    const { data: session } = useSession()
+    const { watchlists, addSymbol, removeSymbol } = useWatchlists()
     const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
+    const [watchlistSelectorOpen, setWatchlistSelectorOpen] = useState(false)
+    const [symbolToAdd, setSymbolToAdd] = useState<string | undefined>()
+    const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(watchlistFilterId || null)
+
+    // Fetch watchlist market data if a watchlist is selected
+    const { data: watchlistMarketData } = useQuery<MarketData[]>({
+        queryKey: ['watchlist-market-data', selectedWatchlistId],
+        queryFn: async () => {
+            if (!selectedWatchlistId) return []
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+            const response = await fetch(`${API_URL}/api/market/watchlist/${selectedWatchlistId}`, {
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                throw new Error('Failed to fetch watchlist market data')
+            }
+            const result = await response.json()
+            return result.symbols || []
+        },
+        enabled: !!selectedWatchlistId && !!session?.user,
+        staleTime: 30000, // 30 seconds
+    })
+
+    // Use watchlist data if filter is active, otherwise use regular data
+    const displayData = selectedWatchlistId && watchlistMarketData ? watchlistMarketData : data
+
+    // Create a set of symbols that are in watchlists for quick lookup
+    const symbolsInWatchlists = useMemo(() => {
+        const symbolSet = new Set<string>()
+        watchlists.forEach((watchlist) => {
+            watchlist.items.forEach((item) => {
+                symbolSet.add(item.contract.symbol)
+            })
+        })
+        return symbolSet
+    }, [watchlists])
+
+    // Check if a symbol is in any watchlist
+    const isSymbolInWatchlist = (symbol: string) => {
+        return symbolsInWatchlists.has(symbol)
+    }
+
+    // Handle watchlist filter change
+    const handleWatchlistFilterChange = (watchlistId: string | null) => {
+        setSelectedWatchlistId(watchlistId)
+        if (onWatchlistFilterChange) {
+            onWatchlistFilterChange(watchlistId)
+        }
+    }
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const prevPriceRef = useRef<Map<string, number>>(new Map())
     const flashRef = useRef<Map<string, { dir: 'up' | 'down', wholeUntil: number, suffixUntil: number, suffixIndex: number }>>(new Map())
@@ -349,7 +411,7 @@ export function MarketTable({
     }
 
     const sortedData = useMemo(() => {
-        return [...data].sort((a, b) => {
+        return [...displayData].sort((a, b) => {
             let aValue: number, bValue: number
 
             switch (sortBy) {
@@ -383,7 +445,7 @@ export function MarketTable({
 
             return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
         })
-    }, [data, sortBy, sortOrder])
+    }, [displayData, sortBy, sortOrder])
 
     // Warm CoinGecko project profiles in the background for the
     // most likely symbols to be clicked, so the detail drawer
@@ -454,8 +516,24 @@ export function MarketTable({
 
     const handleAddToWatchlist = (e: React.MouseEvent, item: MarketData) => {
         e.stopPropagation()
-        // TODO: Implement watchlist functionality
-        console.log('Add to watchlist:', formatSymbol(item.symbol))
+        if (!session?.user) {
+            toast.error('Please sign in to use watchlists')
+            return
+        }
+        setSymbolToAdd(item.symbol)
+        setWatchlistSelectorOpen(true)
+    }
+
+    const handleWatchlistSelected = async (watchlistId: string) => {
+        if (symbolToAdd) {
+            try {
+                await addSymbol({ watchlistId, symbol: symbolToAdd })
+                setWatchlistSelectorOpen(false)
+                setSymbolToAdd(undefined)
+            } catch (error) {
+                // Error already handled by hook
+            }
+        }
     }
 
     const handleCreateAlert = (e: React.MouseEvent, item: MarketData) => {
@@ -469,7 +547,14 @@ export function MarketTable({
         <div className="relative">
             {/* Status Bar */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30 flex-wrap gap-y-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Watchlist Filter - only show if user is signed in */}
+                    {session?.user && !guestMode && (
+                        <WatchlistFilter
+                            selectedWatchlistId={selectedWatchlistId}
+                            onWatchlistChange={handleWatchlistFilterChange}
+                        />
+                    )}
                     <Badge
                         variant="outline"
                         className={`text-xs font-mono-tabular ${isConnected
@@ -794,15 +879,29 @@ export function MarketTable({
                                         )}
                                         <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
                                             <div className="pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
-                                                <Button
-                                                    className="pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => handleAddToWatchlist(e, item)}
-                                                    title="Add to watchlist"
-                                                >
-                                                    <Star className="h-3.5 w-3.5" />
-                                                </Button>
+                                                {session?.user && !guestMode && (
+                                                    <Button
+                                                        className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
+                                                            isSymbolInWatchlist(item.symbol)
+                                                                ? 'text-brand-600 dark:text-brand-400 opacity-100'
+                                                                : ''
+                                                        }`}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={(e) => handleAddToWatchlist(e, item)}
+                                                        title={
+                                                            isSymbolInWatchlist(item.symbol)
+                                                                ? 'Manage in watchlist'
+                                                                : 'Add to watchlist'
+                                                        }
+                                                    >
+                                                        <Star
+                                                            className={`h-3.5 w-3.5 ${
+                                                                isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
+                                                            }`}
+                                                        />
+                                                    </Button>
+                                                )}
                                                 <Button
                                                     className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
                                                     variant="ghost"
@@ -819,6 +918,12 @@ export function MarketTable({
                             })}
                         </tbody>
                     </table>
+                    {selectedWatchlistId && watchlistMarketData && watchlistMarketData.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground">
+                            <p className="text-sm">This watchlist is empty.</p>
+                            <p className="text-xs mt-1">Add symbols from the market table to get started.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Vertical scroll affordances, mirroring Volume Alerts behavior */}
@@ -987,13 +1092,25 @@ export function MarketTable({
 
                                 {/* Actions */}
                                 <div className="space-y-2">
-                                    <Button
-                                        className="w-full bg-brand-600 hover:bg-brand-700 text-white"
-                                        onClick={(e) => handleAddToWatchlist(e, selectedSymbol)}
-                                    >
-                                        <Star className="h-4 w-4 mr-2" />
-                                        Add to Watchlist
-                                    </Button>
+                                    {session?.user && !guestMode && (
+                                        <Button
+                                            className={`w-full ${
+                                                isSymbolInWatchlist(selectedSymbol.symbol)
+                                                    ? 'bg-brand-600 hover:bg-brand-700 text-white'
+                                                    : 'bg-brand-600 hover:bg-brand-700 text-white'
+                                            }`}
+                                            onClick={(e) => handleAddToWatchlist(e, selectedSymbol)}
+                                        >
+                                            <Star
+                                                className={`h-4 w-4 mr-2 ${
+                                                    isSymbolInWatchlist(selectedSymbol.symbol) ? 'fill-current' : ''
+                                                }`}
+                                            />
+                                            {isSymbolInWatchlist(selectedSymbol.symbol)
+                                                ? 'Manage in Watchlist'
+                                                : 'Add to Watchlist'}
+                                        </Button>
+                                    )}
                                     <Button
                                         className="w-full bg-sec-600 hover:bg-sec-700 text-white"
                                         onClick={() => {
@@ -1028,6 +1145,16 @@ export function MarketTable({
                     )}
                 </SheetContent>
             </Sheet>
+
+            {/* Watchlist Selector Dialog */}
+            {session?.user && !guestMode && (
+                <WatchlistSelector
+                    open={watchlistSelectorOpen}
+                    onOpenChange={setWatchlistSelectorOpen}
+                    symbol={symbolToAdd}
+                    onWatchlistSelected={handleWatchlistSelected}
+                />
+            )}
         </div>
     )
 

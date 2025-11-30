@@ -225,6 +225,18 @@ export async function checkAndDowngradeExpiredSubscriptions() {
             // (they might have upgraded via Stripe in the meantime)
             if (payment.user.tier === payment.tier) {
                 try {
+                    // Delete all watchlists before downgrading (no grandfathering)
+                    const { WatchlistService } = await import('./watchlist-service')
+                    try {
+                        const deletedCount = await WatchlistService.deleteAllWatchlists(payment.userId)
+                        if (deletedCount > 0) {
+                            logger.info(`Deleted ${deletedCount} watchlists for user ${payment.userId} due to subscription expiration`)
+                        }
+                    } catch (watchlistError) {
+                        logger.error(`Failed to delete watchlists for user ${payment.userId}:`, watchlistError)
+                        // Continue with downgrade even if watchlist deletion fails
+                    }
+
                     await prisma.user.update({
                         where: { id: payment.userId },
                         data: { tier: 'free' },
