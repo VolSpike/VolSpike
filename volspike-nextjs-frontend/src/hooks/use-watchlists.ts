@@ -97,6 +97,8 @@ export function useWatchlists() {
       // Invalidate and refetch watchlists
       queryClient.invalidateQueries({ queryKey: ['watchlists'] })
       toast.success(`Watchlist "${data.watchlist.name}" created`)
+      // Return data so it can be accessed in component
+      return data
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to create watchlist')

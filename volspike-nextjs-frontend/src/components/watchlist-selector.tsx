@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,31 +34,45 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [pendingSymbol, setPendingSymbol] = useState<string | undefined>(symbol)
 
-  const handleCreateWatchlist = async () => {
+  // Update pending symbol when dialog opens with a symbol
+  useEffect(() => {
+    if (open && symbol) {
+      setPendingSymbol(symbol)
+    }
+  }, [open, symbol])
+
+  // Handle watchlist creation success - add symbol if needed
+  useEffect(() => {
+    if (!isCreating && watchlists.length > 0 && pendingSymbol && showCreateForm === false) {
+      // Watchlist was just created, add symbol to the newest one
+      const newestWatchlist = watchlists[0]
+      if (newestWatchlist && onWatchlistSelected) {
+        // Small delay to ensure watchlist is fully created
+        const timer = setTimeout(() => {
+          addSymbol({ watchlistId: newestWatchlist.id, symbol: pendingSymbol })
+          onWatchlistSelected(newestWatchlist.id)
+          setPendingSymbol(undefined)
+          onOpenChange(false)
+        }, 100)
+        return () => clearTimeout(timer)
+      }
+    }
+  }, [isCreating, watchlists, pendingSymbol, showCreateForm, addSymbol, onWatchlistSelected, onOpenChange])
+
+  const handleCreateWatchlist = () => {
     if (!newWatchlistName.trim()) {
       toast.error('Please enter a watchlist name')
       return
     }
 
-    try {
-      await createWatchlist(newWatchlistName.trim())
-      setNewWatchlistName('')
-      setShowCreateForm(false)
-      
-      // If symbol provided, add it to the newly created watchlist
-      if (symbol && watchlists.length < (limits?.limits.watchlistLimit || 1)) {
-        // Wait a bit for the watchlist to be created, then add symbol
-        setTimeout(() => {
-          const newWatchlist = watchlists[0] // Newest watchlist is first
-          if (newWatchlist && onWatchlistSelected) {
-            onWatchlistSelected(newWatchlist.id)
-          }
-        }, 500)
-      }
-    } catch (error) {
-      // Error already handled by hook
-    }
+    // Create watchlist - mutation will handle success/error
+    createWatchlist(newWatchlistName.trim())
+    
+    // Clear form immediately for better UX
+    setNewWatchlistName('')
+    setShowCreateForm(false)
   }
 
   const handleStartEdit = (watchlist: { id: string; name: string }) => {
@@ -117,7 +131,8 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
     }
   }
 
-  const canCreateMore = limits?.canCreateWatchlist ?? false
+  // Allow creating if limits haven't loaded yet (optimistic) or if under limit
+  const canCreateMore = limits === undefined ? true : (limits?.canCreateWatchlist ?? false)
   const remainingWatchlists = limits?.remainingWatchlists ?? 0
 
   return (
@@ -269,7 +284,17 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => setShowCreateForm(true)}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (canCreateMore) {
+                  setShowCreateForm(true)
+                } else {
+                  toast.error(limits?.limits.watchlistLimit === 1
+                    ? 'Free tier limit: Maximum 1 watchlist'
+                    : `Limit reached: ${limits?.limits.watchlistLimit} watchlist${limits?.limits.watchlistLimit !== 1 ? 's' : ''} maximum`)
+                }
+              }}
               disabled={!canCreateMore}
             >
               <Plus className="h-4 w-4 mr-2" />

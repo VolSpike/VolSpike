@@ -949,12 +949,13 @@ export function MarketTable({
                                             </td>
                                         )}
                                         <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
-                                            <div className="pointer-events-none opacity-0 group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
+                                            {/* Icons: Always visible on mobile, hover-only on desktop */}
+                                            <div className="pointer-events-none opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
                                                 {session?.user && !guestMode && (
                                                     <Button
                                                         className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
                                                             isSymbolInWatchlist(item.symbol)
-                                                                ? 'text-brand-600 dark:text-brand-400 opacity-100'
+                                                                ? 'text-brand-600 dark:text-brand-400'
                                                                 : ''
                                                         }`}
                                                         variant="ghost"
