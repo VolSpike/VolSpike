@@ -451,7 +451,6 @@ export function AssetCardView({
                                                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs text-sky-600 dark:text-sky-400 hover:bg-sky-500/20 transition-all"
                                             >
                                                 <span className="h-3 w-3 flex items-center justify-center text-[10px] font-bold">𝕏</span>
-                                                X
                                             </a>
                                         )}
                                         {!currentAsset.websiteUrl && !currentAsset.twitterUrl && (
