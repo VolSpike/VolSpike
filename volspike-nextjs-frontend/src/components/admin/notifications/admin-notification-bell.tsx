@@ -21,7 +21,12 @@ import { Loader2 } from 'lucide-react'
 export function AdminNotificationBell() {
     const router = useRouter()
     const [open, setOpen] = useState(false)
+    const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
     const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useAdminNotifications(10)
+
+    // Filter out dismissed notifications from display
+    const visibleNotifications = notifications.filter((n) => !dismissedIds.has(n.id))
+    const visibleUnreadCount = visibleNotifications.filter((n) => !n.isRead).length
 
     // Format notification time as relative (e.g., "2 minutes ago")
     const formatTime = (dateString: string) => {
@@ -59,13 +64,28 @@ export function AdminNotificationBell() {
         }
     }
 
+    // Handle dismissing a notification (removes from popup but keeps in history)
+    const handleDismiss = (e: React.MouseEvent, notificationId: string) => {
+        e.stopPropagation() // Prevent navigation
+        setDismissedIds((prev) => new Set([...prev, notificationId]))
+    }
+
+    // Reset dismissed IDs when dropdown closes (so they reappear next time if still unread)
+    const handleOpenChange = (newOpen: boolean) => {
+        setOpen(newOpen)
+        if (!newOpen) {
+            // Reset dismissed IDs when closing - they'll reappear if still unread
+            setDismissedIds(new Set())
+        }
+    }
+
     // Handle marking all as read
     const handleMarkAllAsRead = async () => {
         await markAllAsRead()
     }
 
     return (
-        <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenu open={open} onOpenChange={handleOpenChange}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
@@ -91,7 +111,7 @@ export function AdminNotificationBell() {
                 <div className="p-4 border-b border-border/50 bg-gradient-to-br from-brand-500/5 to-sec-500/5">
                     <div className="flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
-                        {unreadCount > 0 && (
+                        {visibleUnreadCount > 0 && (
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -110,14 +130,14 @@ export function AdminNotificationBell() {
                         <div className="flex items-center justify-center p-8">
                             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         </div>
-                    ) : notifications.length === 0 ? (
+                    ) : visibleNotifications.length === 0 ? (
                         <div className="p-8 text-center">
                             <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
                             <p className="text-sm text-muted-foreground">No new notifications</p>
                         </div>
                     ) : (
                         <div className="divide-y divide-border/50">
-                            {notifications.map((notification) => (
+                            {visibleNotifications.map((notification) => (
                                 <div
                                     key={notification.id}
                                     className={`group relative w-full ${
@@ -158,24 +178,16 @@ export function AdminNotificationBell() {
                                         </div>
                                     </button>
 
-                                    {/* Mark as read button (X icon) - only for unread notifications */}
-                                    {!notification.isRead && (
-                                        <button
-                                            onClick={(e) => handleMarkAsReadOnly(e, notification)}
-                                            className="absolute top-3 right-3 p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
-                                            aria-label="Mark as read"
-                                            title="Mark as read"
-                                        >
-                                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
-                                        </button>
-                                    )}
+                                    {/* Dismiss button (X icon) - appears on hover for all notifications */}
+                                    <button
+                                        onClick={(e) => handleDismiss(e, notification.id)}
+                                        className="absolute top-3 right-3 p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover:opacity-100 z-10"
+                                        aria-label="Dismiss notification"
+                                        title="Dismiss (removes from popup, keeps in history)"
+                                    >
+                                        <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                    </button>
 
-                                    {/* Checkmark icon for read notifications */}
-                                    {notification.isRead && (
-                                        <div className="absolute top-3 right-3 opacity-30">
-                                            <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
-                                        </div>
-                                    )}
                                 </div>
                             ))}
                         </div>
@@ -183,7 +195,7 @@ export function AdminNotificationBell() {
                 </div>
 
                 {/* Footer with View History button */}
-                {notifications.length > 0 && (
+                {visibleNotifications.length > 0 && (
                     <div className="p-3 border-t border-border/50">
                         <Button
                             variant="ghost"
