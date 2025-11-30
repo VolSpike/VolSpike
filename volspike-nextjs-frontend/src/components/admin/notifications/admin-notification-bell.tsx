@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, X, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
     DropdownMenu,
@@ -32,20 +32,30 @@ export function AdminNotificationBell() {
         }
     }
 
-    // Handle clicking on a notification
+    // Handle clicking on a notification (navigate to relevant page)
     const handleNotificationClick = async (notification: AdminNotification) => {
         // Mark as read if unread
         if (!notification.isRead) {
             await markAsRead([notification.id])
         }
 
-        // Navigate to assets page if it's a new asset notification
+        // Navigate based on notification type
         if (notification.type === 'NEW_ASSET_DETECTED' && notification.metadata?.assetSymbol) {
+            // Navigate to assets page filtered by the asset symbol
             setOpen(false)
             router.push(`/admin/assets?q=${notification.metadata.assetSymbol}`)
         } else {
-            // For other notification types, just close the dropdown
+            // For other notification types, navigate to notifications history page
             setOpen(false)
+            router.push('/admin/notifications')
+        }
+    }
+
+    // Handle marking notification as read without navigating
+    const handleMarkAsReadOnly = async (e: React.MouseEvent, notification: AdminNotification) => {
+        e.stopPropagation() // Prevent navigation
+        if (!notification.isRead) {
+            await markAsRead([notification.id])
         }
     }
 
@@ -108,37 +118,65 @@ export function AdminNotificationBell() {
                     ) : (
                         <div className="divide-y divide-border/50">
                             {notifications.map((notification) => (
-                                <button
+                                <div
                                     key={notification.id}
-                                    onClick={() => handleNotificationClick(notification)}
-                                    className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
+                                    className={`group relative w-full ${
                                         !notification.isRead ? 'bg-blue-500/5' : ''
                                     }`}
                                 >
-                                    <div className="flex items-start gap-3">
-                                        {/* Unread indicator */}
-                                        {!notification.isRead && (
-                                            <div className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 flex-shrink-0" />
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                            <p
-                                                className={`text-sm font-medium ${
-                                                    !notification.isRead
-                                                        ? 'text-foreground'
-                                                        : 'text-muted-foreground'
-                                                }`}
-                                            >
-                                                {notification.title}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                                {notification.message}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground/70 mt-2">
-                                                {formatTime(notification.createdAt)}
-                                            </p>
+                                    {/* Main clickable area - navigates to relevant page */}
+                                    <button
+                                        onClick={() => handleNotificationClick(notification)}
+                                        className="w-full text-left p-4 hover:bg-muted/50 transition-colors pr-12"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            {/* Unread indicator */}
+                                            {!notification.isRead && (
+                                                <div className="mt-1.5 h-2 w-2 rounded-full bg-blue-500 flex-shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <p
+                                                        className={`text-sm font-medium ${
+                                                            !notification.isRead
+                                                                ? 'text-foreground'
+                                                                : 'text-muted-foreground'
+                                                        }`}
+                                                    >
+                                                        {notification.title}
+                                                    </p>
+                                                    {/* Arrow icon to indicate clickability */}
+                                                    <ChevronRight className="h-3 w-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors flex-shrink-0" />
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                                    {notification.message}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground/70 mt-2">
+                                                    {formatTime(notification.createdAt)}
+                                                </p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </button>
+                                    </button>
+
+                                    {/* Mark as read button (X icon) - only for unread notifications */}
+                                    {!notification.isRead && (
+                                        <button
+                                            onClick={(e) => handleMarkAsReadOnly(e, notification)}
+                                            className="absolute top-3 right-3 p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
+                                            aria-label="Mark as read"
+                                            title="Mark as read"
+                                        >
+                                            <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                        </button>
+                                    )}
+
+                                    {/* Checkmark icon for read notifications */}
+                                    {notification.isRead && (
+                                        <div className="absolute top-3 right-3 opacity-30">
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     )}
