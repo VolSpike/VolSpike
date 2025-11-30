@@ -870,7 +870,84 @@ export function MarketTable({
                                 <div className="space-y-3">
                                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Price</h3>
                                     <div className="text-3xl font-bold font-mono-tabular">
-                                        {formatPrice(selectedSymbol.price)}
+                                        {(() => {
+                                            const precision = selectedSymbol.precision ?? 2
+                                            const formattedDisplay = formatPriceForDisplay(selectedSymbol.price, precision)
+                                            if (!FLASH_ENABLED) {
+                                                // Simply render price
+                                                prevPriceRef.current.set(selectedSymbol.symbol, selectedSymbol.price)
+                                                return formattedDisplay
+                                            }
+                                            const now = Date.now()
+                                            const prev = prevPriceRef.current.get(selectedSymbol.symbol)
+                                            let wholeClass = ''
+                                            let prefix = formattedDisplay
+                                            let suffix = ''
+                                            if (typeof prev === 'number' && prev !== selectedSymbol.price) {
+                                                const lastFlashTs = lastFlashTsRef.current.get(selectedSymbol.symbol) || 0
+                                                if (now - lastFlashTs > MIN_INTERVAL_MS) {
+                                                    // Determine direction
+                                                    const dir: 'up' | 'down' = selectedSymbol.price > prev ? 'up' : 'down'
+                                                    // Compute changed suffix via left-diff on digits (formatting-independent)
+                                                    const prevFormattedDiff = formatPriceForDiff(prev, precision)
+                                                    const currFormattedDiff = formatPriceForDiff(selectedSymbol.price, precision)
+                                                    const prevDigits = digitsOnly(prevFormattedDiff)
+                                                    const currDigits = digitsOnly(currFormattedDiff)
+                                                    const dfe = findDigitsFromEnd(prevDigits, currDigits)
+                                                    const splitIdx = indexFromDigitsFromEnd(formattedDisplay, dfe)
+                                                    const suffixIndex = Math.min(Math.max(splitIdx, 0), formattedDisplay.length - 1)
+                                                    flashRef.current.set(selectedSymbol.symbol, {
+                                                        dir,
+                                                        wholeUntil: now + WHOLE_MS,
+                                                        suffixUntil: now + SUFFIX_MS,
+                                                        suffixIndex,
+                                                    })
+                                                    lastFlashTsRef.current.set(selectedSymbol.symbol, now)
+                                                    lastDirRef.current.set(selectedSymbol.symbol, dir)
+                                                    // Persist the suffix split so digits that changed remain colored even after animation ends
+                                                    persistentRef.current.set(selectedSymbol.symbol, {
+                                                        dir,
+                                                        suffixIndex: Math.min(Math.max(suffixIndex, 1), formattedDisplay.length)
+                                                    } as any)
+                                                }
+                                            }
+                                            prevPriceRef.current.set(selectedSymbol.symbol, selectedSymbol.price)
+                                            const flash = flashRef.current.get(selectedSymbol.symbol)
+                                            const lastDir = lastDirRef.current.get(selectedSymbol.symbol)
+                                            const persistent = persistentRef.current.get(selectedSymbol.symbol)
+                                            if (flash) {
+                                                wholeClass = now < flash.wholeUntil ? (flash.dir === 'up' ? 'price-text-flash-up' : 'price-text-flash-down') : ''
+                                                const idx = Math.min(Math.max(flash.suffixIndex, 0), formattedDisplay.length)
+                                                prefix = formattedDisplay.slice(0, idx)
+                                                suffix = formattedDisplay.slice(idx)
+                                            } else {
+                                                // No active flash; keep at least the last digit colored using last direction
+                                                if (persistent) {
+                                                    const idx = Math.min(Math.max(persistent.suffixIndex, 1), formattedDisplay.length)
+                                                    prefix = formattedDisplay.slice(0, idx)
+                                                    suffix = formattedDisplay.slice(idx)
+                                                } else if (lastDir) {
+                                                    const idx = Math.max(formattedDisplay.length - 1, 0)
+                                                    prefix = formattedDisplay.slice(0, idx)
+                                                    suffix = formattedDisplay.slice(idx)
+                                                }
+                                            }
+                                            let suffixClass = ''
+                                            if (flash && now < flash.suffixUntil) {
+                                                suffixClass = flash.dir === 'up' ? 'price-suffix-up' : 'price-suffix-down'
+                                            } else if (persistent) {
+                                                suffixClass = persistent.dir === 'up' ? 'price-suffix-up-static' : 'price-suffix-down-static'
+                                            } else if (lastDir) {
+                                                // Persistent static color after animation ends
+                                                suffixClass = lastDir === 'up' ? 'price-suffix-up-static' : 'price-suffix-down-static'
+                                            }
+                                            return (
+                                                <span className={`inline-block ${wholeClass}`}>
+                                                    <span>{prefix}</span>
+                                                    {suffix && <span className={suffixClass}>{suffix}</span>}
+                                                </span>
+                                            )
+                                        })()}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <TrendingUp className={`h-4 w-4 ${(selectedSymbol.change24h ?? 0) > 0 ? 'text-brand-500' : 'text-danger-500'
