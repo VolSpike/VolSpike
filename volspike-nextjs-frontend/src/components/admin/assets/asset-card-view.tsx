@@ -6,7 +6,7 @@ import type { AssetRecord } from '@/lib/asset-manifest'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Loader2, RefreshCw, Save, Trash2, CheckCircle2, AlertCircle, Clock, ExternalLink, Twitter } from 'lucide-react'
+import { Loader2, RefreshCw, Save, Trash2, CheckCircle2, AlertCircle, Clock, ExternalLink } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -426,7 +426,7 @@ export function AssetCardView({
                                         <Input
                                             value={editForm.twitterUrl ?? ''}
                                             onChange={(e) => setEditForm({ ...editForm, twitterUrl: e.target.value })}
-                                            placeholder="Twitter/X URL"
+                                            placeholder="X URL"
                                             className="h-7 text-xs"
                                         />
                                     </div>
@@ -450,8 +450,8 @@ export function AssetCardView({
                                                 rel="noopener noreferrer"
                                                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs text-sky-600 dark:text-sky-400 hover:bg-sky-500/20 transition-all"
                                             >
-                                                <Twitter className="h-3 w-3" />
-                                                Twitter
+                                                <span className="h-3 w-3 flex items-center justify-center text-[10px] font-bold">𝕏</span>
+                                                X
                                             </a>
                                         )}
                                         {!currentAsset.websiteUrl && !currentAsset.twitterUrl && (

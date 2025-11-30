@@ -850,7 +850,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                     : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
-                            Twitter ({missingTwitterCount})
+                            X ({missingTwitterCount})
                         </button>
                     </div>
                 )}
@@ -950,7 +950,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                             <th className="px-3 py-2 text-left font-medium">CoinGecko Id</th>
                             <th className="px-3 py-2 text-left font-medium">Name</th>
                             <th className="px-3 py-2 text-left font-medium">Website</th>
-                            <th className="px-3 py-2 text-left font-medium">Twitter / X</th>
+                            <th className="px-3 py-2 text-left font-medium">X</th>
                             <th className="px-3 py-2 text-left font-medium">Status</th>
                             <th className="px-3 py-2 text-left font-medium">Complete</th>
                             <th className="px-3 py-2 text-left font-medium">Next Refresh</th>

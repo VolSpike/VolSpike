@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import { BarChart3, ExternalLink, Globe, Twitter } from 'lucide-react'
+import { BarChart3, ExternalLink, Globe } from 'lucide-react'
 import { useAssetProfile } from '@/hooks/use-asset-profile'
 
 interface AssetProjectOverviewProps {
@@ -118,8 +118,8 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
                     >
                         <a href={profile.twitterUrl} target="_blank" rel="noreferrer">
                             <span className="inline-flex items-center gap-1.5">
-                                <Twitter className="h-3.5 w-3.5" />
-                                <span className="text-xs font-medium">Twitter / X</span>
+                                <span className="h-3.5 w-3.5 flex items-center justify-center text-xs font-bold">𝕏</span>
+                                <span className="text-xs font-medium">X</span>
                                 <ExternalLink className="h-3 w-3 opacity-60" />
                             </span>
                         </a>
