@@ -38,7 +38,11 @@ export function AdminNotificationsTable({ accessToken }: AdminNotificationsTable
             const response = await fetch(
                 `${apiBase}/api/admin/notifications?limit=${limit}&offset=${offset}`,
                 {
-                    credentials: 'include',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    cache: 'no-store',
                 }
             )
 
@@ -66,9 +70,9 @@ export function AdminNotificationsTable({ accessToken }: AdminNotificationsTable
                 const response = await fetch(`${apiBase}/api/admin/notifications/mark-read`, {
                     method: 'POST',
                     headers: {
+                        'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json',
                     },
-                    credentials: 'include',
                     body: JSON.stringify({
                         notificationIds: [notificationId],
                     }),

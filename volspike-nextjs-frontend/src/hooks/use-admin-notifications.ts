@@ -39,6 +39,16 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
     const fetchNotifications = useCallback(async () => {
         if (!session?.user) return
 
+        // Get access token from session (required for admin API)
+        const accessToken = (session as any)?.accessToken as string | undefined
+        if (!accessToken) {
+            console.debug('[useAdminNotifications] No access token in session')
+            setNotifications([])
+            setUnreadCount(0)
+            setLoading(false)
+            return
+        }
+
         try {
             setLoading(true)
             setError(null)
@@ -46,10 +56,18 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
             // Fetch notifications and unread count in parallel
             const [notificationsRes, countRes] = await Promise.all([
                 fetch(`${apiBase}/api/admin/notifications?limit=${limit}`, {
-                    credentials: 'include',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    cache: 'no-store',
                 }).catch(() => ({ ok: false } as Response)),
                 fetch(`${apiBase}/api/admin/notifications/unread-count`, {
-                    credentials: 'include',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    cache: 'no-store',
                 }).catch(() => ({ ok: false } as Response)),
             ])
 
@@ -80,13 +98,20 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
         async (notificationIds?: string[]) => {
             if (!session?.user) return
 
+            // Get access token from session (required for admin API)
+            const accessToken = (session as any)?.accessToken as string | undefined
+            if (!accessToken) {
+                console.debug('[useAdminNotifications] No access token for mark as read')
+                return
+            }
+
             try {
                 const response = await fetch(`${apiBase}/api/admin/notifications/mark-read`, {
                     method: 'POST',
                     headers: {
+                        'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json',
                     },
-                    credentials: 'include',
                     body: JSON.stringify({
                         notificationIds: notificationIds || [],
                     }),
@@ -129,6 +154,14 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
 
         return () => clearInterval(interval)
     }, [session, fetchNotifications])
+
+    // Also refetch when accessToken changes
+    useEffect(() => {
+        const accessToken = (session as any)?.accessToken
+        if (accessToken && session?.user) {
+            fetchNotifications()
+        }
+    }, [(session as any)?.accessToken, fetchNotifications])
 
     return {
         notifications,
