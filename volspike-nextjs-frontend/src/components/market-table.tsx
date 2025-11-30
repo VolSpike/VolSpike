@@ -257,6 +257,16 @@ export function MarketTable({
         }
     }, [guestMode, SCROLL_DEBUG_ENABLED])
 
+    // Sync selectedSymbol with live data updates
+    useEffect(() => {
+        if (selectedSymbol) {
+            const updatedSymbol = data.find(item => item.symbol === selectedSymbol.symbol)
+            if (updatedSymbol) {
+                setSelectedSymbol(updatedSymbol)
+            }
+        }
+    }, [data, selectedSymbol?.symbol])
+
     const formatVolume = useMemo(() => (value: number) => {
         const abs = Math.abs(value)
         if (abs >= 1_000_000_000) {
