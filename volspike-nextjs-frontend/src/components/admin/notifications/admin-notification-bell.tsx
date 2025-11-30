@@ -67,7 +67,11 @@ export function AdminNotificationBell() {
     // Handle dismissing a notification (removes from popup but keeps in history)
     const handleDismiss = (e: React.MouseEvent, notificationId: string) => {
         e.stopPropagation() // Prevent navigation
-        setDismissedIds((prev) => new Set([...prev, notificationId]))
+        setDismissedIds((prev) => {
+            const newSet = new Set(prev)
+            newSet.add(notificationId)
+            return newSet
+        })
     }
 
     // Reset dismissed IDs when dropdown closes (so they reappear next time if still unread)
