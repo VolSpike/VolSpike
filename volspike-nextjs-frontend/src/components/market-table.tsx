@@ -545,59 +545,130 @@ export function MarketTable({
 
     const tableContent = (
         <div className="relative">
-            {/* Status Bar */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30 flex-wrap gap-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                    {/* Watchlist Filter - only show if user is signed in */}
+            {/* Status Bar - Responsive Layout */}
+            <div className="px-3 py-2.5 border-b border-border/50 bg-muted/30">
+                {/* Mobile Layout: Stacked */}
+                <div className="flex flex-col gap-2 md:hidden">
+                    {/* Row 1: Watchlist Filter (if signed in) */}
                     {session?.user && !guestMode && (
-                        <WatchlistFilter
-                            selectedWatchlistId={selectedWatchlistId}
-                            onWatchlistChange={handleWatchlistFilterChange}
-                        />
+                        <div className="flex items-center gap-2">
+                            <WatchlistFilter
+                                selectedWatchlistId={selectedWatchlistId}
+                                onWatchlistChange={handleWatchlistFilterChange}
+                                className="flex-1"
+                            />
+                        </div>
                     )}
-                    <Badge
-                        variant="outline"
-                        className={`text-xs font-mono-tabular ${isConnected
-                                ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
-                                : 'border-danger-500/30 text-danger-600 dark:text-danger-400'
-                            }`}
-                    >
-                        <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-danger-500'
-                            }`} />
-                        {isConnected ? 'Connected' : 'Disconnected'}
-                    </Badge>
-                    {guestMode && (
-                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                            <Lock className="h-3 w-3" /> Sorting locked
+                    
+                    {/* Row 2: Connected Status + Export */}
+                    <div className="flex items-center justify-between gap-2">
+                        <Badge
+                            variant="outline"
+                            className={`text-xs font-mono-tabular shrink-0 ${isConnected
+                                    ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
+                                    : 'border-danger-500/30 text-danger-600 dark:text-danger-400'
+                                }`}
+                        >
+                            <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-danger-500'
+                                }`} />
+                            {isConnected ? 'Connected' : 'Disconnected'}
                         </Badge>
-                    )}
-                    {/* Free tier: omit "Updated ..." text (data is live). Pro/Elite: show OI as-of */}
-                    {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
-                        <span className="text-xs text-muted-foreground font-mono-tabular">
-                            OI updated {(() => {
-                                const sec = Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))
-                                if (sec < 60) return `${sec}s ago`
-                                const min = Math.floor(sec / 60)
-                                if (min < 60) return `${min}m ago`
-                                const hr = Math.floor(min / 60)
-                                return `${hr}h ago`
-                            })()}
+                        <WatchlistExportButton
+                            data={sortedData}
+                            userTier={userTier}
+                            guestMode={guestMode}
+                        />
+                    </div>
+                    
+                    {/* Row 3: Tier Info */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-muted-foreground">
+                            {guestMode
+                                ? 'Top 5 preview'
+                                : userTier === 'free'
+                                    ? 'Top 50 symbols (Free tier)'
+                                    : `${sortedData.length} symbols`}
                         </span>
-                    )}
+                        {guestMode && (
+                            <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                                <Lock className="h-3 w-3" /> Sorting locked
+                            </Badge>
+                        )}
+                        {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
+                            <span className="text-[11px] text-muted-foreground font-mono-tabular">
+                                OI updated {(() => {
+                                    const sec = Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))
+                                    if (sec < 60) return `${sec}s ago`
+                                    const min = Math.floor(sec / 60)
+                                    if (min < 60) return `${min}m ago`
+                                    const hr = Math.floor(min / 60)
+                                    return `${hr}h ago`
+                                })()}
+                            </span>
+                        )}
+                    </div>
                 </div>
-                <div className="flex flex-col items-end gap-1 text-right sm:flex-row sm:items-center sm:gap-3">
-                    <span className="text-[11px] leading-tight text-muted-foreground sm:text-xs">
-                        {guestMode
-                            ? 'Top 5 preview'
-                            : userTier === 'free'
-                                ? 'Top 50 symbols (Free tier)'
-                                : `${sortedData.length} symbols`}
-                    </span>
-                    <WatchlistExportButton
-                        data={sortedData}
-                        userTier={userTier}
-                        guestMode={guestMode}
-                    />
+
+                {/* Desktop Layout: Single Row */}
+                <div className="hidden md:flex items-center justify-between gap-3">
+                    {/* Left Side: Connected Status + Watchlist Filter (swapped on desktop) */}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Badge
+                            variant="outline"
+                            className={`text-xs font-mono-tabular shrink-0 ${isConnected
+                                    ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
+                                    : 'border-danger-500/30 text-danger-600 dark:text-danger-400'
+                                }`}
+                        >
+                            <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-danger-500'
+                                }`} />
+                            {isConnected ? 'Connected' : 'Disconnected'}
+                        </Badge>
+                        
+                        {/* Watchlist Filter - only show if user is signed in */}
+                        {session?.user && !guestMode && (
+                            <WatchlistFilter
+                                selectedWatchlistId={selectedWatchlistId}
+                                onWatchlistChange={handleWatchlistFilterChange}
+                            />
+                        )}
+                        
+                        {guestMode && (
+                            <Badge variant="secondary" className="text-xs flex items-center gap-1 shrink-0">
+                                <Lock className="h-3 w-3" /> Sorting locked
+                            </Badge>
+                        )}
+                        
+                        {/* Free tier: omit "Updated ..." text (data is live). Pro/Elite: show OI as-of */}
+                        {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
+                            <span className="text-xs text-muted-foreground font-mono-tabular shrink-0">
+                                OI updated {(() => {
+                                    const sec = Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))
+                                    if (sec < 60) return `${sec}s ago`
+                                    const min = Math.floor(sec / 60)
+                                    if (min < 60) return `${min}m ago`
+                                    const hr = Math.floor(min / 60)
+                                    return `${hr}h ago`
+                                })()}
+                            </span>
+                        )}
+                    </div>
+                    
+                    {/* Right Side: Tier Info + Export */}
+                    <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {guestMode
+                                ? 'Top 5 preview'
+                                : userTier === 'free'
+                                    ? 'Top 50 symbols (Free tier)'
+                                    : `${sortedData.length} symbols`}
+                        </span>
+                        <WatchlistExportButton
+                            data={sortedData}
+                            userTier={userTier}
+                            guestMode={guestMode}
+                        />
+                    </div>
                 </div>
             </div>
 
