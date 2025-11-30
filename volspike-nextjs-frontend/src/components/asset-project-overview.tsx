@@ -26,20 +26,30 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
 
     const tradingViewDesktopUrl = useMemo(() => {
         const upper = baseSymbol.toUpperCase()
-        return `tradingview://chart/?symbol=BINANCE:${upper}USDT.P`
+        // TradingView desktop app URL scheme format
+        // Try with .P suffix first (perpetual futures format)
+        // Format: tradingview://chart?symbol=EXCHANGE:SYMBOL
+        return `tradingview://chart?symbol=BINANCE:${upper}USDT.P`
     }, [baseSymbol])
 
     const handleTradingViewClick = (e: React.MouseEvent) => {
         e.preventDefault()
         
-        // Try to open desktop app first
+        // Try to open desktop app first using window.location for better compatibility
         const wasFocused = document.hasFocus()
-        const desktopLink = document.createElement('a')
-        desktopLink.href = tradingViewDesktopUrl
-        desktopLink.style.display = 'none'
-        document.body.appendChild(desktopLink)
-        desktopLink.click()
-        document.body.removeChild(desktopLink)
+        
+        // Use window.location.href for custom URL schemes (more reliable than anchor click)
+        try {
+            window.location.href = tradingViewDesktopUrl
+        } catch (err) {
+            // Fallback to anchor method if window.location fails
+            const desktopLink = document.createElement('a')
+            desktopLink.href = tradingViewDesktopUrl
+            desktopLink.style.display = 'none'
+            document.body.appendChild(desktopLink)
+            desktopLink.click()
+            document.body.removeChild(desktopLink)
+        }
 
         // Check if desktop app opened (page loses focus) or fallback to browser
         setTimeout(() => {
@@ -47,7 +57,7 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
             if (document.hasFocus() && wasFocused) {
                 window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
             }
-        }, 300)
+        }, 500)
     }
 
     const displayName = profile?.name || baseSymbol.toUpperCase()
