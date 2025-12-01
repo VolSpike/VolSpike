@@ -31,7 +31,7 @@ import { GuestCTA } from '@/components/guest-cta'
 import { WatchlistSelector } from '@/components/watchlist-selector'
 import { WatchlistFilter } from '@/components/watchlist-filter'
 import { useWatchlists } from '@/hooks/use-watchlists'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
 
@@ -88,6 +88,7 @@ export function MarketTable({
 }: MarketTableProps) {
     const { data: session } = useSession()
     const { watchlists, addSymbol, removeSymbol } = useWatchlists()
+    const queryClient = useQueryClient()
     const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
@@ -123,20 +124,30 @@ export function MarketTable({
     // Use watchlist data if filter is active, otherwise use regular data
     const displayData = selectedWatchlistId && watchlistMarketData ? watchlistMarketData : data
 
-    // Create a set of symbols that are in watchlists for quick lookup
-    const symbolsInWatchlists = useMemo(() => {
-        const symbolSet = new Set<string>()
+    // Create a map of symbol -> watchlistId for quick lookup
+    const symbolToWatchlistMap = useMemo(() => {
+        const map = new Map<string, { watchlistId: string; itemId: string }>()
         watchlists.forEach((watchlist) => {
             watchlist.items.forEach((item) => {
-                symbolSet.add(item.contract.symbol)
+                map.set(item.contract.symbol, { watchlistId: watchlist.id, itemId: item.id })
             })
         })
-        return symbolSet
+        return map
     }, [watchlists])
+
+    // Create a set of symbols that are in watchlists for quick lookup
+    const symbolsInWatchlists = useMemo(() => {
+        return new Set(symbolToWatchlistMap.keys())
+    }, [symbolToWatchlistMap])
 
     // Check if a symbol is in any watchlist
     const isSymbolInWatchlist = (symbol: string) => {
         return symbolsInWatchlists.has(symbol)
+    }
+
+    // Get watchlist info for a symbol
+    const getWatchlistInfoForSymbol = (symbol: string) => {
+        return symbolToWatchlistMap.get(symbol)
     }
 
     // Handle watchlist filter change
@@ -519,14 +530,28 @@ export function MarketTable({
         return `${hours}h ago`
     }
 
-    const handleAddToWatchlist = (e: React.MouseEvent, item: MarketData) => {
+    const handleAddToWatchlist = async (e: React.MouseEvent, item: MarketData) => {
         e.stopPropagation()
         if (!session?.user) {
             toast.error('Please sign in to use watchlists')
             return
         }
-        setSymbolToAdd(item.symbol)
-        setWatchlistSelectorOpen(true)
+
+        // Check if symbol is already in a watchlist
+        const watchlistInfo = getWatchlistInfoForSymbol(item.symbol)
+        
+        if (watchlistInfo) {
+            // Symbol is already in a watchlist - remove it
+            try {
+                await removeSymbol({ watchlistId: watchlistInfo.watchlistId, symbol: item.symbol })
+            } catch (error) {
+                // Error already handled by hook
+            }
+        } else {
+            // Symbol is not in any watchlist - open selector to add it
+            setSymbolToAdd(item.symbol)
+            setWatchlistSelectorOpen(true)
+        }
     }
 
     const handleWatchlistSelected = async (watchlistId: string) => {
@@ -954,8 +979,12 @@ export function MarketTable({
                                             </td>
                                         )}
                                         <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
-                                            {/* Icons: Always visible on mobile, hover-only on desktop */}
-                                            <div className="pointer-events-none opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity duration-150 flex items-center justify-end gap-1">
+                                            {/* Icons: Star always visible if in watchlist, otherwise hover-only on desktop */}
+                                            <div className={`pointer-events-none flex items-center justify-end gap-1 ${
+                                                isSymbolInWatchlist(item.symbol)
+                                                    ? 'opacity-100' // Always visible if in watchlist
+                                                    : 'opacity-100 md:opacity-0 md:group-hover/row:opacity-100' // Hover-only on desktop if not in watchlist
+                                            } transition-opacity duration-150`}>
                                                 {session?.user && !guestMode && (
                                                     <Button
                                                         className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
@@ -968,7 +997,7 @@ export function MarketTable({
                                                         onClick={(e) => handleAddToWatchlist(e, item)}
                                                         title={
                                                             isSymbolInWatchlist(item.symbol)
-                                                                ? 'Manage in watchlist'
+                                                                ? 'Remove from watchlist'
                                                                 : 'Add to watchlist'
                                                         }
                                                     >

@@ -34,45 +34,43 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [pendingSymbol, setPendingSymbol] = useState<string | undefined>(symbol)
 
-  // Update pending symbol when dialog opens with a symbol
-  useEffect(() => {
-    if (open && symbol) {
-      setPendingSymbol(symbol)
-    }
-  }, [open, symbol])
-
-  // Handle watchlist creation success - add symbol if needed
-  useEffect(() => {
-    if (!isCreating && watchlists.length > 0 && pendingSymbol && showCreateForm === false) {
-      // Watchlist was just created, add symbol to the newest one
-      const newestWatchlist = watchlists[0]
-      if (newestWatchlist && onWatchlistSelected) {
-        // Small delay to ensure watchlist is fully created
-        const timer = setTimeout(() => {
-          addSymbol({ watchlistId: newestWatchlist.id, symbol: pendingSymbol })
-          onWatchlistSelected(newestWatchlist.id)
-          setPendingSymbol(undefined)
-          onOpenChange(false)
-        }, 100)
-        return () => clearTimeout(timer)
-      }
-    }
-  }, [isCreating, watchlists, pendingSymbol, showCreateForm, addSymbol, onWatchlistSelected, onOpenChange])
-
-  const handleCreateWatchlist = () => {
+  const handleCreateWatchlist = async () => {
     if (!newWatchlistName.trim()) {
       toast.error('Please enter a watchlist name')
       return
     }
 
-    // Create watchlist - mutation will handle success/error
-    createWatchlist(newWatchlistName.trim())
-    
-    // Clear form immediately for better UX
+    const watchlistName = newWatchlistName.trim()
     setNewWatchlistName('')
     setShowCreateForm(false)
+
+    try {
+      // Create watchlist and wait for it to complete
+      createWatchlist(watchlistName)
+      
+      // If symbol provided, wait a moment for watchlist to be created, then add symbol
+      if (symbol) {
+        // Wait for watchlists to refresh, then find the new one and add symbol
+        setTimeout(async () => {
+          // Find the newly created watchlist (should be first in list)
+          const newWatchlist = watchlists.find(w => w.name === watchlistName) || watchlists[0]
+          if (newWatchlist) {
+            try {
+              await addSymbol({ watchlistId: newWatchlist.id, symbol })
+              if (onWatchlistSelected) {
+                onWatchlistSelected(newWatchlist.id)
+              }
+              onOpenChange(false)
+            } catch (error) {
+              // Error already handled by hook
+            }
+          }
+        }, 500)
+      }
+    } catch (error) {
+      // Error already handled by hook
+    }
   }
 
   const handleStartEdit = (watchlist: { id: string; name: string }) => {
