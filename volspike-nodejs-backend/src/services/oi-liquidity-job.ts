@@ -74,23 +74,66 @@ async function fetchExchangeInfo(): Promise<any> {
  * Fetch 24h ticker stats from Binance
  */
 async function fetchTicker24hr(): Promise<any[]> {
+  const url = `${BINANCE_API_URL}/fapi/v1/ticker/24hr`
+  logger.info(`Fetching ticker/24hr from: ${url}`)
+  
   try {
-    const response = await fetch(`${BINANCE_API_URL}/fapi/v1/ticker/24hr`, {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'User-Agent': 'VolSpike/1.0',
       },
-      signal: AbortSignal.timeout(15000), // 15 second timeout
+      signal: controller.signal,
     })
 
+    clearTimeout(timeoutId)
+
     if (!response.ok) {
-      throw new Error(`Binance API returned ${response.status}: ${response.statusText}`)
+      const errorText = await response.text().catch(() => 'Unable to read error response')
+      logger.error(`Binance API error: ${response.status} ${response.statusText}`, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: errorText.substring(0, 500),
+      })
+      throw new Error(`Binance API returned ${response.status}: ${response.statusText} - ${errorText.substring(0, 200)}`)
     }
 
     const data = await response.json()
-    return Array.isArray(data) ? data : []
+    const result = Array.isArray(data) ? data : []
+    logger.info(`Successfully fetched ${result.length} ticker records from Binance`)
+    return result
   } catch (error) {
-    logger.error('Failed to fetch ticker/24hr from Binance:', error)
+    // Log full error details for debugging
+    const errorDetails = {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      cause: error instanceof Error && 'cause' in error ? error.cause : undefined,
+      url,
+    }
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+        logger.error('❌ Ticker/24hr fetch timed out after 30 seconds', errorDetails)
+      } else if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+        logger.error('❌ Network error fetching ticker/24hr - Binance API may be unreachable from Railway', errorDetails)
+      } else if (error.message.includes('certificate') || error.message.includes('SSL')) {
+        logger.error('❌ SSL/TLS error fetching ticker/24hr', errorDetails)
+      } else {
+        logger.error('❌ Failed to fetch ticker/24hr from Binance', errorDetails)
+      }
+    } else {
+      logger.error('❌ Failed to fetch ticker/24hr from Binance (unknown error type)', errorDetails)
+    }
+    
+    // Also log as string for Railway logs
+    logger.error(`Full error: ${JSON.stringify(errorDetails, null, 2)}`)
+    
     throw error
   }
 }
