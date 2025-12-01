@@ -246,7 +246,9 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
                 'normal'
             )
 
-            const searchJson = (await searchRes.json()) as any
+            // Clone response before reading to avoid "body stream already read" error
+            const clonedRes = searchRes.clone()
+            const searchJson = (await clonedRes.json()) as any
             let coins: any[] = Array.isArray(searchJson?.coins) ? searchJson.coins : []
 
             // If nothing comes back for the raw perp symbol (e.g. 1000PEPE),
@@ -263,7 +265,9 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
                             'low' // Lower priority for fallback search
                         )
                         if (altRes.ok) {
-                            const altJson = (await altRes.json()) as any
+                            // Clone response before reading to avoid "body stream already read" error
+                            const clonedAltRes = altRes.clone()
+                            const altJson = (await clonedAltRes.json()) as any
                             const altCoins: any[] = Array.isArray(altJson?.coins) ? altJson.coins : []
                             if (altCoins.length) {
                                 coins = altCoins
