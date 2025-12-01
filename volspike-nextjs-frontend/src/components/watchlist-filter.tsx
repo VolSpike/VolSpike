@@ -97,7 +97,7 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
               </SelectValue>
             </div>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="w-[var(--radix-select-trigger-width)] min-w-[220px]">
             <SelectItem value="all">All Symbols</SelectItem>
             {safeWatchlists.length === 0 ? (
               <SelectItem value="empty" disabled>
@@ -105,25 +105,23 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
               </SelectItem>
             ) : (
               safeWatchlists.map((watchlist) => (
-                <SelectItem key={watchlist.id} value={watchlist.id}>
-                  <div className="flex items-center w-full gap-2 group">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                <SelectItem key={watchlist.id} value={watchlist.id} className="pr-11">
+                  <div className="flex w-full items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{watchlist.name}</span>
                       <Badge variant="secondary" className="text-xs shrink-0">
                         {watchlist.items.length}
                       </Badge>
                     </div>
-                    <div className="flex-shrink-0 ml-auto">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        onClick={(e) => handleDeleteClick(e, { id: watchlist.id, name: watchlist.name })}
-                        title={`Delete "${watchlist.name}"`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      onClick={(e) => handleDeleteClick(e, { id: watchlist.id, name: watchlist.name })}
+                      title={`Delete "${watchlist.name}"`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </SelectItem>
               ))
@@ -176,4 +174,3 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
     </>
   )
 }
-
