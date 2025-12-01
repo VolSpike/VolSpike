@@ -166,7 +166,7 @@ const buildProfileFromManifest = (symbol: string, entry?: AssetRecord | AssetPro
         ? entry.logoImageUrl
         : ('logoUrl' in entry && entry.logoUrl && !entry.logoUrl.startsWith('data:image')
             ? entry.logoUrl
-            : ('logoUrl' in entry ? entry.logoUrl : undefined))
+            : ('logoUrl' in entry ? (entry.logoUrl ?? undefined) : undefined))
     
     return {
         id: entry.coingeckoId ?? upper,
