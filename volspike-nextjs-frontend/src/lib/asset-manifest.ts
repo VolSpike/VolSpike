@@ -105,23 +105,38 @@ const normalizeRecord = (record: AssetRecord): AssetRecord => {
 }
 
 const readCachedManifest = (): AssetRecord[] | null => {
-    if (manifestMemory) return manifestMemory
+    // Always return memory cache if available (even if stale) - it's better than nothing
+    if (manifestMemory) {
+        console.log(`[readCachedManifest] Using memory cache (${manifestMemory.length} assets, stale=${manifestMemoryIsStale})`)
+        return manifestMemory
+    }
+    
     if (typeof window === 'undefined') return null
     try {
         const raw = localStorage.getItem(MANIFEST_CACHE_KEY)
-        if (!raw) return null
-        const parsed = JSON.parse(raw) as { assets?: AssetRecord[]; timestamp?: number }
-        if (!parsed?.assets || !parsed.timestamp) return null
-        if (Date.now() - parsed.timestamp > MANIFEST_TTL_MS) {
-            logDebug('Manifest cache stale, refreshing')
-            manifestMemoryIsStale = true
-            manifestMemory = parsed.assets.map(normalizeRecord)
-            return manifestMemory
+        if (!raw) {
+            console.log('[readCachedManifest] No localStorage cache found')
+            return null
         }
+        const parsed = JSON.parse(raw) as { assets?: AssetRecord[]; timestamp?: number }
+        if (!parsed?.assets || !parsed.timestamp) {
+            console.log('[readCachedManifest] Invalid cache format')
+            return null
+        }
+        
+        const age = Date.now() - parsed.timestamp
+        const isStale = age > MANIFEST_TTL_MS
+        
         manifestMemory = parsed.assets.map(normalizeRecord)
-        manifestMemoryIsStale = false
+        manifestMemoryIsStale = isStale
+        
+        console.log(`[readCachedManifest] Loaded from localStorage (${manifestMemory.length} assets, age=${Math.round(age / 1000 / 60)}min, stale=${isStale})`)
+        
+        // Always return cached data, even if stale - it's better than nothing
+        // Background refresh will update it
         return manifestMemory
-    } catch {
+    } catch (error) {
+        console.error('[readCachedManifest] Failed to read cache:', error)
         return null
     }
 }

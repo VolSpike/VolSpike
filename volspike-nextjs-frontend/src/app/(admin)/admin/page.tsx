@@ -31,9 +31,9 @@ export default async function AdminPage() {
     // Wrap with SessionProvider so client components can use useSession()
     return (
         <SessionProvider session={session}>
-            <AdminLayout>
-                <AdminDashboardClient />
-            </AdminLayout>
+        <AdminLayout>
+            <AdminDashboardClient />
+        </AdminLayout>
         </SessionProvider>
     )
 }
