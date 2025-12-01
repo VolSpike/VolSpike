@@ -221,6 +221,20 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         const limit = tierLimits[tier as keyof typeof tierLimits] || 50;
         const limitedOtherItems = otherItems.slice(0, limit);
         
+        // Debug: Check if any watchlist symbols are in limitedOtherItems (they shouldn't be)
+        if (normalizedWatchlistSymbols.length > 0) {
+            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
+            const duplicatesInLimited = limitedOtherItems.filter(item => 
+                watchlistSymbolSet.has(normalizeSym(item.symbol))
+            );
+            if (duplicatesInLimited.length > 0) {
+                console.error(`[buildSnapshot] ❌ Found ${duplicatesInLimited.length} watchlist symbols in limitedOtherItems (top ${limit}):`, 
+                    duplicatesInLimited.map(item => item.symbol));
+            } else {
+                console.log(`[buildSnapshot] ✅ No duplicates in limitedOtherItems (top ${limit}): ${limitedOtherItems.length} items`);
+            }
+        }
+        
         // Combine: watchlist items first (always included), then limited other items
         // Remove duplicates (watchlist symbols should already be excluded from otherItems, but double-check)
         const combined = [...watchlistItems];
@@ -232,9 +246,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             if (watchlistSymbolSet.has(normalizedItemSym)) {
                 // This shouldn't happen if separation worked correctly - log as error
                 skippedDuplicates++;
-                if (process.env.NODE_ENV === 'development') {
-                    console.error(`[buildSnapshot] ❌ DUPLICATE FOUND: ${item.symbol} is in both watchlistItems and otherItems`);
-                }
+                console.error(`[buildSnapshot] ❌ DUPLICATE FOUND: ${item.symbol} is in both watchlistItems and limitedOtherItems`);
             } else {
                 combined.push(item);
                 addedOtherItems++;
