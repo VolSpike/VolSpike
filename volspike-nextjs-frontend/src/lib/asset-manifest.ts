@@ -129,16 +129,15 @@ const readCachedManifest = (): AssetRecord[] | null => {
         const age = Date.now() - parsed.timestamp
         const isStale = age > MANIFEST_TTL_MS
         
-        // Note: localStorage cache doesn't include base64 logos (to prevent quota exceeded)
-        // Logos will be fetched fresh from backend on page load
-        manifestMemory = parsed.assets.map(normalizeRecord)
-        manifestMemoryIsStale = isStale
+        // CRITICAL: localStorage cache doesn't include base64 logos (to prevent quota exceeded)
+        // We can use it for metadata, but we MUST fetch fresh manifest from backend to get logos
+        // Don't set manifestMemory here - let loadAssetManifest() fetch fresh data with logos
+        // This ensures logos are always available instantly
         
-        console.log(`[readCachedManifest] Loaded ${manifestMemory.length} assets from cache (stale=${isStale}, logos will be fetched fresh)`)
+        console.log(`[readCachedManifest] Found localStorage cache (${parsed.assets.length} assets, stale=${isStale}), but logos missing - will fetch fresh from backend`)
         
-        // Always return cached data, even if stale - it's better than nothing
-        // Background refresh will update it with full data including logos
-        return manifestMemory
+        // Return null to force fresh fetch - we need logos!
+        return null
     } catch (error) {
         return null
     }
