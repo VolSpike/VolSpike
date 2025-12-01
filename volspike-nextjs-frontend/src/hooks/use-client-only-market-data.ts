@@ -68,6 +68,13 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
     const minBootstrapSymbols = 30; // still aim for a reasonable set
     const reconnectAttemptsRef = useRef<number>(0);
     const renderPendingRef = useRef<boolean>(false);
+    // Use ref for watchlistSymbols to prevent WebSocket reconnection when it changes
+    const watchlistSymbolsRef = useRef<string[]>(watchlistSymbols);
+
+    // Update watchlistSymbols ref when it changes (without triggering reconnection)
+    useEffect(() => {
+        watchlistSymbolsRef.current = watchlistSymbols;
+    }, [watchlistSymbols]);
 
     // Normalize symbol: remove dashes/underscores and convert to uppercase
     const normalizeSym = useCallback((s: string): string => {
@@ -130,7 +137,8 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         out.sort((a, b) => b.volume24h - a.volume24h);
         
         // Normalize watchlist symbols for matching (always include these, bypassing tier limits)
-        const normalizedWatchlistSymbols = watchlistSymbols.map(s => normalizeSym(s));
+        // Use ref to avoid recreating buildSnapshot when watchlistSymbols changes
+        const normalizedWatchlistSymbols = watchlistSymbolsRef.current.map(s => normalizeSym(s));
         
         if (normalizedWatchlistSymbols.length > 0) {
             console.log(`[buildSnapshot] Watchlist symbols requested:`, normalizedWatchlistSymbols);
@@ -195,7 +203,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         }
         
         return combined;
-    }, [tier, normalizeSym, watchlistSymbols]);
+    }, [tier, normalizeSym]); // Removed watchlistSymbols from deps - using ref instead
 
     const render = useCallback((snapshot: MarketData[]) => {
         setData(snapshot);
@@ -619,6 +627,8 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         }
     }, [tier, geofenceFallback, primeFundingSnapshot, primeActiveSymbols, primeTickersSnapshot, render]);
 
+    // Connect on mount and when tier changes, but NOT when watchlistSymbols change
+    // watchlistSymbols changes shouldn't trigger reconnection - they're just used in buildSnapshot
     useEffect(() => {
         connect();
 
@@ -627,7 +637,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
                 wsRef.current.close();
             }
         };
-    }, [tier, connect]);
+    }, [tier]); // Removed 'connect' from deps - it's stable enough, and watchlistSymbols changes shouldn't reconnect
 
     // Hydrate Open Interest from localStorage on mount
     useEffect(() => {
