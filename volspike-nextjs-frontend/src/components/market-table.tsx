@@ -91,8 +91,10 @@ export function MarketTable({
     const { data: session } = useSession()
     const { watchlists, addSymbol, removeSymbol } = useWatchlists()
     const queryClient = useQueryClient()
-    const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+    type SortColumn = 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest' | 'watchlist'
+    const DEFAULT_SORT: { column: SortColumn; order: 'asc' | 'desc' } = { column: 'volume', order: 'desc' }
+    const [sortBy, setSortBy] = useState<SortColumn>(DEFAULT_SORT.column)
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(DEFAULT_SORT.order)
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const [watchlistSelectorOpen, setWatchlistSelectorOpen] = useState(false)
@@ -219,9 +221,9 @@ export function MarketTable({
     }, [symbolToWatchlistsMap])
 
     // Check if a symbol is in any watchlist
-    const isSymbolInWatchlist = (symbol: string) => {
+    const isSymbolInWatchlist = useCallback((symbol: string) => {
         return symbolsInWatchlists.has(symbol)
-    }
+    }, [symbolsInWatchlists])
 
     // Get all watchlists containing a symbol
     const getWatchlistsForSymbol = (symbol: string) => {
@@ -517,6 +519,17 @@ export function MarketTable({
                     return sortOrder === 'asc'
                         ? formatSymbol(a.symbol).localeCompare(formatSymbol(b.symbol))
                         : formatSymbol(b.symbol).localeCompare(formatSymbol(a.symbol))
+                case 'watchlist': {
+                    const aValueWatch = isSymbolInWatchlist(a.symbol) ? 1 : 0
+                    const bValueWatch = isSymbolInWatchlist(b.symbol) ? 1 : 0
+                    if (aValueWatch === bValueWatch) {
+                        // Preserve existing feel by keeping default volume ordering for ties
+                        return DEFAULT_SORT.order === 'asc'
+                            ? a.volume24h - b.volume24h
+                            : b.volume24h - a.volume24h
+                    }
+                    return sortOrder === 'asc' ? aValueWatch - bValueWatch : bValueWatch - aValueWatch
+                }
                 case 'volume':
                     aValue = a.volume24h
                     bValue = b.volume24h
@@ -543,7 +556,7 @@ export function MarketTable({
 
             return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
         })
-    }, [displayData, sortBy, sortOrder])
+    }, [displayData, sortBy, sortOrder, isSymbolInWatchlist])
 
     // Re-run scroll measurement when row count changes (e.g., filtering to small watchlists)
     useEffect(() => {
@@ -575,8 +588,20 @@ export function MarketTable({
         })
     }, [sortedData])
 
-    const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest') => {
+    const handleSort = (column: SortColumn) => {
         if (guestMode) return // Sorting locked in guest preview
+        if (column === 'watchlist') {
+            if (sortBy !== 'watchlist') {
+                setSortBy('watchlist')
+                setSortOrder('desc') // Stars first
+            } else if (sortOrder === 'desc') {
+                setSortOrder('asc') // Stars last
+            } else {
+                setSortBy(DEFAULT_SORT.column)
+                setSortOrder(DEFAULT_SORT.order)
+            }
+            return
+        }
         if (sortBy === column) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
             return
@@ -590,7 +615,9 @@ export function MarketTable({
         }
     }
 
-    const SortIcon = ({ column }: { column: typeof sortBy }) => {
+    type SortableDataColumn = Exclude<SortColumn, 'watchlist'>
+
+    const SortIcon = ({ column }: { column: SortableDataColumn }) => {
         if (sortBy !== column) {
             return <ArrowUpDown className="h-3 w-3 opacity-40" />
         }
@@ -914,7 +941,21 @@ export function MarketTable({
                                         </Button>
                                     </th>
                                 )}
-                                <th className="w-24"></th>
+                                <th className="w-24 p-3 align-middle">
+                                    <div className="flex justify-end">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleSort('watchlist')}
+                                            disabled={guestMode}
+                                            title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : 'Sort by watchlist (stars first, then last, then default)'}
+                                            className={`h-7 w-7 ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:bg-brand-500/10'}`}
+                                            aria-label="Sort by watchlist"
+                                        >
+                                            <Star className="h-3.5 w-3.5 text-foreground" />
+                                        </Button>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
