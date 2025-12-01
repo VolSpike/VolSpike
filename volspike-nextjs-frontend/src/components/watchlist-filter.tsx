@@ -105,18 +105,8 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
               </SelectItem>
             ) : (
               safeWatchlists.map((watchlist) => (
-                <SelectItem 
-                  key={watchlist.id} 
-                  value={watchlist.id}
-                  onSelect={(e) => {
-                    // Prevent selection if clicking on the delete button area
-                    const target = e.target as HTMLElement
-                    if (target.closest('button[data-delete-button]')) {
-                      e.preventDefault()
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-between w-full gap-2 group/item">
+                <SelectItem key={watchlist.id} value={watchlist.id}>
+                  <div className="flex items-center justify-between w-full gap-2 group">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className="truncate">{watchlist.name}</span>
                       <Badge variant="secondary" className="text-xs shrink-0">
@@ -126,8 +116,7 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
                     <Button
                       variant="ghost"
                       size="icon"
-                      data-delete-button
-                      className="h-6 w-6 opacity-70 group-hover/item:opacity-100 transition-opacity shrink-0 hover:bg-destructive/10 hover:text-destructive hover:opacity-100"
+                      className="h-6 w-6 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                       onClick={(e) => handleDeleteClick(e, { id: watchlist.id, name: watchlist.name })}
                       title={`Delete "${watchlist.name}"`}
                     >
