@@ -13,18 +13,7 @@ interface WatchlistFilterProps {
 }
 
 export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, className }: WatchlistFilterProps) {
-  const { watchlists, isLoading, error } = useWatchlists()
-
-  // Debug logging
-  console.log('[WatchlistFilter] Render:', JSON.stringify({
-    watchlistsCount: watchlists?.length || 0,
-    watchlists: watchlists,
-    isLoading,
-    error: error?.message,
-    selectedWatchlistId,
-    watchlistsType: typeof watchlists,
-    watchlistsIsArray: Array.isArray(watchlists),
-  }, null, 2))
+  const { watchlists, isLoading } = useWatchlists()
 
   // Defensive check - ensure watchlists is always an array
   const safeWatchlists = Array.isArray(watchlists) ? watchlists : []

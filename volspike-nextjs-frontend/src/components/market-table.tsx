@@ -141,7 +141,6 @@ export function MarketTable({
     // Filter existing WebSocket data by watchlist symbols
     const displayData = useMemo(() => {
         if (!selectedWatchlistId || !watchlistInfo) {
-            console.log('[MarketTable] No filter:', { selectedWatchlistId, hasWatchlistInfo: !!watchlistInfo })
             return data
         }
         
@@ -150,32 +149,16 @@ export function MarketTable({
             item.contract?.symbol?.toUpperCase()
         ).filter(Boolean) || []
         
-        console.log('[MarketTable] Filtering by watchlist:', {
-            selectedWatchlistId,
-            watchlistSymbols,
-            watchlistInfoItems: watchlistInfo.items,
-            dataLength: data.length,
-            sampleDataSymbols: data.slice(0, 5).map(d => d.symbol),
-        })
-        
         if (watchlistSymbols.length === 0) {
-            console.warn('[MarketTable] Watchlist has no symbols')
             return []
         }
         
         // Filter data by watchlist symbols (case-insensitive)
-        const filtered = data.filter(item => 
+        return data.filter(item => 
             watchlistSymbols.some((symbol: string) => 
                 item.symbol.toUpperCase() === symbol.toUpperCase()
             )
         )
-        
-        console.log('[MarketTable] Filtered result:', {
-            filteredLength: filtered.length,
-            filteredSymbols: filtered.map(f => f.symbol),
-        })
-        
-        return filtered
     }, [data, selectedWatchlistId, watchlistInfo])
 
     // Create a map of symbol -> array of watchlist info (supports multiple watchlists per symbol)
