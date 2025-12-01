@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useWatchlists } from '@/hooks/use-watchlists'
-import { Trash2, Edit2, Check, X, Plus } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { Trash2, Edit2, Check, X, Plus, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface WatchlistSelectorProps {
@@ -17,6 +19,8 @@ interface WatchlistSelectorProps {
 }
 
 export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelected }: WatchlistSelectorProps) {
+  const { data: session } = useSession()
+  const router = useRouter()
   const {
     watchlists,
     limits,
@@ -34,6 +38,11 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
+
+  // Get user tier
+  const userTier = (session?.user as any)?.tier || 'free'
+  const isFreeTier = userTier === 'free'
+  const hasMaxWatchlists = limits?.limits.watchlistLimit === 1 && watchlists.length >= 1
 
   const handleCreateWatchlist = async () => {
     if (!newWatchlistName.trim()) {
@@ -279,35 +288,55 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
               )}
             </div>
           ) : (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                if (canCreateMore) {
-                  setShowCreateForm(true)
-                } else {
-                  toast.error(limits?.limits.watchlistLimit === 1
-                    ? 'Free tier limit: Maximum 1 watchlist'
-                    : `Limit reached: ${limits?.limits.watchlistLimit} watchlist${limits?.limits.watchlistLimit !== 1 ? 's' : ''} maximum`)
-                }
-              }}
-              disabled={!canCreateMore}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Watchlist
-              {remainingWatchlists > 0 && (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  ({remainingWatchlists} remaining)
-                </span>
+            <>
+              {isFreeTier && hasMaxWatchlists ? (
+                <div className="w-full p-4 border rounded-lg bg-muted/30 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Free tier users can only have 1 watchlist. Upgrade to Pro to create up to 3 watchlists.
+                  </p>
+                  <Button
+                    className="w-full bg-sec-600 hover:bg-sec-700 text-white"
+                    onClick={() => {
+                      onOpenChange(false)
+                      router.push('/pricing')
+                    }}
+                  >
+                    Upgrade to Pro
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (canCreateMore) {
+                      setShowCreateForm(true)
+                    } else {
+                      toast.error(limits?.limits.watchlistLimit === 1
+                        ? 'Free tier limit: Maximum 1 watchlist'
+                        : `Limit reached: ${limits?.limits.watchlistLimit} watchlist${limits?.limits.watchlistLimit !== 1 ? 's' : ''} maximum`)
+                    }
+                  }}
+                  disabled={!canCreateMore}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Watchlist
+                  {remainingWatchlists > 0 && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      ({remainingWatchlists} remaining)
+                    </span>
+                  )}
+                </Button>
               )}
-            </Button>
+            </>
           )}
 
           {/* Limit Info */}
           {limits && (
-            <div className="text-xs text-muted-foreground pt-2 border-t">
+            <div className="text-xs text-muted-foreground pt-4 border-t">
               <div className="flex justify-between">
                 <span>Watchlists:</span>
                 <span>
