@@ -295,6 +295,7 @@ export function useWatchlists() {
     createWatchlistAsync: createWatchlist.mutateAsync,
     updateWatchlist: updateWatchlist.mutate,
     deleteWatchlist: deleteWatchlist.mutate,
+    deleteWatchlistAsync: deleteWatchlist.mutateAsync,
     addSymbol: addSymbol.mutate,
     addSymbolAsync: addSymbol.mutateAsync,
     removeSymbol: removeSymbol.mutate,

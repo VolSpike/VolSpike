@@ -22,7 +22,7 @@ interface WatchlistFilterProps {
 }
 
 export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, className }: WatchlistFilterProps) {
-  const { watchlists, isLoading, deleteWatchlist } = useWatchlists()
+  const { watchlists, isLoading, deleteWatchlistAsync } = useWatchlists()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [watchlistToDelete, setWatchlistToDelete] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -46,7 +46,7 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
 
     setIsDeleting(true)
     try {
-      await deleteWatchlist.mutateAsync(watchlistToDelete.id)
+      await deleteWatchlistAsync(watchlistToDelete.id)
       
       // If the deleted watchlist was selected, switch to "All Symbols"
       if (selectedWatchlistId === watchlistToDelete.id) {
