@@ -46,10 +46,34 @@ findAssetInManifestSync() → Instant lookup
 - Falls back to CoinGecko API → Fails with "body stream already read" error
 - User sees placeholder text instead of actual data
 - **NEW**: `localStorage quota exceeded` error when trying to cache manifest
+- **NEW**: Browser out-of-memory crash warning ("Paused before potential out-of-memory crash")
 
 ### Root Causes
 
-#### 1. localStorage Quota Exceeded (December 2025)
+#### 1. Browser Out-of-Memory Crash (December 2025)
+
+**Problem**: Browser detecting excessive memory usage, pausing execution to prevent crash.
+
+**Why it happened**:
+- Base64 logos stored in memory cache (~15KB each)
+- 534 assets × 15KB = ~8MB just for logos in memory
+- Combined with descriptions, metadata, React state = 10-15MB+ in memory
+- Browser memory limits exceeded → Chrome DevTools pauses with warning
+- Can cause browser crashes or severe performance degradation
+
+**Impact**:
+- Browser pauses execution ("Paused before potential out-of-memory crash")
+- Page becomes unresponsive
+- Can cause browser tab to crash
+- Poor user experience
+
+**Solution**:
+- Strip base64 logos from memory cache (same as localStorage)
+- Fetch logos on-demand from CoinGecko when displaying asset cards
+- Store only URLs in memory cache
+- This prevents memory bloat while still allowing logos to display
+
+#### 2. localStorage Quota Exceeded (December 2025)
 
 **Problem**: Manifest cache was 14.7 MB, exceeding browser's localStorage quota (typically 5-10 MB).
 
@@ -106,7 +130,33 @@ TypeError: Failed to execute 'json' on 'Response': body stream already read
 
 ## The Solution
 
-### Fix 1: Strip Base64 Logos from localStorage Cache
+### Fix 1: Strip Base64 Logos from Memory Cache (Prevent Out-of-Memory Crashes)
+
+**File**: `volspike-nextjs-frontend/src/lib/asset-manifest.ts`
+
+**Change**: Modified `writeManifestCache()` to strip base64 logos from memory cache:
+
+```typescript
+// CRITICAL: Strip base64 logos from memory cache to prevent out-of-memory crashes
+// Base64 logos are ~15KB each, with 534 assets that's ~8MB just for logos
+// Storing them in memory can cause browser to run out of memory
+const assetsForMemory = assets.map((asset) => {
+    const { logoUrl, ...rest } = asset
+    // Only keep logo if it's a URL (not base64 data URL)
+    const logoForMemory = logoUrl && !logoUrl.startsWith('data:image') ? logoUrl : undefined
+    return { ...rest, logoUrl: logoForMemory }
+})
+
+manifestMemory = assetsForMemory
+```
+
+**Why it works**:
+- Memory cache is now ~1-2 MB (manageable)
+- Prevents browser out-of-memory crashes
+- Logos fetched on-demand when displaying asset cards
+- Better browser performance
+
+### Fix 2: Strip Base64 Logos from localStorage Cache
 
 **File**: `volspike-nextjs-frontend/src/lib/asset-manifest.ts`
 
@@ -131,7 +181,7 @@ manifestMemory = assets
 - Logos fetched fresh from backend on page load
 - No quota exceeded errors
 
-### Fix 2: Detect and Clear Incomplete Caches
+### Fix 3: Detect and Clear Incomplete Caches
 
 **File**: `volspike-nextjs-frontend/src/lib/asset-manifest.ts`
 
@@ -153,7 +203,7 @@ if (parsed.assets.length < 100) {
 - Prevents using stale/incomplete data
 - Ensures all assets from database are available
 
-### Fix 3: Clone CoinGecko Responses Before Reading
+### Fix 4: Clone CoinGecko Responses Before Reading
 
 **File**: `volspike-nextjs-frontend/src/hooks/use-asset-profile.ts`
 
@@ -172,7 +222,7 @@ const searchJson = (await clonedRes.json()) as any
 - Prevents "body stream already read" errors
 - Ensures CoinGecko fallback works correctly
 
-### Fix 4: Enhanced Logging
+### Fix 5: Enhanced Logging
 
 **Added console logs to trace manifest loading**:
 - `[readCachedManifest]` - Cache validation and loading
@@ -195,18 +245,24 @@ const searchJson = (await clonedRes.json()) as any
 
 ### What We Learned
 
-1. **Always validate cache completeness**: Don't trust cached data without checking it's complete
-2. **Clone fetch responses**: Always clone responses before reading if they might be used elsewhere
-3. **Add comprehensive logging**: Logging helps diagnose issues quickly in production
-4. **Fail fast**: Detect and fix incomplete caches immediately, don't let them degrade UX
+1. **Never store base64 data in memory**: Base64 strings are large and can cause out-of-memory crashes
+2. **Memory management is critical**: Monitor memory usage, especially with large datasets
+3. **Always validate cache completeness**: Don't trust cached data without checking it's complete
+4. **Clone fetch responses**: Always clone responses before reading if they might be used elsewhere
+5. **Add comprehensive logging**: Logging helps diagnose issues quickly in production
+6. **Fail fast**: Detect and fix incomplete caches immediately, don't let them degrade UX
+7. **On-demand fetching**: Fetch large data (like logos) on-demand rather than preloading everything
 
 ### Prevention Strategies
 
-1. **Cache validation**: Always check cache completeness (minimum asset count)
-2. **Version invalidation**: When bumping cache version, clear old cache explicitly
-3. **Response cloning**: Clone fetch responses before reading to prevent body stream errors
-4. **Monitoring**: Add metrics/logging to detect incomplete caches in production
-5. **Testing**: Test with empty/incomplete caches to ensure graceful handling
+1. **Memory management**: Never store base64 data in memory cache (use URLs, fetch on-demand)
+2. **Memory limits**: Monitor memory usage, set limits for cache sizes
+3. **Cache validation**: Always check cache completeness (minimum asset count)
+4. **Version invalidation**: When bumping cache version, clear old cache explicitly
+5. **Response cloning**: Clone fetch responses before reading to prevent body stream errors
+6. **Monitoring**: Add metrics/logging to detect incomplete caches and memory issues in production
+7. **Testing**: Test with empty/incomplete caches and large datasets to ensure graceful handling
+8. **On-demand loading**: Fetch large data (logos, images) on-demand rather than preloading
 
 ## How to Diagnose This Issue
 
