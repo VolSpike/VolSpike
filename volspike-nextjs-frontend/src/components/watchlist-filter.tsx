@@ -16,11 +16,14 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
   const { watchlists, isLoading } = useWatchlists()
 
   const selectedWatchlist = watchlists.find((w) => w.id === selectedWatchlistId)
+  
+  // Ensure Select always receives a string value (never null or undefined)
+  const selectValue = selectedWatchlistId ?? 'all'
 
   if (isLoading) {
     return (
       <div className={className}>
-        <Select disabled>
+        <Select disabled value="all">
           <SelectTrigger className="w-full md:w-[200px] min-w-0">
             <SelectValue placeholder="Loading watchlists..." />
           </SelectTrigger>
@@ -31,7 +34,7 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <Select value={selectedWatchlistId ?? 'all'} onValueChange={(value) => onWatchlistChange(value === 'all' ? null : value)}>
+      <Select value={selectValue} onValueChange={(value) => onWatchlistChange(value === 'all' ? null : value)}>
         <SelectTrigger className="w-full md:w-[200px] min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <List className="h-4 w-4 shrink-0" />

@@ -96,7 +96,10 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const [watchlistSelectorOpen, setWatchlistSelectorOpen] = useState(false)
     const [symbolToAdd, setSymbolToAdd] = useState<string | undefined>()
-    const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(watchlistFilterId ?? null)
+    // Initialize selectedWatchlistId - ensure it's never undefined
+    const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(() => {
+        return watchlistFilterId ?? null
+    })
     const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
     const [symbolToRemove, setSymbolToRemove] = useState<string | undefined>()
     const [watchlistsForRemoval, setWatchlistsForRemoval] = useState<Array<{ id: string; name: string }>>([])
