@@ -146,13 +146,6 @@ export function MarketTable({
             )
         )
         
-        console.log(`[MarketTable] Filtered data:`, {
-            watchlistId: selectedWatchlistId,
-            watchlistSymbols,
-            totalData: data.length,
-            filteredCount: filtered.length,
-        })
-        
         return filtered
     }, [data, selectedWatchlistId, watchlistInfo])
 

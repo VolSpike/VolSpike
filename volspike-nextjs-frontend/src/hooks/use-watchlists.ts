@@ -67,7 +67,6 @@ export function useWatchlists() {
     queryKey: ['watchlists'],
     queryFn: async () => {
       const token = getAuthToken()
-      console.log('[useWatchlists] Fetching watchlists:', { API_URL, hasToken: !!token, hasSession: !!session?.user })
       const response = await fetch(`${API_URL}/api/watchlist`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -77,17 +76,10 @@ export function useWatchlists() {
 
       if (!response.ok) {
         const error = await response.json()
-        console.error('[useWatchlists] Failed to fetch watchlists:', { status: response.status, error })
         throw new Error(error.error || 'Failed to fetch watchlists')
       }
 
-      const data = await response.json()
-      console.log('[useWatchlists] Received watchlists:', { 
-        watchlistsCount: data?.watchlists?.length || 0,
-        watchlists: data?.watchlists?.map((w: any) => ({ id: w.id, name: w.name, itemsCount: w.items?.length || 0 })),
-        hasLimits: !!data?.limits,
-      })
-      return data
+      return response.json()
     },
     enabled: !!session?.user,
     staleTime: 30000, // 30 seconds
