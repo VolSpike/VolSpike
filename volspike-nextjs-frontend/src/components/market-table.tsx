@@ -364,40 +364,40 @@ export function MarketTable({
             return
         }
 
-        const node = scrollContainerRef.current
-        if (!node) return
+            const node = scrollContainerRef.current
+            if (!node) return
 
-        const scrollSize = node.scrollHeight
-        const clientSize = node.clientHeight
-        const scrollPos = node.scrollTop
+            const scrollSize = node.scrollHeight
+            const clientSize = node.clientHeight
+            const scrollPos = node.scrollTop
 
-        const can = scrollSize > clientSize + 1
+            const can = scrollSize > clientSize + 1
         // Only show scroll indicator if content actually overflows the container
         // Use a threshold (10px) to account for rounding/padding, but if content fits
         // perfectly within the container, there's no scrollable content
         // Increased from 5px to 10px to prevent false positives when content fits perfectly
         const hasScroll = scrollSize > clientSize + 10
-        const atStart = scrollPos <= 1
-        const atEnd = scrollPos + clientSize >= scrollSize - 1
+            const atStart = scrollPos <= 1
+            const atEnd = scrollPos + clientSize >= scrollSize - 1
 
-        setCanScroll(can)
+            setCanScroll(can)
         setHasScrollableContent(hasScroll)
-        setAtTop(atStart)
-        setAtBottom(atEnd)
+            setAtTop(atStart)
+            setAtBottom(atEnd)
 
-        if (SCROLL_DEBUG_ENABLED && can) {
-            // Helps debug "is this actually scrollable?" issues in the wild
-            // without spamming production logs unless explicitly enabled.
-            // eslint-disable-next-line no-console
-            console.debug('[MarketTable] scroll state', {
-                canScroll: can,
-                atTop: atStart,
-                atBottom: atEnd,
-                scrollHeight: scrollSize,
-                clientHeight: clientSize,
-                scrollTop: scrollPos,
-            })
-        }
+            if (SCROLL_DEBUG_ENABLED && can) {
+                // Helps debug "is this actually scrollable?" issues in the wild
+                // without spamming production logs unless explicitly enabled.
+                // eslint-disable-next-line no-console
+                console.debug('[MarketTable] scroll state', {
+                    canScroll: can,
+                    atTop: atStart,
+                    atBottom: atEnd,
+                    scrollHeight: scrollSize,
+                    clientHeight: clientSize,
+                    scrollTop: scrollPos,
+                })
+            }
     }, [guestMode, SCROLL_DEBUG_ENABLED])
 
     // Vertical scroll state + optional debug logging for Market Data table
@@ -841,9 +841,9 @@ export function MarketTable({
                             ? 'Top 5 preview'
                             : selectedWatchlistId && watchlistInfo
                                 ? `${watchlistInfo.name || 'Watchlist'} (${watchlistInfo.items?.length || 0} ${watchlistInfo.items?.length === 1 ? 'symbol' : 'symbols'})`
-                                : userTier === 'free'
-                                    ? 'Top 50 symbols (Free tier)'
-                                    : `${sortedData.length} symbols`}
+                            : userTier === 'free'
+                                ? 'Top 50 symbols (Free tier)'
+                                : `${sortedData.length} symbols`}
                     </span>
                     <WatchlistExportButton
                         data={sortedData}
@@ -960,14 +960,14 @@ export function MarketTable({
                                         </Button>
                                     </th>
                                 )}
-                                <th className="text-center p-3">
+                                <th className="text-center p-3 align-middle">
                                     <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => handleSort('star')}
                                         disabled={guestMode || !session?.user}
                                         title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : !session?.user ? 'Sign in to sort by watchlist' : undefined}
-                                        className={`h-auto p-0 font-semibold transition-colors flex items-center gap-1 ${guestMode || !session?.user ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
+                                        className={`h-auto p-0 font-semibold transition-colors flex items-center justify-center gap-1 ${guestMode || !session?.user ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
                                     >
                                         <Star className={`h-4 w-4 ${sortBy === 'star' ? 'text-brand-500' : 'text-foreground'}`} />
                                         {sortBy === 'star' && <SortIcon column="star" />}
@@ -1156,49 +1156,48 @@ export function MarketTable({
                                                 {formatVolume(item.openInterest ?? 0)}
                                             </td>
                                         )}
-                                        <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
-                                            <div className="flex items-center justify-end gap-1">
-                                                {/* Star icon: Always visible if in watchlist, otherwise hover-only on desktop */}
-                                                {session?.user && !guestMode && (
-                                                    <div className={`pointer-events-none ${
-                                                        isSymbolInWatchlist(item.symbol)
-                                                            ? 'opacity-100' // Always visible if in watchlist
-                                                            : 'opacity-100 md:opacity-0 md:group-hover/row:opacity-100' // Hover-only on desktop if not in watchlist
-                                                    } transition-opacity duration-150`}>
-                                                <Button
-                                                            className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
-                                                                isSymbolInWatchlist(item.symbol)
-                                                                    ? 'text-brand-600 dark:text-brand-400'
-                                                                    : ''
+                                        {/* Star column - separate from actions */}
+                                        <td className={`p-3 text-center transition-colors duration-150${cellHoverBg}`}>
+                                            {session?.user && !guestMode && (
+                                                <div className="flex items-center justify-center">
+                                                    <Button
+                                                        className={`h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
+                                                            isSymbolInWatchlist(item.symbol)
+                                                                ? 'text-brand-600 dark:text-brand-400'
+                                                                : ''
+                                                        }`}
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={(e) => handleAddToWatchlist(e, item)}
+                                                        title={
+                                                            isSymbolInWatchlist(item.symbol)
+                                                                ? 'Remove from watchlist'
+                                                                : 'Add to watchlist'
+                                                        }
+                                                    >
+                                                        <Star
+                                                            className={`h-3.5 w-3.5 ${
+                                                                isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
                                                             }`}
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => handleAddToWatchlist(e, item)}
-                                                            title={
-                                                                isSymbolInWatchlist(item.symbol)
-                                                                    ? 'Remove from watchlist'
-                                                                    : 'Add to watchlist'
-                                                            }
-                                                >
-                                                            <Star
-                                                                className={`h-3.5 w-3.5 ${
-                                                                    isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
-                                                                }`}
-                                                            />
-                                                </Button>
-                                                    </div>
-                                                )}
+                                                        />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </td>
+                                        {/* Actions column - bell icon */}
+                                        <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
+                                            <div className="flex items-center justify-end">
                                                 {/* Bell icon: Always hover-only on desktop, always visible on mobile */}
                                                 <div className="pointer-events-none opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity duration-150">
-                                                <Button
-                                                    className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => handleCreateAlert(e, item)}
-                                                    title="Create alert"
-                                                >
-                                                    <Bell className="h-3.5 w-3.5" />
-                                                </Button>
+                                                    <Button
+                                                        className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={(e) => handleCreateAlert(e, item)}
+                                                        title="Create alert"
+                                                    >
+                                                        <Bell className="h-3.5 w-3.5" />
+                                                    </Button>
                                                 </div>
                                             </div>
                                         </td>
