@@ -13,17 +13,23 @@ interface WatchlistFilterProps {
 }
 
 export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, className }: WatchlistFilterProps) {
-  const { watchlists, isLoading } = useWatchlists()
+  const { watchlists, isLoading, error } = useWatchlists()
 
   // Debug logging
-  console.log('[WatchlistFilter] Render:', {
-    watchlistsCount: watchlists.length,
+  console.log('[WatchlistFilter] Render:', JSON.stringify({
+    watchlistsCount: watchlists?.length || 0,
     watchlists: watchlists,
     isLoading,
+    error: error?.message,
     selectedWatchlistId,
-  })
+    watchlistsType: typeof watchlists,
+    watchlistsIsArray: Array.isArray(watchlists),
+  }, null, 2))
 
-  const selectedWatchlist = watchlists.find((w) => w.id === selectedWatchlistId)
+  // Defensive check - ensure watchlists is always an array
+  const safeWatchlists = Array.isArray(watchlists) ? watchlists : []
+
+  const selectedWatchlist = safeWatchlists.find((w) => w.id === selectedWatchlistId)
   
   // Ensure Select always receives a string value (never null or undefined)
   const selectValue = selectedWatchlistId ?? 'all'
@@ -64,12 +70,12 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Symbols</SelectItem>
-          {watchlists.length === 0 ? (
+          {safeWatchlists.length === 0 ? (
             <SelectItem value="empty" disabled>
               No watchlists yet
             </SelectItem>
           ) : (
-            watchlists.map((watchlist) => (
+            safeWatchlists.map((watchlist) => (
               <SelectItem key={watchlist.id} value={watchlist.id}>
                 <div className="flex items-center justify-between w-full">
                   <span>{watchlist.name}</span>
