@@ -44,7 +44,7 @@ import { createLogger } from '../src/lib/logger'
 
 const logger = createLogger()
 const COINGECKO_API = 'https://api.coingecko.com/api/v3'
-const REQUEST_GAP_MS = 3000 // 3 seconds between requests (20 calls/minute, safe for CoinGecko)
+const REQUEST_GAP_MS = 6000 // 6 seconds between requests (10 calls/minute, very safe for CoinGecko free tier)
 
 interface CoinGeckoImageResponse {
     image?: {
