@@ -45,10 +45,33 @@ findAssetInManifestSync() → Instant lookup
 - Only 7 assets in cache: `['BTC', 'ETH', 'SOL', 'ENA', 'SOON']`
 - Falls back to CoinGecko API → Fails with "body stream already read" error
 - User sees placeholder text instead of actual data
+- **NEW**: `localStorage quota exceeded` error when trying to cache manifest
 
 ### Root Causes
 
-#### 1. Incomplete Manifest Cache
+#### 1. localStorage Quota Exceeded (December 2025)
+
+**Problem**: Manifest cache was 14.7 MB, exceeding browser's localStorage quota (typically 5-10 MB).
+
+**Why it happened**:
+- Base64-encoded logos stored in database (~15KB each)
+- 534 assets × 15KB = ~8MB just for logos
+- Combined with descriptions and metadata = 14.7 MB total
+- localStorage limit exceeded → `QuotaExceededError`
+
+**Impact**:
+- Manifest cache couldn't be written to localStorage
+- Users had to fetch fresh manifest on every page load
+- Slower initial load time
+- No persistent cache across page reloads
+
+**Solution**:
+- Strip base64 logos from localStorage cache (store only URLs)
+- Keep full data (including base64 logos) in memory cache
+- Logos fetched fresh from backend on page load
+- localStorage cache now ~1-2 MB (manageable)
+
+#### 2. Incomplete Manifest Cache
 
 **Problem**: localStorage cache only contained 7 assets instead of 500+ assets from database.
 
@@ -83,7 +106,32 @@ TypeError: Failed to execute 'json' on 'Response': body stream already read
 
 ## The Solution
 
-### Fix 1: Detect and Clear Incomplete Caches
+### Fix 1: Strip Base64 Logos from localStorage Cache
+
+**File**: `volspike-nextjs-frontend/src/lib/asset-manifest.ts`
+
+**Change**: Modified `writeManifestCache()` to exclude base64 logos:
+
+```typescript
+// Strip base64 logos from localStorage cache
+const assetsForStorage = assets.map((asset) => {
+    const { logoUrl, ...rest } = asset
+    // Only store logo if it's a URL (not base64 data URL)
+    const logoForStorage = logoUrl && !logoUrl.startsWith('data:image') ? logoUrl : undefined
+    return { ...rest, logoUrl: logoForStorage }
+})
+
+// Always store full data (including base64 logos) in memory cache
+manifestMemory = assets
+```
+
+**Why it works**:
+- localStorage cache is now ~1-2 MB (manageable)
+- Memory cache has full data including logos (instant display)
+- Logos fetched fresh from backend on page load
+- No quota exceeded errors
+
+### Fix 2: Detect and Clear Incomplete Caches
 
 **File**: `volspike-nextjs-frontend/src/lib/asset-manifest.ts`
 
@@ -105,7 +153,7 @@ if (parsed.assets.length < 100) {
 - Prevents using stale/incomplete data
 - Ensures all assets from database are available
 
-### Fix 2: Clone CoinGecko Responses Before Reading
+### Fix 3: Clone CoinGecko Responses Before Reading
 
 **File**: `volspike-nextjs-frontend/src/hooks/use-asset-profile.ts`
 
@@ -124,7 +172,7 @@ const searchJson = (await clonedRes.json()) as any
 - Prevents "body stream already read" errors
 - Ensures CoinGecko fallback works correctly
 
-### Fix 3: Enhanced Logging
+### Fix 4: Enhanced Logging
 
 **Added console logs to trace manifest loading**:
 - `[readCachedManifest]` - Cache validation and loading
