@@ -41,14 +41,11 @@ export function Dashboard() {
         return window.innerWidth < 1280 ? 'alerts' : 'market'
     })
 
-    // Debug session status (development only)
+    // Session status tracking (removed debug logs)
     if (process.env.NODE_ENV !== 'production') {
-        console.log('[Dashboard] useSession status:', status)
-        console.log('[Dashboard] useSession data:', session ? 'Found' : 'Not found')
+        // Debug logs removed per user request
         if (session?.user) {
-            console.log('[Dashboard] User details:', {
-                email: session.user.email,
-                tier: (session.user as any).tier,
+            // User session available
                 role: (session.user as any).role
             })
         }
@@ -91,8 +88,8 @@ export function Dashboard() {
     // Load asset manifest immediately on dashboard mount for instant asset card display
     useEffect(() => {
         // Load manifest immediately (not just prefetch) to ensure it's ready
-        loadAssetManifest().catch((err) => {
-            console.error('[Dashboard] Failed to load asset manifest:', err)
+        loadAssetManifest().catch(() => {
+            // Silently handle manifest load errors - will retry on next access
         })
     }, [])
 
@@ -101,9 +98,7 @@ export function Dashboard() {
 
         // Subscribe to market updates
         const handleMarketUpdate = (data: any) => {
-            if (process.env.NODE_ENV !== 'production') {
-                console.log('Market update received:', data)
-            }
+            // Market update handler (debug logs removed)
             // Handle both old and new data formats
             const market = data?.data || data
             if (market) {

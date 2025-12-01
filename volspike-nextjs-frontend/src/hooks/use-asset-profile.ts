@@ -226,7 +226,7 @@ const fetchProfileFromCoinGeckoWithId = async (symbol: string, coingeckoId: stri
         return merged
     } catch (coinError: any) {
         // Handle rate limit or other errors gracefully
-        console.warn(`[use-asset-profile] CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
+        debugLog(`CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
         return undefined
     }
 }
@@ -271,7 +271,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
                         }
                     } catch (altError) {
                         // Ignore fallback search errors
-                        console.debug(`[use-asset-profile] Fallback search failed for ${stripped}:`, altError)
+                        debugLog(`Fallback search failed for ${stripped}:`, altError)
                     }
                 }
             }
@@ -308,7 +308,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
             coingeckoId = chosen?.id
         } catch (searchError: any) {
             // Handle rate limit or other errors gracefully
-            console.warn(`[use-asset-profile] CoinGecko search failed for ${upper}:`, searchError)
+            debugLog(`CoinGecko search failed for ${upper}:`, searchError)
 
             // Fallback to static override if we have one
             if (override) {
@@ -396,7 +396,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
         return merged
     } catch (coinError: any) {
         // Handle rate limit or other errors gracefully
-        console.warn(`[use-asset-profile] CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
+        debugLog(`CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
 
         // Fallback to override if available
         if (override) {
