@@ -39,17 +39,18 @@ interface MarketData {
 
 const BINANCE_BASE_URL = 'https://fapi.binance.com'
 
-export async function getMarketData(symbol?: string): Promise<MarketData[] | MarketData | null> {
+export async function getMarketData(symbol?: string, skipVolumeFilter: boolean = false): Promise<MarketData[] | MarketData | null> {
     if (symbol) {
         // Fetch single symbol data
         try {
+            logger.debug(`[getMarketData] Fetching data for symbol: ${symbol}, skipVolumeFilter: ${skipVolumeFilter}`)
             const response = await axios.get(`${BINANCE_BASE_URL}/fapi/v1/ticker/24hr`, {
                 params: { symbol },
                 timeout: 10000
             })
 
             if (!response.data) {
-                logger.warn(`No data returned for symbol ${symbol}`)
+                logger.warn(`[getMarketData] No data returned for symbol ${symbol}`)
                 return null
             }
 
@@ -57,17 +58,24 @@ export async function getMarketData(symbol?: string): Promise<MarketData[] | Mar
             
             // Validate response data
             if (!ticker || !ticker.symbol || !ticker.lastPrice) {
-                logger.warn(`Invalid ticker data returned for symbol ${symbol}`)
+                logger.warn(`[getMarketData] Invalid ticker data returned for symbol ${symbol}`)
                 return null
             }
             
             const price = parseFloat(ticker.lastPrice)
             const volume24h = parseFloat(ticker.quoteVolume)
 
-            // Don't filter by volume for watchlist symbols - user explicitly added them
-            // Only filter if volume is 0 or invalid
+            logger.debug(`[getMarketData] Symbol ${symbol} - price: ${price}, volume: ${volume24h}, skipVolumeFilter: ${skipVolumeFilter}`)
+
+            // For watchlist symbols, skip volume filter (user explicitly added them)
+            // Only filter if volume is 0 or invalid, or if skipVolumeFilter is false and volume is too low
             if (isNaN(volume24h) || volume24h <= 0) {
-                logger.warn(`Invalid volume for symbol ${symbol}: ${volume24h}`)
+                logger.warn(`[getMarketData] Invalid volume for symbol ${symbol}: ${volume24h}`)
+                return null
+            }
+
+            if (!skipVolumeFilter && volume24h < 1000000) {
+                logger.debug(`[getMarketData] Filtering out ${symbol} due to low volume: ${volume24h} (skipVolumeFilter=false)`)
                 return null
             }
 
