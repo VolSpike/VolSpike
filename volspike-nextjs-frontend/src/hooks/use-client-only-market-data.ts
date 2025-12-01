@@ -192,21 +192,40 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         const limit = tierLimits[tier as keyof typeof tierLimits] || 50;
         const limitedOtherItems = otherItems.slice(0, limit);
         
+        // Debug: Check if any watchlist symbols are in otherItems (they shouldn't be)
+        if (normalizedWatchlistSymbols.length > 0 && process.env.NODE_ENV === 'development') {
+            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
+            const duplicatesInOther = limitedOtherItems.filter(item => 
+                watchlistSymbolSet.has(normalizeSym(item.symbol))
+            );
+            if (duplicatesInOther.length > 0) {
+                console.warn(`[buildSnapshot] ⚠️ Found ${duplicatesInOther.length} watchlist symbols in otherItems (should be 0):`, 
+                    duplicatesInOther.map(item => item.symbol));
+            }
+        }
+        
         // Combine: watchlist items first (always included), then limited other items
-        // Remove duplicates (in case a watchlist symbol is also in top N)
+        // Remove duplicates (watchlist symbols should already be excluded from otherItems, but double-check)
         const combined = [...watchlistItems];
         const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
         let addedOtherItems = 0;
+        let skippedDuplicates = 0;
         for (const item of limitedOtherItems) {
             const normalizedItemSym = normalizeSym(item.symbol);
-            if (!watchlistSymbolSet.has(normalizedItemSym)) {
+            if (watchlistSymbolSet.has(normalizedItemSym)) {
+                // This shouldn't happen if separation worked correctly
+                skippedDuplicates++;
+            } else {
                 combined.push(item);
                 addedOtherItems++;
             }
         }
         
         if (normalizedWatchlistSymbols.length > 0) {
-            console.log(`[buildSnapshot] Final combined result: ${combined.length} unique items (${watchlistItems.length} watchlist + ${addedOtherItems} other, ${limitedOtherItems.length - addedOtherItems} duplicates skipped)`);
+            console.log(`[buildSnapshot] Final combined result: ${combined.length} unique items (${watchlistItems.length} watchlist + ${addedOtherItems} other, ${skippedDuplicates} duplicates skipped)`);
+            if (skippedDuplicates > 0) {
+                console.warn(`[buildSnapshot] ⚠️ Found ${skippedDuplicates} duplicates - separation logic may have an issue`);
+            }
         }
         
         return combined;
