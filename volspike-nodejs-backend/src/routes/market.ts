@@ -372,23 +372,38 @@ market.get('/watchlist/:id', async (c) => {
         // Pass skipVolumeFilter=true to ensure watchlist symbols are shown even with low volume
         const symbolDataPromises = symbols.map(async (symbol) => {
             try {
-                logger.debug(`[Watchlist Market Data] Fetching data for symbol: ${symbol}`)
+                logger.info(`[Watchlist Market Data] Fetching data for symbol: ${symbol}`)
                 const data = await getMarketData(symbol, true) // Skip volume filter for watchlist symbols
+                
+                // Detailed logging to debug the issue
+                logger.info(`[Watchlist Market Data] getMarketData returned for ${symbol}:`, {
+                    isNull: data === null,
+                    isArray: Array.isArray(data),
+                    type: typeof data,
+                    hasSymbol: data && typeof data === 'object' && 'symbol' in data,
+                    dataPreview: data && typeof data === 'object' && !Array.isArray(data) ? {
+                        symbol: (data as any).symbol,
+                        price: (data as any).price,
+                    } : null,
+                })
+                
                 // getMarketData returns MarketData | MarketData[] | null
                 // When called with a symbol, it returns MarketData | null
                 if (data && typeof data === 'object' && 'symbol' in data && !Array.isArray(data)) {
-                    logger.debug(`[Watchlist Market Data] Successfully fetched data for ${symbol}`)
+                    logger.info(`[Watchlist Market Data] ✅ Successfully fetched data for ${symbol}: ${(data as MarketData).symbol}`)
                     return data as MarketData
                 }
-                logger.warn(`[Watchlist Market Data] Invalid data format returned for symbol ${symbol}:`, {
+                logger.warn(`[Watchlist Market Data] ❌ Invalid data format returned for symbol ${symbol}:`, {
                     dataType: typeof data,
                     isArray: Array.isArray(data),
                     hasSymbol: data && typeof data === 'object' && 'symbol' in data,
+                    data: data,
                 })
                 return null
             } catch (error: any) {
-                logger.warn(`[Watchlist Market Data] Failed to fetch data for symbol ${symbol}:`, {
+                logger.error(`[Watchlist Market Data] ❌ Failed to fetch data for symbol ${symbol}:`, {
                     error: error.message,
+                    code: error.code,
                     stack: error.stack,
                 })
                 return null // Return null for failed fetches
@@ -397,11 +412,23 @@ market.get('/watchlist/:id', async (c) => {
 
         const symbolDataResults = await Promise.all(symbolDataPromises)
         
+        logger.info(`[Watchlist Market Data] Promise.all completed:`, {
+            totalPromises: symbolDataResults.length,
+            nullResults: symbolDataResults.filter(r => r === null).length,
+            validResults: symbolDataResults.filter(r => r !== null).length,
+            results: symbolDataResults.map(r => r ? { symbol: r.symbol } : null),
+        })
+        
         // Filter out null results and ensure we have MarketData objects
         const marketData = symbolDataResults
             .filter((data): data is MarketData => data !== null && typeof data === 'object' && 'symbol' in data)
 
-        logger.info(`Fetched market data for ${marketData.length}/${symbols.length} symbols in watchlist ${watchlistId} by ${user.email}`)
+        logger.info(`[Watchlist Market Data] After filtering:`, {
+            marketDataLength: marketData.length,
+            symbolsLength: symbols.length,
+            marketDataSymbols: marketData.map(d => d.symbol),
+            userEmail: user.email,
+        })
 
         return c.json({
             watchlistId: watchlist.id,
