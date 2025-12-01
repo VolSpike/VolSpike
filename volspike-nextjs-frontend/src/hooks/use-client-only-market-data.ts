@@ -73,20 +73,23 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
 
     // Update watchlistSymbols ref when it changes (without triggering reconnection)
     // Also trigger immediate render if watchlist symbols are provided
+    // Note: render is declared later, so we use a ref pattern to avoid dependency issues
+    const renderRef = useRef<((snapshot: MarketData[]) => void) | null>(null);
+    
     useEffect(() => {
         const prevSymbols = watchlistSymbolsRef.current;
         watchlistSymbolsRef.current = watchlistSymbols;
         
         // If watchlist symbols changed and we have symbols, immediately rebuild snapshot
         // This ensures watchlist symbols appear instantly when switching to watchlist view
-        if (watchlistSymbols.length > 0) {
+        if (watchlistSymbols.length > 0 && renderRef.current) {
             // Use ref to avoid dependency on buildSnapshot callback
             const snapshot = buildSnapshotRef.current();
             if (snapshot.length > 0) {
-                render(snapshot);
+                renderRef.current(snapshot);
             }
         }
-    }, [watchlistSymbols, render]);
+    }, [watchlistSymbols]);
 
     // Normalize symbol: remove dashes/underscores and convert to uppercase
     const normalizeSym = useCallback((s: string): string => {
