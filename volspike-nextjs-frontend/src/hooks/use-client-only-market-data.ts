@@ -537,8 +537,25 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
                     let tickersUpdated = false;
                     for (const it of arr) {
                         if (it?.e === '24hrTicker' || it?.c || it?.v) {
-                            tickersRef.current.set(it.s, it);
+                            // Always keep watchlist symbols in tickersRef, even if they don't meet volume/tier limits
+                            // This ensures instant display when switching to watchlist view
+                            const symbol = it.s;
+                            const isWatchlistSymbol = watchlistSymbolsRef.current.some(ws => 
+                                normalizeSym(ws) === normalizeSym(symbol)
+                            );
+                            
+                            // Always store ticker data (WebSocket receives all symbols)
+                            tickersRef.current.set(symbol, it);
                             tickersUpdated = true;
+                            
+                            // If this is a watchlist symbol that just arrived, force immediate render
+                            if (isWatchlistSymbol && watchlistSymbolsRef.current.length > 0) {
+                                // Trigger immediate snapshot rebuild to include this watchlist symbol
+                                const snapshot = buildSnapshotRef.current();
+                                if (snapshot.length > 0) {
+                                    render(snapshot);
+                                }
+                            }
                         }
                         if (
                             it?.r !== undefined ||
