@@ -103,8 +103,16 @@ export async function getMarketData(symbol?: string, skipVolumeFilter: boolean =
                 openInterest: 0, // Would need separate API call
                 timestamp: Date.now(),
             }
-        } catch (error) {
-            logger.error(`Error fetching data for ${symbol}:`, error)
+        } catch (error: any) {
+            logger.error(`[getMarketData] ❌ Error fetching data for symbol ${symbol}:`, {
+                error: error?.message || String(error),
+                code: error?.code,
+                response: error?.response?.data,
+                status: error?.response?.status,
+                statusText: error?.response?.statusText,
+                stack: error?.stack,
+                fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+            })
             return null
         }
     }
