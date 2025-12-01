@@ -343,8 +343,17 @@ market.get('/watchlist/:id', async (c) => {
         }
 
         // Extract symbols from watchlist items and normalize to uppercase
+        // Ensure symbols have USDT suffix for Binance Futures API
         const symbols = watchlist.items
-            .map(item => item.contract.symbol?.toUpperCase())
+            .map(item => {
+                let symbol = item.contract.symbol?.toUpperCase() || ''
+                // Binance Futures API requires USDT suffix
+                // If symbol doesn't end with USDT, append it (e.g., 1000PEPE -> 1000PEPEUSDT)
+                if (symbol && !symbol.endsWith('USDT')) {
+                    symbol = `${symbol}USDT`
+                }
+                return symbol
+            })
             .filter(symbol => symbol) // Filter out any null/undefined
 
         logger.info(`Watchlist ${watchlistId} contains ${symbols.length} symbols: ${symbols.join(', ')}`)
