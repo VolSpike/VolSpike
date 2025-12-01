@@ -49,7 +49,8 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   // Get user tier
   const userTier = (session?.user as any)?.tier || 'free'
   const isFreeTier = userTier === 'free'
-  const hasMaxWatchlists = limits?.limits.watchlistLimit === 1 && watchlists.length >= 1
+  const isProTier = userTier === 'pro'
+  const hasMaxWatchlists = watchlists.length >= (limits?.limits.watchlistLimit || 0)
 
   // Compute existing watchlist IDs from current watchlists data (more reliable than prop)
   // This ensures we always have the latest data after mutations
@@ -290,6 +291,25 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                             {symbol && effectiveExistingWatchlistIds.includes(watchlist.id) && (
                               <Check className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                             )}
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleStartEdit(watchlist)}
+                              title="Rename watchlist"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteWatchlist(watchlist.id)}
+                              disabled={isDeleting}
+                              title="Delete watchlist"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                           <div className="text-xs text-muted-foreground">
                             {watchlist.items.length} symbol{watchlist.items.length !== 1 ? 's' : ''}
@@ -305,25 +325,6 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                             {effectiveExistingWatchlistIds.includes(watchlist.id) ? `Remove ${symbol}` : `Add ${symbol}`}
                           </Button>
                         )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={() => handleStartEdit(watchlist)}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteWatchlist(watchlist.id)}
-                          disabled={isDeleting}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </>
                   )}
@@ -389,6 +390,13 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                     Upgrade to Pro
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
+                </div>
+              ) : hasMaxWatchlists && isProTier ? (
+                <div className="w-full p-4 border rounded-lg bg-muted/30">
+                  <p className="text-sm text-muted-foreground text-center">
+                    You've reached the maximum number of watchlists ({limits?.limits.watchlistLimit}) for your tier. 
+                    You can still manage your existing watchlists above.
+                  </p>
                 </div>
               ) : (
                 <Button
