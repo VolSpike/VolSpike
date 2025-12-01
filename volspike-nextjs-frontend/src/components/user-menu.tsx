@@ -144,9 +144,9 @@ export function UserMenu() {
 
     const tier = identity.tier || 'free'
     const itemClass =
-        'group relative mx-1 my-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-150 bg-white/5 hover:bg-white/10 border border-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.28)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.35)] focus:bg-white/10 focus:outline-none'
+        'group relative mx-1 my-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-150 bg-white/85 text-slate-900 hover:bg-white dark:bg-white/5 dark:text-white hover:shadow-[0_16px_40px_rgba(0,0,0,0.35)] border border-slate-200/80 dark:border-white/8 shadow-[0_10px_30px_rgba(15,23,42,0.18)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.28)] focus:bg-white dark:focus:bg-white/10 focus:outline-none'
     const iconClass =
-        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-muted-foreground/90 ring-1 ring-white/5 group-hover:bg-white/10 group-hover:text-white transition-all duration-150'
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 ring-1 ring-slate-200/80 group-hover:bg-slate-50 group-hover:text-slate-800 transition-all duration-150 dark:bg-white/5 dark:text-muted-foreground/90 dark:ring-white/5 dark:group-hover:bg-white/10 dark:group-hover:text-white'
 
     return (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -194,12 +194,12 @@ export function UserMenu() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="end"
-                className="w-[320px] overflow-hidden rounded-2xl border border-white/5 bg-[#0c121f]/95 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-scale-in"
+                className="relative w-[320px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.25)] ring-1 ring-white/40 backdrop-blur-xl animate-scale-in dark:border-white/8 dark:bg-[#0c121f]/95 dark:text-white dark:shadow-[0_20px_60px_rgba(0,0,0,0.45)] dark:ring-white/8"
             >
                 <div className="relative">
                     <div className="pointer-events-none absolute inset-x-0 -top-10 h-28 bg-gradient-to-b from-brand-500/20 via-brand-500/5 to-transparent blur-2xl opacity-70" />
                     {/* User Info Section with refreshed styling */}
-                    <DropdownMenuLabel className="relative p-4 pb-3 border-b border-white/5 bg-[#0f172a]/70 backdrop-blur-xl">
+                    <DropdownMenuLabel className="relative p-4 pb-3 border-b border-slate-200/70 bg-white/90 text-slate-900 backdrop-blur-xl dark:border-white/5 dark:bg-[#0f172a]/70 dark:text-white">
                         <div className="flex flex-col space-y-3">
                             <div className="flex items-center gap-3">
                                 <div className={`h-11 w-11 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-[0_0_0_4px_rgba(19,255,141,0.15)]`}>
@@ -232,9 +232,9 @@ export function UserMenu() {
                                         const secondary = identity.email && identity.email !== primary ? identity.email : null
                                         return (
                                             <>
-                                                <p className="text-sm font-semibold truncate text-white/95">{primary}</p>
+                                                <p className="text-sm font-semibold truncate text-slate-900 dark:text-white/95">{primary}</p>
                                                 {secondary ? (
-                                                    <p className="text-xs text-white/60 truncate">{secondary}</p>
+                                                    <p className="text-xs text-slate-500 truncate dark:text-white/60">{secondary}</p>
                                                 ) : null}
                                             </>
                                         )
@@ -250,7 +250,7 @@ export function UserMenu() {
                                             ? 'bg-sec-600 dark:bg-sec-500 text-white'
                                             : tier === 'elite'
                                                 ? 'bg-elite-600 dark:bg-elite-500 text-white'
-                                                : 'bg-white/10 text-white'
+                                                : 'bg-slate-100 text-slate-800 dark:bg-white/10 dark:text-white'
                                         }`}
                                 >
                                     {tier === 'free' && <Zap className="h-3 w-3 mr-1 inline" />}
@@ -259,7 +259,7 @@ export function UserMenu() {
                                     {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
                                 </Badge>
                                 {identity.role === 'ADMIN' && (
-                                    <Badge variant="outline" className="rounded-full border-blue-400/50 bg-blue-500/10 text-[11px] text-blue-100">
+                                    <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50 text-[11px] text-blue-700 dark:border-blue-400/50 dark:bg-blue-500/10 dark:text-blue-100">
                                         Admin
                                     </Badge>
                                 )}
@@ -267,9 +267,9 @@ export function UserMenu() {
 
                             {/* Wallet address if available */}
                             {identity.address && (
-                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/5 shadow-inner">
-                                    <Wallet className="h-3.5 w-3.5 text-white/70" />
-                                    <span className="text-[11px] font-mono text-white/70 font-mono-tabular">
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100/80 border border-slate-200/80 shadow-inner text-slate-700 dark:bg-white/5 dark:border-white/5 dark:text-white/70">
+                                    <Wallet className="h-3.5 w-3.5 text-slate-500 dark:text-white/70" />
+                                    <span className="text-[11px] font-mono text-slate-700 font-mono-tabular dark:text-white/70">
                                         {(identity.walletProvider === 'solana' ? 'SOL' : 'ETH')} · {identity.address.slice(0, 6)}...{identity.address.slice(-4)}
                                     </span>
                                 </div>
@@ -291,15 +291,15 @@ export function UserMenu() {
                             <Settings className="h-4 w-4" />
                         </span>
                         <div className="flex-1 text-left">
-                            <p className="text-sm font-semibold text-white">Settings</p>
-                            <p className="text-[11px] text-white/60">Profile, preferences</p>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">Settings</p>
+                            <p className="text-[11px] text-slate-500 dark:text-white/60">Profile, preferences</p>
                         </div>
                     </DropdownMenuItem>
 
                     {/* Admin Panel - Only visible to admins */}
                     {identity.role === 'ADMIN' && (
                         <>
-                            <DropdownMenuSeparator className="my-2 mx-2 border-white/5" />
+                            <DropdownMenuSeparator className="my-2 mx-2 border-slate-200/70 dark:border-white/5" />
                             <DropdownMenuItem
                                 onClick={() => {
                                     router.push('/admin')
@@ -307,15 +307,15 @@ export function UserMenu() {
                                 }}
                                 className="group relative mx-1 my-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-150 bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-purple-500/15 hover:from-blue-500/30 hover:to-purple-500/25 border border-blue-400/30 shadow-[0_12px_36px_rgba(37,99,235,0.25)] focus:outline-none"
                             >
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-blue-100 ring-1 ring-white/10 group-hover:ring-white/20 transition-all duration-150">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 ring-1 ring-blue-100 group-hover:ring-blue-200 transition-all duration-150 dark:bg-white/10 dark:text-blue-100 dark:ring-white/10 dark:group-hover:ring-white/20">
                                     <Shield className="h-4 w-4" />
                                 </span>
-                                <span className="flex-1 font-semibold text-blue-50">Admin Panel</span>
-                                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] border-blue-500/30 text-blue-50 bg-blue-500/20">
+                                <span className="flex-1 font-semibold text-blue-700 dark:text-blue-50">Admin Panel</span>
+                                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] border-blue-200 text-blue-600 bg-blue-50 dark:border-blue-500/30 dark:text-blue-50 dark:bg-blue-500/20">
                                     ADMIN
                                 </Badge>
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-2 mx-2 border-white/5" />
+                            <DropdownMenuSeparator className="my-2 mx-2 border-slate-200/70 dark:border-white/5" />
                         </>
                     )}
 
@@ -331,8 +331,8 @@ export function UserMenu() {
                             <CreditCard className="h-4 w-4" />
                         </span>
                         <div className="flex-1 text-left">
-                            <p className="text-sm font-semibold text-white">Billing & Subscription</p>
-                            <p className="text-[11px] text-white/60">Plans, invoices, payment methods</p>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">Billing & Subscription</p>
+                            <p className="text-[11px] text-slate-500 dark:text-white/60">Plans, invoices, payment methods</p>
                         </div>
                     </DropdownMenuItem>
                     )}
@@ -348,41 +348,41 @@ export function UserMenu() {
                             <Bell className="h-4 w-4" />
                         </span>
                         <div className="flex-1 text-left">
-                            <p className="text-sm font-semibold text-white">Email Alerts</p>
-                            <p className="text-[11px] text-white/60">Manage triggers & delivery</p>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">Email Alerts</p>
+                            <p className="text-[11px] text-slate-500 dark:text-white/60">Manage triggers & delivery</p>
                         </div>
                     </DropdownMenuItem>
                 </div>
 
-                <DropdownMenuSeparator className="my-2 border-white/5" />
+                <DropdownMenuSeparator className="my-2 border-slate-200/70 dark:border-white/5" />
 
                 {/* Copy Actions */}
                 <div className="px-2.5 py-2">
                     {identity.email && (
                         <DropdownMenuItem
                             onClick={() => handleCopy(identity.email!, 'Email')}
-                            className={`${itemClass} bg-white/10`}
+                            className={`${itemClass} bg-slate-100/80 dark:bg-white/10`}
                         >
                             <span className={iconClass}>
                                 <Copy className="h-4 w-4" />
                             </span>
                             <div className="flex-1 text-left">
-                                <p className="text-sm font-semibold text-white">Copy email</p>
-                                <p className="text-[11px] text-white/60">Use for support or invoices</p>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white">Copy email</p>
+                                <p className="text-[11px] text-slate-500 dark:text-white/60">Use for support or invoices</p>
                             </div>
                         </DropdownMenuItem>
                     )}
                     {identity.address && (
                         <DropdownMenuItem
                             onClick={() => handleCopy(identity.address!, 'Address')}
-                            className={`${itemClass} bg-white/10`}
+                            className={`${itemClass} bg-slate-100/80 dark:bg-white/10`}
                         >
                             <span className={iconClass}>
                                 <Wallet className="h-4 w-4" />
                             </span>
                             <div className="flex-1 text-left">
-                                <p className="text-sm font-semibold text-white">Copy address</p>
-                                <p className="text-[11px] text-white/60">Wallet on file</p>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-white">Copy address</p>
+                                <p className="text-[11px] text-slate-500 dark:text-white/60">Wallet on file</p>
                             </div>
                         </DropdownMenuItem>
                     )}
@@ -391,7 +391,7 @@ export function UserMenu() {
                 {/* Upgrade CTA for Free Tier */}
                 {tier === 'free' && (
                     <>
-                        <DropdownMenuSeparator className="my-2 border-white/5" />
+                        <DropdownMenuSeparator className="my-2 border-slate-200/70 dark:border-white/5" />
                         <div className="px-3 pb-3">
                             <Button
                                 onClick={() => {
@@ -408,7 +408,7 @@ export function UserMenu() {
                     </>
                 )}
 
-                <DropdownMenuSeparator className="my-2 border-white/5" />
+                <DropdownMenuSeparator className="my-2 border-slate-200/70 dark:border-white/5" />
 
                 {/* Sign Out */}
                 <div className="px-2.5 pb-2">
