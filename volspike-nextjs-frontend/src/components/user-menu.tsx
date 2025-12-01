@@ -30,7 +30,6 @@ import {
     Bell,
     Star,
     Zap,
-    TrendingUp,
     FileText,
     Key,
     Sparkles,
@@ -336,17 +335,6 @@ export function UserMenu() {
                     >
                         <Bell className="h-4 w-4 mr-2.5 text-muted-foreground" />
                         <span className="flex-1">Email Alerts</span>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem
-                        onClick={() => {
-                            router.push('/watchlist')
-                            setIsOpen(false)
-                        }}
-                        className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
-                    >
-                        <TrendingUp className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                        <span className="flex-1">Watchlist</span>
                     </DropdownMenuItem>
                 </div>
 
