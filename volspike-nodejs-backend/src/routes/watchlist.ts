@@ -16,7 +16,9 @@ const createWatchlistSchema = z.object({
 })
 
 const addToWatchlistSchema = z.object({
-    symbol: z.string().regex(/^[A-Z0-9]+USDT$/, 'Invalid symbol format. Must be uppercase and end with USDT (e.g., BTCUSDT)'),
+    // Allow any characters (including Chinese, emojis, etc.) as long as it ends with USDT
+    // Binance supports symbols like "币安人生USDT" which contain special characters
+    symbol: z.string().regex(/^.+USDT$/i, 'Invalid symbol format. Must end with USDT (e.g., BTCUSDT, 币安人生USDT)'),
 })
 
 const updateWatchlistSchema = z.object({
@@ -248,16 +250,16 @@ watchlist.post('/:id/symbols', async (c) => {
         let watchlistItem
         try {
             watchlistItem = await prisma.watchlistItem.create({
-                data: {
-                    watchlistId,
-                    contractId: contract.id,
+            data: {
+                watchlistId,
+                contractId: contract.id,
+            },
+            include: {
+                contract: {
+                    select: { symbol: true, isActive: true },
                 },
-                include: {
-                    contract: {
-                        select: { symbol: true, isActive: true },
-                    },
-                },
-            })
+            },
+        })
         } catch (createError: any) {
             // Handle Prisma unique constraint violation (duplicate symbol)
             if (createError?.code === 'P2002') {
