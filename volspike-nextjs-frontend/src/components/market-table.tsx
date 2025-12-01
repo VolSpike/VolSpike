@@ -96,10 +96,17 @@ export function MarketTable({
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
     const [watchlistSelectorOpen, setWatchlistSelectorOpen] = useState(false)
     const [symbolToAdd, setSymbolToAdd] = useState<string | undefined>()
-    const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(watchlistFilterId || null)
+    const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(watchlistFilterId ?? null)
     const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
     const [symbolToRemove, setSymbolToRemove] = useState<string | undefined>()
     const [watchlistsForRemoval, setWatchlistsForRemoval] = useState<Array<{ id: string; name: string }>>([])
+
+    // Sync selectedWatchlistId with watchlistFilterId prop
+    useEffect(() => {
+        if (watchlistFilterId !== undefined) {
+            setSelectedWatchlistId(watchlistFilterId ?? null)
+        }
+    }, [watchlistFilterId])
 
     // Get watchlist symbols if a watchlist is selected
     // Filter the existing WebSocket data instead of fetching from REST API
@@ -635,7 +642,7 @@ export function MarketTable({
                 <div className="flex flex-col gap-2 md:hidden">
                     {/* Row 1: Watchlist Filter (if signed in) */}
                     {session?.user && !guestMode && (
-                        <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                             <WatchlistFilter
                                 selectedWatchlistId={selectedWatchlistId}
                                 onWatchlistChange={handleWatchlistFilterChange}
@@ -646,17 +653,17 @@ export function MarketTable({
                     
                     {/* Row 2: Connected Status + Export */}
                     <div className="flex items-center justify-between gap-2">
-                        <Badge
-                            variant="outline"
+                    <Badge
+                        variant="outline"
                             className={`text-xs font-mono-tabular shrink-0 ${isConnected
-                                    ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
-                                    : 'border-danger-500/30 text-danger-600 dark:text-danger-400'
-                                }`}
-                        >
-                            <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-danger-500'
-                                }`} />
-                            {isConnected ? 'Connected' : 'Disconnected'}
-                        </Badge>
+                                ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
+                                : 'border-danger-500/30 text-danger-600 dark:text-danger-400'
+                            }`}
+                    >
+                        <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isConnected ? 'bg-brand-500 animate-pulse-glow' : 'bg-danger-500'
+                            }`} />
+                        {isConnected ? 'Connected' : 'Disconnected'}
+                    </Badge>
                         <WatchlistExportButton
                             data={sortedData}
                             userTier={userTier}
@@ -673,11 +680,11 @@ export function MarketTable({
                                     ? 'Top 50 symbols (Free tier)'
                                     : `${sortedData.length} symbols`}
                         </span>
-                        {guestMode && (
-                            <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                                <Lock className="h-3 w-3" /> Sorting locked
-                            </Badge>
-                        )}
+                    {guestMode && (
+                        <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                            <Lock className="h-3 w-3" /> Sorting locked
+                        </Badge>
+                    )}
                         {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
                             <span className="text-[11px] text-muted-foreground font-mono-tabular">
                                 OI updated {(() => {
@@ -723,35 +730,35 @@ export function MarketTable({
                             </Badge>
                         )}
                         
-                        {/* Free tier: omit "Updated ..." text (data is live). Pro/Elite: show OI as-of */}
-                        {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
+                    {/* Free tier: omit "Updated ..." text (data is live). Pro/Elite: show OI as-of */}
+                    {userTier !== 'free' && typeof openInterestAsOf === 'number' && openInterestAsOf > 0 && (
                             <span className="text-xs text-muted-foreground font-mono-tabular shrink-0">
-                                OI updated {(() => {
-                                    const sec = Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))
-                                    if (sec < 60) return `${sec}s ago`
-                                    const min = Math.floor(sec / 60)
-                                    if (min < 60) return `${min}m ago`
-                                    const hr = Math.floor(min / 60)
-                                    return `${hr}h ago`
-                                })()}
-                            </span>
-                        )}
-                    </div>
+                            OI updated {(() => {
+                                const sec = Math.max(0, Math.floor((Date.now() - openInterestAsOf) / 1000))
+                                if (sec < 60) return `${sec}s ago`
+                                const min = Math.floor(sec / 60)
+                                if (min < 60) return `${min}m ago`
+                                const hr = Math.floor(min / 60)
+                                return `${hr}h ago`
+                            })()}
+                        </span>
+                    )}
+                </div>
                     
                     {/* Right Side: Tier Info + Export */}
                     <div className="flex items-center gap-3 shrink-0">
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {guestMode
-                                ? 'Top 5 preview'
-                                : userTier === 'free'
-                                    ? 'Top 50 symbols (Free tier)'
-                                    : `${sortedData.length} symbols`}
-                        </span>
-                        <WatchlistExportButton
-                            data={sortedData}
-                            userTier={userTier}
-                            guestMode={guestMode}
-                        />
+                        {guestMode
+                            ? 'Top 5 preview'
+                            : userTier === 'free'
+                                ? 'Top 50 symbols (Free tier)'
+                                : `${sortedData.length} symbols`}
+                    </span>
+                    <WatchlistExportButton
+                        data={sortedData}
+                        userTier={userTier}
+                        guestMode={guestMode}
+                    />
                     </div>
                 </div>
             </div>
@@ -1041,40 +1048,40 @@ export function MarketTable({
                                                             ? 'opacity-100' // Always visible if in watchlist
                                                             : 'opacity-100 md:opacity-0 md:group-hover/row:opacity-100' // Hover-only on desktop if not in watchlist
                                                     } transition-opacity duration-150`}>
-                                                        <Button
+                                                <Button
                                                             className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
                                                                 isSymbolInWatchlist(item.symbol)
                                                                     ? 'text-brand-600 dark:text-brand-400'
                                                                     : ''
                                                             }`}
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={(e) => handleAddToWatchlist(e, item)}
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => handleAddToWatchlist(e, item)}
                                                             title={
                                                                 isSymbolInWatchlist(item.symbol)
                                                                     ? 'Remove from watchlist'
                                                                     : 'Add to watchlist'
                                                             }
-                                                        >
+                                                >
                                                             <Star
                                                                 className={`h-3.5 w-3.5 ${
                                                                     isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
                                                                 }`}
                                                             />
-                                                        </Button>
+                                                </Button>
                                                     </div>
                                                 )}
                                                 {/* Bell icon: Always hover-only on desktop, always visible on mobile */}
                                                 <div className="pointer-events-none opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity duration-150">
-                                                    <Button
-                                                        className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => handleCreateAlert(e, item)}
-                                                        title="Create alert"
-                                                    >
-                                                        <Bell className="h-3.5 w-3.5" />
-                                                    </Button>
+                                                <Button
+                                                    className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => handleCreateAlert(e, item)}
+                                                    title="Create alert"
+                                                >
+                                                    <Bell className="h-3.5 w-3.5" />
+                                                </Button>
                                                 </div>
                                             </div>
                                         </td>
@@ -1258,14 +1265,14 @@ export function MarketTable({
                                 {/* Actions */}
                                 <div className="space-y-2">
                                     {session?.user && !guestMode && (
-                                        <Button
+                                    <Button
                                             className={`w-full ${
                                                 isSymbolInWatchlist(selectedSymbol.symbol)
                                                     ? 'bg-brand-600 hover:bg-brand-700 text-white'
                                                     : 'bg-brand-600 hover:bg-brand-700 text-white'
                                             }`}
-                                            onClick={(e) => handleAddToWatchlist(e, selectedSymbol)}
-                                        >
+                                        onClick={(e) => handleAddToWatchlist(e, selectedSymbol)}
+                                    >
                                             <Star
                                                 className={`h-4 w-4 mr-2 ${
                                                     isSymbolInWatchlist(selectedSymbol.symbol) ? 'fill-current' : ''
@@ -1274,7 +1281,7 @@ export function MarketTable({
                                             {isSymbolInWatchlist(selectedSymbol.symbol)
                                                 ? 'Manage in Watchlist'
                                                 : 'Add to Watchlist'}
-                                        </Button>
+                                    </Button>
                                     )}
                                     <Button
                                         className="w-full bg-sec-600 hover:bg-sec-700 text-white"
