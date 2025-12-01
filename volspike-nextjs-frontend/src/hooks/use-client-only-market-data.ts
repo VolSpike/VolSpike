@@ -256,12 +256,16 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
                 console.log(`[buildSnapshot] ✅ Verified: No watchlist symbols found in limitedOtherItems (checked all ${limitedOtherItems.length} items)`);
             }
             
-            // Show first 10 for reference
-            console.log(`[buildSnapshot] First 10 symbols in limitedOtherItems:`, limitedOtherItems.slice(0, 10).map(item => ({
-                original: item.symbol,
-                normalized: normalizeSym(item.symbol),
-                inSet: watchlistSymbolSet.has(normalizeSym(item.symbol))
-            })));
+            // Show ALL 50 symbols with their details
+            console.log(`[buildSnapshot] ALL ${limitedOtherItems.length} symbols in limitedOtherItems:`, 
+                limitedOtherItems.map((item, index) => ({
+                    index: index + 1,
+                    symbol: item.symbol,
+                    normalized: normalizeSym(item.symbol),
+                    volume24h: item.volume24h,
+                    inSet: watchlistSymbolSet.has(normalizeSym(item.symbol))
+                }))
+            );
         }
         
         let addedOtherItems = 0;
