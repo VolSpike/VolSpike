@@ -13,7 +13,14 @@ interface WatchlistFilterProps {
 }
 
 export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, className }: WatchlistFilterProps) {
-  const { watchlists, isLoading } = useWatchlists()
+  const { watchlists, isLoading, error } = useWatchlists()
+
+  console.log('[WatchlistFilter] Render:', { 
+    watchlistsCount: watchlists.length, 
+    isLoading, 
+    error: error?.message,
+    watchlists: watchlists.map(w => ({ id: w.id, name: w.name, itemsCount: w.items.length })),
+  })
 
   const selectedWatchlist = watchlists.find((w) => w.id === selectedWatchlistId)
 
