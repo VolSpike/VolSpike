@@ -269,7 +269,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                             : '✅ Refresh cycle completed'
                         
                         toast.success(message, { duration: 6000 })
-                    }
+            }
                 }
             } catch (error) {
                 console.debug('[AdminAssetsTable] Failed to poll refresh status:', error)
@@ -310,7 +310,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
 
             if (res.progress) {
                 setRefreshProgress(res.progress)
-            }
+                }
 
             if (res.success) {
                 toast.success(res.message || 'Refresh cycle started in background', {

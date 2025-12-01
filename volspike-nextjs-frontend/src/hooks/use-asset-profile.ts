@@ -474,7 +474,7 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                         hasDescription: !!manifestEntry.description,
                         logoUrl: manifestEntry.logoUrl ? manifestEntry.logoUrl.substring(0, 50) + '...' : 'MISSING',
                         description: manifestEntry.description ? manifestEntry.description.substring(0, 50) + '...' : 'MISSING',
-                    })
+                        })
                     debugLog(`✅ Found manifest entry for ${upper}:`, {
                         baseSymbol: manifestEntry.baseSymbol,
                         hasLogo: !!manifestEntry.logoUrl,

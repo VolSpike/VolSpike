@@ -255,17 +255,17 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
     const baseDelay = 5000 // 5 seconds base delay
     
     try {
-        const { data } = await axios.get(`${COINGECKO_API}/coins/${encodeURIComponent(coingeckoId)}`, {
-            params: {
-                localization: 'false',
-                tickers: 'false',
-                market_data: 'false',
-                community_data: 'true',
-                developer_data: 'false',
-                sparkline: 'false',
-            },
-            timeout: 10000, // Reduced from 15s to 10s
-        })
+    const { data } = await axios.get(`${COINGECKO_API}/coins/${encodeURIComponent(coingeckoId)}`, {
+        params: {
+            localization: 'false',
+            tickers: 'false',
+            market_data: 'false',
+            community_data: 'true',
+            developer_data: 'false',
+            sparkline: 'false',
+        },
+        timeout: 10000, // Reduced from 15s to 10s
+    })
 
     // Log raw CoinGecko response for debugging
     logger.debug(`[AssetMetadata] CoinGecko API response for ${coingeckoId}:`, {
@@ -345,12 +345,12 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
         })
     }
 
-        return {
-            name: data?.name as string | undefined,
-            description,
-            homepage,
-            twitterUrl,
-            logoUrl,
+    return {
+        name: data?.name as string | undefined,
+        description,
+        homepage,
+        twitterUrl,
+        logoUrl,
         }
     } catch (error: any) {
         // Handle rate limit errors with exponential backoff
@@ -835,26 +835,26 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
     logger.info(`[AssetMetadata] 🔄 Refresh cycle started (${reason})`)
 
     try {
-        // Check if database is empty and sync Binance universe first
-        const assetCount = await prisma.asset.count()
-        if (assetCount === 0) {
-            logger.info('[AssetMetadata] Database is empty, syncing Binance universe first...')
-            const synced = await ensureBinanceUniverse()
-            logger.info(`[AssetMetadata] Initial Binance sync completed: ${synced} assets created`)
-        }
+    // Check if database is empty and sync Binance universe first
+    const assetCount = await prisma.asset.count()
+    if (assetCount === 0) {
+        logger.info('[AssetMetadata] Database is empty, syncing Binance universe first...')
+        const synced = await ensureBinanceUniverse()
+        logger.info(`[AssetMetadata] Initial Binance sync completed: ${synced} assets created`)
+    }
 
-        const assets = await prisma.asset.findMany({
-            orderBy: { updatedAt: 'asc' },
-        })
+    const assets = await prisma.asset.findMany({
+        orderBy: { updatedAt: 'asc' },
+    })
 
-        logger.debug(`[AssetMetadata] Found ${assets.length} total assets in database`)
+    logger.debug(`[AssetMetadata] Found ${assets.length} total assets in database`)
 
         // Filter assets that need refresh (no batch limits - process ALL)
-        const assetsNeedingRefresh = assets.filter((asset) => shouldRefresh(asset, now))
-        const needsRefreshCount = assetsNeedingRefresh.length
+    const assetsNeedingRefresh = assets.filter((asset) => shouldRefresh(asset, now))
+    const needsRefreshCount = assetsNeedingRefresh.length
 
         if (!needsRefreshCount) {
-            logger.info('[AssetMetadata] ✅ No assets need refresh')
+        logger.info('[AssetMetadata] ✅ No assets need refresh')
             // Don't initialize progress tracker if there's nothing to refresh
             // This prevents frontend from showing "0/0" progress
             return {
@@ -866,7 +866,7 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
                 mode: 'COMPLETE',
                 results: [],
             }
-        }
+    }
 
         // Only initialize progress tracker AFTER we know there are assets to refresh
         refreshProgress = {
@@ -899,7 +899,7 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
             refreshProgress.lastUpdated = Date.now()
 
             const progress = `[${i + 1}/${needsRefreshCount}]`
-            logger.info(`[AssetMetadata] ${progress} Processing ${asset.baseSymbol}...`)
+        logger.info(`[AssetMetadata] ${progress} Processing ${asset.baseSymbol}...`)
 
             try {
                 const result = await refreshSingleAsset(asset)
@@ -907,7 +907,7 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
                 if (result.success) {
                     refreshProgress.refreshed++
                     refreshProgress.successes.push(asset.baseSymbol)
-                    results.push({ symbol: asset.baseSymbol, success: true })
+            results.push({ symbol: asset.baseSymbol, success: true })
                     logger.info(
                         `[AssetMetadata] ${progress} ✅ ${asset.baseSymbol} enriched (${refreshProgress.refreshed} successful so far)`
                     )
@@ -925,7 +925,7 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
                         logger.info(
                             `[AssetMetadata] ${progress} ℹ️  ${asset.baseSymbol} skipped (no updates needed)`
                         )
-                    } else {
+        } else {
                         // Actual error
                         refreshProgress.failed++
                         refreshProgress.errors.push({
@@ -955,28 +955,28 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
                     error: errorMessage,
                 })
                 logger.error(`[AssetMetadata] ${progress} ❌ ${asset.baseSymbol} unexpected error:`, error)
-            }
-
-            // Rate limit: wait between requests (except for the last one)
-            if (i < assetsNeedingRefresh.length - 1) {
-                await sleep(REQUEST_GAP_MS)
-            }
         }
 
-        const elapsedMs = Date.now() - now
+        // Rate limit: wait between requests (except for the last one)
+            if (i < assetsNeedingRefresh.length - 1) {
+            await sleep(REQUEST_GAP_MS)
+        }
+    }
+
+    const elapsedMs = Date.now() - now
         const remaining = needsRefreshCount - refreshProgress.refreshed - refreshProgress.failed - refreshProgress.skipped - refreshProgress.noUpdate
 
-        logger.info(`[AssetMetadata] ✅ Refresh cycle complete`, {
+    logger.info(`[AssetMetadata] ✅ Refresh cycle complete`, {
             refreshed: refreshProgress.refreshed,
             failed: refreshProgress.failed,
             skipped: refreshProgress.skipped,
             noUpdate: refreshProgress.noUpdate,
-            remaining,
+        remaining,
             total: needsRefreshCount,
-            elapsedMs,
-            reason,
+        elapsedMs,
+        reason,
             errorCount: refreshProgress.errors.length,
-        })
+    })
 
         const finalResult = {
             refreshed: refreshProgress.refreshed,
@@ -984,11 +984,11 @@ export const runAssetRefreshCycle = async (reason: string = 'scheduled') => {
             skipped: refreshProgress.skipped,
             noUpdate: refreshProgress.noUpdate,
             candidates: assetsNeedingRefresh.map((c) => c.baseSymbol),
-            total: assets.length,
-            needsRefreshCount,
-            remaining,
+        total: assets.length,
+        needsRefreshCount,
+        remaining,
             mode: 'CONTINUOUS',
-            results,
+        results,
             errors: refreshProgress.errors,
             successes: refreshProgress.successes,
             elapsedMs,

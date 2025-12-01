@@ -510,7 +510,7 @@ adminAssetRoutes.post('/refresh/bulk', async (c) => {
                 logger.warn(`[AdminAssets] Failed to refresh ${asset.baseSymbol}:`, error)
                 results.push({ 
                     symbol: asset.baseSymbol, 
-                    success: false,
+                    success: false, 
                     reason: 'UNEXPECTED_ERROR',
                     error: error instanceof Error ? error.message : String(error)
                 })
@@ -653,7 +653,7 @@ adminAssetRoutes.post('/populate-logo-urls', async (c) => {
             logger.error('[AdminAssets] Background populate logoImageUrl error:', error)
         })
 
-        return c.json({
+        return c.json({ 
             success: true,
             message: `Started populating logoImageUrl for ${assets.length} assets in background`,
             total: assets.length,
@@ -763,7 +763,7 @@ adminAssetRoutes.post('/sync-binance', async (c) => {
 
         // Known Binance indices (not actual tokens) - filter these out
         const BINANCE_INDICES = new Set(['ALL', 'DEFI', 'ALT', 'BUSD', 'BTC', 'ETH', 'BNB', 'BTCDOM'])
-        
+
         // Step 3: Filter and map candidates
         logger.info('[AdminAssets] 🔍 Filtering perpetual USDT pairs...')
         const candidates = symbols

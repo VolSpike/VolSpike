@@ -267,24 +267,24 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     
     // Always fetch fresh from backend to get logos
     console.log('[loadAssetManifest] Fetching fresh manifest from backend (to get logos)...')
-    manifestPromise = (async () => {
-        try {
-            const assets = await fetchManifestFromApi()
+        manifestPromise = (async () => {
+            try {
+                const assets = await fetchManifestFromApi()
             console.log(`[loadAssetManifest] ✅ Fetched ${assets.length} assets from backend (with logos)`)
             writeManifestCache(assets) // Stores full data in memory, stripped version in localStorage
             manifestMemoryIsStale = false
-            return assets
-        } catch (error) {
+                return assets
+            } catch (error) {
             console.error('[loadAssetManifest] Backend fetch failed:', error)
-            logDebug('Manifest fetch failed, using static seed', error)
-            const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
-            writeManifestCache(assets)
-            return assets
-        } finally {
-            manifestPromise = null
-        }
-    })()
-    
+                logDebug('Manifest fetch failed, using static seed', error)
+                const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
+                writeManifestCache(assets)
+                return assets
+            } finally {
+                manifestPromise = null
+            }
+        })()
+
     return manifestPromise
 }
 

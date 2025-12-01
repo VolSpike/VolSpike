@@ -249,8 +249,8 @@ export function AssetCardView({
                                                     : 'Automatically managed - can be updated by refresh cycles'
                                             }
                                         >
-                                            {asset.status || 'AUTO'}
-                                        </Badge>
+                                        {asset.status || 'AUTO'}
+                                    </Badge>
                                     )}
                                     {wasRecentlyRefreshed && (
                                         <Badge className="text-[10px] uppercase font-semibold px-2 py-0.5 bg-green-500 text-white animate-bounce">
@@ -338,12 +338,12 @@ export function AssetCardView({
                                 </label>
                                 {editing ? (
                                     <div>
-                                        <Input
-                                            value={editForm.coingeckoId ?? ''}
+                                    <Input
+                                        value={editForm.coingeckoId ?? ''}
                                             onChange={(e) => setEditForm({ ...editForm, coingeckoId: e.target.value.toLowerCase().trim() })}
                                             placeholder="ethereum"
-                                            className="h-7 text-xs font-mono"
-                                        />
+                                        className="h-7 text-xs font-mono"
+                                    />
                                         {editForm.coingeckoId && (
                                             <p className="mt-1 text-[10px] text-muted-foreground/70">
                                                 💡 Asset will auto-refresh from CoinGecko after saving
@@ -358,6 +358,46 @@ export function AssetCardView({
                                     <div className="px-3 py-2 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 italic flex items-center gap-2">
                                         <AlertCircle className="h-3 w-3" />
                                         Pending enrichment
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Logo Image URL */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wide">
+                                    Logo Image URL
+                                    <span className="ml-1 text-[9px] text-muted-foreground/60 font-normal">
+                                        (CoinGecko CDN - browser cached)
+                                    </span>
+                                </label>
+                                {editing ? (
+                                    <Input
+                                        value={editForm.logoImageUrl ?? ''}
+                                        onChange={(e) => setEditForm({ ...editForm, logoImageUrl: e.target.value })}
+                                        placeholder="https://assets.coingecko.com/coins/images/..."
+                                        className="h-7 text-xs font-mono"
+                                    />
+                                ) : currentAsset.logoImageUrl ? (
+                                    <div className="px-3 py-2 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg">
+                                        <a
+                                            href={currentAsset.logoImageUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs font-mono text-purple-600 dark:text-purple-400 hover:underline truncate block flex items-center gap-1"
+                                        >
+                                            <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                                            <span className="truncate">{currentAsset.logoImageUrl}</span>
+                                        </a>
+                                    </div>
+                                ) : currentAsset.logoUrl ? (
+                                    <div className="px-3 py-2 bg-muted/30 border border-yellow-500/20 rounded-lg text-xs text-muted-foreground/70 flex items-center gap-2">
+                                        <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                                        <span>Using base64 logo (legacy) - URL will be populated on next refresh</span>
+                                    </div>
+                                ) : (
+                                    <div className="px-3 py-2 bg-muted/30 border border-dashed border-muted-foreground/30 rounded-lg text-xs text-muted-foreground/50 italic flex items-center gap-2">
+                                        <AlertCircle className="h-3 w-3" />
+                                        No logo URL available
                                     </div>
                                 )}
                             </div>

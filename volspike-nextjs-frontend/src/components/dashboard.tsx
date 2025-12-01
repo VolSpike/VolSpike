@@ -62,7 +62,7 @@ export function Dashboard() {
     // Track selected watchlist to pass symbols to hook
     const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(null)
     const [watchlistSymbols, setWatchlistSymbols] = useState<string[]>([])
-    
+
     // Use client-only market data (no API calls, no Redis)
     // Pass watchlist symbols so they're included even if outside tier limits
     const {
