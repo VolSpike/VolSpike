@@ -844,7 +844,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                     : 'text-muted-foreground hover:text-foreground'
                             }`}
                         >
-                            Image ({missingImageCount})
+                            Image ({missingImageCount}){missingLogoImageUrlCount > 0 && ` • ${missingLogoImageUrlCount} missing URL`}
                         </button>
                         <button
                             onClick={() => setMissingDataFilter('twitter')}
