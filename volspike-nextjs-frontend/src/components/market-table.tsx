@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -353,8 +353,7 @@ export function MarketTable({
         }
     }, [])
 
-    // Vertical scroll state + optional debug logging for Market Data table
-    useEffect(() => {
+    const recomputeScrollState = useCallback(() => {
         if (guestMode) {
             // In guest preview we intentionally lock vertical scrolling,
             // so we hide scroll hints to avoid confusing users.
@@ -365,59 +364,58 @@ export function MarketTable({
             return
         }
 
-        if (typeof window === 'undefined') return
+        const node = scrollContainerRef.current
+        if (!node) return
 
+        const scrollSize = node.scrollHeight
+        const clientSize = node.clientHeight
+        const scrollPos = node.scrollTop
+
+        const can = scrollSize > clientSize + 1
+        // Only show scroll indicator if content actually overflows the container
+        // Use a threshold (10px) to account for rounding/padding, but if content fits
+        // perfectly within the container, there's no scrollable content
+        // Increased from 5px to 10px to prevent false positives when content fits perfectly
+        const hasScroll = scrollSize > clientSize + 10
+        const atStart = scrollPos <= 1
+        const atEnd = scrollPos + clientSize >= scrollSize - 1
+
+        setCanScroll(can)
+        setHasScrollableContent(hasScroll)
+        setAtTop(atStart)
+        setAtBottom(atEnd)
+
+        if (SCROLL_DEBUG_ENABLED && can) {
+            // Helps debug "is this actually scrollable?" issues in the wild
+            // without spamming production logs unless explicitly enabled.
+            // eslint-disable-next-line no-console
+            console.debug('[MarketTable] scroll state', {
+                canScroll: can,
+                atTop: atStart,
+                atBottom: atEnd,
+                scrollHeight: scrollSize,
+                clientHeight: clientSize,
+                scrollTop: scrollPos,
+            })
+        }
+    }, [guestMode, SCROLL_DEBUG_ENABLED])
+
+    // Vertical scroll state + optional debug logging for Market Data table
+    useEffect(() => {
         const el = scrollContainerRef.current
         if (!el) return
 
-        const update = () => {
-            const node = scrollContainerRef.current
-            if (!node) return
-
-            const scrollSize = node.scrollHeight
-            const clientSize = node.clientHeight
-            const scrollPos = node.scrollTop
-
-            const can = scrollSize > clientSize + 1
-            // Only show scroll indicator if content actually overflows the container
-            // Use a threshold (10px) to account for rounding/padding, but if content fits
-            // perfectly within the container, there's no scrollable content
-            // Increased from 5px to 10px to prevent false positives when content fits perfectly
-            const hasScroll = scrollSize > clientSize + 10
-            const atStart = scrollPos <= 1
-            const atEnd = scrollPos + clientSize >= scrollSize - 1
-
-            setCanScroll(can)
-            setHasScrollableContent(hasScroll)
-            setAtTop(atStart)
-            setAtBottom(atEnd)
-
-            if (SCROLL_DEBUG_ENABLED && can) {
-                // Helps debug "is this actually scrollable?" issues in the wild
-                // without spamming production logs unless explicitly enabled.
-                // eslint-disable-next-line no-console
-                console.debug('[MarketTable] scroll state', {
-                    canScroll: can,
-                    atTop: atStart,
-                    atBottom: atEnd,
-                    scrollHeight: scrollSize,
-                    clientHeight: clientSize,
-                    scrollTop: scrollPos,
-                })
-            }
-        }
-
-        update()
-        el.addEventListener('scroll', update, { passive: true })
-        window.addEventListener('resize', update)
-        const id = window.setTimeout(update, 0)
+        recomputeScrollState()
+        el.addEventListener('scroll', recomputeScrollState, { passive: true })
+        window.addEventListener('resize', recomputeScrollState)
+        const id = window.setTimeout(recomputeScrollState, 0)
 
         return () => {
             window.clearTimeout(id)
-            el.removeEventListener('scroll', update)
-            window.removeEventListener('resize', update)
+            el.removeEventListener('scroll', recomputeScrollState)
+            window.removeEventListener('resize', recomputeScrollState)
         }
-    }, [guestMode, SCROLL_DEBUG_ENABLED])
+    }, [recomputeScrollState])
 
     // Sync selectedSymbol with live data updates
     useEffect(() => {
@@ -546,6 +544,11 @@ export function MarketTable({
             return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
         })
     }, [displayData, sortBy, sortOrder])
+
+    // Re-run scroll measurement when row count changes (e.g., filtering to small watchlists)
+    useEffect(() => {
+        recomputeScrollState()
+    }, [sortedData.length, displayData.length, selectedWatchlistId, recomputeScrollState])
 
     // Warm CoinGecko project profiles in the background for the
     // most likely symbols to be clicked, so the detail drawer
