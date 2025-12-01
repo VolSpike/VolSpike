@@ -430,12 +430,21 @@ market.get('/watchlist/:id', async (c) => {
             userEmail: user.email,
         })
 
-        return c.json({
+        const response = {
             watchlistId: watchlist.id,
             watchlistName: watchlist.name,
             symbols: marketData,
             fetchedAt: Date.now(),
+        }
+
+        logger.info(`[Watchlist Market Data] Final response:`, {
+            watchlistId: response.watchlistId,
+            watchlistName: response.watchlistName,
+            symbolsCount: response.symbols.length,
+            symbols: response.symbols.map(s => s.symbol),
         })
+
+        return c.json(response)
     } catch (error) {
         logger.error('Watchlist market data error:', error)
         return c.json({ error: 'Failed to fetch watchlist market data' }, 500)
