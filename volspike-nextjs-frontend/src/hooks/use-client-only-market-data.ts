@@ -144,45 +144,17 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         // Create a Set of normalized watchlist symbols for fast lookup
         const normalizedWatchlistSet = new Set(normalizedWatchlistSymbols);
         
-        if (normalizedWatchlistSymbols.length > 0) {
-            console.log(`[buildSnapshot] Watchlist symbols requested:`, normalizedWatchlistSymbols);
-            console.log(`[buildSnapshot] Total symbols in WebSocket:`, out.length);
-            console.log(`[buildSnapshot] Normalized watchlist set size:`, normalizedWatchlistSet.size);
-        }
-        
-        // Separate watchlist symbols from others
-        const watchlistItems: MarketData[] = [];
-        const otherItems: MarketData[] = [];
-        
-        // Check which watchlist symbols are actually in the WebSocket data
+        // Check for missing watchlist symbols
         const foundWatchlistSymbols: string[] = [];
         const missingWatchlistSymbols: string[] = [];
         
         for (const item of out) {
             const normalizedSym = normalizeSym(item.symbol);
             if (normalizedWatchlistSet.has(normalizedSym)) {
-                watchlistItems.push(item);
                 foundWatchlistSymbols.push(item.symbol);
-            } else {
-                otherItems.push(item);
             }
         }
         
-        // Debug: Verify separation worked correctly
-        if (normalizedWatchlistSymbols.length > 0 && process.env.NODE_ENV === 'development') {
-            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
-            const duplicatesInOther = otherItems.filter(item => 
-                watchlistSymbolSet.has(normalizeSym(item.symbol))
-            );
-            if (duplicatesInOther.length > 0) {
-                console.error(`[buildSnapshot] ❌ SEPARATION BUG: Found ${duplicatesInOther.length} watchlist symbols in otherItems:`, 
-                    duplicatesInOther.map(item => item.symbol));
-            } else {
-                console.log(`[buildSnapshot] ✅ Separation correct: ${watchlistItems.length} watchlist items, ${otherItems.length} other items, 0 duplicates`);
-            }
-        }
-        
-        // Check for missing watchlist symbols
         for (const requestedSym of normalizedWatchlistSymbols) {
             if (!foundWatchlistSymbols.some(found => normalizeSym(found) === requestedSym)) {
                 missingWatchlistSymbols.push(requestedSym);
@@ -191,25 +163,6 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         
         if (missingWatchlistSymbols.length > 0) {
             console.warn(`[buildSnapshot] ⚠️ Watchlist symbols NOT in WebSocket data:`, missingWatchlistSymbols);
-            console.warn(`[buildSnapshot] These symbols may not be trading or may be delisted`);
-        }
-        
-        if (watchlistItems.length > 0) {
-            console.log(`[buildSnapshot] ✅ Found ${watchlistItems.length} watchlist symbols in WebSocket:`, foundWatchlistSymbols);
-        }
-        
-        // Debug: Verify separation worked correctly (ALWAYS log, not just in development)
-        if (normalizedWatchlistSymbols.length > 0) {
-            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
-            const duplicatesInOther = otherItems.filter(item => 
-                watchlistSymbolSet.has(normalizeSym(item.symbol))
-            );
-            if (duplicatesInOther.length > 0) {
-                console.error(`[buildSnapshot] ❌ SEPARATION BUG: Found ${duplicatesInOther.length} watchlist symbols in otherItems:`, 
-                    duplicatesInOther.map(item => item.symbol));
-            } else {
-                console.log(`[buildSnapshot] ✅ Separation correct: ${watchlistItems.length} watchlist items, ${otherItems.length} other items, 0 duplicates in otherItems`);
-            }
         }
         
         // Apply tier-based limits FIRST (take top N by volume, regardless of watchlist status)
