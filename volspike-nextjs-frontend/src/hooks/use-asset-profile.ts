@@ -355,7 +355,9 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
             'normal'
         )
 
-        const coin = (await coinRes.json()) as any
+        // Clone response before reading to avoid "body stream already read" error
+        const clonedCoinRes = coinRes.clone()
+        const coin = (await clonedCoinRes.json()) as any
 
         const descriptionRaw = typeof coin?.description?.en === 'string' ? coin.description.en : ''
         const descriptionText = stripHtml(descriptionRaw)
