@@ -34,9 +34,11 @@ interface WatchlistExportButtonProps {
   data: MarketData[]
   userTier: 'free' | 'pro' | 'elite'
   guestMode?: boolean
+  watchlistName?: string
+  watchlistSymbolCount?: number
 }
 
-export function WatchlistExportButton({ data, userTier, guestMode = false }: WatchlistExportButtonProps) {
+export function WatchlistExportButton({ data, userTier, guestMode = false, watchlistName, watchlistSymbolCount }: WatchlistExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false)
 
   const handleExportTradingView = () => {
@@ -117,7 +119,7 @@ export function WatchlistExportButton({ data, userTier, guestMode = false }: Wat
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
-          {guestMode ? 'Export (sign in to unlock)' : 'Export Watchlist'}
+          {guestMode ? 'Export (sign in to unlock)' : watchlistName ? `Export ${watchlistName}` : 'Export Watchlist'}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         
@@ -130,7 +132,13 @@ export function WatchlistExportButton({ data, userTier, guestMode = false }: Wat
           <div className="flex-1">
             <div className="font-medium">TradingView (.txt)</div>
             <div className="text-xs text-muted-foreground">
-              {guestMode ? 'Sign in: Free gets top 50' : (userTier === 'free' ? 'Top 50 symbols' : 'All symbols')}
+              {guestMode 
+                ? 'Sign in: Free gets top 50' 
+                : watchlistName && watchlistSymbolCount !== undefined
+                  ? `${watchlistSymbolCount} ${watchlistSymbolCount === 1 ? 'symbol' : 'symbols'}`
+                  : userTier === 'free' 
+                    ? 'Top 50 symbols' 
+                    : 'All symbols'}
             </div>
           </div>
           {guestMode && <Lock className="h-3 w-3 ml-2 text-muted-foreground" />}

@@ -681,9 +681,11 @@ export function MarketTable({
                         <span className="text-[11px] text-muted-foreground">
                             {guestMode
                                 ? 'Top 5 preview'
-                                : userTier === 'free'
-                                    ? 'Top 50 symbols (Free tier)'
-                                    : `${sortedData.length} symbols`}
+                                : selectedWatchlistId && watchlistInfo
+                                    ? `${watchlistInfo.name || 'Watchlist'} (${watchlistInfo.items?.length || 0} ${watchlistInfo.items?.length === 1 ? 'symbol' : 'symbols'})`
+                                    : userTier === 'free'
+                                        ? 'Top 50 symbols (Free tier)'
+                                        : `${sortedData.length} symbols`}
                         </span>
                     {guestMode && (
                         <Badge variant="secondary" className="text-xs flex items-center gap-1">
@@ -755,14 +757,18 @@ export function MarketTable({
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {guestMode
                             ? 'Top 5 preview'
-                            : userTier === 'free'
-                                ? 'Top 50 symbols (Free tier)'
-                                : `${sortedData.length} symbols`}
+                            : selectedWatchlistId && watchlistInfo
+                                ? `${watchlistInfo.name || 'Watchlist'} (${watchlistInfo.items?.length || 0} ${watchlistInfo.items?.length === 1 ? 'symbol' : 'symbols'})`
+                                : userTier === 'free'
+                                    ? 'Top 50 symbols (Free tier)'
+                                    : `${sortedData.length} symbols`}
                     </span>
                     <WatchlistExportButton
                         data={sortedData}
                         userTier={userTier}
                         guestMode={guestMode}
+                        watchlistName={selectedWatchlistId && watchlistInfo ? watchlistInfo.name : undefined}
+                        watchlistSymbolCount={selectedWatchlistId && watchlistInfo ? watchlistInfo.items?.length : undefined}
                     />
                     </div>
                 </div>
