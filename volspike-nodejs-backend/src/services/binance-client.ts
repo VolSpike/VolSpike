@@ -68,7 +68,7 @@ export async function getMarketData(symbol?: string, skipVolumeFilter: boolean =
             }
             
             const price = parseFloat(ticker.lastPrice)
-            const volume24h = parseFloat(ticker.quoteVolume)
+            let volume24h = parseFloat(ticker.quoteVolume)
 
             logger.info(`[getMarketData] Symbol ${symbol} - price: ${price}, volume: ${volume24h}, skipVolumeFilter: ${skipVolumeFilter}`)
 
@@ -79,9 +79,8 @@ export async function getMarketData(symbol?: string, skipVolumeFilter: boolean =
                 if (skipVolumeFilter) {
                     logger.warn(`[getMarketData] ⚠️ Symbol ${symbol} has zero/invalid volume but skipVolumeFilter=true, allowing it`)
                     // Use a small default volume to prevent issues downstream
-                    const defaultVolume = 0.01
-                    logger.info(`[getMarketData] Using default volume ${defaultVolume} for ${symbol}`)
-                    // Continue with default volume instead of returning null
+                    volume24h = 0.01
+                    logger.info(`[getMarketData] Using default volume ${volume24h} for ${symbol}`)
                 } else {
                     logger.warn(`[getMarketData] ❌ Invalid volume for symbol ${symbol}: ${volume24h}`)
                     return null
