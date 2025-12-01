@@ -240,7 +240,7 @@ export function useWatchlists() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['watchlists'] })
-      // Also invalidate market data if filtered by watchlist
+      queryClient.invalidateQueries({ queryKey: ['watchlist-info', variables.watchlistId] })
       queryClient.invalidateQueries({ queryKey: ['watchlist-market-data'] })
       toast.success(`Added ${variables.symbol} to watchlist`)
     },
