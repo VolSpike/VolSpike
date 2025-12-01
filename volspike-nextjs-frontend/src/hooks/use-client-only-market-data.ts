@@ -132,17 +132,43 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         // Normalize watchlist symbols for matching (always include these, bypassing tier limits)
         const normalizedWatchlistSymbols = watchlistSymbols.map(s => normalizeSym(s));
         
+        if (normalizedWatchlistSymbols.length > 0) {
+            console.log(`[buildSnapshot] Watchlist symbols requested:`, normalizedWatchlistSymbols);
+            console.log(`[buildSnapshot] Total symbols in WebSocket:`, out.length);
+        }
+        
         // Separate watchlist symbols from others
         const watchlistItems: MarketData[] = [];
         const otherItems: MarketData[] = [];
+        
+        // Check which watchlist symbols are actually in the WebSocket data
+        const foundWatchlistSymbols: string[] = [];
+        const missingWatchlistSymbols: string[] = [];
         
         for (const item of out) {
             const normalizedSym = normalizeSym(item.symbol);
             if (normalizedWatchlistSymbols.includes(normalizedSym)) {
                 watchlistItems.push(item);
+                foundWatchlistSymbols.push(item.symbol);
             } else {
                 otherItems.push(item);
             }
+        }
+        
+        // Check for missing watchlist symbols
+        for (const requestedSym of normalizedWatchlistSymbols) {
+            if (!foundWatchlistSymbols.some(found => normalizeSym(found) === requestedSym)) {
+                missingWatchlistSymbols.push(requestedSym);
+            }
+        }
+        
+        if (missingWatchlistSymbols.length > 0) {
+            console.warn(`[buildSnapshot] ⚠️ Watchlist symbols NOT in WebSocket data:`, missingWatchlistSymbols);
+            console.warn(`[buildSnapshot] These symbols may not be trading or may be delisted`);
+        }
+        
+        if (watchlistItems.length > 0) {
+            console.log(`[buildSnapshot] ✅ Found ${watchlistItems.length} watchlist symbols in WebSocket:`, foundWatchlistSymbols);
         }
         
         // Apply tier-based limits to non-watchlist items only
@@ -162,6 +188,10 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             if (!watchlistSymbolSet.has(normalizeSym(item.symbol))) {
                 combined.push(item);
             }
+        }
+        
+        if (normalizedWatchlistSymbols.length > 0) {
+            console.log(`[buildSnapshot] Final combined result: ${combined.length} items (${watchlistItems.length} watchlist + ${limitedOtherItems.length} other)`);
         }
         
         return combined;
