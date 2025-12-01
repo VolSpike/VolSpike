@@ -15,7 +15,6 @@ import { TierUpgrade } from '@/components/tier-upgrade'
 import { SubscriptionStatus } from '@/components/subscription-status'
 import { AlertBuilder } from '@/components/alert-builder'
 import { CommandPalette } from '@/components/command-palette'
-import { KeyboardShortcuts } from '@/components/keyboard-shortcuts'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -296,7 +295,7 @@ export function Dashboard() {
                 </div>
             </main>
 
-            {/* Command Palette & Keyboard Shortcuts */}
+            {/* Command Palette */}
             <CommandPalette 
                 userTier={userTier as 'free' | 'pro' | 'elite'}
                 onCreateAlert={() => {
@@ -304,7 +303,6 @@ export function Dashboard() {
                     setAlertBuilderOpen(true)
                 }}
             />
-            <KeyboardShortcuts />
 
             {/* Global Alert Builder (triggered from table) */}
             <AlertBuilder
