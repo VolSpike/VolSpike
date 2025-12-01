@@ -139,7 +139,19 @@ export function MarketTable({
     })
 
     // Use watchlist data if filter is active, otherwise use regular data
-    const displayData = selectedWatchlistId && watchlistMarketData ? watchlistMarketData : data
+    // Important: Check if watchlistMarketData is defined (not just truthy) to handle empty arrays
+    const displayData = selectedWatchlistId && watchlistMarketData !== undefined ? watchlistMarketData : data
+    
+    // Debug logging
+    if (selectedWatchlistId) {
+        console.log(`[MarketTable] Display data check:`, {
+            selectedWatchlistId,
+            watchlistMarketDataDefined: watchlistMarketData !== undefined,
+            watchlistMarketDataLength: watchlistMarketData?.length,
+            displayDataLength: displayData?.length,
+            usingWatchlistData: selectedWatchlistId && watchlistMarketData !== undefined,
+        })
+    }
 
     // Create a map of symbol -> array of watchlist info (supports multiple watchlists per symbol)
     const symbolToWatchlistsMap = useMemo(() => {
@@ -1075,7 +1087,7 @@ export function MarketTable({
                             })}
                         </tbody>
                     </table>
-                    {selectedWatchlistId && watchlistMarketData && watchlistMarketData.length === 0 && (
+                    {selectedWatchlistId && watchlistMarketData !== undefined && watchlistMarketData.length === 0 && (
                         <div className="text-center py-12 text-muted-foreground">
                             <p className="text-sm">This watchlist is empty.</p>
                             <p className="text-xs mt-1">Add symbols from the market table to get started.</p>
