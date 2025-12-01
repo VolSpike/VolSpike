@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { AdminLayout } from '@/components/admin/layout/admin-layout'
 import AdminDashboardClient from './admin-dashboard-client'
+import { SessionProvider } from 'next-auth/react'
 
 export const metadata: Metadata = {
     title: 'Admin Dashboard - VolSpike',
@@ -27,9 +28,12 @@ export default async function AdminPage() {
     }
 
     // User is authenticated AND has ADMIN role - allow access
+    // Wrap with SessionProvider so client components can use useSession()
     return (
-        <AdminLayout>
-            <AdminDashboardClient />
-        </AdminLayout>
+        <SessionProvider session={session}>
+            <AdminLayout>
+                <AdminDashboardClient />
+            </AdminLayout>
+        </SessionProvider>
     )
 }
