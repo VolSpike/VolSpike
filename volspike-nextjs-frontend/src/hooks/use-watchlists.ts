@@ -67,6 +67,14 @@ export function useWatchlists() {
     queryKey: ['watchlists'],
     queryFn: async () => {
       const token = getAuthToken()
+      console.log('[useWatchlists] 🔍 Fetching watchlists...', {
+        API_URL,
+        hasToken: !!token,
+        tokenLength: token?.length,
+        sessionUser: session?.user?.email,
+        enabled: !!session?.user,
+      })
+      
       const response = await fetch(`${API_URL}/api/watchlist`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -74,12 +82,26 @@ export function useWatchlists() {
         credentials: 'include',
       })
 
+      console.log('[useWatchlists] 📡 Response status:', response.status, response.statusText)
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to fetch watchlists')
+        const errorData = await response.json()
+        console.error('[useWatchlists] ❌ API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        })
+        throw new Error(errorData.error || 'Failed to fetch watchlists')
       }
 
-      return response.json()
+      const result = await response.json()
+      console.log('[useWatchlists] ✅ Success:', {
+        watchlistsCount: result.watchlists?.length,
+        watchlists: result.watchlists,
+        limits: result.limits,
+        fullResponse: result,
+      })
+      return result
     },
     enabled: !!session?.user,
     staleTime: 30000, // 30 seconds
@@ -88,11 +110,21 @@ export function useWatchlists() {
   })
 
   // Log for debugging
+  console.log('[useWatchlists] 📊 Hook state:', {
+    isLoading,
+    hasError: !!error,
+    error: error?.message,
+    watchlistsData,
+    watchlistsCount: watchlistsData?.watchlists?.length,
+    sessionUser: session?.user?.email,
+    enabled: !!session?.user,
+  })
+  
   if (error) {
-    console.error('[useWatchlists] Query error:', error)
+    console.error('[useWatchlists] ❌ Query error:', error)
   }
   if (watchlistsData && !watchlistsData.watchlists) {
-    console.warn('[useWatchlists] Unexpected response structure:', watchlistsData)
+    console.warn('[useWatchlists] ⚠️ Unexpected response structure:', watchlistsData)
   }
 
   // Create watchlist mutation
