@@ -130,8 +130,8 @@ export function MarketTable({
             return data
         }
         
-        // Get symbols from watchlist
-        const watchlistSymbols = watchlistInfo.watchlist?.items?.map((item: any) => 
+        // Get symbols from watchlist (API returns watchlist directly, not wrapped)
+        const watchlistSymbols = watchlistInfo.items?.map((item: any) => 
             item.contract?.symbol?.toUpperCase()
         ).filter(Boolean) || []
         
