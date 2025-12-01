@@ -53,6 +53,11 @@ export function useWatchlists() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
 
+  // Get auth token for API requests
+  const getAuthToken = () => {
+    return session?.accessToken || session?.user?.id || ''
+  }
+
   // Fetch watchlists with limit status
   const {
     data: watchlistsData,
@@ -61,7 +66,11 @@ export function useWatchlists() {
   } = useQuery<WatchlistsResponse>({
     queryKey: ['watchlists'],
     queryFn: async () => {
+      const token = getAuthToken()
       const response = await fetch(`${API_URL}/api/watchlist`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
       })
 
@@ -80,9 +89,13 @@ export function useWatchlists() {
   const createWatchlist = useMutation({
     mutationFn: async (name: string) => {
       try {
+        const token = getAuthToken()
         const response = await fetch(`${API_URL}/api/watchlist`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
           credentials: 'include',
           body: JSON.stringify({ name }),
         })
@@ -134,9 +147,13 @@ export function useWatchlists() {
   // Update watchlist name mutation
   const updateWatchlist = useMutation({
     mutationFn: async ({ watchlistId, name }: { watchlistId: string; name: string }) => {
+      const token = getAuthToken()
       const response = await fetch(`${API_URL}/api/watchlist/${watchlistId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
         body: JSON.stringify({ name }),
       })
@@ -160,8 +177,12 @@ export function useWatchlists() {
   // Delete watchlist mutation
   const deleteWatchlist = useMutation({
     mutationFn: async (watchlistId: string) => {
+      const token = getAuthToken()
       const response = await fetch(`${API_URL}/api/watchlist/${watchlistId}`, {
         method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
       })
 
@@ -184,9 +205,13 @@ export function useWatchlists() {
   // Add symbol to watchlist mutation
   const addSymbol = useMutation({
     mutationFn: async ({ watchlistId, symbol }: { watchlistId: string; symbol: string }) => {
+      const token = getAuthToken()
       const response = await fetch(`${API_URL}/api/watchlist/${watchlistId}/symbols`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
         body: JSON.stringify({ symbol }),
       })
@@ -212,10 +237,14 @@ export function useWatchlists() {
   // Remove symbol from watchlist mutation
   const removeSymbol = useMutation({
     mutationFn: async ({ watchlistId, symbol }: { watchlistId: string; symbol: string }) => {
+      const token = getAuthToken()
       const response = await fetch(
         `${API_URL}/api/watchlist/${watchlistId}/symbols/${symbol}`,
         {
           method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           credentials: 'include',
         }
       )
@@ -262,10 +291,19 @@ export function useWatchlists() {
 export function useWatchlistLimits() {
   const { data: session } = useSession()
 
+  // Get auth token for API requests
+  const getAuthToken = () => {
+    return session?.accessToken || session?.user?.id || ''
+  }
+
   const { data: limits, isLoading, error } = useQuery<WatchlistLimits>({
     queryKey: ['watchlist-limits'],
     queryFn: async () => {
+      const token = getAuthToken()
       const response = await fetch(`${API_URL}/api/watchlist/limits`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
       })
 
