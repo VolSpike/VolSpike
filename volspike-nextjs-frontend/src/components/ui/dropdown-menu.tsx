@@ -137,6 +137,9 @@ interface DropdownMenuContentProps {
     className?: string
     usePortal?: boolean
     style?: React.CSSProperties
+    sideOffset?: number
+    alignOffset?: number
+    collisionPadding?: number
 }
 
 export function DropdownMenuContent({
@@ -146,6 +149,9 @@ export function DropdownMenuContent({
     className,
     usePortal = false,
     style,
+    sideOffset = 8,
+    alignOffset = 0,
+    collisionPadding = 8,
 }: DropdownMenuContentProps) {
     const context = useContext(DropdownMenuContext)
     if (!context) throw new Error('DropdownMenuContent must be used within DropdownMenu')
@@ -218,26 +224,26 @@ export function DropdownMenuContent({
             // Smart positioning: prefer bottom, but use top if not enough space
             const spaceBelow = window.innerHeight - rect.bottom
             const spaceAbove = rect.top
-            const useTop = side === 'top' || (side === 'bottom' && spaceBelow < contentHeight && spaceAbove > spaceBelow)
+            const useTop = side === 'top' || (side === 'bottom' && spaceBelow < contentHeight + sideOffset && spaceAbove > spaceBelow)
 
             if (useTop) {
                 // Position above the trigger
-                top = rect.top - contentHeight - 4
+                top = rect.top - contentHeight - sideOffset
                 // Ensure it doesn't go off-screen
-                if (top < 0) {
-                    top = 4
+                if (top < collisionPadding) {
+                    top = collisionPadding
                 }
             } else {
                 // Position below the trigger
-                top = rect.bottom + 4
+                top = rect.bottom + sideOffset
                 // Ensure it doesn't go off-screen
-                if (top + contentHeight > window.innerHeight) {
-                    top = window.innerHeight - contentHeight - 4
+                if (top + contentHeight > window.innerHeight - collisionPadding) {
+                    top = window.innerHeight - contentHeight - collisionPadding
                     // If still off-screen, position above
-                    if (top < 0) {
-                        top = rect.top - contentHeight - 4
-                        if (top < 0) {
-                            top = 4
+                    if (top < collisionPadding) {
+                        top = rect.top - contentHeight - sideOffset
+                        if (top < collisionPadding) {
+                            top = collisionPadding
                         }
                     }
                 }
@@ -245,31 +251,31 @@ export function DropdownMenuContent({
 
             if (align === 'end') {
                 // Align to the right edge of the trigger
-                right = window.innerWidth - rect.right
+                right = window.innerWidth - rect.right + alignOffset
                 // Ensure it doesn't go off-screen
-                if (right < 0) {
-                    right = 4
-                } else if (right + contentWidth > window.innerWidth) {
-                    right = window.innerWidth - contentWidth - 4
+                if (right < collisionPadding) {
+                    right = collisionPadding
+                } else if (right + contentWidth > window.innerWidth - collisionPadding) {
+                    right = window.innerWidth - contentWidth - collisionPadding
                 }
             } else if (align === 'center') {
                 // Center on the trigger
-                left = rect.left + rect.width / 2 - contentWidth / 2
+                left = rect.left + rect.width / 2 - contentWidth / 2 + alignOffset
                 // Ensure it doesn't go off-screen
-                if (left < 0) {
-                    left = 4
-                } else if (left + contentWidth > window.innerWidth) {
-                    left = window.innerWidth - contentWidth - 4
+                if (left < collisionPadding) {
+                    left = collisionPadding
+                } else if (left + contentWidth > window.innerWidth - collisionPadding) {
+                    left = window.innerWidth - contentWidth - collisionPadding
                 }
             } else {
                 // Align to the left edge of the trigger
-                left = rect.left
+                left = rect.left + alignOffset
                 // Ensure it doesn't go off-screen
-                if (left + contentWidth > window.innerWidth) {
-                    left = window.innerWidth - contentWidth - 4
+                if (left + contentWidth > window.innerWidth - collisionPadding) {
+                    left = window.innerWidth - contentWidth - collisionPadding
                 }
-                if (left < 0) {
-                    left = 4
+                if (left < collisionPadding) {
+                    left = collisionPadding
                 }
             }
 
