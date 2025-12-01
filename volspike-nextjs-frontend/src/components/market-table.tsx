@@ -1012,44 +1012,49 @@ export function MarketTable({
                                             </td>
                                         )}
                                         <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
-                                            {/* Icons: Star always visible if in watchlist, otherwise hover-only on desktop */}
-                                            <div className={`pointer-events-none flex items-center justify-end gap-1 ${
-                                                isSymbolInWatchlist(item.symbol)
-                                                    ? 'opacity-100' // Always visible if in watchlist
-                                                    : 'opacity-100 md:opacity-0 md:group-hover/row:opacity-100' // Hover-only on desktop if not in watchlist
-                                            } transition-opacity duration-150`}>
+                                            <div className="flex items-center justify-end gap-1">
+                                                {/* Star icon: Always visible if in watchlist, otherwise hover-only on desktop */}
                                                 {session?.user && !guestMode && (
+                                                    <div className={`pointer-events-none ${
+                                                        isSymbolInWatchlist(item.symbol)
+                                                            ? 'opacity-100' // Always visible if in watchlist
+                                                            : 'opacity-100 md:opacity-0 md:group-hover/row:opacity-100' // Hover-only on desktop if not in watchlist
+                                                    } transition-opacity duration-150`}>
+                                                        <Button
+                                                            className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
+                                                                isSymbolInWatchlist(item.symbol)
+                                                                    ? 'text-brand-600 dark:text-brand-400'
+                                                                    : ''
+                                                            }`}
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={(e) => handleAddToWatchlist(e, item)}
+                                                            title={
+                                                                isSymbolInWatchlist(item.symbol)
+                                                                    ? 'Remove from watchlist'
+                                                                    : 'Add to watchlist'
+                                                            }
+                                                        >
+                                                            <Star
+                                                                className={`h-3.5 w-3.5 ${
+                                                                    isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
+                                                                }`}
+                                                            />
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                                {/* Bell icon: Always hover-only on desktop, always visible on mobile */}
+                                                <div className="pointer-events-none opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity duration-150">
                                                     <Button
-                                                        className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
-                                                            isSymbolInWatchlist(item.symbol)
-                                                                ? 'text-brand-600 dark:text-brand-400'
-                                                                : ''
-                                                        }`}
+                                                        className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
                                                         variant="ghost"
                                                         size="icon"
-                                                        onClick={(e) => handleAddToWatchlist(e, item)}
-                                                        title={
-                                                            isSymbolInWatchlist(item.symbol)
-                                                                ? 'Remove from watchlist'
-                                                                : 'Add to watchlist'
-                                                        }
+                                                        onClick={(e) => handleCreateAlert(e, item)}
+                                                        title="Create alert"
                                                     >
-                                                        <Star
-                                                            className={`h-3.5 w-3.5 ${
-                                                                isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
-                                                            }`}
-                                                        />
+                                                        <Bell className="h-3.5 w-3.5" />
                                                     </Button>
-                                                )}
-                                                <Button
-                                                    className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => handleCreateAlert(e, item)}
-                                                    title="Create alert"
-                                                >
-                                                    <Bell className="h-3.5 w-3.5" />
-                                                </Button>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
