@@ -226,7 +226,7 @@ const fetchProfileFromCoinGeckoWithId = async (symbol: string, coingeckoId: stri
         return merged
     } catch (coinError: any) {
         // Handle rate limit or other errors gracefully
-        debugLog(`CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
+        console.warn(`[use-asset-profile] CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
         return undefined
     }
 }
@@ -271,7 +271,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
                         }
                     } catch (altError) {
                         // Ignore fallback search errors
-                        debugLog(`Fallback search failed for ${stripped}:`, altError)
+                        console.debug(`[use-asset-profile] Fallback search failed for ${stripped}:`, altError)
                     }
                 }
             }
@@ -308,7 +308,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
             coingeckoId = chosen?.id
         } catch (searchError: any) {
             // Handle rate limit or other errors gracefully
-            debugLog(`CoinGecko search failed for ${upper}:`, searchError)
+            console.warn(`[use-asset-profile] CoinGecko search failed for ${upper}:`, searchError)
 
             // Fallback to static override if we have one
             if (override) {
@@ -396,7 +396,7 @@ const fetchProfileFromCoinGecko = async (symbol: string): Promise<AssetProfile |
         return merged
     } catch (coinError: any) {
         // Handle rate limit or other errors gracefully
-        debugLog(`CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
+        console.warn(`[use-asset-profile] CoinGecko coin fetch failed for ${coingeckoId}:`, coinError)
 
         // Fallback to override if available
         if (override) {
@@ -428,7 +428,8 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
         const upper = symbol.toUpperCase()
 
         const run = async () => {
-            debugLog(`🔍 Looking up asset: "${symbol}" -> "${upper}"`)
+            // ALWAYS log (not just debug mode) to trace issues
+            console.log(`[useAssetProfile] 🔍 Looking up asset: "${symbol}" -> "${upper}"`)
             
             setState((prev) => ({ ...prev, loading: true, error: null }))
 
@@ -436,28 +437,28 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                 // PRIORITY 1: Try synchronous manifest lookup first (fastest - uses cached manifest)
                 // This ensures we use database data, not stale localStorage cache
                 let manifestEntry = findAssetInManifestSync(upper)
-                debugLog(`Sync lookup result for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
+                console.log(`[useAssetProfile] Sync lookup result for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
                 
                 // PRIORITY 2: If not found synchronously, ensure manifest is loaded and try again
                 if (!manifestEntry) {
-                    debugLog(`Manifest not in cache, loading...`)
+                    console.log(`[useAssetProfile] Manifest not in cache, loading...`)
                     // Ensure manifest is loaded (will use cache if available, fetch if needed)
                     const manifest = await loadAssetManifest()
-                    debugLog(`Manifest loaded: ${manifest.length} assets`)
+                    console.log(`[useAssetProfile] Manifest loaded: ${manifest.length} assets`)
                     // Try sync lookup again after ensuring manifest is loaded
                     manifestEntry = findAssetInManifestSync(upper)
-                    debugLog(`Sync lookup after load for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
+                    console.log(`[useAssetProfile] Sync lookup after load for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
                     // If still not found, try async lookup (shouldn't happen, but safety net)
                     if (!manifestEntry) {
-                        debugLog(`Trying async lookup for ${upper}...`)
+                        console.log(`[useAssetProfile] Trying async lookup for ${upper}...`)
                         manifestEntry = await findAssetInManifest(upper)
-                        debugLog(`Async lookup result for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
+                        console.log(`[useAssetProfile] Async lookup result for ${upper}:`, manifestEntry ? `FOUND (${manifestEntry.baseSymbol})` : 'NOT FOUND')
                     }
                 }
                 
-                // Debug logging (only in debug mode)
+                // Debug logging
                 if (manifestEntry) {
-                    debugLog(`✅ Found manifest entry for ${upper}:`, {
+                    console.log(`[useAssetProfile] ✅ Found manifest entry for ${upper}:`, {
                         baseSymbol: manifestEntry.baseSymbol,
                         binanceSymbol: manifestEntry.binanceSymbol,
                         hasLogo: !!manifestEntry.logoUrl,
@@ -465,7 +466,14 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                         logoUrl: manifestEntry.logoUrl ? manifestEntry.logoUrl.substring(0, 50) + '...' : 'MISSING',
                         description: manifestEntry.description ? manifestEntry.description.substring(0, 50) + '...' : 'MISSING',
                     })
+                    debugLog(`✅ Found manifest entry for ${upper}:`, {
+                        baseSymbol: manifestEntry.baseSymbol,
+                        hasLogo: !!manifestEntry.logoUrl,
+                        hasDescription: !!manifestEntry.description,
+                        logoUrl: manifestEntry.logoUrl?.substring(0, 50) + '...',
+                    })
                 } else {
+                    console.log(`[useAssetProfile] ❌ No manifest entry found for ${upper}`)
                     debugLog(`❌ No manifest entry found for ${upper}`)
                 }
                 
