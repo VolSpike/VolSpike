@@ -31,6 +31,7 @@ import { GuestCTA } from '@/components/guest-cta'
 import { WatchlistSelector } from '@/components/watchlist-selector'
 import { WatchlistFilter } from '@/components/watchlist-filter'
 import { useWatchlists } from '@/hooks/use-watchlists'
+import { RemoveFromWatchlistDialog } from '@/components/remove-from-watchlist-dialog'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
@@ -96,6 +97,9 @@ export function MarketTable({
     const [watchlistSelectorOpen, setWatchlistSelectorOpen] = useState(false)
     const [symbolToAdd, setSymbolToAdd] = useState<string | undefined>()
     const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(watchlistFilterId || null)
+    const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
+    const [symbolToRemove, setSymbolToRemove] = useState<string | undefined>()
+    const [watchlistsForRemoval, setWatchlistsForRemoval] = useState<Array<{ id: string; name: string }>>([])
 
     // Fetch watchlist market data if a watchlist is selected
     const { data: watchlistMarketData } = useQuery<MarketData[]>({
@@ -124,12 +128,20 @@ export function MarketTable({
     // Use watchlist data if filter is active, otherwise use regular data
     const displayData = selectedWatchlistId && watchlistMarketData ? watchlistMarketData : data
 
-    // Create a map of symbol -> watchlistId for quick lookup
-    const symbolToWatchlistMap = useMemo(() => {
-        const map = new Map<string, { watchlistId: string; itemId: string }>()
+    // Create a map of symbol -> array of watchlist info (supports multiple watchlists per symbol)
+    const symbolToWatchlistsMap = useMemo(() => {
+        const map = new Map<string, Array<{ watchlistId: string; watchlistName: string; itemId: string }>>()
         watchlists.forEach((watchlist) => {
             watchlist.items.forEach((item) => {
-                map.set(item.contract.symbol, { watchlistId: watchlist.id, itemId: item.id })
+                const symbol = item.contract.symbol
+                if (!map.has(symbol)) {
+                    map.set(symbol, [])
+                }
+                map.get(symbol)!.push({
+                    watchlistId: watchlist.id,
+                    watchlistName: watchlist.name,
+                    itemId: item.id,
+                })
             })
         })
         return map
@@ -137,17 +149,17 @@ export function MarketTable({
 
     // Create a set of symbols that are in watchlists for quick lookup
     const symbolsInWatchlists = useMemo(() => {
-        return new Set(symbolToWatchlistMap.keys())
-    }, [symbolToWatchlistMap])
+        return new Set(symbolToWatchlistsMap.keys())
+    }, [symbolToWatchlistsMap])
 
     // Check if a symbol is in any watchlist
     const isSymbolInWatchlist = (symbol: string) => {
         return symbolsInWatchlists.has(symbol)
     }
 
-    // Get watchlist info for a symbol
-    const getWatchlistInfoForSymbol = (symbol: string) => {
-        return symbolToWatchlistMap.get(symbol)
+    // Get all watchlists containing a symbol
+    const getWatchlistsForSymbol = (symbol: string) => {
+        return symbolToWatchlistsMap.get(symbol) || []
     }
 
     // Handle watchlist filter change
@@ -537,21 +549,42 @@ export function MarketTable({
             return
         }
 
-        // Check if symbol is already in a watchlist
-        const watchlistInfo = getWatchlistInfoForSymbol(item.symbol)
+        // Check if symbol is already in watchlist(s)
+        const watchlistsForSymbol = getWatchlistsForSymbol(item.symbol)
         
-        if (watchlistInfo) {
-            // Symbol is already in a watchlist - remove it
-            try {
-                await removeSymbol({ watchlistId: watchlistInfo.watchlistId, symbol: item.symbol })
-            } catch (error) {
-                // Error already handled by hook
+        if (watchlistsForSymbol.length > 0) {
+            // Symbol is already in one or more watchlists
+            if (watchlistsForSymbol.length === 1) {
+                // Only in one watchlist - remove directly
+                try {
+                    removeSymbol({ watchlistId: watchlistsForSymbol[0].watchlistId, symbol: item.symbol })
+                    // Invalidate watchlist market data if we're viewing that watchlist
+                    if (selectedWatchlistId === watchlistsForSymbol[0].watchlistId) {
+                        queryClient.invalidateQueries({ queryKey: ['watchlist-market-data', selectedWatchlistId] })
+                    }
+                } catch (error) {
+                    // Error already handled by hook
+                }
+            } else {
+                // In multiple watchlists - show dialog to choose which ones to remove from
+                setSymbolToRemove(item.symbol)
+                setWatchlistsForRemoval(watchlistsForSymbol.map(w => ({ id: w.watchlistId, name: w.watchlistName })))
+                setRemoveDialogOpen(true)
             }
         } else {
             // Symbol is not in any watchlist - open selector to add it
             setSymbolToAdd(item.symbol)
             setWatchlistSelectorOpen(true)
         }
+    }
+
+    const handleRemovedFromWatchlists = () => {
+        // Invalidate watchlist market data if we're viewing any of the affected watchlists
+        if (selectedWatchlistId && watchlistsForRemoval.some(w => w.id === selectedWatchlistId)) {
+            queryClient.invalidateQueries({ queryKey: ['watchlist-market-data', selectedWatchlistId] })
+        }
+        setSymbolToRemove(undefined)
+        setWatchlistsForRemoval([])
     }
 
     const handleWatchlistSelected = async (watchlistId: string) => {
@@ -1254,12 +1287,21 @@ export function MarketTable({
 
             {/* Watchlist Selector Dialog */}
             {session?.user && !guestMode && (
-                <WatchlistSelector
-                    open={watchlistSelectorOpen}
-                    onOpenChange={setWatchlistSelectorOpen}
-                    symbol={symbolToAdd}
-                    onWatchlistSelected={handleWatchlistSelected}
-                />
+                <>
+                    <WatchlistSelector
+                        open={watchlistSelectorOpen}
+                        onOpenChange={setWatchlistSelectorOpen}
+                        symbol={symbolToAdd}
+                        onWatchlistSelected={handleWatchlistSelected}
+                    />
+                    <RemoveFromWatchlistDialog
+                        open={removeDialogOpen}
+                        onOpenChange={setRemoveDialogOpen}
+                        symbol={symbolToRemove || ''}
+                        watchlists={watchlistsForRemoval}
+                        onRemoved={handleRemovedFromWatchlists}
+                    />
+                </>
             )}
         </div>
     )
