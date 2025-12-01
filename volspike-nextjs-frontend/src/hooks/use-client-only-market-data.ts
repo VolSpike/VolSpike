@@ -239,6 +239,17 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         // Remove duplicates (watchlist symbols should already be excluded from otherItems, but double-check)
         const combined = [...watchlistItems];
         const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
+        
+        // Debug: Log watchlist symbols for comparison
+        if (normalizedWatchlistSymbols.length > 0) {
+            console.log(`[buildSnapshot] Watchlist symbols in Set:`, Array.from(watchlistSymbolSet));
+            console.log(`[buildSnapshot] First 10 symbols in limitedOtherItems:`, limitedOtherItems.slice(0, 10).map(item => ({
+                original: item.symbol,
+                normalized: normalizeSym(item.symbol),
+                inSet: watchlistSymbolSet.has(normalizeSym(item.symbol))
+            })));
+        }
+        
         let addedOtherItems = 0;
         let skippedDuplicates = 0;
         for (const item of limitedOtherItems) {
@@ -246,7 +257,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             if (watchlistSymbolSet.has(normalizedItemSym)) {
                 // This shouldn't happen if separation worked correctly - log as error
                 skippedDuplicates++;
-                console.error(`[buildSnapshot] ❌ DUPLICATE FOUND: ${item.symbol} is in both watchlistItems and limitedOtherItems`);
+                console.error(`[buildSnapshot] ❌ DUPLICATE FOUND: ${item.symbol} (normalized: ${normalizedItemSym}) is in both watchlistItems and limitedOtherItems`);
             } else {
                 combined.push(item);
                 addedOtherItems++;
