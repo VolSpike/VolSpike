@@ -121,8 +121,9 @@ export function MarketTable({
         }
     }, [watchlistFilterId])
 
-    // Get watchlist symbols if a watchlist is selected
-    // Filter the existing WebSocket data instead of fetching from REST API
+    // Get watchlist info and market data for watchlist symbols
+    // When a watchlist is selected, we need to fetch market data for ALL symbols in the watchlist,
+    // even if they're outside the tier's normal volume limits (e.g., outside top 50 for Free tier)
     const { data: watchlistInfo } = useQuery({
         queryKey: ['watchlist-info', selectedWatchlistId],
         queryFn: async () => {
@@ -148,13 +149,45 @@ export function MarketTable({
         staleTime: 60000, // 1 minute
     })
 
-    // Filter existing WebSocket data by watchlist symbols
+    // Fetch market data for watchlist symbols (includes symbols outside tier limits)
+    const { data: watchlistMarketData } = useQuery({
+        queryKey: ['watchlist-market-data', selectedWatchlistId],
+        queryFn: async () => {
+            if (!selectedWatchlistId) return null
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+            const token = session?.user?.id ? String(session.user.id) : ''
+            if (!token) {
+                throw new Error('Not authenticated')
+            }
+            const response = await fetch(`${API_URL}/api/market/watchlist/${selectedWatchlistId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                credentials: 'include',
+            })
+            if (!response.ok) {
+                throw new Error('Failed to fetch watchlist market data')
+            }
+            const result = await response.json()
+            // Backend returns { symbols: MarketData[] } - extract the symbols array
+            return Array.isArray(result.symbols) ? result.symbols : []
+        },
+        enabled: !!selectedWatchlistId && !!session?.user,
+        staleTime: 60000, // 1 minute
+    })
+
+    // Display data: use watchlist market data if watchlist is selected, otherwise use WebSocket data
     const displayData = useMemo(() => {
         if (!selectedWatchlistId || !watchlistInfo) {
             return data
         }
         
-        // Get symbols from watchlist (API returns watchlist directly, not wrapped)
+        // If we have watchlist market data, use it (includes symbols outside tier limits)
+        if (watchlistMarketData && Array.isArray(watchlistMarketData) && watchlistMarketData.length > 0) {
+            return watchlistMarketData
+        }
+        
+        // Fallback: filter WebSocket data by watchlist symbols (may miss symbols outside tier limits)
         const watchlistSymbols = watchlistInfo.items?.map((item: any) => 
             item.contract?.symbol?.toUpperCase()
         ).filter(Boolean) || []
@@ -169,7 +202,7 @@ export function MarketTable({
                 item.symbol.toUpperCase() === symbol.toUpperCase()
             )
         )
-    }, [data, selectedWatchlistId, watchlistInfo])
+    }, [data, selectedWatchlistId, watchlistInfo, watchlistMarketData])
 
     // Create a map of symbol -> array of watchlist info (supports multiple watchlists per symbol)
     const symbolToWatchlistsMap = useMemo(() => {
