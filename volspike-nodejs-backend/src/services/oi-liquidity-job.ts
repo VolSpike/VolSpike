@@ -116,40 +116,53 @@ async function storeLiquidUniverse(
   meta: Map<string, { quoteVolume24h: number; lastUpdated: Date }>
 ): Promise<void> {
   const now = new Date()
+  let upserted = 0
+  let skipped = 0
 
   // Upsert each symbol
   for (const symbol of universe) {
     const symbolMeta = meta.get(symbol)
     if (!symbolMeta) {
+      skipped++
+      logger.warn(`Skipping ${symbol}: no metadata found`)
       continue
     }
 
-    // Check if symbol already exists
-    const existing = await prisma.openInterestLiquidSymbol.findUnique({
-      where: { symbol },
-    })
-
-    if (existing) {
-      // Update existing
-      await prisma.openInterestLiquidSymbol.update({
+    try {
+      // Check if symbol already exists
+      const existing = await prisma.openInterestLiquidSymbol.findUnique({
         where: { symbol },
-        data: {
-          quoteVolume24h: symbolMeta.quoteVolume24h,
-          lastSeenAt: now,
-        },
       })
-    } else {
-      // Create new
-      await prisma.openInterestLiquidSymbol.create({
-        data: {
-          symbol,
-          quoteVolume24h: symbolMeta.quoteVolume24h,
-          enteredAt: now,
-          lastSeenAt: now,
-        },
-      })
+
+      if (existing) {
+        // Update existing
+        await prisma.openInterestLiquidSymbol.update({
+          where: { symbol },
+          data: {
+            quoteVolume24h: symbolMeta.quoteVolume24h,
+            lastSeenAt: now,
+          },
+        })
+        upserted++
+      } else {
+        // Create new
+        await prisma.openInterestLiquidSymbol.create({
+          data: {
+            symbol,
+            quoteVolume24h: symbolMeta.quoteVolume24h,
+            enteredAt: now,
+            lastSeenAt: now,
+          },
+        })
+        upserted++
+      }
+    } catch (error) {
+      logger.error(`Failed to store symbol ${symbol}:`, error)
+      throw error
     }
   }
+
+  logger.info(`Stored ${upserted} symbols, skipped ${skipped} symbols`)
 
   // Remove symbols that are no longer in universe
   const symbolsToRemove = await prisma.openInterestLiquidSymbol.findMany({
@@ -252,7 +265,13 @@ export async function runLiquidUniverseJob(): Promise<{
     }
 
     // 5. Store to database
+    logger.info(`Storing ${result.newSet.size} symbols to database...`)
     await storeLiquidUniverse(result.newSet, result.meta)
+    logger.info(`✅ Database storage complete`)
+
+    // Verify data was stored
+    const storedCount = await prisma.openInterestLiquidSymbol.count()
+    logger.info(`✅ Verified: ${storedCount} symbols in database`)
 
     logger.info(`✅ Liquid universe job completed: ${result.newSet.size} symbols (${symbolsAdded > 0 ? `+${symbolsAdded}` : symbolsAdded} added, ${symbolsRemoved > 0 ? `-${symbolsRemoved}` : symbolsRemoved} removed)`)
 
