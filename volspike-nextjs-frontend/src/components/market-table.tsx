@@ -105,6 +105,15 @@ export function MarketTable({
     const [symbolToRemove, setSymbolToRemove] = useState<string | undefined>()
     const [watchlistsForRemoval, setWatchlistsForRemoval] = useState<Array<{ id: string; name: string }>>([])
 
+    // Warm the asset manifest as soon as the table mounts so slideouts hit cached data immediately
+    useEffect(() => {
+        prefetchAssetManifest().catch((err) => {
+            if (process.env.NODE_ENV !== 'production') {
+                console.warn('[MarketTable] Manifest prefetch failed', err)
+            }
+        })
+    }, [])
+
     // Sync selectedWatchlistId with watchlistFilterId prop
     useEffect(() => {
         if (watchlistFilterId !== undefined) {
@@ -946,10 +955,10 @@ export function MarketTable({
                                         }}
                                         onMouseLeave={() => setHoveredRow(null)}
                                         onClick={() => {
-                                            // Ensure manifest is loaded before opening slideout
-                                            prefetchAssetManifest().then(() => {
-                                                setSelectedSymbol(item)
-                                            })
+                                            // Open immediately; keep prefetch in the background to avoid blocking
+                                            setSelectedSymbol(item)
+                                            prefetchAssetManifest()
+                                            prefetchAssetProfile(formatSymbol(item.symbol))
                                         }}
                                     >
                                         <td className={`relative p-3 pl-4 font-semibold text-sm transition-colors duration-150${cellHoverBg}`}>
