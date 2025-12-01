@@ -216,6 +216,10 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         
         return combined;
     }, [tier, normalizeSym]); // Removed watchlistSymbols from deps - using ref instead
+    
+    // Expose buildSnapshot for immediate calls when watchlist changes
+    const buildSnapshotRef = useRef(buildSnapshot);
+    buildSnapshotRef.current = buildSnapshot;
 
     const render = useCallback((snapshot: MarketData[]) => {
         setData(snapshot);
