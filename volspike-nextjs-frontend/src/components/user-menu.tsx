@@ -16,10 +16,6 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-    DropdownMenuSub,
-    DropdownMenuSubTrigger,
-    DropdownMenuSubContent,
-    DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu'
 import {
     Settings,
@@ -30,13 +26,10 @@ import {
     Bell,
     Star,
     Zap,
-    FileText,
-    Key,
     Sparkles,
     Shield,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import Link from 'next/link'
 
 export function UserMenu() {
     const router = useRouter()
@@ -150,6 +143,10 @@ export function UserMenu() {
     }
 
     const tier = identity.tier || 'free'
+    const itemClass =
+        'group relative mx-1 my-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-150 bg-white/5 hover:bg-white/10 border border-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.28)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.35)] focus:bg-white/10 focus:outline-none'
+    const iconClass =
+        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-muted-foreground/90 ring-1 ring-white/5 group-hover:bg-white/10 group-hover:text-white transition-all duration-150'
 
     return (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -197,133 +194,147 @@ export function UserMenu() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="end"
-                className="w-[280px] p-0 backdrop-blur-lg bg-popover/95 border-border/50 shadow-lg-dark dark:shadow-lg-dark animate-scale-in rounded-xl"
+                className="w-[320px] overflow-hidden rounded-2xl border border-white/5 bg-[#0c121f]/95 shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl animate-scale-in"
             >
-                {/* User Info Section with Glassmorphism */}
-                <DropdownMenuLabel className="p-4 border-b border-border/50 bg-gradient-to-br from-brand-500/5 to-sec-500/5">
-                    <div className="flex flex-col space-y-3">
-                        <div className="flex items-center gap-3">
-                            {/* Avatar with glow */}
-                            <div className={`h-10 w-10 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-brand`}>
-                                <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
-                                    {showAvatarImage ? (
-                                        <div className="relative h-full w-full">
-                                            <Image
-                                                src={identity.image as string}
-                                                alt={identity.displayName}
-                                                fill
-                                                sizes="40px"
-                                                className="object-cover"
-                                                referrerPolicy="no-referrer"
-                                                onError={() => setImageError(true)}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <span className="text-sm font-bold leading-none select-none font-mono">
-                                            {initials}
-                                        </span>
-                                    )}
+                <div className="relative">
+                    <div className="pointer-events-none absolute inset-x-0 -top-10 h-28 bg-gradient-to-b from-brand-500/20 via-brand-500/5 to-transparent blur-2xl opacity-70" />
+                    {/* User Info Section with refreshed styling */}
+                    <DropdownMenuLabel className="relative p-4 pb-3 border-b border-white/5 bg-[#0f172a]/70 backdrop-blur-xl">
+                        <div className="flex flex-col space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className={`h-11 w-11 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-[0_0_0_4px_rgba(19,255,141,0.15)]`}>
+                                    <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
+                                        {showAvatarImage ? (
+                                            <div className="relative h-full w-full">
+                                                <Image
+                                                    src={identity.image as string}
+                                                    alt={identity.displayName}
+                                                    fill
+                                                    sizes="44px"
+                                                    className="object-cover"
+                                                    referrerPolicy="no-referrer"
+                                                    onError={() => setImageError(true)}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <span className="text-[13px] font-bold leading-none select-none font-mono">
+                                                {initials}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    {(() => {
+                                        const cuidLike = (s: string) => /^c[a-z0-9]{20,}$/i.test(s)
+                                        const shortAddr = identity.address ? `${identity.address.slice(0, 6)}...${identity.address.slice(-4)}` : null
+                                        const primaryCandidate = shortAddr || identity.email || identity.displayName || 'User'
+                                        const primary = cuidLike(primaryCandidate) ? (shortAddr || identity.email || 'User') : primaryCandidate
+                                        const secondary = identity.email && identity.email !== primary ? identity.email : null
+                                        return (
+                                            <>
+                                                <p className="text-sm font-semibold truncate text-white/95">{primary}</p>
+                                                {secondary ? (
+                                                    <p className="text-xs text-white/60 truncate">{secondary}</p>
+                                                ) : null}
+                                            </>
+                                        )
+                                    })()}
                                 </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                {(() => {
-                                    const cuidLike = (s: string) => /^c[a-z0-9]{20,}$/i.test(s)
-                                    const shortAddr = identity.address ? `${identity.address.slice(0, 6)}...${identity.address.slice(-4)}` : null
-                                    const primaryCandidate = shortAddr || identity.email || identity.displayName || 'User'
-                                    const primary = cuidLike(primaryCandidate) ? (shortAddr || identity.email || 'User') : primaryCandidate
-                                    const secondary = identity.email && identity.email !== primary ? identity.email : null
-                                    return (
-                                        <>
-                                            <p className="text-sm font-semibold truncate text-foreground">{primary}</p>
-                                            {secondary ? (
-                                                <p className="text-xs text-muted-foreground truncate">{secondary}</p>
-                                            ) : null}
-                                        </>
-                                    )
-                                })()}
-                            </div>
-                        </div>
 
-                        {/* Tier Badge with icon */}
-                        <div className="flex items-center justify-between">
-                            <Badge
-                                variant="default"
-                                className={`text-xs font-semibold px-2.5 py-1 transition-all duration-150 ${tier === 'pro'
-                                        ? 'bg-sec-600 dark:bg-sec-500 text-white border-0 shadow-sec'
-                                        : tier === 'elite'
-                                            ? 'bg-elite-600 dark:bg-elite-500 text-white border-0 shadow-sm'
-                                            : 'bg-gray-600 dark:bg-gray-500 text-white border-0'
-                                    }`}
-                            >
-                                {tier === 'free' && <Zap className="h-3 w-3 mr-1 inline" />}
-                                {tier === 'pro' && <Star className="h-3 w-3 mr-1 inline" />}
-                                {tier === 'elite' && <Sparkles className="h-3 w-3 mr-1 inline" />}
-                                {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
-                            </Badge>
-                            {identity.role === 'ADMIN' && (
-                                <Badge variant="outline" className="text-xs border-danger-500/50 text-danger-600 dark:text-danger-400 dark:border-danger-400/50">
-                                    Admin
+                            {/* Tier Badge with icon */}
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                    variant="default"
+                                    className={`text-[11px] font-semibold px-3 py-1 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.2)] border-0 ${tier === 'pro'
+                                            ? 'bg-sec-600 dark:bg-sec-500 text-white'
+                                            : tier === 'elite'
+                                                ? 'bg-elite-600 dark:bg-elite-500 text-white'
+                                                : 'bg-white/10 text-white'
+                                        }`}
+                                >
+                                    {tier === 'free' && <Zap className="h-3 w-3 mr-1 inline" />}
+                                    {tier === 'pro' && <Star className="h-3 w-3 mr-1 inline" />}
+                                    {tier === 'elite' && <Sparkles className="h-3 w-3 mr-1 inline" />}
+                                    {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
                                 </Badge>
+                                {identity.role === 'ADMIN' && (
+                                    <Badge variant="outline" className="rounded-full border-blue-400/50 bg-blue-500/10 text-[11px] text-blue-100">
+                                        Admin
+                                    </Badge>
+                                )}
+                            </div>
+
+                            {/* Wallet address if available */}
+                            {identity.address && (
+                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/5 shadow-inner">
+                                    <Wallet className="h-3.5 w-3.5 text-white/70" />
+                                    <span className="text-[11px] font-mono text-white/70 font-mono-tabular">
+                                        {(identity.walletProvider === 'solana' ? 'SOL' : 'ETH')} · {identity.address.slice(0, 6)}...{identity.address.slice(-4)}
+                                    </span>
+                                </div>
                             )}
                         </div>
-
-                        {/* Wallet address if available */}
-                        {identity.address && (
-                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border/50">
-                                <Wallet className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-xs font-mono text-muted-foreground font-mono-tabular">
-                                    {(identity.walletProvider === 'solana' ? 'SOL' : 'ETH')} · {identity.address.slice(0, 6)}...{identity.address.slice(-4)}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                </DropdownMenuLabel>
+                    </DropdownMenuLabel>
+                </div>
 
                 {/* Quick Actions Section */}
-                <div className="py-1">
+                <div className="px-2.5 py-2">
                     <DropdownMenuItem
                         onClick={() => {
                             router.push('/settings')
                             setIsOpen(false)
                         }}
-                        className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
+                        className={itemClass}
                     >
-                        <Settings className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                        <span className="flex-1">Settings</span>
+                        <span className={iconClass}>
+                            <Settings className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 text-left">
+                            <p className="text-sm font-semibold text-white">Settings</p>
+                            <p className="text-[11px] text-white/60">Profile, preferences</p>
+                        </div>
                     </DropdownMenuItem>
 
                     {/* Admin Panel - Only visible to admins */}
                     {identity.role === 'ADMIN' && (
                         <>
-                            <DropdownMenuSeparator className="my-1 mx-2" />
+                            <DropdownMenuSeparator className="my-2 mx-2 border-white/5" />
                             <DropdownMenuItem
                                 onClick={() => {
                                     router.push('/admin')
                                     setIsOpen(false)
                                 }}
-                                className="mx-2 my-0.5 rounded-lg transition-all duration-150 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border border-blue-500/20 dark:border-blue-400/20 focus:bg-blue-500/20 dark:focus:bg-blue-500/20 group"
+                                className="group relative mx-1 my-0.5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-150 bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-purple-500/15 hover:from-blue-500/30 hover:to-purple-500/25 border border-blue-400/30 shadow-[0_12px_36px_rgba(37,99,235,0.25)] focus:outline-none"
                             >
-                                <Shield className="h-4 w-4 mr-2.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-150" />
-                                <span className="flex-1 font-semibold text-blue-700 dark:text-blue-300">Admin Panel</span>
-                                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] border-blue-500/30 text-blue-600 dark:text-blue-400 dark:border-blue-400/30">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-blue-100 ring-1 ring-white/10 group-hover:ring-white/20 transition-all duration-150">
+                                    <Shield className="h-4 w-4" />
+                                </span>
+                                <span className="flex-1 font-semibold text-blue-50">Admin Panel</span>
+                                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] border-blue-500/30 text-blue-50 bg-blue-500/20">
                                     ADMIN
                                 </Badge>
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-1 mx-2" />
+                            <DropdownMenuSeparator className="my-2 mx-2 border-white/5" />
                         </>
                     )}
 
                     {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
                         <DropdownMenuItem
                             onClick={() => {
-                                router.push('/settings/billing')
-                                setIsOpen(false)
-                            }}
-                            className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
-                        >
-                            <CreditCard className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                            <span className="flex-1">Billing & Subscription</span>
-                        </DropdownMenuItem>
+                            router.push('/settings/billing')
+                            setIsOpen(false)
+                        }}
+                        className={itemClass}
+                    >
+                        <span className={iconClass}>
+                            <CreditCard className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 text-left">
+                            <p className="text-sm font-semibold text-white">Billing & Subscription</p>
+                            <p className="text-[11px] text-white/60">Plans, invoices, payment methods</p>
+                        </div>
+                    </DropdownMenuItem>
                     )}
 
                     <DropdownMenuItem
@@ -331,33 +342,48 @@ export function UserMenu() {
                             router.push('/alerts')
                             setIsOpen(false)
                         }}
-                        className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
+                        className={itemClass}
                     >
-                        <Bell className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                        <span className="flex-1">Email Alerts</span>
+                        <span className={iconClass}>
+                            <Bell className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 text-left">
+                            <p className="text-sm font-semibold text-white">Email Alerts</p>
+                            <p className="text-[11px] text-white/60">Manage triggers & delivery</p>
+                        </div>
                     </DropdownMenuItem>
                 </div>
 
-                <DropdownMenuSeparator className="my-1" />
+                <DropdownMenuSeparator className="my-2 border-white/5" />
 
                 {/* Copy Actions */}
-                <div className="py-1">
+                <div className="px-2.5 py-2">
                     {identity.email && (
                         <DropdownMenuItem
                             onClick={() => handleCopy(identity.email!, 'Email')}
-                            className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
+                            className={`${itemClass} bg-white/10`}
                         >
-                            <Copy className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                            <span className="flex-1">Copy email</span>
+                            <span className={iconClass}>
+                                <Copy className="h-4 w-4" />
+                            </span>
+                            <div className="flex-1 text-left">
+                                <p className="text-sm font-semibold text-white">Copy email</p>
+                                <p className="text-[11px] text-white/60">Use for support or invoices</p>
+                            </div>
                         </DropdownMenuItem>
                     )}
                     {identity.address && (
                         <DropdownMenuItem
                             onClick={() => handleCopy(identity.address!, 'Address')}
-                            className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
+                            className={`${itemClass} bg-white/10`}
                         >
-                            <Wallet className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                            <span className="flex-1">Copy address</span>
+                            <span className={iconClass}>
+                                <Wallet className="h-4 w-4" />
+                            </span>
+                            <div className="flex-1 text-left">
+                                <p className="text-sm font-semibold text-white">Copy address</p>
+                                <p className="text-[11px] text-white/60">Wallet on file</p>
+                            </div>
                         </DropdownMenuItem>
                     )}
                 </div>
@@ -365,27 +391,27 @@ export function UserMenu() {
                 {/* Upgrade CTA for Free Tier */}
                 {tier === 'free' && (
                     <>
-                        <DropdownMenuSeparator className="my-1" />
-                        <div className="p-2">
+                        <DropdownMenuSeparator className="my-2 border-white/5" />
+                        <div className="px-3 pb-3">
                             <Button
                                 onClick={() => {
                                     router.push('/pricing')
                                     setIsOpen(false)
                                 }}
                                 size="sm"
-                                className="w-full bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-brand transition-all duration-200"
+                                className="w-full bg-gradient-to-r from-brand-500 via-emerald-500 to-sec-600 hover:from-brand-600 hover:via-emerald-600 hover:to-sec-700 text-white shadow-[0_18px_40px_rgba(16,185,129,0.35)] transition-all duration-200 h-11 rounded-xl text-base font-semibold"
                             >
-                                <Sparkles className="h-4 w-4 mr-2" />
+                                <Sparkles className="h-4 w-4 mr-2 drop-shadow-sm" />
                                 Upgrade to Pro
                             </Button>
                         </div>
                     </>
                 )}
 
-                <DropdownMenuSeparator className="my-1" />
+                <DropdownMenuSeparator className="my-2 border-white/5" />
 
                 {/* Sign Out */}
-                <div className="p-2">
+                <div className="px-2.5 pb-2">
                     <DropdownMenuItem
                         onClick={() => {
                             try { disconnect() } catch (_) { }
@@ -402,10 +428,12 @@ export function UserMenu() {
                             } catch (_) { }
                             signOut({ callbackUrl: '/' })
                         }}
-                        className="rounded-lg text-danger-600 dark:text-danger-400 focus:text-danger-600 dark:focus:text-danger-400 focus:bg-danger-500/10 transition-all duration-150"
+                        className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-base font-semibold text-danger-400 transition-all duration-150 hover:bg-danger-500/10 focus:bg-danger-500/15"
                     >
-                        <LogOut className="h-4 w-4 mr-2.5" />
-                        <span className="flex-1 font-medium">Sign Out</span>
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-danger-500/10 text-danger-400 ring-1 ring-danger-500/25 group-hover:bg-danger-500/15">
+                            <LogOut className="h-4 w-4" />
+                        </span>
+                        <span className="flex-1">Sign Out</span>
                     </DropdownMenuItem>
                 </div>
             </DropdownMenuContent>
