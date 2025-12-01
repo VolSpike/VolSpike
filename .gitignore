@@ -69,3 +69,7 @@ build/
 .env.test.local
 .env.production.local
 
+# Twitter assets (local only, not needed in repo)
+volspike-nextjs-frontend/public/Twitter banner.png
+volspike-nextjs-frontend/public/Twitter profile.png
+
