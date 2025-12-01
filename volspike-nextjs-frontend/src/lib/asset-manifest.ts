@@ -185,18 +185,24 @@ const fetchManifestFromApi = async (): Promise<AssetRecord[]> => {
  */
 export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     const cached = readCachedManifest()
-    if (cached) return cached
+    if (cached) {
+        logDebug(`Using cached manifest (${cached.length} assets)`)
+        return cached
+    }
 
     if (!manifestPromise) {
         manifestPromise = (async () => {
             try {
+                logDebug('Fetching manifest from API...')
                 const assets = await fetchManifestFromApi()
+                logDebug(`Fetched ${assets.length} assets from API`)
                 writeManifestCache(assets)
                 return assets
             } catch (error) {
-                logDebug('Manifest fetch failed, using static seed', error)
+                logDebug('Manifest fetch failed, using static seed (not cached)', error)
+                // Don't cache static fallback - allows retry on next load
+                // This prevents stale static manifest from being used indefinitely
                 const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
-                writeManifestCache(assets)
                 return assets
             } finally {
                 manifestPromise = null
