@@ -102,7 +102,12 @@ export function MarketTable({
         queryFn: async () => {
             if (!selectedWatchlistId) return []
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+            // Get auth token for API requests
+            const token = session?.accessToken || session?.user?.id || ''
             const response = await fetch(`${API_URL}/api/market/watchlist/${selectedWatchlistId}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
                 credentials: 'include',
             })
             if (!response.ok) {
