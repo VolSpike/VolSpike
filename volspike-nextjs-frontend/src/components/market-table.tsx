@@ -662,13 +662,13 @@ export function MarketTable({
                 setWatchlistSelectorOpen(true)
             } else {
                 // For Free tier: Only 1 watchlist allowed, so remove directly
-                if (watchlistsForSymbol.length === 1) {
-                    removeSymbol({ watchlistId: watchlistsForSymbol[0].watchlistId, symbol: item.symbol })
-                } else {
+            if (watchlistsForSymbol.length === 1) {
+                removeSymbol({ watchlistId: watchlistsForSymbol[0].watchlistId, symbol: item.symbol })
+            } else {
                     // Fallback: In multiple watchlists - show dialog to choose which ones to remove from
-                    setSymbolToRemove(item.symbol)
-                    setWatchlistsForRemoval(watchlistsForSymbol.map(w => ({ id: w.watchlistId, name: w.watchlistName })))
-                    setRemoveDialogOpen(true)
+                setSymbolToRemove(item.symbol)
+                setWatchlistsForRemoval(watchlistsForSymbol.map(w => ({ id: w.watchlistId, name: w.watchlistName })))
+                setRemoveDialogOpen(true)
                 }
             }
         } else {

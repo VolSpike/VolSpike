@@ -172,7 +172,7 @@ const buildProfileFromManifest = (symbol: string, entry?: AssetRecord | AssetPro
         id: entry.coingeckoId ?? upper,
         symbol: upper,
         name: name ?? upper,
-        logoUrl,
+        logoUrl: logoUrl ?? undefined, // Ensure null is converted to undefined
         websiteUrl: entry.websiteUrl ?? undefined,
         twitterUrl: entry.twitterUrl ?? undefined,
         description,
