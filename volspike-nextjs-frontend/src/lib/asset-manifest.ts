@@ -169,25 +169,26 @@ const writeManifestCache = (assets: AssetRecord[]) => {
             timestamp: Date.now(),
         }
         
-        // CRITICAL: Strip base64 logos from memory cache to prevent out-of-memory crashes
+        // CRITICAL: Store logoImageUrl (CoinGecko URLs) in memory cache, not base64 logos
         // Base64 logos are ~15KB each, with 534 assets that's ~8MB just for logos
-        // Storing them in memory can cause browser to run out of memory
-        // Solution: Store URLs only in memory cache, fetch logos on-demand when displaying
+        // CoinGecko URLs are tiny (~100 bytes each) and browser caches images naturally
+        // This prevents memory issues while allowing instant logo display
         const assetsForMemory = assets.map((asset) => {
-            const { logoUrl, ...rest } = asset
-            // Only keep logo if it's a URL (not base64 data URL)
-            // Base64 data URLs start with "data:image"
-            const logoForMemory = logoUrl && !logoUrl.startsWith('data:image') ? logoUrl : undefined
+            const { logoUrl, logoImageUrl, ...rest } = asset
+            // Prefer logoImageUrl (CoinGecko URL) over logoUrl (base64)
+            // logoImageUrl is preferred because browser caches it naturally
+            const logoForMemory = logoImageUrl || (logoUrl && !logoUrl.startsWith('data:image') ? logoUrl : undefined)
             return {
                 ...rest,
-                logoUrl: logoForMemory,
+                logoUrl: undefined, // Don't store base64 in memory
+                logoImageUrl: logoForMemory, // Store CoinGecko URL
             }
         })
         
         manifestMemory = assetsForMemory
         manifestMemoryIsStale = false
         
-        console.log(`[writeManifestCache] Stored ${manifestMemory.length} assets in memory (logos excluded to prevent memory issues)`)
+        console.log(`[writeManifestCache] Stored ${manifestMemory.length} assets in memory (using CoinGecko URLs for logos)`)
         
         const jsonString = JSON.stringify(payload)
         const sizeMB = (jsonString.length / 1024 / 1024).toFixed(2)
