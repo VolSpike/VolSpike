@@ -244,18 +244,35 @@ watchlist.post('/:id/symbols', async (c) => {
             })
         }
 
-        // Add to watchlist
-        const watchlistItem = await prisma.watchlistItem.create({
-            data: {
-                watchlistId,
-                contractId: contract.id,
-            },
-            include: {
-                contract: {
-                    select: { symbol: true, isActive: true },
+        // Add to watchlist (with duplicate check via unique constraint)
+        let watchlistItem
+        try {
+            watchlistItem = await prisma.watchlistItem.create({
+                data: {
+                    watchlistId,
+                    contractId: contract.id,
                 },
-            },
-        })
+                include: {
+                    contract: {
+                        select: { symbol: true, isActive: true },
+                    },
+                },
+            })
+        } catch (createError: any) {
+            // Handle Prisma unique constraint violation (duplicate symbol)
+            if (createError?.code === 'P2002') {
+                logger.warn(`Duplicate symbol ${normalizedSymbol} in watchlist ${watchlistId} by ${user?.email}`)
+                return c.json(
+                    {
+                        error: 'Duplicate symbol',
+                        message: 'This symbol is already in this watchlist.',
+                        isDuplicate: true,
+                    },
+                    409
+                )
+            }
+            throw createError
+        }
 
         // Get updated limit status
         const limitStatus = await WatchlistService.getLimitStatus(user.id, user.tier)

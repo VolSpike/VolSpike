@@ -40,6 +40,7 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false) // Prevent duplicate calls
 
   // Get user tier
   const userTier = (session?.user as any)?.tier || 'free'
@@ -47,8 +48,10 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const hasMaxWatchlists = limits?.limits.watchlistLimit === 1 && watchlists.length >= 1
 
   const handleCreateWatchlist = async () => {
-    if (!newWatchlistName.trim()) {
-      toast.error('Please enter a watchlist name')
+    if (!newWatchlistName.trim() || isProcessing) {
+      if (!newWatchlistName.trim()) {
+        toast.error('Please enter a watchlist name')
+      }
       return
     }
 
@@ -56,54 +59,43 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
     const symbolToAdd = symbol // Store symbol before clearing state
     setNewWatchlistName('')
     setShowCreateForm(false)
+    setIsProcessing(true) // Prevent duplicate calls
 
     try {
-      // Create watchlist - use a promise-based approach
-      // We'll wait for the mutation to complete via React Query's invalidation
-      createWatchlist(watchlistName)
+      // Create watchlist and wait for it to complete using mutateAsync
+      const result = await createWatchlistAsync(watchlistName)
       
-      // If symbol provided, wait for watchlist to be created and then add symbol
-      if (symbolToAdd) {
-        // Use a longer timeout to ensure watchlist is created and query is refreshed
-        setTimeout(async () => {
-          // Wait a bit more for React Query to refresh the watchlists
-          await new Promise(resolve => setTimeout(resolve, 300))
-          
-          // Find the newly created watchlist by name (most reliable)
-          const newWatchlist = watchlists.find(w => w.name === watchlistName)
-          
-          if (newWatchlist) {
-            try {
-              await addSymbol({ watchlistId: newWatchlist.id, symbol: symbolToAdd })
-              if (onWatchlistSelected) {
-                onWatchlistSelected(newWatchlist.id)
-              }
-              onOpenChange(false)
-            } catch (error) {
-              // Error already handled by hook - don't show additional error
-              console.error('Failed to add symbol to newly created watchlist:', error)
-            }
-          } else {
-            // Watchlist not found yet - try again after a bit more delay
-            setTimeout(async () => {
-              const retryWatchlist = watchlists.find(w => w.name === watchlistName) || watchlists[0]
-              if (retryWatchlist) {
-                try {
-                  await addSymbol({ watchlistId: retryWatchlist.id, symbol: symbolToAdd })
-                  if (onWatchlistSelected) {
-                    onWatchlistSelected(retryWatchlist.id)
-                  }
-                  onOpenChange(false)
-                } catch (error) {
-                  console.error('Failed to add symbol on retry:', error)
-                }
-              }
-            }, 500)
+      // If symbol provided, add it to the newly created watchlist
+      if (symbolToAdd && result?.watchlist?.id) {
+        try {
+          // Use mutateAsync to properly await the result and prevent duplicate calls
+          await addSymbolAsync({ watchlistId: result.watchlist.id, symbol: symbolToAdd })
+          if (onWatchlistSelected) {
+            onWatchlistSelected(result.watchlist.id)
           }
-        }, 800) // Increased timeout to ensure watchlist is created
+          onOpenChange(false)
+        } catch (error: any) {
+          // Check if it's a duplicate error - if so, don't show error toast (success already shown)
+          if (error?.message?.includes('already in this watchlist') || error?.message?.includes('Duplicate')) {
+            // Symbol was already added (maybe race condition), just close dialog
+            if (onWatchlistSelected) {
+              onWatchlistSelected(result.watchlist.id)
+            }
+            onOpenChange(false)
+          } else {
+            // Other error - let hook handle it
+            console.error('Failed to add symbol:', error)
+          }
+        }
+      } else if (!symbolToAdd) {
+        // No symbol to add, just close the dialog
+        onOpenChange(false)
       }
     } catch (error) {
-      // Error already handled by hook
+      // Error already handled by hook's onError callback
+      // Don't show additional error - the hook will show it
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -146,6 +138,11 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
 
   const handleSelectWatchlist = async (watchlistId: string) => {
     if (symbol) {
+      // Prevent duplicate calls
+      if (isAddingSymbol || isProcessing) {
+        return
+      }
+      
       try {
         // Use mutateAsync to properly await the result
         await addSymbolAsync({ watchlistId, symbol })
@@ -153,9 +150,20 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
           onWatchlistSelected(watchlistId)
         }
         onOpenChange(false)
-      } catch (error) {
-        // Error already handled by hook's onError callback
-        // Don't show additional error - the hook will show it
+      } catch (error: any) {
+        // Check if it's a duplicate error - suppress error toast if symbol was already added
+        if (error?.message?.includes('already in this watchlist') || 
+            error?.message?.includes('Duplicate') ||
+            error?.message?.includes('already in this watchlist')) {
+          // Symbol already in watchlist - just close dialog (might have been added by another call)
+          if (onWatchlistSelected) {
+            onWatchlistSelected(watchlistId)
+          }
+          onOpenChange(false)
+        } else {
+          // Other error - let hook handle it
+          console.error('Failed to add symbol:', error)
+        }
       }
     } else {
       if (onWatchlistSelected) {

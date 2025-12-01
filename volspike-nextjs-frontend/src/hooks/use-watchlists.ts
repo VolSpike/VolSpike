@@ -130,11 +130,16 @@ export function useWatchlists() {
         throw new Error('Failed to create watchlist: Unknown error')
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables, context) => {
       // Invalidate and refetch watchlists
       queryClient.invalidateQueries({ queryKey: ['watchlists'] })
       queryClient.invalidateQueries({ queryKey: ['watchlist-limits'] })
-      toast.success(`Watchlist "${data.watchlist.name}" created`)
+      // Only show success toast if not adding a symbol (to avoid double toasts)
+      // The addSymbol mutation will show its own success toast
+      const isAddingSymbol = (context as any)?.isAddingSymbol
+      if (!isAddingSymbol) {
+        toast.success(`Watchlist "${data.watchlist.name}" created`)
+      }
       // Return data so it can be accessed in component
       return data
     },
@@ -230,7 +235,11 @@ export function useWatchlists() {
       toast.success(`Added ${variables.symbol} to watchlist`)
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to add symbol')
+      // Don't show error toast for duplicate symbols (already handled in component)
+      if (!error.message?.includes('already in this watchlist') && 
+          !error.message?.includes('Duplicate')) {
+        toast.error(error.message || 'Failed to add symbol')
+      }
     },
   })
 
