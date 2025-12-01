@@ -960,6 +960,20 @@ export function MarketTable({
                                         </Button>
                                     </th>
                                 )}
+                                <th className="text-center p-3">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleSort('star')}
+                                        disabled={guestMode || !session?.user}
+                                        title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : !session?.user ? 'Sign in to sort by watchlist' : undefined}
+                                        className={`h-auto p-0 font-semibold transition-colors flex items-center gap-1 ${guestMode || !session?.user ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
+                                    >
+                                        <Star className={`h-4 w-4 ${sortBy === 'star' ? 'text-brand-500' : 'text-foreground'}`} />
+                                        {sortBy === 'star' && <SortIcon column="star" />}
+                                        {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
+                                    </Button>
+                                </th>
                                 <th className="w-24"></th>
                             </tr>
                         </thead>
