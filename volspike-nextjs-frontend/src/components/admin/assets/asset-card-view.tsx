@@ -111,7 +111,9 @@ export function AssetCardView({
         if (!asset.coingeckoId) {
             return { icon: AlertCircle, color: 'text-orange-500', bgColor: 'bg-orange-500/10', label: 'No CoinGecko ID' }
         }
-        if (!asset.logoUrl) {
+        // Check for logoImageUrl (preferred) or logoUrl (base64 fallback)
+        const hasLogo = !!(asset.logoImageUrl || asset.logoUrl)
+        if (!hasLogo) {
             return { icon: AlertCircle, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', label: 'Missing Logo' }
         }
         return { icon: Clock, color: 'text-blue-500', bgColor: 'bg-blue-500/10', label: 'Incomplete' }

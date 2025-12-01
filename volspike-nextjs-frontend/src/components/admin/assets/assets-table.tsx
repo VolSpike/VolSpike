@@ -489,15 +489,19 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         return now - updatedAt > REFRESH_INTERVAL_MS
     }).length
 
-    const fullyEnriched = assets.filter(a => a.logoUrl && a.displayName && a.coingeckoId && a.description).length
+    // Helper: Check for logoImageUrl (preferred) or logoUrl (base64 fallback)
+    const hasLogo = (a: AssetRecord) => !!(a.logoImageUrl || a.logoUrl)
+    
+    const fullyEnriched = assets.filter(a => hasLogo(a) && a.displayName && a.coingeckoId && a.description).length
     const enrichmentPercentage = assets.length > 0 ? Math.round((fullyEnriched / assets.length) * 100) : 0
 
-    // Calculate missing data counts
-    const missingDataCount = assets.filter(a => !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description || !a.websiteUrl || !a.twitterUrl).length
+    // Calculate missing data counts - check logoImageUrl (preferred) or logoUrl (fallback)
+    const missingDataCount = assets.filter(a => !hasLogo(a) || !a.displayName || !a.coingeckoId || !a.description || !a.websiteUrl || !a.twitterUrl).length
     const missingWebsiteCount = assets.filter(a => !a.websiteUrl).length
     const missingDescriptionCount = assets.filter(a => !a.description).length
     const missingCoingeckoIdCount = assets.filter(a => !a.coingeckoId).length
-    const missingImageCount = assets.filter(a => !a.logoUrl).length
+    const missingImageCount = assets.filter(a => !hasLogo(a)).length
+    const missingLogoImageUrlCount = assets.filter(a => !a.logoImageUrl).length // Specifically missing logoImageUrl (preferred field)
     const missingTwitterCount = assets.filter(a => !a.twitterUrl).length
     const incompleteCount = assets.filter(a => !a.isComplete).length
     const completeCount = assets.filter(a => a.isComplete).length
@@ -526,7 +530,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             filtered = filtered.filter((a) => {
                 if (a.status === 'HIDDEN' || !a.isComplete) return false
                 // Must have all critical fields
-                if (!a.logoUrl || !a.displayName || !a.description || !a.coingeckoId) return false
+                if (!hasLogo(a) || !a.displayName || !a.description || !a.coingeckoId) return false
                 // Must have updatedAt timestamp
                 if (!a.updatedAt) return false
                 // Check if older than 1 week
@@ -542,7 +546,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 if (missingDataFilter === 'image') return !a.logoUrl
                 if (missingDataFilter === 'twitter') return !a.twitterUrl
                 // Show all missing data (any field missing)
-                return !a.logoUrl || !a.displayName || !a.coingeckoId || !a.description || !a.websiteUrl || !a.twitterUrl
+                return !hasLogo(a) || !a.displayName || !a.coingeckoId || !a.description || !a.websiteUrl || !a.twitterUrl
             })
         } else if (filterStatus === 'incomplete') {
             // Incomplete: Assets not marked as Complete by admin
