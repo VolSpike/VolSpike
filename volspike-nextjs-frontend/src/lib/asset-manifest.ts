@@ -129,13 +129,15 @@ const readCachedManifest = (): AssetRecord[] | null => {
         const age = Date.now() - parsed.timestamp
         const isStale = age > MANIFEST_TTL_MS
         
+        // Note: localStorage cache doesn't include base64 logos (to prevent quota exceeded)
+        // Logos will be fetched fresh from backend on page load
         manifestMemory = parsed.assets.map(normalizeRecord)
         manifestMemoryIsStale = isStale
         
-        console.log(`[readCachedManifest] Loaded ${manifestMemory.length} assets from cache (stale=${isStale})`)
+        console.log(`[readCachedManifest] Loaded ${manifestMemory.length} assets from cache (stale=${isStale}, logos will be fetched fresh)`)
         
         // Always return cached data, even if stale - it's better than nothing
-        // Background refresh will update it
+        // Background refresh will update it with full data including logos
         return manifestMemory
     } catch (error) {
         return null
@@ -145,54 +147,54 @@ const readCachedManifest = (): AssetRecord[] | null => {
 const writeManifestCache = (assets: AssetRecord[]) => {
     if (typeof window === 'undefined') return
     try {
+        // CRITICAL: Strip base64 logos from localStorage cache to prevent quota exceeded errors
+        // Base64 logos are ~15KB each, with 500+ assets that's ~7.5MB just for logos
+        // localStorage limit is typically 5-10MB, so we can't store base64 logos
+        // Solution: Store everything EXCEPT base64 logos in localStorage
+        // Logos are kept in memory cache for instant display, and fetched fresh on page load
+        const assetsForStorage = assets.map((asset) => {
+            const { logoUrl, ...rest } = asset
+            // Only store logo if it's a URL (not base64 data URL)
+            // Base64 data URLs start with "data:image"
+            const logoForStorage = logoUrl && !logoUrl.startsWith('data:image') ? logoUrl : undefined
+            return {
+                ...rest,
+                logoUrl: logoForStorage,
+            }
+        })
+        
         const payload = {
-            assets,
+            assets: assetsForStorage,
             timestamp: Date.now(),
         }
+        
+        // Always store full data (including base64 logos) in memory cache
         manifestMemory = assets
         manifestMemoryIsStale = false
         
-        // Check for 1000PEPE before writing
-        const pepAsset = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
-        if (pepAsset) {
-            console.log('[writeManifestCache] 1000PEPE before localStorage write:', {
-                hasLogoUrl: !!pepAsset.logoUrl,
-                logoUrlLength: pepAsset.logoUrl?.length || 0,
-                hasDescription: !!pepAsset.description,
-                descriptionLength: pepAsset.description?.length || 0,
-            })
-        }
-        
         const jsonString = JSON.stringify(payload)
-        console.log('[writeManifestCache] JSON size:', jsonString.length, 'bytes')
+        const sizeMB = (jsonString.length / 1024 / 1024).toFixed(2)
+        console.log(`[writeManifestCache] Writing ${assets.length} assets to localStorage (${sizeMB} MB, logos excluded)`)
         
-        // Check if localStorage has size limits (usually 5-10MB)
         try {
             localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
-            
-            // Verify it was written correctly
-            const verify = localStorage.getItem(MANIFEST_CACHE_KEY)
-            if (verify) {
-                const parsed = JSON.parse(verify)
-                const pepAfter = parsed?.assets?.find((a: AssetRecord) => a.baseSymbol.toUpperCase() === '1000PEPE')
-                if (pepAfter) {
-                    console.log('[writeManifestCache] 1000PEPE after localStorage write:', {
-                        hasLogoUrl: !!pepAfter.logoUrl,
-                        logoUrlLength: pepAfter.logoUrl?.length || 0,
-                        hasDescription: !!pepAfter.description,
-                        descriptionLength: pepAfter.description?.length || 0,
-                    })
-                }
-            }
+            console.log(`[writeManifestCache] ✅ Successfully cached manifest (${sizeMB} MB)`)
         } catch (storageError: any) {
             if (storageError.name === 'QuotaExceededError') {
                 console.error('[writeManifestCache] localStorage quota exceeded!', {
                     jsonSize: jsonString.length,
+                    sizeMB,
                     error: storageError.message,
                 })
                 // Try to clear old cache and retry
                 localStorage.removeItem(MANIFEST_CACHE_KEY)
-                localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
+                try {
+                    localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
+                    console.log('[writeManifestCache] ✅ Retry after clearing old cache succeeded')
+                } catch (retryError) {
+                    console.error('[writeManifestCache] ❌ Retry failed, cache not persisted:', retryError)
+                    // Cache will be fetched fresh on next page load
+                }
             } else {
                 throw storageError
             }
