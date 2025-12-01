@@ -160,13 +160,17 @@ export function MarketTable({
                 throw new Error('Not authenticated')
             }
             
-            console.log(`[Watchlist Debug] Fetching market data for watchlist ${selectedWatchlistId}`)
+            console.log(`[Watchlist Debug] Fetching market data for watchlist ${selectedWatchlistId} from ${API_URL}/api/market/watchlist/${selectedWatchlistId}`)
+            const startTime = Date.now()
             const response = await fetch(`${API_URL}/api/market/watchlist/${selectedWatchlistId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
                 credentials: 'include',
             })
+            const fetchTime = Date.now() - startTime
+            console.log(`[Watchlist Debug] Fetch completed in ${fetchTime}ms, status: ${response.status}`)
+            
             if (!response.ok) {
                 const errorText = await response.text()
                 console.error(`[Watchlist Debug] Failed to fetch watchlist market data: ${response.status}`, errorText)
@@ -178,16 +182,44 @@ export function MarketTable({
                 watchlistName: result.watchlistName,
                 symbolsCount: result.symbols?.length || 0,
                 symbols: result.symbols?.map((s: any) => s.symbol) || [],
-                fullResult: result
+                fetchedAt: result.fetchedAt,
+                fullResultKeys: Object.keys(result)
             })
+            
             // Backend returns { symbols: MarketData[] } - extract the symbols array
             const symbols = Array.isArray(result.symbols) ? result.symbols : []
             console.log(`[Watchlist Debug] Returning ${symbols.length} symbols from API`)
+            
+            // Log each symbol's details for debugging
+            symbols.forEach((symbol: any, index: number) => {
+                console.log(`[Watchlist Debug] Symbol ${index + 1}/${symbols.length}:`, {
+                    symbol: symbol.symbol,
+                    price: symbol.price,
+                    volume24h: symbol.volume24h,
+                    hasAllFields: !!(symbol.symbol && symbol.price && symbol.volume24h)
+                })
+            })
+            
             return symbols
         },
         enabled: !!selectedWatchlistId && !!session?.user,
         staleTime: 60000, // 1 minute
+        refetchOnWindowFocus: false,
     })
+    
+    // Debug query state changes
+    useEffect(() => {
+        console.log(`[Watchlist Debug] Query state changed:`, {
+            selectedWatchlistId,
+            hasSession: !!session?.user,
+            userId: session?.user?.id,
+            enabled: !!selectedWatchlistId && !!session?.user,
+            isLoading: isLoadingWatchlistData,
+            hasData: !!watchlistMarketData,
+            dataLength: Array.isArray(watchlistMarketData) ? watchlistMarketData.length : 'N/A',
+            error: watchlistDataError ? String(watchlistDataError) : null,
+        })
+    }, [selectedWatchlistId, session?.user, isLoadingWatchlistData, watchlistMarketData, watchlistDataError])
 
     // Display data: use watchlist market data if watchlist is selected, otherwise use WebSocket data
     const displayData = useMemo(() => {
