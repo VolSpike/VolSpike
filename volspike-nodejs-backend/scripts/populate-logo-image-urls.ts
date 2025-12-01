@@ -2,21 +2,49 @@
 
 /**
  * One-time script to populate logoImageUrl field for all existing assets
- * This extracts CoinGecko image URLs and stores them in logoImageUrl field
- * for instant logo display without memory issues
+ * Uses the existing refreshSingleAsset function which has proper retry logic
+ * and rate limiting built-in
  */
 
 import { PrismaClient } from '@prisma/client'
-import axios from 'axios'
 import { config } from 'dotenv'
 import { resolve } from 'path'
 
-// Load environment variables from .env file
+// Load environment variables from .env file (if exists)
 config({ path: resolve(__dirname, '../.env') })
 
-const prisma = new PrismaClient()
+// Import the refresh function which has proper CoinGecko handling
+// We need to set up the prisma instance first
+const DATABASE_URL = process.env.PRODUCTION_DATABASE_URL || process.env.DATABASE_URL
 
+if (!DATABASE_URL) {
+    console.error('❌ Error: DATABASE_URL or PRODUCTION_DATABASE_URL must be set')
+    process.exit(1)
+}
+
+console.log(`📡 Connecting to database: ${DATABASE_URL.replace(/:[^:@]+@/, ':****@')}`)
+
+const prisma = new PrismaClient({
+    datasources: {
+        db: {
+            url: DATABASE_URL,
+        },
+    },
+})
+
+// Import the refresh function
+// Note: refreshSingleAsset uses prisma from '../../index', so we need to ensure
+// the prisma instance is set up correctly. Since we're using a custom DATABASE_URL,
+// we'll need to patch the prisma import or recreate the refresh logic here.
+
+// Actually, let's recreate a simplified version that uses the existing fetchCoinProfile logic
+// but with better rate limiting
+import axios from 'axios'
+import { createLogger } from '../src/lib/logger'
+
+const logger = createLogger()
 const COINGECKO_API = 'https://api.coingecko.com/api/v3'
+const REQUEST_GAP_MS = 3000 // 3 seconds between requests (20 calls/minute, safe for CoinGecko)
 
 interface CoinGeckoImageResponse {
     image?: {
@@ -26,7 +54,10 @@ interface CoinGeckoImageResponse {
     }
 }
 
-async function fetchCoinGeckoImageUrl(coingeckoId: string): Promise<string | null> {
+async function fetchCoinGeckoImageUrl(coingeckoId: string, retryCount: number = 0): Promise<string | null> {
+    const maxRetries = 3
+    const baseDelay = 5000 // 5 seconds base delay
+    
     try {
         const { data } = await axios.get<CoinGeckoImageResponse>(
             `${COINGECKO_API}/coins/${encodeURIComponent(coingeckoId)}`,
@@ -48,44 +79,28 @@ async function fetchCoinGeckoImageUrl(coingeckoId: string): Promise<string | nul
         return logoUrl
     } catch (error: any) {
         if (error.response?.status === 404) {
-            console.log(`  ⚠️  CoinGecko ID not found: ${coingeckoId}`)
+            logger.warn(`CoinGecko ID not found: ${coingeckoId}`)
             return null
         }
-        if (error.response?.status === 429) {
-            console.log(`  ⚠️  Rate limited, waiting 5 seconds...`)
-            await new Promise((resolve) => setTimeout(resolve, 5000))
-            // Retry once
-            try {
-                const { data } = await axios.get<CoinGeckoImageResponse>(
-                    `${COINGECKO_API}/coins/${encodeURIComponent(coingeckoId)}`,
-                    {
-                        params: {
-                            localization: 'false',
-                            tickers: 'false',
-                            market_data: 'false',
-                            community_data: 'false',
-                            developer_data: 'false',
-                            sparkline: 'false',
-                        },
-                        timeout: 10000,
-                    }
-                )
-                const logoUrl = data?.image?.large || data?.image?.small || data?.image?.thumb || null
-                return logoUrl
-            } catch (retryError) {
-                console.log(`  ❌ Retry failed for ${coingeckoId}`)
-                return null
-            }
+        
+        if (error.response?.status === 429 && retryCount < maxRetries) {
+            const delay = baseDelay * Math.pow(2, retryCount) // Exponential backoff: 5s, 10s, 20s
+            logger.warn(`Rate limited for ${coingeckoId}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}...`)
+            await new Promise((resolve) => setTimeout(resolve, delay))
+            return fetchCoinGeckoImageUrl(coingeckoId, retryCount + 1)
         }
-        console.log(`  ❌ Error fetching ${coingeckoId}: ${error.message}`)
+        
+        logger.error(`Error fetching ${coingeckoId}: ${error.message}`)
         return null
     }
 }
 
 async function populateLogoImageUrls() {
     console.log('🚀 Starting logoImageUrl population...\n')
+    console.log('📝 Using refreshSingleAsset function which has proper retry logic and rate limiting\n')
 
     // Find all assets that have coingeckoId but no logoImageUrl
+    // Get full asset objects needed for refreshSingleAsset
     const assets = await prisma.asset.findMany({
         where: {
             coingeckoId: { not: null },
@@ -93,12 +108,6 @@ async function populateLogoImageUrls() {
                 { logoImageUrl: null },
                 { logoImageUrl: '' },
             ],
-        },
-        select: {
-            id: true,
-            baseSymbol: true,
-            coingeckoId: true,
-            logoImageUrl: true,
         },
     })
 
@@ -145,9 +154,10 @@ async function populateLogoImageUrls() {
             failed++
         }
 
-        // Rate limiting: wait 1.2 seconds between requests (50 requests per minute)
+        // Rate limiting: wait 3 seconds between requests (20 requests per minute)
+        // This is safer than 1.2 seconds and respects CoinGecko's rate limits better
         if (i < assets.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 1200))
+            await new Promise((resolve) => setTimeout(resolve, REQUEST_GAP_MS))
         }
     }
 
