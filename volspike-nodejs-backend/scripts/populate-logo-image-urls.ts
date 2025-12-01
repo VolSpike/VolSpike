@@ -133,7 +133,7 @@ async function populateLogoImageUrls() {
             continue
         }
 
-        console.log(`${progress} 🔍 Fetching logo URL for ${asset.baseSymbol} (${asset.coingeckoId})...`)
+        console.log(`${progress} 🔍 Fetching logo URL for ${asset.baseSymbol} (CoinGecko ID: ${asset.coingeckoId})...`)
 
         const logoImageUrl = await fetchCoinGeckoImageUrl(asset.coingeckoId)
 
@@ -143,19 +143,30 @@ async function populateLogoImageUrls() {
                     where: { id: asset.id },
                     data: { logoImageUrl },
                 })
-                console.log(`  ✅ Updated ${asset.baseSymbol}: ${logoImageUrl.substring(0, 60)}...`)
+                console.log(`  ✅ Updated ${asset.baseSymbol}: ${logoImageUrl.substring(0, 70)}...`)
                 updated++
             } catch (error: any) {
-                console.log(`  ❌ Failed to update ${asset.baseSymbol}: ${error.message}`)
+                console.log(`  ❌ Failed to update database for ${asset.baseSymbol}: ${error.message}`)
                 failed++
             }
         } else {
-            console.log(`  ⚠️  No logo URL found for ${asset.baseSymbol}`)
-            failed++
+            // Check if asset already has a base64 logoUrl - if so, it's not critical
+            const assetWithLogo = await prisma.asset.findUnique({
+                where: { id: asset.id },
+                select: { logoUrl: true },
+            })
+            
+            if (assetWithLogo?.logoUrl) {
+                console.log(`  ⚠️  No CoinGecko URL found for ${asset.baseSymbol}, but base64 logo exists (will use that)`)
+                skipped++ // Count as skipped, not failed - asset still has logo
+            } else {
+                console.log(`  ⚠️  No logo URL found for ${asset.baseSymbol} (CoinGecko may not have image for this ID)`)
+                failed++
+            }
         }
 
         // Rate limiting: wait 3 seconds between requests (20 requests per minute)
-        // This is safer than 1.2 seconds and respects CoinGecko's rate limits better
+        // CoinGecko free tier allows ~30-50 calls/minute, so 3 seconds is safe
         if (i < assets.length - 1) {
             await new Promise((resolve) => setTimeout(resolve, REQUEST_GAP_MS))
         }
