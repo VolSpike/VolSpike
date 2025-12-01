@@ -253,16 +253,48 @@ const fetchManifestFromApi = async (): Promise<AssetRecord[]> => {
  * Falls back to the baked-in static manifest if the API is unavailable.
  */
 export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
+    // CRITICAL: Return cached data immediately if available (even if stale)
+    // This ensures instant asset card display - background refresh will update it
     const cached = readCachedManifest()
-    if (cached && !manifestMemoryIsStale) return cached
+    if (cached) {
+        console.log(`[loadAssetManifest] Returning cached manifest immediately (${cached.length} assets, stale=${manifestMemoryIsStale})`)
+        
+        // If cache is stale, refresh in background (non-blocking)
+        if (manifestMemoryIsStale && !manifestPromise) {
+            console.log('[loadAssetManifest] Cache is stale, refreshing in background...')
+            manifestPromise = (async () => {
+                try {
+                    const assets = await fetchManifestFromApi()
+                    writeManifestCache(assets)
+                    manifestMemoryIsStale = false
+                    return assets
+                } catch (error) {
+                    console.error('[loadAssetManifest] Background refresh failed:', error)
+                    logDebug('Manifest fetch failed, using static seed', error)
+                    const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
+                    writeManifestCache(assets)
+                    return assets
+                } finally {
+                    manifestPromise = null
+                }
+            })()
+            // Don't await - return cached data immediately
+        }
+        
+        return cached
+    }
 
+    // No cache - must fetch from API
+    console.log('[loadAssetManifest] No cache, fetching from API...')
     if (!manifestPromise) {
         manifestPromise = (async () => {
             try {
                 const assets = await fetchManifestFromApi()
                 writeManifestCache(assets)
+                manifestMemoryIsStale = false
                 return assets
             } catch (error) {
+                console.error('[loadAssetManifest] API fetch failed:', error)
                 logDebug('Manifest fetch failed, using static seed', error)
                 const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
                 writeManifestCache(assets)
