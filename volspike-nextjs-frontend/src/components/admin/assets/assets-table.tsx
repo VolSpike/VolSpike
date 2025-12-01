@@ -448,7 +448,9 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         if (!asset.coingeckoId) {
             return { icon: AlertCircle, color: 'text-orange-500', bgColor: 'bg-orange-500/10', label: 'No CoinGecko ID' }
         }
-        if (!asset.logoUrl) {
+        // Check for logoImageUrl (preferred) or logoUrl (base64 fallback)
+        const hasLogo = !!(asset.logoImageUrl || asset.logoUrl)
+        if (!hasLogo) {
             return { icon: AlertCircle, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', label: 'Missing Logo' }
         }
         return { icon: Clock, color: 'text-blue-500', bgColor: 'bg-blue-500/10', label: 'Incomplete' }
@@ -543,7 +545,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 if (missingDataFilter === 'website') return !a.websiteUrl
                 if (missingDataFilter === 'description') return !a.description
                 if (missingDataFilter === 'coingecko-id') return !a.coingeckoId
-                if (missingDataFilter === 'image') return !a.logoUrl
+                if (missingDataFilter === 'image') return !hasLogo(a)
                 if (missingDataFilter === 'twitter') return !a.twitterUrl
                 // Show all missing data (any field missing)
                 return !hasLogo(a) || !a.displayName || !a.coingeckoId || !a.description || !a.websiteUrl || !a.twitterUrl
@@ -970,9 +972,9 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                                 <tr key={asset.id ?? asset.baseSymbol} className="border-t border-border/40 hover:bg-muted/20 transition-colors">
                                     <td className="px-3 py-2 align-middle">
                                         <div className="relative h-8 w-8 rounded-full bg-muted/60 flex items-center justify-center overflow-hidden ring-1 ring-border/50">
-                                            {asset.logoUrl ? (
+                                            {(asset.logoImageUrl || asset.logoUrl) ? (
                                                 <Image
-                                                    src={asset.logoUrl}
+                                                    src={asset.logoImageUrl || asset.logoUrl || ''}
                                                     alt={`${asset.displayName || asset.baseSymbol} logo`}
                                                     fill
                                                     sizes="32px"

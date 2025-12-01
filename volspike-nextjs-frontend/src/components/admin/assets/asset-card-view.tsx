@@ -269,9 +269,9 @@ export function AssetCardView({
                             {/* Logo and Symbol */}
                             <div className="flex items-start gap-4">
                                 <div className="relative h-20 w-20 rounded-xl bg-gradient-to-br from-primary/10 via-muted/40 to-muted/20 flex items-center justify-center overflow-hidden ring-2 ring-border/50 flex-shrink-0 shadow-sm">
-                                    {currentAsset.logoUrl ? (
+                                    {(currentAsset.logoImageUrl || currentAsset.logoUrl) ? (
                                         <Image
-                                            src={currentAsset.logoUrl}
+                                            src={currentAsset.logoImageUrl || currentAsset.logoUrl || ''}
                                             alt={`${currentAsset.displayName || currentAsset.baseSymbol} logo`}
                                             fill
                                             sizes="80px"
