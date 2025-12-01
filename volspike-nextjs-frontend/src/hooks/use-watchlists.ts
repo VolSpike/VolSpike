@@ -107,6 +107,8 @@ export function useWatchlists() {
     staleTime: 30000, // 30 seconds
     retry: 2,
     retryDelay: 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   })
 
   // Log for debugging
