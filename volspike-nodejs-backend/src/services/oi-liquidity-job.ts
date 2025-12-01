@@ -26,26 +26,46 @@ const BINANCE_PROXY_URL = process.env.BINANCE_PROXY_URL || 'http://localhost:300
 const BINANCE_API_URL = 'https://fapi.binance.com'
 
 /**
- * Fetch exchangeInfo from Binance proxy
+ * Fetch exchangeInfo from Binance proxy (or directly from Binance if proxy unavailable)
  */
 async function fetchExchangeInfo(): Promise<any> {
+  // Try proxy first if configured and not localhost
+  if (BINANCE_PROXY_URL && !BINANCE_PROXY_URL.includes('localhost')) {
+    try {
+      const response = await fetch(`${BINANCE_PROXY_URL}/api/binance/futures/info`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      })
+
+      if (response.ok) {
+        return await response.json()
+      }
+      logger.warn(`Binance proxy returned ${response.status}, falling back to direct Binance API`)
+    } catch (error) {
+      logger.warn('Binance proxy unavailable, falling back to direct Binance API:', error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  // Fallback: Fetch directly from Binance
   try {
-    const response = await fetch(`${BINANCE_PROXY_URL}/api/binance/futures/info`, {
+    const response = await fetch(`${BINANCE_API_URL}/fapi/v1/exchangeInfo`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
-      // Add timeout
-      signal: AbortSignal.timeout(10000), // 10 second timeout
+      signal: AbortSignal.timeout(15000), // 15 second timeout
     })
 
     if (!response.ok) {
-      throw new Error(`Binance proxy returned ${response.status}: ${response.statusText}`)
+      throw new Error(`Binance API returned ${response.status}: ${response.statusText}`)
     }
 
     return await response.json()
   } catch (error) {
-    logger.error('Failed to fetch exchangeInfo from Binance proxy:', error)
+    logger.error('Failed to fetch exchangeInfo from Binance:', error)
     throw error
   }
 }
