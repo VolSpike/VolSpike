@@ -147,7 +147,7 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
           <DialogHeader>
             <DialogTitle>Delete Watchlist</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete <strong>"{watchlistToDelete?.name}"</strong>? This will remove all {watchlistToDelete && safeWatchlists.find(w => w.id === watchlistToDelete.id)?.items.length || 0} symbols from this watchlist. This action cannot be undone.
+              Are you sure you want to delete <strong>&ldquo;{watchlistToDelete?.name}&rdquo;</strong>? This will remove all {watchlistToDelete && safeWatchlists.find(w => w.id === watchlistToDelete.id)?.items.length || 0} symbols from this watchlist. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
