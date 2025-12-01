@@ -615,9 +615,7 @@ export function MarketTable({
         }
     }
 
-    type SortableDataColumn = Exclude<SortColumn, 'watchlist'>
-
-    const SortIcon = ({ column }: { column: SortableDataColumn }) => {
+    const SortIcon = ({ column }: { column: SortColumn }) => {
         if (sortBy !== column) {
             return <ArrowUpDown className="h-3 w-3 opacity-40" />
         }
@@ -949,10 +947,13 @@ export function MarketTable({
                                             onClick={() => handleSort('watchlist')}
                                             disabled={guestMode}
                                             title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : 'Sort by watchlist (stars first, then last, then default)'}
-                                            className={`h-7 w-7 ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:bg-brand-500/10'}`}
+                                            className={`h-7 px-2 min-w-[32px] justify-center ${guestMode ? 'opacity-60 cursor-not-allowed' : 'hover:bg-brand-500/10'}`}
                                             aria-label="Sort by watchlist"
                                         >
-                                            <Star className="h-3.5 w-3.5 text-foreground" />
+                                            <div className="flex items-center gap-1">
+                                                <Star className="h-3.5 w-3.5 text-foreground" />
+                                                <SortIcon column="watchlist" />
+                                            </div>
                                         </Button>
                                         {/* Spacer to align with bell icon column placement in rows */}
                                         <span className="h-7 w-7 shrink-0" aria-hidden="true" />
