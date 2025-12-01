@@ -1111,7 +1111,8 @@ export function MarketTable({
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background/95 via-background/60 to-transparent" />
                 )}
 
-                {canScroll && !atBottom && (
+                {/* Only show scroll indicator if there's actually scrollable content and we're not at the bottom */}
+                {canScroll && !atBottom && sortedData.length > 0 && (
                     <div className="pointer-events-none absolute bottom-2 right-3 z-10 flex items-center justify-center rounded-full bg-background/80 p-1.5 text-muted-foreground shadow-sm">
                         <ArrowDown className="h-3 w-3" />
                     </div>
