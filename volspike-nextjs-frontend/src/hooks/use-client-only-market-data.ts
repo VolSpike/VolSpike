@@ -232,25 +232,9 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             }
         }
         
-        // Debug: Log watchlist symbols in top N
-        if (normalizedWatchlistSymbols.length > 0) {
-            const watchlistInTopN = topNItems.filter(item => 
-                normalizedWatchlistSet.has(normalizeSym(item.symbol))
-            ).length;
-            console.log(`[buildSnapshot] Top ${limit} symbols: ${topNItems.length} items (${watchlistInTopN} watchlist symbols included)`);
-            console.log(`[buildSnapshot] Watchlist symbols outside top ${limit}: ${watchlistItemsOutsideTopN.length} items`);
-        }
-        
         // Combine: top N items (which may include watchlist symbols) + watchlist symbols outside top N
         // No need to deduplicate - watchlist symbols outside top N are already excluded from top N
         const combined = [...topNItems, ...watchlistItemsOutsideTopN];
-        
-        if (normalizedWatchlistSymbols.length > 0) {
-            const watchlistInTopN = topNItems.filter(item => 
-                normalizedWatchlistSet.has(normalizeSym(item.symbol))
-            ).length;
-            console.log(`[buildSnapshot] Final combined result: ${combined.length} unique items (${watchlistInTopN} watchlist in top ${limit} + ${topNItems.length - watchlistInTopN} other in top ${limit} + ${watchlistItemsOutsideTopN.length} watchlist outside top ${limit})`);
-        }
         
         return combined;
     }, [tier, normalizeSym]); // Removed watchlistSymbols from deps - using ref instead
