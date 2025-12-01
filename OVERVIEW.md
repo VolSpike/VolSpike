@@ -2,6 +2,33 @@
 
 VolSpike is a production‑ready Binance Perpetual Futures dashboard featuring real‑time market data, volume spike alerts, authentication with email/OAuth/Web3 wallets, and both Stripe‑based subscriptions and cryptocurrency payments via NowPayments. The app is designed for a fast, low‑ops footprint: the frontend connects directly to Binance from the browser, while the backend focuses on auth, subscriptions, crypto/fiat payments, and alert broadcasting.
 
+## 🔴 CRITICAL ARCHITECTURE RULE: Binance Data Sources
+
+### ⚠️ **DO NOT USE BINANCE REST API IN FRONTEND OR BACKEND**
+
+**Rule**: VolSpike dashboard **ONLY** uses Binance WebSocket. Binance REST API is **ONLY** used by the Digital Ocean script.
+
+#### Data Source Architecture:
+
+1. **VolSpike Dashboard Frontend (Browser)**:
+   - ✅ **ONLY uses Binance WebSocket** (`wss://fstream.binance.com/stream`)
+   - ✅ Direct connection from user's browser to Binance
+   - ✅ Real-time market data via `useClientOnlyMarketData` hook
+   - ✅ Watchlist filtering: Client-side filtering of WebSocket data by watchlist symbols
+   - ❌ **NEVER** call Binance REST API from frontend
+   - ❌ **NEVER** fetch market data from backend REST endpoints
+
+2. **VolSpike Backend (Railway)**:
+   - ✅ **ONLY handles**: Authentication, Payments, User Data, Watchlists (symbols only), Alerts
+   - ❌ **NEVER** fetch market data from Binance REST API
+   - ❌ **NEVER** create endpoints that fetch from Binance REST API
+
+3. **Digital Ocean Script**:
+   - ✅ **ONLY place** that uses Binance REST API
+   - ✅ Detects volume spikes and posts alerts to backend
+
+**Common Mistakes**: Creating `/api/market/watchlist/:id` that calls Binance REST API, using `getMarketData()` in backend for watchlist data, fetching market data from backend in frontend.
+
 ## Key Characteristics
 - Client‑only market data: Direct Binance WebSocket in the browser (no Redis, no ingestion workers)
 - Tiered UX: Free / Pro / Elite with clear, friendly gating
