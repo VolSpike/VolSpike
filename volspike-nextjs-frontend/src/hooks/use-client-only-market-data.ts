@@ -243,6 +243,20 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         // Debug: Log watchlist symbols for comparison
         if (normalizedWatchlistSymbols.length > 0) {
             console.log(`[buildSnapshot] Watchlist symbols in Set:`, Array.from(watchlistSymbolSet));
+            
+            // Check ALL symbols in limitedOtherItems for duplicates
+            const duplicatesFound = limitedOtherItems.filter(item => 
+                watchlistSymbolSet.has(normalizeSym(item.symbol))
+            );
+            
+            if (duplicatesFound.length > 0) {
+                console.error(`[buildSnapshot] ❌ FOUND ${duplicatesFound.length} WATCHLIST SYMBOLS IN limitedOtherItems:`, 
+                    duplicatesFound.map(item => item.symbol));
+            } else {
+                console.log(`[buildSnapshot] ✅ Verified: No watchlist symbols found in limitedOtherItems (checked all ${limitedOtherItems.length} items)`);
+            }
+            
+            // Show first 10 for reference
             console.log(`[buildSnapshot] First 10 symbols in limitedOtherItems:`, limitedOtherItems.slice(0, 10).map(item => ({
                 original: item.symbol,
                 normalized: normalizeSym(item.symbol),
