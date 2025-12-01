@@ -607,9 +607,9 @@ export function MarketTable({
     }
 
     const handleRemovedFromWatchlists = () => {
-        // Invalidate watchlist market data if we're viewing any of the affected watchlists
+        // Invalidate watchlist info if we're viewing any of the affected watchlists
         if (selectedWatchlistId && watchlistsForRemoval.some(w => w.id === selectedWatchlistId)) {
-            queryClient.invalidateQueries({ queryKey: ['watchlist-market-data', selectedWatchlistId] })
+            queryClient.invalidateQueries({ queryKey: ['watchlist-info', selectedWatchlistId] })
         }
         setSymbolToRemove(undefined)
         setWatchlistsForRemoval([])
