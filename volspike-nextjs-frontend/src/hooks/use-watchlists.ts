@@ -54,8 +54,13 @@ export function useWatchlists() {
   const queryClient = useQueryClient()
 
   // Get auth token for API requests
+  // Backend accepts simple user ID as token (not JWT)
   const getAuthToken = () => {
-    return session?.accessToken || session?.user?.id || ''
+    if (!session?.user?.id) {
+      return ''
+    }
+    // Use user ID directly as token (backend accepts simple user IDs)
+    return String(session.user.id)
   }
 
   // Fetch watchlists with limit status
@@ -350,8 +355,13 @@ export function useWatchlistLimits() {
   const { data: session } = useSession()
 
   // Get auth token for API requests
+  // Backend accepts simple user ID as token (not JWT)
   const getAuthToken = () => {
-    return session?.accessToken || session?.user?.id || ''
+    if (!session?.user?.id) {
+      return ''
+    }
+    // Use user ID directly as token (backend accepts simple user IDs)
+    return String(session.user.id)
   }
 
   const { data: limits, isLoading, error } = useQuery<WatchlistLimits>({
