@@ -194,7 +194,11 @@ export function UserMenu() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="end"
-                className="relative w-[320px] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.25)] ring-1 ring-white/40 backdrop-blur-xl animate-scale-in dark:border-white/8 dark:bg-[#0c121f]/95 dark:text-white dark:shadow-[0_20px_60px_rgba(0,0,0,0.45)] dark:ring-white/8"
+                side="bottom"
+                sideOffset={12}
+                alignOffset={-4}
+                collisionPadding={16}
+                className="relative w-[320px] max-h-[min(80vh,560px)] overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_24px_70px_rgba(15,23,42,0.25)] ring-1 ring-white/40 backdrop-blur-xl animate-scale-in dark:border-white/8 dark:bg-[#0c121f]/95 dark:text-white dark:shadow-[0_20px_60px_rgba(0,0,0,0.45)] dark:ring-white/8"
             >
                 <div className="relative">
                     <div className="pointer-events-none absolute inset-x-0 -top-10 h-28 bg-gradient-to-b from-brand-500/20 via-brand-500/5 to-transparent blur-2xl opacity-70" />
