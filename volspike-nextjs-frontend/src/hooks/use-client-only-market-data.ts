@@ -551,6 +551,22 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
 
                     const snapshot = buildSnapshot();
                     const now = Date.now();
+                    
+                    // If watchlist symbols are requested, ensure we render immediately when they arrive
+                    // This fixes delay when switching to watchlist view - missing symbols appear instantly
+                    if (watchlistSymbolsRef.current.length > 0 && tickersUpdated) {
+                        const normalizedWatchlistSymbols = watchlistSymbolsRef.current.map(s => normalizeSym(s));
+                        const snapshotSymbols = snapshot.map(item => normalizeSym(item.symbol));
+                        const missingInSnapshot = normalizedWatchlistSymbols.filter(req => 
+                            !snapshotSymbols.includes(req)
+                        );
+                        
+                        // If all watchlist symbols are now present, force immediate render
+                        if (missingInSnapshot.length === 0 && snapshot.length > 0) {
+                            render(snapshot);
+                            return; // Skip debouncing for watchlist completeness
+                        }
+                    }
 
                     // Bootstrap: before first paint, gather a fuller set to avoid missing symbols
                     if (!firstPaintDoneRef.current) {

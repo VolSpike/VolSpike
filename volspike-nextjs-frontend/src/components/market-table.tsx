@@ -1160,10 +1160,11 @@ export function MarketTable({
                 )}
 
                 {/* Only show scroll indicator arrow when:
-                    1. There's actually scrollable content (content height > container height by at least 20px)
+                    1. There's actually scrollable content (content height > container height by at least 10px)
                     2. User is not at the bottom (there's more content below)
-                    3. There's data to display */}
-                {hasScrollableContent && !atBottom && sortedData.length > 0 && (
+                    3. There's data to display
+                    4. Content actually exceeds container (not just threshold check) */}
+                {hasScrollableContent && !atBottom && sortedData.length > 0 && canScroll && (
                     <div className="pointer-events-none absolute bottom-2 right-3 z-10 flex items-center justify-center rounded-full bg-background/80 p-1.5 text-muted-foreground shadow-sm">
                         <ArrowDown className="h-3 w-3" />
                     </div>
