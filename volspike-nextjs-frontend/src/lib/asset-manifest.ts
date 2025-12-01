@@ -199,10 +199,11 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
                 writeManifestCache(assets)
                 return assets
             } catch (error) {
-                logDebug('Manifest fetch failed, using static seed (not cached)', error)
-                // Don't cache static fallback - allows retry on next load
-                // This prevents stale static manifest from being used indefinitely
+                logDebug('Manifest fetch failed, using static seed', error)
+                // Cache static fallback so manifest is always available synchronously
+                // This ensures instant loading even if API fails
                 const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
+                writeManifestCache(assets)
                 return assets
             } finally {
                 manifestPromise = null
