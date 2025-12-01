@@ -209,6 +209,19 @@ export async function runLiquidUniverseJob(): Promise<{
 
     logger.info(`Fetched ticker stats for ${Object.keys(tickerStats).length} symbols`)
 
+    // Debug: Log some sample volumes to verify data
+    const sampleVolumes = Object.entries(tickerStats)
+      .slice(0, 5)
+      .map(([sym, stats]) => `${sym}: $${(stats.quoteVolume / 1e6).toFixed(2)}M`)
+    logger.info(`Sample volumes: ${sampleVolumes.join(', ')}`)
+    logger.info(`Using thresholds: Enter >= $${(ENTER_THRESHOLD / 1e6).toFixed(2)}M, Exit < $${(EXIT_THRESHOLD / 1e6).toFixed(2)}M`)
+
+    // Count symbols above enter threshold
+    const symbolsAboveThreshold = Object.entries(tickerStats).filter(
+      ([_, stats]) => stats.quoteVolume >= ENTER_THRESHOLD
+    ).length
+    logger.info(`Symbols above enter threshold (>= $${(ENTER_THRESHOLD / 1e6).toFixed(2)}M): ${symbolsAboveThreshold}`)
+
     // 3. Get current universe
     const currentUniverse = await getCurrentUniverse()
     logger.info(`Current liquid universe: ${currentUniverse.size} symbols`)
@@ -221,6 +234,8 @@ export async function runLiquidUniverseJob(): Promise<{
       EXIT_THRESHOLD,
       currentUniverse
     )
+
+    logger.info(`Computed new universe: ${result.newSet.size} symbols`)
 
     // Calculate symbols added (in newSet but not in currentUniverse)
     for (const symbol of result.newSet) {
