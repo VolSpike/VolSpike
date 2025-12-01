@@ -118,7 +118,11 @@ export function MarketTable({
         queryFn: async () => {
             if (!selectedWatchlistId) return null
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const token = session?.accessToken || session?.user?.id || ''
+            // Backend accepts simple user ID as token (not JWT)
+            const token = session?.user?.id ? String(session.user.id) : ''
+            if (!token) {
+                throw new Error('Not authenticated')
+            }
             const response = await fetch(`${API_URL}/api/watchlist/${selectedWatchlistId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -137,6 +141,7 @@ export function MarketTable({
     // Filter existing WebSocket data by watchlist symbols
     const displayData = useMemo(() => {
         if (!selectedWatchlistId || !watchlistInfo) {
+            console.log('[MarketTable] No filter:', { selectedWatchlistId, hasWatchlistInfo: !!watchlistInfo })
             return data
         }
         
@@ -145,7 +150,16 @@ export function MarketTable({
             item.contract?.symbol?.toUpperCase()
         ).filter(Boolean) || []
         
+        console.log('[MarketTable] Filtering by watchlist:', {
+            selectedWatchlistId,
+            watchlistSymbols,
+            watchlistInfoItems: watchlistInfo.items,
+            dataLength: data.length,
+            sampleDataSymbols: data.slice(0, 5).map(d => d.symbol),
+        })
+        
         if (watchlistSymbols.length === 0) {
+            console.warn('[MarketTable] Watchlist has no symbols')
             return []
         }
         
@@ -155,6 +169,11 @@ export function MarketTable({
                 item.symbol.toUpperCase() === symbol.toUpperCase()
             )
         )
+        
+        console.log('[MarketTable] Filtered result:', {
+            filteredLength: filtered.length,
+            filteredSymbols: filtered.map(f => f.symbol),
+        })
         
         return filtered
     }, [data, selectedWatchlistId, watchlistInfo])
