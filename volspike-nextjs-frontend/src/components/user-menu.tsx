@@ -16,6 +16,10 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+    DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu'
 import {
     Settings,
@@ -26,25 +30,23 @@ import {
     Bell,
     Star,
     Zap,
+    FileText,
+    Key,
     Sparkles,
     Shield,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { useTheme } from 'next-themes'
+import Link from 'next/link'
 
 export function UserMenu() {
     const router = useRouter()
     const { data: session } = useSession()
     const identity = useUserIdentity()
-    const { resolvedTheme } = useTheme()
     const [isOpen, setIsOpen] = useState(false)
     const [imageError, setImageError] = useState(false)
     const [debugAvatar, setDebugAvatar] = useState(false)
     const [avatarMode, setAvatarMode] = useState<'auto' | 'image' | 'initials'>('auto')
-    const [mounted, setMounted] = useState(false)
     const { disconnect } = useDisconnect()
-
-    useEffect(() => setMounted(true), [])
 
     // Reset image error when image changes
     useEffect(() => {
@@ -84,18 +86,27 @@ export function UserMenu() {
     }
 
     // Generate consistent initials and colors based on user identifier
+    // CRITICAL: Always use email (normalized) as primary identifier for consistency
+    // Normalize email to lowercase to ensure same hash regardless of case
+    // Fallback to session email if identity.email is not available (race condition protection)
     const emailFromIdentity = identity.email
     const emailFromSession = session?.user?.email
     const normalizedEmail = (emailFromIdentity || emailFromSession)?.toLowerCase().trim() || null
     const userIdentifier = normalizedEmail || (session?.user as any)?.walletAddress || session?.user?.id || null
 
+    // Always use email for initials - ignore displayName to ensure consistency
+    // If email is not available, fallback to a safe default
     const initials = normalizedEmail
         ? generateInitials(normalizedEmail, null)
         : generateInitials(null, null, identity.address)
 
+    // Use normalized email for color generation to ensure consistency
+    // If no email, use user ID as fallback
     const avatarColors = getAvatarColor(normalizedEmail || userIdentifier)
 
+    // Decide whether to show the OAuth image or our initials
     const isGoogleTile = isLikelyGoogleLetterTile(identity.image || undefined)
+    // Allow overriding tile filtering; default to NOT filtering to avoid false negatives
     const envFilterTiles = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_AVATAR_FILTER_GOOGLE_TILES === 'true'
     let hideTiles = false
     try {
@@ -104,6 +115,7 @@ export function UserMenu() {
         }
     } catch (_) { }
     const shouldFilterTiles = envFilterTiles || hideTiles
+    // Show image whenever available, unless explicitly filtered and detected as a tile
     const showAvatarImage = Boolean(
         identity.image &&
         !imageError &&
@@ -111,7 +123,9 @@ export function UserMenu() {
         (!shouldFilterTiles || !isGoogleTile)
     )
 
+    // Debug: trace avatar inputs/outputs (development only)
     if (debugAvatar || process.env.NODE_ENV === 'development') {
+        // Keep this concise but informative
         // eslint-disable-next-line no-console
         console.log('[DEBUG] Avatar render:', {
             identityEmail: identity.email,
@@ -136,47 +150,6 @@ export function UserMenu() {
     }
 
     const tier = identity.tier || 'free'
-    const isDarkMode = mounted ? resolvedTheme === 'dark' : true
-    const panelClass = `relative w-[320px] max-h-[min(80vh,540px)] overflow-y-auto rounded-2xl border backdrop-blur-xl animate-scale-in ${
-        isDarkMode
-            ? 'border-white/10 bg-[#050a13]/96 text-white shadow-[0_32px_70px_rgba(0,0,0,0.65)] ring-1 ring-brand-500/20'
-            : 'border-slate-200/80 bg-white/95 text-slate-900 shadow-[0_24px_60px_rgba(15,23,42,0.2)] ring-1 ring-white/70'
-    }`
-    const tileClass = `flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
-        isDarkMode ? 'border-white/8 bg-white/5 text-white hover:bg-white/10' : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50'
-    }`
-    const iconClass = `flex h-9 w-9 items-center justify-center rounded-lg ${
-        isDarkMode ? 'bg-white/10 text-white ring-1 ring-white/10' : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'
-    }`
-    const dividerClass = isDarkMode ? 'border-white/10' : 'border-slate-200/80'
-
-    const quickActions = [
-        {
-            label: 'Settings',
-            sub: 'Profile, preferences',
-            icon: Settings,
-            href: '/settings',
-        },
-        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-            ? {
-                label: 'Billing & Subscription',
-                sub: 'Plans, invoices, payment methods',
-                icon: CreditCard,
-                href: '/settings/billing',
-            }
-            : null,
-        {
-            label: 'Email Alerts',
-            sub: 'Manage triggers & delivery',
-            icon: Bell,
-            href: '/alerts',
-        },
-    ].filter(Boolean) as {
-        label: string
-        sub: string
-        icon: typeof Settings
-        href: string
-    }[]
 
     return (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -189,6 +162,14 @@ export function UserMenu() {
                 >
                     <div
                         className={`h-9 w-9 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFrom} ${avatarColors.gradientVia} ${avatarColors.gradientTo} animate-pulse-glow`}
+                        data-vs-avatar=""
+                        data-normalized-email={normalizedEmail || ''}
+                        data-initials={initials}
+                        data-avatar-bg={avatarColors.bg}
+                        data-image-url={identity.image || ''}
+                        data-avatar-mode={avatarMode}
+                        data-is-google-tile={String(isGoogleTile)}
+                        data-show-image={String(showAvatarImage)}
                         title={normalizedEmail ? `Avatar: ${initials} (${normalizedEmail})` : `Avatar: ${initials}`}
                     >
                         <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white shadow-brand`}>
@@ -214,188 +195,197 @@ export function UserMenu() {
                     </div>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="bottom" className={panelClass}>
-                <div className="pointer-events-none absolute inset-x-6 top-0 h-24 rounded-full bg-brand-500/25 blur-[60px]" />
-                <DropdownMenuLabel className={`relative p-4 pb-3 border-b ${isDarkMode ? 'border-white/10 text-white' : 'border-slate-200/80 text-slate-900'}`}>
-                    <div className="flex items-center gap-3">
-                        <div className={`h-11 w-11 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-[0_0_0_4px_rgba(19,255,141,0.18)]`}>
-                            <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
-                                {showAvatarImage ? (
-                                    <div className="relative h-full w-full">
-                                        <Image
-                                            src={identity.image as string}
-                                            alt={identity.displayName}
-                                            fill
-                                            sizes="44px"
-                                            className="object-cover"
-                                            referrerPolicy="no-referrer"
-                                            onError={() => setImageError(true)}
-                                        />
-                                    </div>
-                                ) : (
-                                    <span className="text-[13px] font-bold leading-none select-none font-mono">
-                                        {initials}
-                                    </span>
-                                )}
+            <DropdownMenuContent
+                align="end"
+                className="w-[280px] p-0 backdrop-blur-lg bg-popover/95 border-border/50 shadow-lg-dark dark:shadow-lg-dark animate-scale-in rounded-xl"
+            >
+                {/* User Info Section with Glassmorphism */}
+                <DropdownMenuLabel className="p-4 border-b border-border/50 bg-gradient-to-br from-brand-500/5 to-sec-500/5">
+                    <div className="flex flex-col space-y-3">
+                        <div className="flex items-center gap-3">
+                            {/* Avatar with glow */}
+                            <div className={`h-10 w-10 rounded-full p-[2px] bg-gradient-to-br ${avatarColors.gradientFromBright} ${avatarColors.gradientViaBright} ${avatarColors.gradientToBright} shadow-brand`}>
+                                <div className={`h-full w-full rounded-full overflow-hidden flex items-center justify-center ${avatarColors.bg} text-white`}>
+                                    {showAvatarImage ? (
+                                        <div className="relative h-full w-full">
+                                            <Image
+                                                src={identity.image as string}
+                                                alt={identity.displayName}
+                                                fill
+                                                sizes="40px"
+                                                className="object-cover"
+                                                referrerPolicy="no-referrer"
+                                                onError={() => setImageError(true)}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <span className="text-sm font-bold leading-none select-none font-mono">
+                                            {initials}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                {(() => {
+                                    const cuidLike = (s: string) => /^c[a-z0-9]{20,}$/i.test(s)
+                                    const shortAddr = identity.address ? `${identity.address.slice(0, 6)}...${identity.address.slice(-4)}` : null
+                                    const primaryCandidate = shortAddr || identity.email || identity.displayName || 'User'
+                                    const primary = cuidLike(primaryCandidate) ? (shortAddr || identity.email || 'User') : primaryCandidate
+                                    const secondary = identity.email && identity.email !== primary ? identity.email : null
+                                    return (
+                                        <>
+                                            <p className="text-sm font-semibold truncate text-foreground">{primary}</p>
+                                            {secondary ? (
+                                                <p className="text-xs text-muted-foreground truncate">{secondary}</p>
+                                            ) : null}
+                                        </>
+                                    )
+                                })()}
                             </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            {(() => {
-                                const cuidLike = (s: string) => /^c[a-z0-9]{20,}$/i.test(s)
-                                const shortAddr = identity.address ? `${identity.address.slice(0, 6)}...${identity.address.slice(-4)}` : null
-                                const primaryCandidate = shortAddr || identity.email || identity.displayName || 'User'
-                                const primary = cuidLike(primaryCandidate) ? (shortAddr || identity.email || 'User') : primaryCandidate
-                                const secondary = identity.email && identity.email !== primary ? identity.email : null
-                                return (
-                                    <>
-                                        <p className={`text-sm font-semibold truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{primary}</p>
-                                        {secondary ? (
-                                            <p className={`text-xs truncate ${isDarkMode ? 'text-white/70' : 'text-slate-600'}`}>{secondary}</p>
-                                        ) : null}
-                                    </>
-                                )
-                            })()}
-                            <div className="mt-2 flex items-center gap-2">
-                                <Badge
-                                    variant="default"
-                                    className={`text-[11px] font-semibold px-3 py-1 rounded-full border-0 shadow-[0_10px_30px_rgba(0,0,0,0.25)] ${tier === 'pro'
-                                        ? 'bg-sec-600 text-white'
+
+                        {/* Tier Badge with icon */}
+                        <div className="flex items-center justify-between">
+                            <Badge
+                                variant="default"
+                                className={`text-xs font-semibold px-2.5 py-1 transition-all duration-150 ${tier === 'pro'
+                                        ? 'bg-sec-600 dark:bg-sec-500 text-white border-0 shadow-sec'
                                         : tier === 'elite'
-                                            ? 'bg-elite-600 text-white'
-                                            : isDarkMode
-                                                ? 'bg-white/10 text-white'
-                                                : 'bg-slate-100 text-slate-800'
-                                        }`}
-                                >
-                                    {tier === 'free' && <Zap className="h-3 w-3 mr-1 inline" />}
-                                    {tier === 'pro' && <Star className="h-3 w-3 mr-1 inline" />}
-                                    {tier === 'elite' && <Sparkles className="h-3 w-3 mr-1 inline" />}
-                                    {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
+                                            ? 'bg-elite-600 dark:bg-elite-500 text-white border-0 shadow-sm'
+                                            : 'bg-gray-600 dark:bg-gray-500 text-white border-0'
+                                    }`}
+                            >
+                                {tier === 'free' && <Zap className="h-3 w-3 mr-1 inline" />}
+                                {tier === 'pro' && <Star className="h-3 w-3 mr-1 inline" />}
+                                {tier === 'elite' && <Sparkles className="h-3 w-3 mr-1 inline" />}
+                                {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
+                            </Badge>
+                            {identity.role === 'ADMIN' && (
+                                <Badge variant="outline" className="text-xs border-danger-500/50 text-danger-600 dark:text-danger-400 dark:border-danger-400/50">
+                                    Admin
                                 </Badge>
-                                {identity.role === 'ADMIN' && (
-                                    <Badge
-                                        variant="outline"
-                                        className={`rounded-full text-[11px] ${isDarkMode ? 'border-blue-400/60 bg-blue-500/10 text-blue-100' : 'border-blue-200 bg-blue-50 text-blue-700'}`}
-                                    >
-                                        Admin
-                                    </Badge>
-                                )}
+                            )}
+                        </div>
+
+                        {/* Wallet address if available */}
+                        {identity.address && (
+                            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border/50">
+                                <Wallet className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs font-mono text-muted-foreground font-mono-tabular">
+                                    {(identity.walletProvider === 'solana' ? 'SOL' : 'ETH')} · {identity.address.slice(0, 6)}...{identity.address.slice(-4)}
+                                </span>
                             </div>
-                        </div>
+                        )}
                     </div>
-                    {identity.address && (
-                        <div
-                            className={`mt-3 flex items-center gap-2 rounded-lg px-3 py-2 text-[11px] font-mono font-mono-tabular ${
-                                isDarkMode ? 'bg-white/5 text-white/80 ring-1 ring-white/10' : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'
-                            }`}
-                        >
-                            <Wallet className={`h-3.5 w-3.5 ${isDarkMode ? 'text-white/70' : 'text-slate-500'}`} />
-                            <span>
-                                {(identity.walletProvider === 'solana' ? 'SOL' : 'ETH')} · {identity.address.slice(0, 6)}...{identity.address.slice(-4)}
-                            </span>
-                        </div>
-                    )}
                 </DropdownMenuLabel>
 
-                <div className="px-3 py-3 space-y-2">
-                    {quickActions.map((item) => (
-                        <DropdownMenuItem
-                            key={item.label}
-                            onClick={() => {
-                                router.push(item.href)
-                                setIsOpen(false)
-                            }}
-                            className={tileClass}
-                        >
-                            <span className={iconClass}>
-                                <item.icon className="h-4 w-4" />
-                            </span>
-                            <div className="flex-1 text-left">
-                                <p className="font-semibold">{item.label}</p>
-                                <p className={`text-[11px] ${isDarkMode ? 'text-white/70' : 'text-slate-500'}`}>{item.sub}</p>
-                            </div>
-                        </DropdownMenuItem>
-                    ))}
+                {/* Quick Actions Section */}
+                <div className="py-1">
+                    <DropdownMenuItem
+                        onClick={() => {
+                            router.push('/settings')
+                            setIsOpen(false)
+                        }}
+                        className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
+                    >
+                        <Settings className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                        <span className="flex-1">Settings</span>
+                    </DropdownMenuItem>
 
+                    {/* Admin Panel - Only visible to admins */}
                     {identity.role === 'ADMIN' && (
+                        <>
+                            <DropdownMenuSeparator className="my-1 mx-2" />
+                            <DropdownMenuItem
+                                onClick={() => {
+                                    router.push('/admin')
+                                    setIsOpen(false)
+                                }}
+                                className="mx-2 my-0.5 rounded-lg transition-all duration-150 bg-gradient-to-r from-blue-500/10 to-purple-500/10 hover:from-blue-500/20 hover:to-purple-500/20 border border-blue-500/20 dark:border-blue-400/20 focus:bg-blue-500/20 dark:focus:bg-blue-500/20 group"
+                            >
+                                <Shield className="h-4 w-4 mr-2.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-150" />
+                                <span className="flex-1 font-semibold text-blue-700 dark:text-blue-300">Admin Panel</span>
+                                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] border-blue-500/30 text-blue-600 dark:text-blue-400 dark:border-blue-400/30">
+                                    ADMIN
+                                </Badge>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="my-1 mx-2" />
+                        </>
+                    )}
+
+                    {process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && (
                         <DropdownMenuItem
                             onClick={() => {
-                                router.push('/admin')
+                                router.push('/settings/billing')
                                 setIsOpen(false)
                             }}
-                            className={`${tileClass} ${
-                                isDarkMode
-                                    ? 'bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-purple-500/15 border-blue-400/30'
-                                    : 'bg-gradient-to-r from-blue-100 via-blue-50 to-purple-50 border-blue-200'
-                            }`}
+                            className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
                         >
-                            <span className={iconClass}>
-                                <Shield className="h-4 w-4" />
-                            </span>
-                            <div className="flex-1 text-left">
-                                <p className="font-semibold">Admin Panel</p>
-                                <p className={`text-[11px] ${isDarkMode ? 'text-white/70' : 'text-blue-700'}`}>Dashboard & controls</p>
-                            </div>
-                            <Badge
-                                variant="outline"
-                                className={`h-5 px-1.5 text-[10px] ${
-                                    isDarkMode ? 'border-blue-400/40 text-blue-50 bg-blue-500/20' : 'border-blue-200 text-blue-700 bg-blue-100'
-                                }`}
-                            >
-                                ADMIN
-                            </Badge>
+                            <CreditCard className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                            <span className="flex-1">Billing & Subscription</span>
                         </DropdownMenuItem>
                     )}
 
-                    <DropdownMenuSeparator className={`my-2 ${dividerClass}`} />
+                    <DropdownMenuItem
+                        onClick={() => {
+                            router.push('/alerts')
+                            setIsOpen(false)
+                        }}
+                        className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
+                    >
+                        <Bell className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                        <span className="flex-1">Email Alerts</span>
+                    </DropdownMenuItem>
+                </div>
 
+                <DropdownMenuSeparator className="my-1" />
+
+                {/* Copy Actions */}
+                <div className="py-1">
                     {identity.email && (
                         <DropdownMenuItem
                             onClick={() => handleCopy(identity.email!, 'Email')}
-                            className={tileClass}
+                            className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
                         >
-                            <span className={iconClass}>
-                                <Copy className="h-4 w-4" />
-                            </span>
-                            <div className="flex-1 text-left">
-                                <p className="font-semibold">Copy email</p>
-                                <p className={`text-[11px] ${isDarkMode ? 'text-white/70' : 'text-slate-500'}`}>Use for support or invoices</p>
-                            </div>
+                            <Copy className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                            <span className="flex-1">Copy email</span>
                         </DropdownMenuItem>
                     )}
                     {identity.address && (
                         <DropdownMenuItem
                             onClick={() => handleCopy(identity.address!, 'Address')}
-                            className={tileClass}
+                            className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
                         >
-                            <span className={iconClass}>
-                                <Wallet className="h-4 w-4" />
-                            </span>
-                            <div className="flex-1 text-left">
-                                <p className="font-semibold">Copy address</p>
-                                <p className={`text-[11px] ${isDarkMode ? 'text-white/70' : 'text-slate-500'}`}>Wallet on file</p>
-                            </div>
+                            <Wallet className="h-4 w-4 mr-2.5 text-muted-foreground" />
+                            <span className="flex-1">Copy address</span>
                         </DropdownMenuItem>
                     )}
+                </div>
 
-                    {tier === 'free' && (
-                        <div className="pt-2">
+                {/* Upgrade CTA for Free Tier */}
+                {tier === 'free' && (
+                    <>
+                        <DropdownMenuSeparator className="my-1" />
+                        <div className="p-2">
                             <Button
                                 onClick={() => {
                                     router.push('/pricing')
                                     setIsOpen(false)
                                 }}
                                 size="sm"
-                                className="w-full h-11 rounded-xl bg-gradient-to-r from-brand-500 via-emerald-500 to-sec-600 text-white shadow-[0_18px_40px_rgba(16,185,129,0.35)] hover:from-brand-600 hover:via-emerald-600 hover:to-sec-700"
+                                className="w-full bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-brand transition-all duration-200"
                             >
                                 <Sparkles className="h-4 w-4 mr-2" />
                                 Upgrade to Pro
                             </Button>
                         </div>
-                    )}
+                    </>
+                )}
 
-                    <DropdownMenuSeparator className={`my-2 ${dividerClass}`} />
+                <DropdownMenuSeparator className="my-1" />
 
+                {/* Sign Out */}
+                <div className="p-2">
                     <DropdownMenuItem
                         onClick={() => {
                             try { disconnect() } catch (_) { }
@@ -412,12 +402,10 @@ export function UserMenu() {
                             } catch (_) { }
                             signOut({ callbackUrl: '/' })
                         }}
-                        className="flex items-center gap-3 rounded-xl bg-danger-500/10 px-3 py-2.5 text-base font-semibold text-danger-500 transition hover:bg-danger-500/20 focus:bg-danger-500/20"
+                        className="rounded-lg text-danger-600 dark:text-danger-400 focus:text-danger-600 dark:focus:text-danger-400 focus:bg-danger-500/10 transition-all duration-150"
                     >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-danger-500/20 text-danger-500 ring-1 ring-danger-500/30">
-                            <LogOut className="h-4 w-4" />
-                        </span>
-                        <span className="flex-1">Sign Out</span>
+                        <LogOut className="h-4 w-4 mr-2.5" />
+                        <span className="flex-1 font-medium">Sign Out</span>
                     </DropdownMenuItem>
                 </div>
             </DropdownMenuContent>
