@@ -57,7 +57,8 @@ export interface AssetManifestEntry {
     description?: string | null
     websiteUrl?: string | null
     twitterUrl?: string | null
-    logoUrl?: string | null
+    logoUrl?: string | null // Base64 data URL (backward compatibility)
+    logoImageUrl?: string | null // CoinGecko image URL (preferred - browser caches it)
     status?: AssetStatus
     isComplete?: boolean
     updatedAt?: string
