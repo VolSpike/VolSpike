@@ -198,6 +198,20 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             console.log(`[buildSnapshot] ✅ Found ${watchlistItems.length} watchlist symbols in WebSocket:`, foundWatchlistSymbols);
         }
         
+        // Debug: Verify separation worked correctly (ALWAYS log, not just in development)
+        if (normalizedWatchlistSymbols.length > 0) {
+            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
+            const duplicatesInOther = otherItems.filter(item => 
+                watchlistSymbolSet.has(normalizeSym(item.symbol))
+            );
+            if (duplicatesInOther.length > 0) {
+                console.error(`[buildSnapshot] ❌ SEPARATION BUG: Found ${duplicatesInOther.length} watchlist symbols in otherItems:`, 
+                    duplicatesInOther.map(item => item.symbol));
+            } else {
+                console.log(`[buildSnapshot] ✅ Separation correct: ${watchlistItems.length} watchlist items, ${otherItems.length} other items, 0 duplicates in otherItems`);
+            }
+        }
+        
         // Apply tier-based limits to non-watchlist items only
         const tierLimits = {
             free: 50,
