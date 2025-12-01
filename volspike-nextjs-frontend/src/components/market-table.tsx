@@ -1171,7 +1171,9 @@ export function MarketTable({
                                                 >
                                                             <Star
                                                                 className={`h-3.5 w-3.5 ${
-                                                                    isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
+                                                                    isSymbolInWatchlist(item.symbol) 
+                                                                        ? 'fill-current' 
+                                                                        : 'opacity-30 md:opacity-100 text-muted-foreground/40 md:text-foreground'
                                                                 }`}
                                                             />
                                                 </Button>
@@ -1186,7 +1188,7 @@ export function MarketTable({
                                                     onClick={(e) => handleCreateAlert(e, item)}
                                                     title="Create alert"
                                                 >
-                                                    <Bell className="h-3.5 w-3.5" />
+                                                    <Bell className="h-3.5 w-3.5 opacity-30 md:opacity-100 text-muted-foreground/40 md:text-foreground" />
                                                 </Button>
                                                 </div>
                                             </div>
