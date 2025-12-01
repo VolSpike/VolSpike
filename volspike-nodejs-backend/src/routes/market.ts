@@ -360,18 +360,28 @@ market.get('/watchlist/:id', async (c) => {
 
         // Fetch market data for each symbol individually
         // This allows symbols outside tier's normal visibility to be displayed
+        // Pass skipVolumeFilter=true to ensure watchlist symbols are shown even with low volume
         const symbolDataPromises = symbols.map(async (symbol) => {
             try {
-                const data = await getMarketData(symbol)
+                logger.debug(`[Watchlist Market Data] Fetching data for symbol: ${symbol}`)
+                const data = await getMarketData(symbol, true) // Skip volume filter for watchlist symbols
                 // getMarketData returns MarketData | MarketData[] | null
                 // When called with a symbol, it returns MarketData | null
                 if (data && typeof data === 'object' && 'symbol' in data && !Array.isArray(data)) {
+                    logger.debug(`[Watchlist Market Data] Successfully fetched data for ${symbol}`)
                     return data as MarketData
                 }
-                logger.warn(`Invalid data format returned for symbol ${symbol}`)
+                logger.warn(`[Watchlist Market Data] Invalid data format returned for symbol ${symbol}:`, {
+                    dataType: typeof data,
+                    isArray: Array.isArray(data),
+                    hasSymbol: data && typeof data === 'object' && 'symbol' in data,
+                })
                 return null
-            } catch (error) {
-                logger.warn(`Failed to fetch data for symbol ${symbol}:`, error)
+            } catch (error: any) {
+                logger.warn(`[Watchlist Market Data] Failed to fetch data for symbol ${symbol}:`, {
+                    error: error.message,
+                    stack: error.stack,
+                })
                 return null // Return null for failed fetches
             }
         })

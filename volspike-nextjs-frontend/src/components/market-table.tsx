@@ -102,13 +102,14 @@ export function MarketTable({
     const [watchlistsForRemoval, setWatchlistsForRemoval] = useState<Array<{ id: string; name: string }>>([])
 
     // Fetch watchlist market data if a watchlist is selected
-    const { data: watchlistMarketData } = useQuery<MarketData[]>({
+    const { data: watchlistMarketData, error: watchlistError } = useQuery<MarketData[]>({
         queryKey: ['watchlist-market-data', selectedWatchlistId],
         queryFn: async () => {
             if (!selectedWatchlistId) return []
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
             // Get auth token for API requests
             const token = session?.accessToken || session?.user?.id || ''
+            console.log(`[MarketTable] Fetching watchlist market data for watchlist ${selectedWatchlistId}`)
             const response = await fetch(`${API_URL}/api/market/watchlist/${selectedWatchlistId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -116,9 +117,21 @@ export function MarketTable({
                 credentials: 'include',
             })
             if (!response.ok) {
-                throw new Error('Failed to fetch watchlist market data')
+                const errorText = await response.text()
+                console.error(`[MarketTable] Failed to fetch watchlist market data:`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    error: errorText,
+                })
+                throw new Error(`Failed to fetch watchlist market data: ${response.status} ${response.statusText}`)
             }
             const result = await response.json()
+            console.log(`[MarketTable] Received watchlist market data:`, {
+                watchlistId: result.watchlistId,
+                watchlistName: result.watchlistName,
+                symbolCount: result.symbols?.length || 0,
+                symbols: result.symbols?.map((s: MarketData) => s.symbol) || [],
+            })
             return result.symbols || []
         },
         enabled: !!selectedWatchlistId && !!session?.user,
