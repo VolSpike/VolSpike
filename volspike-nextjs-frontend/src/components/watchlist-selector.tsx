@@ -25,9 +25,11 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
     watchlists,
     limits,
     createWatchlist,
+    createWatchlistAsync,
     updateWatchlist,
     deleteWatchlist,
     addSymbol,
+    addSymbolAsync,
     isCreating,
     isUpdating,
     isDeleting,
@@ -51,31 +53,54 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
     }
 
     const watchlistName = newWatchlistName.trim()
+    const symbolToAdd = symbol // Store symbol before clearing state
     setNewWatchlistName('')
     setShowCreateForm(false)
 
     try {
-      // Create watchlist and wait for it to complete
+      // Create watchlist - use a promise-based approach
+      // We'll wait for the mutation to complete via React Query's invalidation
       createWatchlist(watchlistName)
       
-      // If symbol provided, wait a moment for watchlist to be created, then add symbol
-      if (symbol) {
-        // Wait for watchlists to refresh, then find the new one and add symbol
+      // If symbol provided, wait for watchlist to be created and then add symbol
+      if (symbolToAdd) {
+        // Use a longer timeout to ensure watchlist is created and query is refreshed
         setTimeout(async () => {
-          // Find the newly created watchlist (should be first in list)
-          const newWatchlist = watchlists.find(w => w.name === watchlistName) || watchlists[0]
+          // Wait a bit more for React Query to refresh the watchlists
+          await new Promise(resolve => setTimeout(resolve, 300))
+          
+          // Find the newly created watchlist by name (most reliable)
+          const newWatchlist = watchlists.find(w => w.name === watchlistName)
+          
           if (newWatchlist) {
             try {
-              await addSymbol({ watchlistId: newWatchlist.id, symbol })
+              await addSymbol({ watchlistId: newWatchlist.id, symbol: symbolToAdd })
               if (onWatchlistSelected) {
                 onWatchlistSelected(newWatchlist.id)
               }
               onOpenChange(false)
             } catch (error) {
-              // Error already handled by hook
+              // Error already handled by hook - don't show additional error
+              console.error('Failed to add symbol to newly created watchlist:', error)
             }
+          } else {
+            // Watchlist not found yet - try again after a bit more delay
+            setTimeout(async () => {
+              const retryWatchlist = watchlists.find(w => w.name === watchlistName) || watchlists[0]
+              if (retryWatchlist) {
+                try {
+                  await addSymbol({ watchlistId: retryWatchlist.id, symbol: symbolToAdd })
+                  if (onWatchlistSelected) {
+                    onWatchlistSelected(retryWatchlist.id)
+                  }
+                  onOpenChange(false)
+                } catch (error) {
+                  console.error('Failed to add symbol on retry:', error)
+                }
+              }
+            }, 500)
           }
-        }, 500)
+        }, 800) // Increased timeout to ensure watchlist is created
       }
     } catch (error) {
       // Error already handled by hook
@@ -122,13 +147,15 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const handleSelectWatchlist = async (watchlistId: string) => {
     if (symbol) {
       try {
-        await addSymbol({ watchlistId, symbol })
+        // Use mutateAsync to properly await the result
+        await addSymbolAsync({ watchlistId, symbol })
         if (onWatchlistSelected) {
           onWatchlistSelected(watchlistId)
         }
         onOpenChange(false)
       } catch (error) {
-        // Error already handled by hook
+        // Error already handled by hook's onError callback
+        // Don't show additional error - the hook will show it
       }
     } else {
       if (onWatchlistSelected) {
