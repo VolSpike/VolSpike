@@ -41,15 +41,7 @@ export function Dashboard() {
         return window.innerWidth < 1280 ? 'alerts' : 'market'
     })
 
-    // Session status tracking (removed debug logs)
-    if (process.env.NODE_ENV !== 'production') {
-        // Debug logs removed per user request
-        if (session?.user) {
-            // User session available
-                role: (session.user as any).role
-            })
-        }
-    }
+    // Session status tracking (debug logs removed per user request)
 
     // Determine user tier
     const userTier = session?.user?.tier || 'free'
