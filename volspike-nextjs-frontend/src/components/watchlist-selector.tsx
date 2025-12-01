@@ -284,7 +284,7 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                     </div>
                   ) : (
                     <>
-                      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 w-full">
+                      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2 md:gap-3 w-full">
                         {/* Name and symbol count section */}
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -298,42 +298,42 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                           </div>
                         </div>
                         {/* Edit/Delete icons - positioned just left of button column */}
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7"
+                            className="h-7 w-7 md:h-8 md:w-8"
                             onClick={() => handleStartEdit(watchlist)}
                             title="Rename watchlist"
                           >
-                            <Edit2 className="h-3.5 w-3.5" />
+                            <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           </Button>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            className="h-7 w-7 md:h-8 md:w-8 text-destructive hover:text-destructive"
                             onClick={() => handleDeleteWatchlist(watchlist.id)}
                             disabled={isDeleting}
                             title="Delete watchlist"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                           </Button>
                         </div>
                         {/* Add/Remove button - fixed width column to ensure alignment */}
                         {symbol ? (
-                          <div className="flex-shrink-0 w-[140px]">
+                          <div className="flex-shrink-0 w-[150px] md:w-[165px]">
                             <Button
                               size="sm"
                               onClick={() => handleSelectWatchlist(watchlist.id)}
                               disabled={isAddingSymbol || isRemovingSymbol}
                               variant={effectiveExistingWatchlistIds.includes(watchlist.id) ? 'destructive' : 'default'}
-                              className="w-full"
+                              className="w-full px-3 md:px-4 text-xs md:text-sm whitespace-nowrap"
                             >
                               {effectiveExistingWatchlistIds.includes(watchlist.id) ? `Remove ${symbol}` : `Add ${symbol}`}
                             </Button>
                           </div>
                         ) : (
-                          <div className="w-[140px]"></div>
+                          <div className="w-[150px] md:w-[165px]"></div>
                         )}
                       </div>
                     </>
