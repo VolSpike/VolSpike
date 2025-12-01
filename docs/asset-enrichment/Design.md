@@ -1,5 +1,7 @@
 # Asset Enrichment System - Design Document
 
+> **⚠️ IMPORTANT**: See [MANIFEST_CACHE_TROUBLESHOOTING.md](./MANIFEST_CACHE_TROUBLESHOOTING.md) for troubleshooting guide and post-mortem analysis of cache issues.
+
 ## Architecture Overview
 
 The Asset Enrichment System follows a **backend-driven, frontend-cached** architecture where:
