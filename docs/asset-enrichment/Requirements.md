@@ -1,5 +1,7 @@
 # Asset Enrichment System - Requirements
 
+> **⚠️ IMPORTANT**: See [MANIFEST_CACHE_TROUBLESHOOTING.md](./MANIFEST_CACHE_TROUBLESHOOTING.md) for troubleshooting guide and post-mortem analysis of cache issues.
+
 ## Overview
 The Asset Enrichment System ensures that when users click on a symbol row in the Market Data table, a slide-out card displays complete, accurate asset information (image, description, website, Twitter/X, TradingView link) sourced from CoinGecko. The system must automatically detect new Binance perpetual assets, fetch their metadata, store it efficiently, and keep it up-to-date while respecting CoinGecko API rate limits.
 
