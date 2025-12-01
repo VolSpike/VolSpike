@@ -107,22 +107,16 @@ const normalizeRecord = (record: AssetRecord): AssetRecord => {
 const readCachedManifest = (): AssetRecord[] | null => {
     // Always return memory cache if available (even if stale) - it's better than nothing
     if (manifestMemory) {
-        console.log(`[readCachedManifest] Using memory cache (${manifestMemory.length} assets, stale=${manifestMemoryIsStale})`)
         return manifestMemory
     }
     
     if (typeof window === 'undefined') return null
     try {
         const raw = localStorage.getItem(MANIFEST_CACHE_KEY)
-        if (!raw) {
-            console.log('[readCachedManifest] No localStorage cache found')
-            return null
-        }
+        if (!raw) return null
+        
         const parsed = JSON.parse(raw) as { assets?: AssetRecord[]; timestamp?: number }
-        if (!parsed?.assets || !parsed.timestamp) {
-            console.log('[readCachedManifest] Invalid cache format')
-            return null
-        }
+        if (!parsed?.assets || !parsed.timestamp) return null
         
         const age = Date.now() - parsed.timestamp
         const isStale = age > MANIFEST_TTL_MS
@@ -130,13 +124,10 @@ const readCachedManifest = (): AssetRecord[] | null => {
         manifestMemory = parsed.assets.map(normalizeRecord)
         manifestMemoryIsStale = isStale
         
-        console.log(`[readCachedManifest] Loaded from localStorage (${manifestMemory.length} assets, age=${Math.round(age / 1000 / 60)}min, stale=${isStale})`)
-        
         // Always return cached data, even if stale - it's better than nothing
         // Background refresh will update it
         return manifestMemory
     } catch (error) {
-        console.error('[readCachedManifest] Failed to read cache:', error)
         return null
     }
 }
@@ -257,11 +248,8 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     // This ensures instant asset card display - background refresh will update it
     const cached = readCachedManifest()
     if (cached) {
-        console.log(`[loadAssetManifest] Returning cached manifest immediately (${cached.length} assets, stale=${manifestMemoryIsStale})`)
-        
         // If cache is stale, refresh in background (non-blocking)
         if (manifestMemoryIsStale && !manifestPromise) {
-            console.log('[loadAssetManifest] Cache is stale, refreshing in background...')
             manifestPromise = (async () => {
                 try {
                     const assets = await fetchManifestFromApi()
@@ -269,7 +257,6 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
                     manifestMemoryIsStale = false
                     return assets
                 } catch (error) {
-                    console.error('[loadAssetManifest] Background refresh failed:', error)
                     logDebug('Manifest fetch failed, using static seed', error)
                     const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
                     writeManifestCache(assets)
@@ -284,8 +271,7 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
         return cached
     }
 
-    // No cache - must fetch from API
-    console.log('[loadAssetManifest] No cache, fetching from API...')
+    // No cache - must fetch from backend API (which reads from database)
     if (!manifestPromise) {
         manifestPromise = (async () => {
             try {
@@ -294,7 +280,6 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
                 manifestMemoryIsStale = false
                 return assets
             } catch (error) {
-                console.error('[loadAssetManifest] API fetch failed:', error)
                 logDebug('Manifest fetch failed, using static seed', error)
                 const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
                 writeManifestCache(assets)

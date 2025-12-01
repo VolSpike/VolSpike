@@ -89,17 +89,13 @@ export function Dashboard() {
     // Automatically detect new assets from Market Data (runs in background)
     useAssetDetection(marketData)
 
-    // Load asset manifest immediately on dashboard mount for instant asset card display
+    // Preload asset manifest on dashboard mount
+    // Manifest is already preloaded from localStorage on module load, so this just ensures
+    // fresh data is fetched from backend if cache is stale
     useEffect(() => {
-        // Load manifest immediately - this will use cached data instantly if available
-        // and refresh in background if stale
-        loadAssetManifest()
-            .then((manifest) => {
-                console.log(`[Dashboard] Manifest ready: ${manifest.length} assets`)
-            })
-            .catch((err) => {
-                console.error('[Dashboard] Failed to load asset manifest:', err)
-            })
+        loadAssetManifest().catch(() => {
+            // Silently handle errors - manifest will retry on next access
+        })
     }, [])
 
     useEffect(() => {
