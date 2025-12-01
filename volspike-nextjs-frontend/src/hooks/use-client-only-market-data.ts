@@ -43,9 +43,10 @@ interface MarketData {
 interface UseClientOnlyMarketDataProps {
     tier: 'elite' | 'pro' | 'free';
     onDataUpdate?: (data: MarketData[]) => void;
+    watchlistSymbols?: string[]; // Symbols to always include, bypassing tier limits
 }
 
-export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMarketDataProps) {
+export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols = [] }: UseClientOnlyMarketDataProps) {
     const [data, setData] = useState<MarketData[]>([]);
     const [status, setStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'error'>('connecting');
     const [lastUpdate, setLastUpdate] = useState<number>(0);
@@ -128,16 +129,43 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
         // Sort by volume (highest to lowest)
         out.sort((a, b) => b.volume24h - a.volume24h);
         
-        // Apply tier-based limits
+        // Normalize watchlist symbols for matching (always include these, bypassing tier limits)
+        const normalizedWatchlistSymbols = watchlistSymbols.map(s => normalizeSym(s));
+        
+        // Separate watchlist symbols from others
+        const watchlistItems: MarketData[] = [];
+        const otherItems: MarketData[] = [];
+        
+        for (const item of out) {
+            const normalizedSym = normalizeSym(item.symbol);
+            if (normalizedWatchlistSymbols.includes(normalizedSym)) {
+                watchlistItems.push(item);
+            } else {
+                otherItems.push(item);
+            }
+        }
+        
+        // Apply tier-based limits to non-watchlist items only
         const tierLimits = {
             free: 50,
             pro: 100,
-            elite: out.length // Elite gets all symbols
+            elite: otherItems.length // Elite gets all symbols
         };
-        
         const limit = tierLimits[tier as keyof typeof tierLimits] || 50;
-        return out.slice(0, limit);
-    }, [tier, normalizeSym]);
+        const limitedOtherItems = otherItems.slice(0, limit);
+        
+        // Combine: watchlist items first (always included), then limited other items
+        // Remove duplicates (in case a watchlist symbol is also in top N)
+        const combined = [...watchlistItems];
+        const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
+        for (const item of limitedOtherItems) {
+            if (!watchlistSymbolSet.has(normalizeSym(item.symbol))) {
+                combined.push(item);
+            }
+        }
+        
+        return combined;
+    }, [tier, normalizeSym, watchlistSymbols]);
 
     const render = useCallback((snapshot: MarketData[]) => {
         setData(snapshot);

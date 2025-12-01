@@ -59,7 +59,12 @@ export function Dashboard() {
         }
     }, [])
 
+    // Track selected watchlist to pass symbols to hook
+    const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(null)
+    const [watchlistSymbols, setWatchlistSymbols] = useState<string[]>([])
+    
     // Use client-only market data (no API calls, no Redis)
+    // Pass watchlist symbols so they're included even if outside tier limits
     const {
         data: marketData,
         lastUpdate,
@@ -71,8 +76,15 @@ export function Dashboard() {
         openInterestAsOf
     } = useClientOnlyMarketData({
         tier: userTier as 'elite' | 'pro' | 'free',
-        onDataUpdate: handleDataUpdate
+        onDataUpdate: handleDataUpdate,
+        watchlistSymbols: watchlistSymbols
     })
+    
+    // Handle watchlist filter change from MarketTable
+    const handleWatchlistFilterChange = useCallback((watchlistId: string | null, symbols?: string[]) => {
+        setSelectedWatchlistId(watchlistId)
+        setWatchlistSymbols(symbols || [])
+    }, [])
 
     // Automatically detect new assets from Market Data (runs in background)
     useAssetDetection(marketData)
@@ -181,6 +193,8 @@ export function Dashboard() {
                         onCreateAlert={handleCreateAlert}
                         guestMode={isGuest}
                         guestVisibleRows={5}
+                        watchlistFilterId={selectedWatchlistId}
+                        onWatchlistFilterChange={handleWatchlistFilterChange}
                     />
                 )}
             </CardContent>

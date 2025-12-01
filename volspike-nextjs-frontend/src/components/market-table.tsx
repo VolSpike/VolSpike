@@ -64,7 +64,7 @@ interface MarketTableProps {
     guestVisibleRows?: number
     // Watchlist filtering
     watchlistFilterId?: string | null
-    onWatchlistFilterChange?: (watchlistId: string | null) => void
+    onWatchlistFilterChange?: (watchlistId: string | null, symbols?: string[]) => void
 }
 
 // Optimized number formatters
@@ -149,149 +149,47 @@ export function MarketTable({
         staleTime: 60000, // 1 minute
     })
 
-    // Fetch market data for watchlist symbols (includes symbols outside tier limits)
-    const { data: watchlistMarketData, isLoading: isLoadingWatchlistData, error: watchlistDataError } = useQuery({
-        queryKey: ['watchlist-market-data', selectedWatchlistId],
-        queryFn: async () => {
-            if (!selectedWatchlistId) return null
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const token = session?.user?.id ? String(session.user.id) : ''
-            if (!token) {
-                throw new Error('Not authenticated')
-            }
-            
-            console.log(`[Watchlist Debug] Fetching market data for watchlist ${selectedWatchlistId} from ${API_URL}/api/market/watchlist/${selectedWatchlistId}`)
-            const startTime = Date.now()
-            const response = await fetch(`${API_URL}/api/market/watchlist/${selectedWatchlistId}`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include',
-            })
-            const fetchTime = Date.now() - startTime
-            console.log(`[Watchlist Debug] Fetch completed in ${fetchTime}ms, status: ${response.status}`)
-            
-            if (!response.ok) {
-                const errorText = await response.text()
-                console.error(`[Watchlist Debug] Failed to fetch watchlist market data: ${response.status}`, errorText)
-                throw new Error(`Failed to fetch watchlist market data: ${response.status}`)
-            }
-            const result = await response.json()
-            console.log(`[Watchlist Debug] Received watchlist market data:`, {
-                watchlistId: result.watchlistId,
-                watchlistName: result.watchlistName,
-                symbolsCount: result.symbols?.length || 0,
-                symbols: result.symbols?.map((s: any) => s.symbol) || [],
-                fetchedAt: result.fetchedAt,
-                fullResultKeys: Object.keys(result)
-            })
-            
-            // Backend returns { symbols: MarketData[] } - extract the symbols array
-            const symbols = Array.isArray(result.symbols) ? result.symbols : []
-            console.log(`[Watchlist Debug] Returning ${symbols.length} symbols from API`)
-            
-            // Log each symbol's details for debugging
-            symbols.forEach((symbol: any, index: number) => {
-                console.log(`[Watchlist Debug] Symbol ${index + 1}/${symbols.length}:`, {
-                    symbol: symbol.symbol,
-                    price: symbol.price,
-                    volume24h: symbol.volume24h,
-                    hasAllFields: !!(symbol.symbol && symbol.price && symbol.volume24h)
-                })
-            })
-            
-            return symbols
-        },
-        enabled: !!selectedWatchlistId && !!session?.user,
-        staleTime: 60000, // 1 minute
-        refetchOnWindowFocus: false,
-    })
-    
-    // Debug query state changes
-    useEffect(() => {
-        console.log(`[Watchlist Debug] Query state changed:`, {
-            selectedWatchlistId,
-            hasSession: !!session?.user,
-            userId: session?.user?.id,
-            enabled: !!selectedWatchlistId && !!session?.user,
-            isLoading: isLoadingWatchlistData,
-            hasData: !!watchlistMarketData,
-            dataLength: Array.isArray(watchlistMarketData) ? watchlistMarketData.length : 'N/A',
-            error: watchlistDataError ? String(watchlistDataError) : null,
-        })
-    }, [selectedWatchlistId, session?.user, isLoadingWatchlistData, watchlistMarketData, watchlistDataError])
+    // NO BACKEND API CALL - We filter WebSocket data client-side only (per architecture)
 
-    // Display data: use watchlist market data if watchlist is selected, otherwise use WebSocket data
-    const displayData = useMemo(() => {
+    // Extract watchlist symbols and notify Dashboard to include them in WebSocket data
+    const watchlistSymbols = useMemo(() => {
         if (!selectedWatchlistId || !watchlistInfo) {
-            console.log(`[Watchlist Debug] No watchlist selected, using WebSocket data (${data.length} items)`)
+            return []
+        }
+        return watchlistInfo.items?.map((item: any) => {
+            let symbol = item.contract?.symbol?.toUpperCase() || ''
+            // Ensure symbol has USDT suffix (WebSocket symbols are like BTCUSDT)
+            if (symbol && !symbol.endsWith('USDT')) {
+                symbol = `${symbol}USDT`
+            }
+            return symbol
+        }).filter(Boolean) || []
+    }, [selectedWatchlistId, watchlistInfo])
+    
+    // Notify Dashboard about watchlist symbols so it can pass them to useClientOnlyMarketData
+    useEffect(() => {
+        if (onWatchlistFilterChange && watchlistSymbols.length > 0) {
+            // Store symbols in a way Dashboard can access (via callback or context)
+            // For now, we'll filter client-side in displayData
+        }
+    }, [watchlistSymbols, onWatchlistFilterChange])
+    
+    // Display data: filter WebSocket data by watchlist symbols
+    // Note: Symbols outside tier limits are now included in data via useClientOnlyMarketData hook
+    const displayData = useMemo(() => {
+        if (!selectedWatchlistId || !watchlistInfo || watchlistSymbols.length === 0) {
             return data
         }
         
-        // Get expected symbols from watchlist info
-        const expectedSymbols = watchlistInfo.items?.map((item: any) => 
-            item.contract?.symbol?.toUpperCase()
-        ).filter(Boolean) || []
-        
-        console.log(`[Watchlist Debug] Watchlist "${watchlistInfo.name}" has ${expectedSymbols.length} expected symbols:`, expectedSymbols)
-        console.log(`[Watchlist Debug] watchlistMarketData:`, {
-            isNull: watchlistMarketData === null,
-            isUndefined: watchlistMarketData === undefined,
-            isArray: Array.isArray(watchlistMarketData),
-            length: Array.isArray(watchlistMarketData) ? watchlistMarketData.length : 'N/A',
-            isLoading: isLoadingWatchlistData,
-            error: watchlistDataError,
-        })
-        
-        // If we have watchlist market data, use it (includes symbols outside tier limits)
-        if (watchlistMarketData && Array.isArray(watchlistMarketData) && watchlistMarketData.length > 0) {
-            const receivedSymbols = watchlistMarketData.map((item: any) => {
-                // Normalize symbol: remove USDT suffix if present for comparison
-                let sym = item.symbol?.toUpperCase() || ''
-                if (sym.endsWith('USDT')) {
-                    sym = sym.slice(0, -4)
-                }
-                return sym
-            }).filter(Boolean)
-            
-            console.log(`[Watchlist Debug] Using watchlist market data: ${watchlistMarketData.length} items`)
-            console.log(`[Watchlist Debug] Received symbols (normalized):`, receivedSymbols)
-            console.log(`[Watchlist Debug] Expected symbols:`, expectedSymbols)
-            
-            // Check which symbols are missing
-            const missingSymbols = expectedSymbols.filter(expected => {
-                const normalizedExpected = expected.endsWith('USDT') ? expected.slice(0, -4) : expected
-                return !receivedSymbols.includes(normalizedExpected)
-            })
-            
-            if (missingSymbols.length > 0) {
-                console.warn(`[Watchlist Debug] ⚠️ Missing symbols in API response:`, missingSymbols)
-                console.warn(`[Watchlist Debug] This means these symbols failed to fetch from Binance API`)
-            }
-            
-            return watchlistMarketData
-        }
-        
-        // Fallback: filter WebSocket data by watchlist symbols (may miss symbols outside tier limits)
-        if (expectedSymbols.length === 0) {
-            console.log(`[Watchlist Debug] No expected symbols, returning empty array`)
-            return []
-        }
-        
-        // Filter data by watchlist symbols (case-insensitive)
+        // Filter WebSocket data by watchlist symbols (case-insensitive)
         const filtered = data.filter(item => 
-            expectedSymbols.some((symbol: string) => 
+            watchlistSymbols.some((symbol: string) => 
                 item.symbol.toUpperCase() === symbol.toUpperCase()
             )
         )
-        console.log(`[Watchlist Debug] Fallback: Filtered WebSocket data: ${filtered.length} items (expected ${expectedSymbols.length})`)
-        const foundSymbols = filtered.map(item => item.symbol.toUpperCase())
-        const missingSymbols = expectedSymbols.filter(s => !foundSymbols.includes(s.toUpperCase()))
-        if (missingSymbols.length > 0) {
-            console.warn(`[Watchlist Debug] ⚠️ Missing symbols in WebSocket data:`, missingSymbols)
-        }
+        
         return filtered
-    }, [data, selectedWatchlistId, watchlistInfo, watchlistMarketData, isLoadingWatchlistData, watchlistDataError])
+    }, [data, selectedWatchlistId, watchlistInfo, watchlistSymbols])
 
     // Create a map of symbol -> array of watchlist info (supports multiple watchlists per symbol)
     const symbolToWatchlistsMap = useMemo(() => {
@@ -331,7 +229,17 @@ export function MarketTable({
     const handleWatchlistFilterChange = (watchlistId: string | null) => {
         setSelectedWatchlistId(watchlistId)
         if (onWatchlistFilterChange) {
-            onWatchlistFilterChange(watchlistId)
+            // Pass watchlist symbols so Dashboard can include them in WebSocket data
+            const symbols = watchlistId && watchlistInfo 
+                ? watchlistInfo.items?.map((item: any) => {
+                    let symbol = item.contract?.symbol?.toUpperCase() || ''
+                    if (symbol && !symbol.endsWith('USDT')) {
+                        symbol = `${symbol}USDT`
+                    }
+                    return symbol
+                }).filter(Boolean) || []
+                : []
+            onWatchlistFilterChange(watchlistId, symbols)
         }
     }
     const scrollContainerRef = useRef<HTMLDivElement>(null)
