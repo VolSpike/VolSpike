@@ -561,7 +561,7 @@ export function MarketTable({
 
             return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
         })
-    }, [displayData, sortBy, sortOrder, symbolToWatchlistsMap])
+    }, [displayData, sortBy, sortOrder, symbolsInWatchlists])
 
     // Re-run scroll measurement when row count changes (e.g., filtering to small watchlists)
     useEffect(() => {
