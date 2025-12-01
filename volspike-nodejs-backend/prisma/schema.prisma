@@ -164,23 +164,23 @@ model MarketSnapshot {
 
 // Canonical mapping of Binance perps to underlying projects
 model Asset {
-  id              String      @id @default(cuid())
-  baseSymbol      String      @unique // e.g. BTC, SOL, 1000PEPE base
-  binanceSymbol   String?     // Primary Binance perp symbol, e.g. BTCUSDT
-  extraSymbols    String?     @db.Text // JSON array of additional symbols / aliases
-  coingeckoId     String?     // CoinGecko id for enrichment
-  displayName     String?     // Human-friendly name override (e.g. "Ethena")
-  description     String?     @db.Text // Project description from CoinGecko
-  websiteUrl      String?
-  twitterUrl      String?
-  logoUrl         String?     // Base64 data URL (for backward compatibility)
-  logoImageUrl    String?     // Original CoinGecko image URL (preferred for frontend)
-  status          AssetStatus @default(AUTO)
-  isComplete      Boolean     @default(false) // Admin-reviewed and ready for weekly refresh cycles
-  lastFailureReason String?   // Track last failure reason (RATE_LIMIT, NOT_FOUND, etc.) for retry logic
-  notes           String?     @db.Text
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  baseSymbol        String      @unique // e.g. BTC, SOL, 1000PEPE base
+  binanceSymbol     String? // Primary Binance perp symbol, e.g. BTCUSDT
+  extraSymbols      String?     @db.Text // JSON array of additional symbols / aliases
+  coingeckoId       String? // CoinGecko id for enrichment
+  displayName       String? // Human-friendly name override (e.g. "Ethena")
+  description       String?     @db.Text // Project description from CoinGecko
+  websiteUrl        String?
+  twitterUrl        String?
+  logoUrl           String? // Base64 data URL (for backward compatibility)
+  logoImageUrl      String? // Original CoinGecko image URL (preferred for frontend)
+  status            AssetStatus @default(AUTO)
+  isComplete        Boolean     @default(false) // Admin-reviewed and ready for weekly refresh cycles
+  lastFailureReason String? // Track last failure reason (RATE_LIMIT, NOT_FOUND, etc.) for retry logic
+  notes             String?     @db.Text
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   @@map("assets")
 }
@@ -322,15 +322,15 @@ model AdminSession {
 
 // Admin-managed wallets for tracking balances
 model AdminWallet {
-  id              String    @id @default(cuid())
-  address         String    // Wallet address
-  currency        String    // BTC, ETH, SOL, etc.
-  network         String?   // Optional network identifier
-  label           String?   // Optional label/name for the wallet
-  balance         Float?    // Cached balance (updated periodically)
+  id               String    @id @default(cuid())
+  address          String // Wallet address
+  currency         String // BTC, ETH, SOL, etc.
+  network          String? // Optional network identifier
+  label            String? // Optional label/name for the wallet
+  balance          Float? // Cached balance (updated periodically)
   balanceUpdatedAt DateTime? // Last time balance was fetched
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([address, currency])
   @@index([currency])
@@ -339,27 +339,27 @@ model AdminWallet {
 
 // Crypto payments via NowPayments
 model CryptoPayment {
-  id                String   @id @default(cuid())
-  userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymentId         String?  @unique // NowPayments payment_id (null until IPN/webhook)
-  paymentStatus     String?  // waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
-  payAmount         Float?   // Amount in USD (null until payment details available)
-  payCurrency        String?  @default("usd") // USD
-  actuallyPaid      Float?   // Amount actually paid in crypto
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentId            String?   @unique // NowPayments payment_id (null until IPN/webhook)
+  paymentStatus        String? // waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
+  payAmount            Float? // Amount in USD (null until payment details available)
+  payCurrency          String?   @default("usd") // USD
+  actuallyPaid         Float? // Amount actually paid in crypto
   actuallyPaidCurrency String? // Crypto currency (BTC, ETH, etc.)
-  purchaseId        String?  // Order ID for tracking
-  tier              String   // pro, elite
-  invoiceId         String   @unique // NowPayments invoice_id (required - used for hosted checkout)
-  orderId           String   // NowPayments order_id (required for tracking)
-  paymentUrl        String   @db.Text // Payment page URL (required - invoice_url from API)
-  payAddress        String?  // Crypto address to send payment to (null until payment created)
-  expiresAt         DateTime? // Subscription expiration date (30 days from payment, null for one-time)
-  renewalReminderSent DateTime? // Last time renewal reminder was sent
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  paidAt            DateTime?
-  
+  purchaseId           String? // Order ID for tracking
+  tier                 String // pro, elite
+  invoiceId            String    @unique // NowPayments invoice_id (required - used for hosted checkout)
+  orderId              String // NowPayments order_id (required for tracking)
+  paymentUrl           String    @db.Text // Payment page URL (required - invoice_url from API)
+  payAddress           String? // Crypto address to send payment to (null until payment created)
+  expiresAt            DateTime? // Subscription expiration date (30 days from payment, null for one-time)
+  renewalReminderSent  DateTime? // Last time renewal reminder was sent
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  paidAt               DateTime?
+
   @@index([userId])
   @@index([paymentId])
   @@index([invoiceId])
@@ -371,18 +371,64 @@ model CryptoPayment {
 
 // Admin notifications for system events
 model AdminNotification {
-  id        String   @id @default(cuid())
-  userId    String   // Admin user ID
-  user      User     @relation("AdminNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // e.g., "NEW_ASSET_DETECTED", "ASSET_ENRICHMENT_FAILED", etc.
-  title     String   // Notification title
-  message   String   @db.Text // Notification message
-  metadata  Json?    // Additional data (e.g., { assetSymbol: "BTC", assetId: "..." })
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id        String    @id @default(cuid())
+  userId    String // Admin user ID
+  user      User      @relation("AdminNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type      String // e.g., "NEW_ASSET_DETECTED", "ASSET_ENRICHMENT_FAILED", etc.
+  title     String // Notification title
+  message   String    @db.Text // Notification message
+  metadata  Json? // Additional data (e.g., { assetSymbol: "BTC", assetId: "..." })
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
   readAt    DateTime?
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
   @@map("admin_notifications")
+}
+
+// Open Interest snapshots (from Python script or realtime poller)
+model OpenInterestSnapshot {
+  id              String   @id @default(cuid())
+  symbol          String // Normalized symbol (e.g., "BTCUSDT")
+  ts              DateTime // Timestamp of the OI measurement
+  openInterest    Decimal  @db.Decimal(30, 8) // OI in contracts
+  openInterestUsd Decimal? @db.Decimal(30, 2) // OI in USD (optional, can be computed)
+  markPrice       Decimal? @db.Decimal(20, 8) // Mark price at time of measurement
+  source          String   @default("snapshot") // "snapshot", "realtime", or "snapshot_legacy"
+  createdAt       DateTime @default(now())
+
+  @@index([symbol, ts])
+  @@index([ts])
+  @@index([source, ts])
+  @@map("open_interest_snapshots")
+}
+
+// Open Interest spike/dump alerts
+model OpenInterestAlert {
+  id        String   @id @default(cuid())
+  symbol    String // Normalized symbol (e.g., "BTCUSDT")
+  direction String // "UP" or "DOWN"
+  baseline  Decimal  @db.Decimal(30, 8) // Baseline OI (contracts)
+  current   Decimal  @db.Decimal(30, 8) // Current OI (contracts)
+  pctChange Decimal  @db.Decimal(10, 6) // Percentage change (e.g., 0.1 for 10%)
+  absChange Decimal  @db.Decimal(30, 8) // Absolute change in contracts
+  source    String // Source of the alert (e.g., "oi_realtime_poller")
+  ts        DateTime // Timestamp of the alert
+  createdAt DateTime @default(now())
+
+  @@index([symbol, ts])
+  @@index([ts])
+  @@index([direction, ts])
+  @@map("open_interest_alerts")
+}
+
+// Liquid Open Interest universe tracking
+model OpenInterestLiquidSymbol {
+  symbol         String   @id // Normalized symbol (e.g., "BTCUSDT")
+  quoteVolume24h Decimal  @db.Decimal(30, 2) // 24h quote volume in USDT
+  enteredAt      DateTime // When symbol entered liquid universe
+  lastSeenAt     DateTime // Last time symbol was seen in liquid universe
+
+  @@map("open_interest_liquid_symbols")
 }

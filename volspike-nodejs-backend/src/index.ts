@@ -22,6 +22,7 @@ import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
 import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
 import { syncPendingPayments } from './services/payment-sync'
+import { runLiquidUniverseJob } from './services/oi-liquidity-job'
 import type { AppBindings, AppVariables } from './types/hono'
 
 // Initialize Prisma
@@ -193,6 +194,13 @@ app.use('/api/watchlist/*', authMiddleware)
 app.route('/api/watchlist', watchlistRoutes)
 app.route('/api/alerts', alertRoutes)
 app.route('/api/volume-alerts', volumeAlertsRouter)
+
+// Open Interest alerts routes (API key protected)
+import { handleAlertIngest, handleGetAlerts } from './routes/open-interest'
+const oiAlertsApp = new Hono()
+oiAlertsApp.post('/ingest', handleAlertIngest)
+oiAlertsApp.get('/', handleGetAlerts)
+app.route('/api/open-interest-alerts', oiAlertsApp)
 
 // Apply auth middleware to payment routes (except webhook)
 // Webhook must be publicly accessible for Stripe
@@ -467,6 +475,36 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
             })
         }
     }, 120000) // 2 minute delay to ensure database is ready
+
+    // Liquid universe classification job: Every 5 minutes
+    const LIQUID_UNIVERSE_INTERVAL = 5 * 60 * 1000 // 5 minutes
+    const liquidUniverseEnabled = process.env.ENABLE_LIQUID_UNIVERSE_JOB?.toLowerCase() !== 'false'
+
+    if (liquidUniverseEnabled) {
+        logger.info('✅ Liquid universe classification job enabled (every 5 minutes)')
+
+        // Run initial job after 1 minute (let server stabilize)
+        setTimeout(async () => {
+            try {
+                logger.info('🔄 Running initial liquid universe classification job')
+                await runLiquidUniverseJob()
+                logger.info('✅ Initial liquid universe classification job completed')
+            } catch (error) {
+                logger.error('❌ Initial liquid universe classification job failed:', error)
+            }
+        }, 60 * 1000) // 1 minute
+
+        // Schedule periodic jobs (every 5 minutes)
+        setInterval(async () => {
+            try {
+                await runLiquidUniverseJob()
+            } catch (error) {
+                logger.error('❌ Scheduled liquid universe classification job failed:', error)
+            }
+        }, LIQUID_UNIVERSE_INTERVAL)
+    } else {
+        logger.info('ℹ️ Liquid universe classification job disabled (set ENABLE_LIQUID_UNIVERSE_JOB=true to enable)')
+    }
 
     logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
 } else {
