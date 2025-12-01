@@ -497,11 +497,12 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                             source: manifestEntry.source || 'db',
                         })
 
-                        // Only fetch from CoinGecko if we're missing critical data AND we have a coingeckoId
-                        // This avoids unnecessary CoinGecko calls when backend just needs to refresh
+                        // CRITICAL: Always fetch logo if missing (even if we have coingeckoId)
+                        // Memory cache doesn't have base64 logos to prevent out-of-memory crashes
+                        // So we need to fetch logo on-demand when displaying asset card
                         if (!manifestProfile.logoUrl && manifestEntry.coingeckoId) {
-                            debugLog(`🔄 Fetching missing logo for ${upper} from CoinGecko (has coingeckoId: ${manifestEntry.coingeckoId})`)
-                            // Fetch in background - user already sees manifest data
+                            console.log(`[useAssetProfile] Fetching logo for ${upper} from CoinGecko (memory cache doesn't have base64 logos)`)
+                            // Fetch logo immediately - user is viewing the asset card
                             fetchProfileFromCoinGeckoWithId(upper, manifestEntry.coingeckoId)
                                 .then((profile) => {
                                     if (profile && !cancelled) {
@@ -511,14 +512,20 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                                             profile,
                                             loading: false,
                                         }))
-                                        debugLog(`✅ Fetched and cached logo for ${upper}`)
+                                        console.log(`[useAssetProfile] ✅ Fetched logo for ${upper}`)
                                     }
                                 })
                                 .catch((err) => {
-                                    debugLog(`❌ Failed to fetch logo for ${upper}:`, err)
+                                    console.error(`[useAssetProfile] ❌ Failed to fetch logo for ${upper}:`, err)
                                     // Keep showing manifest data even if CoinGecko fetch fails
                                 })
                             return // Don't wait for CoinGecko fetch
+                        }
+                        
+                        // If we have a logo URL (not base64), use it directly
+                        if (manifestProfile.logoUrl && !manifestProfile.logoUrl.startsWith('data:image')) {
+                            // Logo is a URL, use it directly
+                            return
                         }
 
                         // If no coingeckoId, backend refresh cycle should handle it

@@ -167,9 +167,25 @@ const writeManifestCache = (assets: AssetRecord[]) => {
             timestamp: Date.now(),
         }
         
-        // Always store full data (including base64 logos) in memory cache
-        manifestMemory = assets
+        // CRITICAL: Strip base64 logos from memory cache to prevent out-of-memory crashes
+        // Base64 logos are ~15KB each, with 534 assets that's ~8MB just for logos
+        // Storing them in memory can cause browser to run out of memory
+        // Solution: Store URLs only in memory cache, fetch logos on-demand when displaying
+        const assetsForMemory = assets.map((asset) => {
+            const { logoUrl, ...rest } = asset
+            // Only keep logo if it's a URL (not base64 data URL)
+            // Base64 data URLs start with "data:image"
+            const logoForMemory = logoUrl && !logoUrl.startsWith('data:image') ? logoUrl : undefined
+            return {
+                ...rest,
+                logoUrl: logoForMemory,
+            }
+        })
+        
+        manifestMemory = assetsForMemory
         manifestMemoryIsStale = false
+        
+        console.log(`[writeManifestCache] Stored ${manifestMemory.length} assets in memory (logos excluded to prevent memory issues)`)
         
         const jsonString = JSON.stringify(payload)
         const sizeMB = (jsonString.length / 1024 / 1024).toFixed(2)
