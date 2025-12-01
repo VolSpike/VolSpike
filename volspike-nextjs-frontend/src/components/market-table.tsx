@@ -651,18 +651,25 @@ export function MarketTable({
 
         // Check if symbol is already in watchlist(s)
         const watchlistsForSymbol = getWatchlistsForSymbol(item.symbol)
+        const isProTier = userTier === 'pro' || userTier === 'elite'
         
         if (watchlistsForSymbol.length > 0) {
             // Symbol is already in one or more watchlists
-            if (watchlistsForSymbol.length === 1) {
-                // Only in one watchlist - remove directly
-                // The removeSymbol mutation will invalidate queries automatically
-                removeSymbol({ watchlistId: watchlistsForSymbol[0].watchlistId, symbol: item.symbol })
+            if (isProTier) {
+                // For Pro tier: Open watchlist selector to manage which watchlists contain this symbol
+                // User can add to more watchlists or remove from existing ones
+                setSymbolToAdd(item.symbol)
+                setWatchlistSelectorOpen(true)
             } else {
-                // In multiple watchlists - show dialog to choose which ones to remove from
-                setSymbolToRemove(item.symbol)
-                setWatchlistsForRemoval(watchlistsForSymbol.map(w => ({ id: w.watchlistId, name: w.watchlistName })))
-                setRemoveDialogOpen(true)
+                // For Free tier: Only 1 watchlist allowed, so remove directly
+                if (watchlistsForSymbol.length === 1) {
+                    removeSymbol({ watchlistId: watchlistsForSymbol[0].watchlistId, symbol: item.symbol })
+                } else {
+                    // Fallback: In multiple watchlists - show dialog to choose which ones to remove from
+                    setSymbolToRemove(item.symbol)
+                    setWatchlistsForRemoval(watchlistsForSymbol.map(w => ({ id: w.watchlistId, name: w.watchlistName })))
+                    setRemoveDialogOpen(true)
+                }
             }
         } else {
             // Symbol is not in any watchlist - open selector to add it
@@ -682,15 +689,13 @@ export function MarketTable({
     }
 
     const handleWatchlistSelected = async (watchlistId: string) => {
-        if (symbolToAdd) {
-            try {
-                await addSymbol({ watchlistId, symbol: symbolToAdd })
-                setWatchlistSelectorOpen(false)
-                setSymbolToAdd(undefined)
-            } catch (error) {
-                // Error already handled by hook
-            }
-        }
+        // This callback is called when a watchlist is selected/updated
+        // The WatchlistSelector component now handles closing for Free tier
+        // and keeping open for Pro tier, so we don't need to close here
+        // Just invalidate queries to refresh the UI
+        queryClient.invalidateQueries({ queryKey: ['watchlists'] })
+        queryClient.invalidateQueries({ queryKey: ['watchlist-info', watchlistId] })
+        queryClient.invalidateQueries({ queryKey: ['watchlist-market-data'] })
     }
 
     const handleCreateAlert = (e: React.MouseEvent, item: MarketData) => {
@@ -1429,9 +1434,16 @@ export function MarketTable({
                 <>
                     <WatchlistSelector
                         open={watchlistSelectorOpen}
-                        onOpenChange={setWatchlistSelectorOpen}
+                        onOpenChange={(open) => {
+                            setWatchlistSelectorOpen(open)
+                            if (!open) {
+                                // Clear symbol when dialog closes
+                                setSymbolToAdd(undefined)
+                            }
+                        }}
                         symbol={symbolToAdd}
                         onWatchlistSelected={handleWatchlistSelected}
+                        existingWatchlistIds={symbolToAdd ? getWatchlistsForSymbol(symbolToAdd).map(w => w.watchlistId) : []}
                     />
                     <RemoveFromWatchlistDialog
                         open={removeDialogOpen}

@@ -16,9 +16,10 @@ interface WatchlistSelectorProps {
   onOpenChange: (open: boolean) => void
   symbol?: string // Optional symbol to add to selected watchlist
   onWatchlistSelected?: (watchlistId: string) => void
+  existingWatchlistIds?: string[] // Watchlist IDs that already contain this symbol
 }
 
-export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelected }: WatchlistSelectorProps) {
+export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelected, existingWatchlistIds = [] }: WatchlistSelectorProps) {
   const { data: session } = useSession()
   const router = useRouter()
   const {
@@ -30,10 +31,13 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
     deleteWatchlist,
     addSymbol,
     addSymbolAsync,
+    removeSymbol,
+    removeSymbolAsync,
     isCreating,
     isUpdating,
     isDeleting,
     isAddingSymbol,
+    isRemovingSymbol,
   } = useWatchlists()
 
   const [newWatchlistName, setNewWatchlistName] = useState('')
@@ -46,6 +50,19 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const userTier = (session?.user as any)?.tier || 'free'
   const isFreeTier = userTier === 'free'
   const hasMaxWatchlists = limits?.limits.watchlistLimit === 1 && watchlists.length >= 1
+
+  // Compute existing watchlist IDs from current watchlists data (more reliable than prop)
+  // This ensures we always have the latest data after mutations
+  const computedExistingWatchlistIds = symbol
+    ? watchlists
+        .filter((w) => w.items.some((item) => item.contract.symbol === symbol))
+        .map((w) => w.id)
+    : []
+
+  // Use computed value if prop not provided, otherwise use prop (for initial render)
+  const effectiveExistingWatchlistIds = existingWatchlistIds.length > 0 
+    ? existingWatchlistIds 
+    : computedExistingWatchlistIds
 
   const handleCreateWatchlist = async () => {
     if (!newWatchlistName.trim() || isProcessing) {
@@ -73,15 +90,21 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
           if (onWatchlistSelected) {
             onWatchlistSelected(result.watchlist.id)
           }
-          onOpenChange(false)
+          // For Pro tier, keep menu open so user can add to multiple watchlists
+          // For Free tier, close menu (only 1 watchlist allowed)
+          if (isFreeTier) {
+            onOpenChange(false)
+          }
         } catch (error: any) {
           // Check if it's a duplicate error - if so, don't show error toast (success already shown)
           if (error?.message?.includes('already in this watchlist') || error?.message?.includes('Duplicate')) {
-            // Symbol was already added (maybe race condition), just close dialog
+            // Symbol was already added (maybe race condition)
             if (onWatchlistSelected) {
               onWatchlistSelected(result.watchlist.id)
             }
-            onOpenChange(false)
+            if (isFreeTier) {
+              onOpenChange(false)
+            }
           } else {
             // Other error - let hook handle it
             console.error('Failed to add symbol:', error)
@@ -139,30 +162,51 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
   const handleSelectWatchlist = async (watchlistId: string) => {
     if (symbol) {
       // Prevent duplicate calls
-      if (isAddingSymbol || isProcessing) {
+      if (isAddingSymbol || isRemovingSymbol || isProcessing) {
         return
       }
       
+      const isAlreadyInWatchlist = effectiveExistingWatchlistIds.includes(watchlistId)
+      
       try {
-        // Use mutateAsync to properly await the result
-        await addSymbolAsync({ watchlistId, symbol })
-        if (onWatchlistSelected) {
-          onWatchlistSelected(watchlistId)
+        if (isAlreadyInWatchlist) {
+          // Remove from watchlist
+          await removeSymbolAsync({ watchlistId, symbol })
+          if (onWatchlistSelected) {
+            onWatchlistSelected(watchlistId)
+          }
+          // For Pro tier, keep menu open so user can manage other watchlists
+          // For Free tier, close menu (only 1 watchlist, so removal is final)
+          if (isFreeTier) {
+            onOpenChange(false)
+          }
+        } else {
+          // Add to watchlist
+          await addSymbolAsync({ watchlistId, symbol })
+          if (onWatchlistSelected) {
+            onWatchlistSelected(watchlistId)
+          }
+          // For Pro tier, keep menu open so user can add to multiple watchlists
+          // For Free tier, close menu (only 1 watchlist allowed)
+          if (isFreeTier) {
+            onOpenChange(false)
+          }
         }
-        onOpenChange(false)
       } catch (error: any) {
         // Check if it's a duplicate error - suppress error toast if symbol was already added
         if (error?.message?.includes('already in this watchlist') || 
             error?.message?.includes('Duplicate') ||
             error?.message?.includes('already in this watchlist')) {
-          // Symbol already in watchlist - just close dialog (might have been added by another call)
+          // Symbol already in watchlist - just close dialog for Free tier
           if (onWatchlistSelected) {
             onWatchlistSelected(watchlistId)
           }
-          onOpenChange(false)
+          if (isFreeTier) {
+            onOpenChange(false)
+          }
         } else {
           // Other error - let hook handle it
-          console.error('Failed to add symbol:', error)
+          console.error('Failed to add/remove symbol:', error)
         }
       }
     } else {
@@ -241,7 +285,12 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                     <>
                       <div className="flex items-center gap-3 flex-1">
                         <div className="flex-1">
-                          <div className="font-medium">{watchlist.name}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{watchlist.name}</div>
+                            {symbol && effectiveExistingWatchlistIds.includes(watchlist.id) && (
+                              <Check className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                            )}
+                          </div>
                           <div className="text-xs text-muted-foreground">
                             {watchlist.items.length} symbol{watchlist.items.length !== 1 ? 's' : ''}
                           </div>
@@ -250,9 +299,10 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                           <Button
                             size="sm"
                             onClick={() => handleSelectWatchlist(watchlist.id)}
-                            disabled={isAddingSymbol}
+                            disabled={isAddingSymbol || isRemovingSymbol}
+                            variant={effectiveExistingWatchlistIds.includes(watchlist.id) ? 'destructive' : 'default'}
                           >
-                            Add {symbol}
+                            {effectiveExistingWatchlistIds.includes(watchlist.id) ? `Remove ${symbol}` : `Add ${symbol}`}
                           </Button>
                         )}
                       </div>

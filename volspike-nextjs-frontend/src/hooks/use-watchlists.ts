@@ -299,6 +299,7 @@ export function useWatchlists() {
     addSymbol: addSymbol.mutate,
     addSymbolAsync: addSymbol.mutateAsync,
     removeSymbol: removeSymbol.mutate,
+    removeSymbolAsync: removeSymbol.mutateAsync,
     isCreating: createWatchlist.isPending,
     isUpdating: updateWatchlist.isPending,
     isDeleting: deleteWatchlist.isPending,
