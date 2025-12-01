@@ -10,6 +10,7 @@
 
 import { prisma } from '../index'
 import { createLogger } from '../lib/logger'
+import axios from 'axios'
 import {
   filterUsdtPerps,
   computeLiquidUniverse,
@@ -72,67 +73,85 @@ async function fetchExchangeInfo(): Promise<any> {
 
 /**
  * Fetch 24h ticker stats from Binance
+ * Uses axios as primary method (more reliable than native fetch in some environments)
  */
 async function fetchTicker24hr(): Promise<any[]> {
   const url = `${BINANCE_API_URL}/fapi/v1/ticker/24hr`
   logger.info(`Fetching ticker/24hr from: ${url}`)
   
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-    
-    const response = await fetch(url, {
-      method: 'GET',
+    // Use axios (already in dependencies, more reliable than fetch)
+    const response = await axios.get(url, {
+      timeout: 30000, // 30 second timeout
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'VolSpike/1.0',
       },
-      signal: controller.signal,
+      validateStatus: (status) => status < 500, // Don't throw on 4xx, we'll handle it
     })
 
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unable to read error response')
+    if (response.status >= 400) {
       logger.error(`Binance API error: ${response.status} ${response.statusText}`, {
         status: response.status,
         statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: errorText.substring(0, 500),
+        headers: response.headers,
+        data: typeof response.data === 'string' ? response.data.substring(0, 500) : response.data,
       })
-      throw new Error(`Binance API returned ${response.status}: ${response.statusText} - ${errorText.substring(0, 200)}`)
+      throw new Error(`Binance API returned ${response.status}: ${response.statusText}`)
     }
 
-    const data = await response.json()
+    const data = response.data
     const result = Array.isArray(data) ? data : []
     logger.info(`Successfully fetched ${result.length} ticker records from Binance`)
+    
+    if (result.length === 0) {
+      logger.warn('⚠️  Binance returned empty ticker array - this is unusual')
+    }
+    
     return result
   } catch (error) {
     // Log full error details for debugging
-    const errorDetails = {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      cause: error instanceof Error && 'cause' in error ? error.cause : undefined,
+    const errorDetails: any = {
       url,
     }
     
-    if (error instanceof Error) {
-      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+    if (axios.isAxiosError(error)) {
+      errorDetails.name = 'AxiosError'
+      errorDetails.message = error.message
+      errorDetails.code = error.code
+      errorDetails.response = error.response ? {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: typeof error.response.data === 'string' 
+          ? error.response.data.substring(0, 500) 
+          : error.response.data,
+      } : undefined
+      errorDetails.request = error.request ? {
+        method: error.config?.method,
+        url: error.config?.url,
+      } : undefined
+      
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
         logger.error('❌ Ticker/24hr fetch timed out after 30 seconds', errorDetails)
-      } else if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
         logger.error('❌ Network error fetching ticker/24hr - Binance API may be unreachable from Railway', errorDetails)
-      } else if (error.message.includes('certificate') || error.message.includes('SSL')) {
-        logger.error('❌ SSL/TLS error fetching ticker/24hr', errorDetails)
+      } else if (error.response) {
+        logger.error(`❌ Binance API returned error: ${error.response.status}`, errorDetails)
       } else {
-        logger.error('❌ Failed to fetch ticker/24hr from Binance', errorDetails)
+        logger.error('❌ Failed to fetch ticker/24hr from Binance (axios error)', errorDetails)
       }
+    } else if (error instanceof Error) {
+      errorDetails.name = error.name
+      errorDetails.message = error.message
+      errorDetails.stack = error.stack
+      logger.error('❌ Failed to fetch ticker/24hr from Binance (unknown error)', errorDetails)
     } else {
-      logger.error('❌ Failed to fetch ticker/24hr from Binance (unknown error type)', errorDetails)
+      errorDetails.error = String(error)
+      logger.error('❌ Failed to fetch ticker/24hr from Binance (non-Error)', errorDetails)
     }
     
     // Also log as string for Railway logs
-    logger.error(`Full error: ${JSON.stringify(errorDetails, null, 2)}`)
+    logger.error(`Full error details: ${JSON.stringify(errorDetails, null, 2)}`)
     
     throw error
   }
