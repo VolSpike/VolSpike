@@ -380,9 +380,10 @@ export function MarketTable({
 
             const can = scrollSize > clientSize + 1
             // Only show scroll indicator if content actually overflows the container
-            // Use a small threshold (5px) to account for rounding/padding, but if content fits
+            // Use a threshold (10px) to account for rounding/padding, but if content fits
             // perfectly within the container, there's no scrollable content
-            const hasScroll = scrollSize > clientSize + 5
+            // Increased from 5px to 10px to prevent false positives when content fits perfectly
+            const hasScroll = scrollSize > clientSize + 10
             const atStart = scrollPos <= 1
             const atEnd = scrollPos + clientSize >= scrollSize - 1
 
