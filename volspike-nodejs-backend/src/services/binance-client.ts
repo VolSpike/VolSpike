@@ -104,15 +104,33 @@ export async function getMarketData(symbol?: string, skipVolumeFilter: boolean =
                 timestamp: Date.now(),
             }
         } catch (error: any) {
-            logger.error(`[getMarketData] ❌ Error fetching data for symbol ${symbol}:`, {
-                error: error?.message || String(error),
-                code: error?.code,
-                response: error?.response?.data,
-                status: error?.response?.status,
+            // Log error message first (for Railway log visibility)
+            const errorMsg = error?.message || String(error)
+            const errorCode = error?.code
+            const errorStatus = error?.response?.status
+            const errorData = error?.response?.data
+            
+            logger.error(`[getMarketData] ❌ Error fetching data for symbol ${symbol}: ${errorMsg}`, {
+                symbol,
+                error: errorMsg,
+                code: errorCode,
+                status: errorStatus,
                 statusText: error?.response?.statusText,
+                responseData: errorData,
+                isAxiosError: error?.isAxiosError,
                 stack: error?.stack,
-                fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
             })
+            
+            // Also log as separate error for better visibility
+            if (error?.response) {
+                logger.error(`[getMarketData] Binance API error response:`, {
+                    symbol,
+                    status: errorStatus,
+                    statusText: error?.response?.statusText,
+                    data: errorData,
+                })
+            }
+            
             return null
         }
     }
