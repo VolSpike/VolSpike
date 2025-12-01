@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sheet'
 import { AssetProjectOverview } from '@/components/asset-project-overview'
 import { prefetchAssetProfile } from '@/hooks/use-asset-profile'
+import { prefetchAssetManifest } from '@/lib/asset-manifest'
 import { WatchlistExportButton } from '@/components/watchlist-export-button'
 import { GuestCTA } from '@/components/guest-cta'
 import { WatchlistSelector } from '@/components/watchlist-selector'
@@ -937,9 +938,19 @@ export function MarketTable({
                                     <tr
                                         key={item.symbol}
                                         className={`${rowClasses.join(' ')} ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
-                                        onMouseEnter={() => setHoveredRow(item.symbol)}
+                                        onMouseEnter={() => {
+                                            setHoveredRow(item.symbol)
+                                            // Prefetch manifest and asset profile on hover for instant loading
+                                            prefetchAssetManifest()
+                                            prefetchAssetProfile(formatSymbol(item.symbol))
+                                        }}
                                         onMouseLeave={() => setHoveredRow(null)}
-                                        onClick={() => setSelectedSymbol(item)}
+                                        onClick={() => {
+                                            // Ensure manifest is loaded before opening slideout
+                                            prefetchAssetManifest().then(() => {
+                                                setSelectedSymbol(item)
+                                            })
+                                        }}
                                     >
                                         <td className={`relative p-3 pl-4 font-semibold text-sm transition-colors duration-150${cellHoverBg}`}>
                                             {exceedsThreshold && (
