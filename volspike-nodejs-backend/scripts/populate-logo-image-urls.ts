@@ -33,18 +33,21 @@ const prisma = new PrismaClient({
 })
 
 // Import the refresh function
-// Note: refreshSingleAsset uses prisma from '../../index', so we need to ensure
-// the prisma instance is set up correctly. Since we're using a custom DATABASE_URL,
-// we'll need to patch the prisma import or recreate the refresh logic here.
-
-// Actually, let's recreate a simplified version that uses the existing fetchCoinProfile logic
-// but with better rate limiting
+// We need to patch the prisma import in asset-metadata.ts to use our custom instance
+// First, let's import the module and patch it
+import * as assetMetadataModule from '../src/services/asset-metadata'
 import axios from 'axios'
 import { createLogger } from '../src/lib/logger'
 
 const logger = createLogger()
 const COINGECKO_API = 'https://api.coingecko.com/api/v3'
-const REQUEST_GAP_MS = 6000 // 6 seconds between requests (10 calls/minute, very safe for CoinGecko free tier)
+const REQUEST_GAP_MS = 12000 // 12 seconds between requests (5 calls/minute, very conservative for CoinGecko free tier)
+// Manual refreshes work because they're naturally spaced out by user clicks (10-30 seconds)
+// Script needs longer delay to avoid hitting CoinGecko's rolling rate limit window
+
+// Patch prisma import in asset-metadata module to use our custom instance
+// @ts-ignore - We're intentionally patching the module's prisma import
+assetMetadataModule.prisma = prisma
 
 interface CoinGeckoImageResponse {
     image?: {
@@ -154,40 +157,44 @@ async function populateLogoImageUrls() {
             continue
         }
 
-        console.log(`${progress} 🔍 Fetching logo URL for ${asset.baseSymbol} (CoinGecko ID: ${asset.coingeckoId})...`)
+        console.log(`${progress} 🔄 Refreshing ${asset.baseSymbol} (CoinGecko ID: ${asset.coingeckoId})...`)
 
-        const logoImageUrl = await fetchCoinGeckoImageUrl(asset.coingeckoId)
+        // Use refreshSingleAsset which has proper retry logic and exponential backoff
+        // This is the same function used by manual refresh, so it should work identically
+        const result = await assetMetadataModule.refreshSingleAsset(asset, true) // Force refresh
 
-        if (logoImageUrl) {
-            try {
-                await prisma.asset.update({
-                    where: { id: asset.id },
-                    data: { logoImageUrl },
-                })
-                console.log(`  ✅ Updated ${asset.baseSymbol}: ${logoImageUrl.substring(0, 70)}...`)
+        if (result.success) {
+            // Re-fetch the asset to get the updated logoImageUrl
+            const updatedAsset = await prisma.asset.findUnique({
+                where: { id: asset.id },
+                select: { logoImageUrl: true, baseSymbol: true },
+            })
+            if (updatedAsset?.logoImageUrl) {
+                console.log(`  ✅ Updated ${updatedAsset.baseSymbol}: ${updatedAsset.logoImageUrl.substring(0, 70)}...`)
                 updated++
-            } catch (error: any) {
-                console.log(`  ❌ Failed to update database for ${asset.baseSymbol}: ${error.message}`)
-                failed++
+            } else {
+                console.log(`  ⚠️  Refreshed ${asset.baseSymbol}, but logoImageUrl still not found. Reason: ${result.reason || 'Unknown'}`)
+                // Check if asset has base64 logo as fallback
+                const assetWithLogo = await prisma.asset.findUnique({
+                    where: { id: asset.id },
+                    select: { logoUrl: true },
+                })
+                if (assetWithLogo?.logoUrl) {
+                    console.log(`  ℹ️  Asset has base64 logo (will use that)`)
+                    skipped++
+                } else {
+                    failed++
+                }
             }
         } else {
-            // Check if asset already has a base64 logoUrl - if so, it's not critical
-            const assetWithLogo = await prisma.asset.findUnique({
-                where: { id: asset.id },
-                select: { logoUrl: true },
-            })
-            
-            if (assetWithLogo?.logoUrl) {
-                console.log(`  ⚠️  No CoinGecko URL found for ${asset.baseSymbol}, but base64 logo exists (will use that)`)
-                skipped++ // Count as skipped, not failed - asset still has logo
-            } else {
-                console.log(`  ⚠️  No logo URL found for ${asset.baseSymbol} (CoinGecko may not have image for this ID)`)
-                failed++
-            }
+            console.log(`  ❌ Failed to refresh ${asset.baseSymbol}. Reason: ${result.reason || 'Unknown'}. Error: ${result.error || 'N/A'}`)
+            failed++
         }
 
-        // Rate limiting: wait 3 seconds between requests (20 requests per minute)
-        // CoinGecko free tier allows ~30-50 calls/minute, so 3 seconds is safe
+        // Rate limiting: wait 12 seconds between requests (5 calls/minute)
+        // This is much slower than manual refresh, but necessary for bulk operations
+        // Manual refreshes work because they're naturally spaced out by user clicks (10-30 seconds)
+        // CoinGecko free tier has a rolling window rate limit, so continuous requests need longer delays
         if (i < assets.length - 1) {
             await new Promise((resolve) => setTimeout(resolve, REQUEST_GAP_MS))
         }
