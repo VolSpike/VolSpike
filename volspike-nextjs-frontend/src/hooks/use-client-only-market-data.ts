@@ -146,6 +146,9 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             console.log(`[buildSnapshot] Total symbols in WebSocket:`, out.length);
         }
         
+        // Create a Set of normalized watchlist symbols for fast lookup
+        const normalizedWatchlistSet = new Set(normalizedWatchlistSymbols);
+        
         // Separate watchlist symbols from others
         const watchlistItems: MarketData[] = [];
         const otherItems: MarketData[] = [];
@@ -156,7 +159,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         
         for (const item of out) {
             const normalizedSym = normalizeSym(item.symbol);
-            if (normalizedWatchlistSymbols.includes(normalizedSym)) {
+            if (normalizedWatchlistSet.has(normalizedSym)) {
                 watchlistItems.push(item);
                 foundWatchlistSymbols.push(item.symbol);
             } else {
