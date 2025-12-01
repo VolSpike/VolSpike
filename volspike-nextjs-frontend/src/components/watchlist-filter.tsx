@@ -15,6 +15,14 @@ interface WatchlistFilterProps {
 export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, className }: WatchlistFilterProps) {
   const { watchlists, isLoading } = useWatchlists()
 
+  // Debug logging
+  console.log('[WatchlistFilter] Render:', {
+    watchlistsCount: watchlists.length,
+    watchlists: watchlists,
+    isLoading,
+    selectedWatchlistId,
+  })
+
   const selectedWatchlist = watchlists.find((w) => w.id === selectedWatchlistId)
   
   // Ensure Select always receives a string value (never null or undefined)
