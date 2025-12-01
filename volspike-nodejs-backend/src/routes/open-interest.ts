@@ -1,13 +1,20 @@
 /**
  * Open Interest API Routes
  * 
- * POST /api/market/open-interest/ingest - Receive OI data from Digital Ocean script
+ * POST /api/market/open-interest/ingest - Receive OI data from Digital Ocean script or realtime poller
  * POST /api/market/open-interest         - Backward-compatible alias for ingest
  * GET /api/market/open-interest - Serve cached OI data to frontend (stale-while-revalidate)
  */
 
 import { Hono } from 'hono'
+import { ingestOpenInterest, ingestOpenInterestAlert, getOpenInterestAlerts } from '../openInterest/openInterest.service'
+import type { OpenInterestIngestRequest, OpenInterestAlertInput, OIAlertQueryParams } from '../openInterest/openInterest.types'
+import { createLogger } from '../lib/logger'
+import { broadcastOpenInterestAlert, broadcastOpenInterestUpdate } from '../services/alert-broadcaster'
+import { getLiquidUniverseForAPI } from '../services/oi-liquidity-job'
+import { prisma } from '../index'
 
+const logger = createLogger()
 const app = new Hono()
 
 // Constants
@@ -20,6 +27,7 @@ const normalizeSym = (s: string): string => {
 }
 
 // In-memory cache for Open Interest data (stale-while-revalidate pattern)
+// This cache is maintained for backward compatibility with the GET endpoint
 interface OISnapshot {
   data: Record<string, number> // normalized symbol -> openInterestUsd
   updatedAt: number // epoch milliseconds
@@ -33,49 +41,114 @@ const handleIngest = async (c: any) => {
     // Get API key from environment (Node.js runtime)
     const ALERT_INGEST_API_KEY = process.env.ALERT_INGEST_API_KEY
     if (!ALERT_INGEST_API_KEY) {
-      console.error('❌ Open Interest ingest error: ALERT_INGEST_API_KEY not configured')
+      logger.error('Open Interest ingest error: ALERT_INGEST_API_KEY not configured')
       return c.json({ error: 'Server configuration error' }, 500)
     }
 
     // Validate API key (must match DigitalOcean script)
     const providedKey = c.req.header('X-API-Key')
     if (!providedKey || providedKey !== ALERT_INGEST_API_KEY) {
-      console.log('⚠️  Open Interest ingest: Invalid API key')
+      logger.warn('Open Interest ingest: Invalid API key')
       return c.json({ error: 'Unauthorized' }, 401)
     }
 
     // Parse request body
-    const body = await c.req.json()
+    const body = await c.req.json() as OpenInterestIngestRequest
 
     if (!body.data || !Array.isArray(body.data)) {
-      console.log('⚠️  Open Interest ingest: Invalid payload')
+      logger.warn('Open Interest ingest: Invalid payload - data array required')
       return c.json({ error: 'Invalid payload: data array required' }, 400)
     }
 
-    // Transform array to object map with normalized symbols
+    // Transform and validate data for database storage
+    // The Python script sends: symbol, openInterest (contracts), openInterestUsd, markPrice
+    // We need to ensure openInterest is present (required field)
+    const validatedData = body.data
+      .filter((item) => {
+        // Filter out items missing required fields
+        if (!item.symbol) {
+          return false
+        }
+        // openInterest is required - if missing, try to compute from openInterestUsd and markPrice
+        if (typeof item.openInterest !== 'number') {
+          if (typeof item.openInterestUsd === 'number' && typeof item.markPrice === 'number' && item.markPrice > 0) {
+            // Compute openInterest from openInterestUsd / markPrice
+            item.openInterest = item.openInterestUsd / item.markPrice
+          } else {
+            // Skip if we can't compute it
+            logger.warn(`Skipping ${item.symbol}: missing openInterest and cannot compute`)
+            return false
+          }
+        }
+        return true
+      })
+      .map((item) => ({
+        symbol: item.symbol,
+        openInterest: item.openInterest!,
+        openInterestUsd: item.openInterestUsd,
+        markPrice: item.markPrice,
+      }))
+
+    if (validatedData.length === 0) {
+      logger.warn('Open Interest ingest: No valid data items after validation')
+      return c.json({ error: 'No valid data items' }, 400)
+    }
+
+    // Store in database using the new service
+    const ingestRequest: OpenInterestIngestRequest = {
+      data: validatedData,
+      timestamp: body.timestamp,
+      totalSymbols: body.totalSymbols,
+      source: body.source || 'snapshot', // Default to 'snapshot' for backward compatibility
+    }
+
+    const result = await ingestOpenInterest(ingestRequest)
+
+    // Update in-memory cache for backward compatibility with GET endpoint
+    // Cache uses openInterestUsd (or computes it if missing)
     const oiMap: Record<string, number> = {}
-    for (const item of body.data) {
-      if (item.symbol && typeof item.openInterestUsd === 'number') {
-        const normalizedKey = normalizeSym(item.symbol)
-        oiMap[normalizedKey] = Number(item.openInterestUsd) || 0
+    for (const item of validatedData) {
+      const normalizedKey = normalizeSym(item.symbol)
+      if (typeof item.openInterestUsd === 'number') {
+        oiMap[normalizedKey] = item.openInterestUsd
+      } else if (typeof item.openInterest === 'number' && typeof item.markPrice === 'number') {
+        // Compute USD if not provided
+        oiMap[normalizedKey] = item.openInterest * item.markPrice
       }
     }
 
-    // Update cache with normalized symbols
     oiCache = {
       data: oiMap,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     }
 
-    // Debug logging removed - Open Interest caching is working correctly
-
-    return c.json({
-      success: true,
-      cached: Object.keys(oiMap).length
+    logger.info(`Open Interest ingestion complete: ${result.inserted} inserted, ${result.errors.length} errors`, {
+      source: ingestRequest.source,
+      cached: Object.keys(oiMap).length,
     })
 
+    // Broadcast OI updates via WebSocket (for realtime source only, to avoid spam)
+    if (ingestRequest.source === 'realtime') {
+      for (const item of validatedData) {
+        const normalizedKey = normalizeSym(item.symbol)
+        const oiUsd = item.openInterestUsd ?? (item.openInterest * (item.markPrice || 0))
+        broadcastOpenInterestUpdate(
+          normalizedKey,
+          item.openInterest,
+          oiUsd > 0 ? oiUsd : null,
+          'realtime'
+        )
+      }
+    }
+
+    return c.json({
+      success: result.success,
+      inserted: result.inserted,
+      cached: Object.keys(oiMap).length,
+      errors: result.errors.length > 0 ? result.errors : undefined,
+    })
   } catch (error) {
-    console.error('❌ Open Interest ingest error:', error)
+    logger.error('Open Interest ingest error:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
 }
@@ -85,6 +158,21 @@ app.post('/ingest', handleIngest)
 
 // Backward-compatible alias: allow POST to root as ingest
 app.post('/', handleIngest)
+
+/**
+ * GET /api/market/open-interest/liquid-universe
+ * 
+ * Get current liquid universe (public endpoint, no auth required)
+ */
+app.get('/liquid-universe', async (c) => {
+  try {
+    const result = await getLiquidUniverseForAPI()
+    return c.json(result)
+  } catch (error) {
+    logger.error('Failed to fetch liquid universe:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
 
 // GET endpoint - serves cached OI data with stale-while-revalidate semantics
 app.get('/', async (c) => {
@@ -116,5 +204,91 @@ app.get('/', async (c) => {
     return c.json({ error: 'Internal server error' }, 500)
   }
 })
+
+/**
+ * POST /api/open-interest-alerts/ingest
+ * 
+ * Ingest Open Interest spike/dump alerts
+ * Note: This route is mounted separately at /api/open-interest-alerts
+ */
+export const handleAlertIngest = async (c: any) => {
+  try {
+    // Validate API key
+    const ALERT_INGEST_API_KEY = process.env.ALERT_INGEST_API_KEY
+    if (!ALERT_INGEST_API_KEY) {
+      logger.error('Open Interest alert ingest error: ALERT_INGEST_API_KEY not configured')
+      return c.json({ error: 'Server configuration error' }, 500)
+    }
+
+    const providedKey = c.req.header('X-API-Key')
+    if (!providedKey || providedKey !== ALERT_INGEST_API_KEY) {
+      logger.warn('Open Interest alert ingest: Invalid API key')
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+
+    // Parse request body
+    const body = await c.req.json() as OpenInterestAlertInput
+
+    // Validate required fields
+    if (!body.symbol || !body.direction || typeof body.baseline !== 'number' || typeof body.current !== 'number') {
+      return c.json({ error: 'Invalid payload: missing required fields' }, 400)
+    }
+
+    // Ingest alert
+    const result = await ingestOpenInterestAlert(body)
+
+    // Broadcast alert via WebSocket if successful
+    if (result.success && result.id) {
+      try {
+        const alert = await prisma.openInterestAlert.findUnique({
+          where: { id: result.id },
+        })
+        if (alert) {
+          broadcastOpenInterestAlert(alert)
+        }
+      } catch (error) {
+        logger.warn('Failed to fetch alert for broadcasting:', error)
+        // Don't fail the request if broadcasting fails
+      }
+    }
+
+    return c.json({
+      success: result.success,
+      id: result.id,
+    })
+  } catch (error) {
+    logger.error('Open Interest alert ingest error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+}
+
+/**
+ * GET /api/open-interest-alerts
+ * 
+ * Get recent Open Interest alerts (debug endpoint)
+ */
+export const handleGetAlerts = async (c: any) => {
+  try {
+    const symbol = c.req.query('symbol')
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 20
+    const direction = c.req.query('direction') as 'UP' | 'DOWN' | undefined
+
+    const params: OIAlertQueryParams = {
+      symbol,
+      limit,
+      direction,
+    }
+
+    const alerts = await getOpenInterestAlerts(params)
+
+    return c.json({
+      alerts,
+      count: alerts.length,
+    })
+  } catch (error) {
+    logger.error('Open Interest alerts fetch error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+}
 
 export default app

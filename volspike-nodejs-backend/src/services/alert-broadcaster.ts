@@ -1,5 +1,5 @@
 import type { Server as SocketIOServer } from 'socket.io'
-import type { VolumeAlert } from '@prisma/client'
+import type { VolumeAlert, OpenInterestAlert } from '@prisma/client'
 
 let ioInstance: SocketIOServer | null = null
 const alertQueues: {
@@ -108,5 +108,54 @@ function startTierBasedBroadcasting() {
       }
     }
   }, 1000) // Check every second for wall-clock alignment
+}
+
+/**
+ * Broadcast Open Interest alert to WebSocket clients
+ * Uses same tier-based broadcasting as volume alerts
+ */
+export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
+  if (!ioInstance) {
+    console.warn('Socket.IO not initialized, skipping OI alert broadcast')
+    return
+  }
+
+  // Elite tier: broadcast immediately (real-time)
+  ioInstance.to('tier-elite').emit('open-interest-alert', alert)
+  const pctChangeNum = typeof alert.pctChange === 'number' ? alert.pctChange : Number(alert.pctChange)
+  console.log(`📢 Broadcasted OI alert to Elite tier: ${alert.symbol} ${alert.direction} (${(pctChangeNum * 100).toFixed(2)}%)`)
+  
+  // Pro tier: queue for 5-minute batch (same as volume alerts)
+  // Note: We reuse the same queue structure but could create separate queues if needed
+  // For now, we'll broadcast immediately to Pro tier as well (can be changed later)
+  ioInstance.to('tier-pro').emit('open-interest-alert', alert)
+  
+  // Free tier: queue for 15-minute batch (same as volume alerts)
+  // For now, we'll broadcast immediately to Free tier as well (can be changed later)
+  ioInstance.to('tier-free').emit('open-interest-alert', alert)
+}
+
+/**
+ * Broadcast Open Interest update to WebSocket clients
+ * Used when new OI data is ingested (realtime or snapshot)
+ */
+export function broadcastOpenInterestUpdate(symbol: string, openInterest: number, openInterestUsd: number | null, source: string) {
+  if (!ioInstance) {
+    console.warn('Socket.IO not initialized, skipping OI update broadcast')
+    return
+  }
+
+  const update = {
+    symbol,
+    openInterest,
+    openInterestUsd,
+    source,
+    timestamp: new Date().toISOString(),
+  }
+
+  // Broadcast to all tiers (OI updates are less frequent than alerts)
+  ioInstance.to('tier-elite').emit('open-interest-update', update)
+  ioInstance.to('tier-pro').emit('open-interest-update', update)
+  ioInstance.to('tier-free').emit('open-interest-update', update)
 }
 

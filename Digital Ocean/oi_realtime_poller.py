@@ -1,0 +1,428 @@
+"""
+Realtime Open Interest Poller
+────────────────────────────────────────────────────────────────────────────
+• Reads liquid universe from VolSpike backend
+• Polls Open Interest for liquid symbols at computed intervals (5-12 seconds)
+• Maintains OI history in ring buffers
+• Posts OI batches to backend
+• Detects and posts OI spike/dump alerts
+
+Step 6: Skeleton with stubbed data (no real Binance calls yet)
+"""
+
+import os
+import time
+import datetime
+import requests
+import sys
+import warnings
+from collections import deque
+from typing import Dict, Tuple, Optional, List
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# Configuration
+VOLSPIKE_API_URL = os.getenv("VOLSPIKE_API_URL", "http://localhost:3001")
+# Auto-add https:// if scheme is missing
+if VOLSPIKE_API_URL and not VOLSPIKE_API_URL.startswith(('http://', 'https://')):
+    VOLSPIKE_API_URL = f"https://{VOLSPIKE_API_URL}"
+VOLSPIKE_API_KEY = os.getenv("VOLSPIKE_API_KEY", "")
+MAX_REQ_PER_MIN = int(os.getenv("OI_MAX_REQ_PER_MIN", "2000"))
+MIN_INTERVAL_SEC = int(os.getenv("OI_MIN_INTERVAL_SEC", "5"))
+MAX_INTERVAL_SEC = int(os.getenv("OI_MAX_INTERVAL_SEC", "20"))
+
+# OI Alert thresholds
+OI_SPIKE_THRESHOLD_PCT = float(os.getenv("OI_SPIKE_THRESHOLD_PCT", "0.05"))  # 5%
+OI_DUMP_THRESHOLD_PCT = float(os.getenv("OI_DUMP_THRESHOLD_PCT", "0.05"))  # 5%
+OI_MIN_DELTA_CONTRACTS = float(os.getenv("OI_MIN_DELTA_CONTRACTS", "5000"))
+
+# Alert rate limiting (per symbol, per direction)
+OI_ALERT_RATE_LIMIT_SEC = int(os.getenv("OI_ALERT_RATE_LIMIT_SEC", "900"))  # 15 minutes
+
+# Baseline window for alerts (in seconds)
+OI_BASELINE_WINDOW_HIGH = int(os.getenv("OI_BASELINE_WINDOW_HIGH", "3600"))  # 60 min
+OI_BASELINE_WINDOW_LOW = int(os.getenv("OI_BASELINE_WINDOW_LOW", "1800"))  # 30 min
+
+# ─────────────────────── requests session ───────────────────────
+session = requests.Session()
+retry_strategy = Retry(
+    total=3,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+
+# ─────────────────────── OI History (Ring Buffers) ───────────────────────
+# symbol -> deque[(timestamp_epoch, oi_contracts)]
+# Max length: enough to cover 3 hours at chosen interval (approx 1080 for 10s interval)
+oi_history: Dict[str, deque] = {}
+
+# Alert rate limiting: (symbol, direction) -> last_alert_timestamp
+last_oi_alert_at: Dict[Tuple[str, str], float] = {}
+
+
+def compute_polling_interval(universe_size: int) -> int:
+    """
+    Compute polling interval based on universe size and rate limits.
+    
+    Formula:
+    - polls_per_min_per_symbol = MAX_REQ_PER_MIN / universe_size
+    - raw_interval = 60 / polls_per_min_per_symbol
+    - Clamp to [MIN_INTERVAL_SEC, MAX_INTERVAL_SEC]
+    """
+    if universe_size <= 0:
+        return MAX_INTERVAL_SEC
+    
+    polls_per_min_per_symbol = MAX_REQ_PER_MIN / universe_size
+    raw_interval = 60.0 / polls_per_min_per_symbol
+    
+    return min(MAX_INTERVAL_SEC, max(MIN_INTERVAL_SEC, int(round(raw_interval))))
+
+
+def load_liquid_universe() -> list:
+    """
+    Load liquid universe from VolSpike backend.
+    Returns list of symbol strings.
+    """
+    try:
+        url = f"{VOLSPIKE_API_URL}/api/market/open-interest/liquid-universe"
+        response = session.get(url, timeout=10)
+        
+        if not response.ok:
+            error_text = response.text[:200] if hasattr(response, 'text') else ''
+            print(f"⚠️  Failed to fetch liquid universe: {response.status_code}")
+            if error_text:
+                print(f"   Response: {error_text}")
+            if response.status_code == 401:
+                print(f"   ⚠️  Unauthorized - This endpoint should be public. Check backend routing.")
+            elif response.status_code == 404:
+                print(f"   ⚠️  Endpoint not found - Make sure backend is deployed with latest code.")
+            return []
+        
+        data = response.json()
+        symbols = [s["symbol"] for s in data.get("symbols", [])]
+        
+        if len(symbols) == 0:
+            print(f"⚠️  Liquid universe is empty (job may not have run yet)")
+            print(f"   Waiting 30 seconds for liquid universe job to run...")
+            print(f"   (The job runs every 5 minutes)")
+            return []
+        
+        print(f"✅ Loaded {len(symbols)} symbols from liquid universe")
+        if symbols:
+            estimated_interval = data.get('symbols', [{}])[0].get('estimatedPollIntervalSec', 'N/A')
+            print(f"   Estimated polling interval: {estimated_interval}s")
+        
+        return symbols
+    except Exception as e:
+        print(f"⚠️  Error loading liquid universe: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def fetch_oi_for_symbol(symbol: str) -> Optional[Tuple[float, Optional[float]]]:
+    """
+    Fetch Open Interest for a symbol from Binance.
+    Returns (openInterest_contracts, markPrice) or None on error.
+    """
+    try:
+        # Fetch Open Interest
+        oi_url = f"https://fapi.binance.com/fapi/v1/openInterest"
+        oi_response = session.get(oi_url, params={"symbol": symbol}, timeout=5)
+        
+        if not oi_response.ok:
+            return None
+        
+        oi_data = oi_response.json()
+        open_interest = float(oi_data.get("openInterest", 0))
+        
+        # Optionally fetch mark price (for USD calculation)
+        mark_price = None
+        try:
+            premium_url = f"https://fapi.binance.com/fapi/v1/premiumIndex"
+            premium_response = session.get(premium_url, params={"symbol": symbol}, timeout=5)
+            if premium_response.ok:
+                premium_data = premium_response.json()
+                mark_price = float(premium_data.get("markPrice", 0))
+        except Exception:
+            # Mark price fetch is optional, continue without it
+            pass
+        
+        return (open_interest, mark_price)
+    except Exception as e:
+        print(f"⚠️  Error fetching OI for {symbol}: {e}")
+        return None
+
+
+def initialize_oi_history(symbols: list):
+    """Initialize ring buffers for OI history (maxlen for 3 hours at 10s interval)"""
+    maxlen = int(3 * 3600 / 10)  # ~1080 samples
+    for symbol in symbols:
+        if symbol not in oi_history:
+            oi_history[symbol] = deque(maxlen=maxlen)
+
+
+def compute_baseline(symbol: str, now: float) -> Optional[float]:
+    """
+    Compute baseline OI from window [now - WINDOW_HIGH, now - WINDOW_LOW].
+    Returns median OI from that window, or None if insufficient data.
+    """
+    if symbol not in oi_history or len(oi_history[symbol]) < 10:
+        return None
+    
+    window_high = now - OI_BASELINE_WINDOW_HIGH
+    window_low = now - OI_BASELINE_WINDOW_LOW
+    
+    samples = [
+        oi for ts, oi in oi_history[symbol]
+        if window_low <= ts <= window_high
+    ]
+    
+    if len(samples) < 5:  # Need at least 5 samples for reliable baseline
+        return None
+    
+    samples.sort()
+    median_idx = len(samples) // 2
+    return samples[median_idx]
+
+
+def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float, 
+                  pct_change: float, abs_change: float, timestamp: float) -> bool:
+    """
+    Post OI alert to VolSpike backend.
+    Returns True on success, False on error.
+    """
+    try:
+        url = f"{VOLSPIKE_API_URL}/api/open-interest-alerts/ingest"
+        payload = {
+            "symbol": symbol,
+            "direction": direction,
+            "baseline": baseline,
+            "current": current,
+            "pctChange": pct_change,
+            "absChange": abs_change,
+            "timestamp": datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "source": "oi_realtime_poller",
+        }
+        
+        response = session.post(
+            url,
+            json=payload,
+            headers={
+                "X-API-Key": VOLSPIKE_API_KEY,
+                "Content-Type": "application/json",
+            },
+            timeout=10
+        )
+        
+        if response.ok:
+            result = response.json()
+            print(f"✅ Posted OI alert: {symbol} {direction} ({pct_change*100:.2f}%)")
+            return True
+        else:
+            print(f"⚠️  OI alert post failed: {response.status_code} - {response.text[:100]}")
+            return False
+    except Exception as e:
+        print(f"⚠️  Error posting OI alert: {e}")
+        return False
+
+
+def maybe_emit_oi_alert(symbol: str, current_oi: float, timestamp: float):
+    """
+    Check if OI change warrants an alert and emit if conditions are met.
+    Posts alerts to backend.
+    """
+    baseline = compute_baseline(symbol, timestamp)
+    if baseline is None or baseline == 0:
+        return
+    
+    pct_change = (current_oi - baseline) / baseline
+    abs_change = current_oi - baseline
+    
+    # Check spike (UP)
+    if (pct_change >= OI_SPIKE_THRESHOLD_PCT and 
+        abs_change >= OI_MIN_DELTA_CONTRACTS):
+        direction = "UP"
+        alert_key = (symbol, direction)
+        
+        # Rate limit check
+        if alert_key in last_oi_alert_at:
+            time_since_last = timestamp - last_oi_alert_at[alert_key]
+            if time_since_last < OI_ALERT_RATE_LIMIT_SEC:
+                return
+        
+        last_oi_alert_at[alert_key] = timestamp
+        
+        print(f"🔺 OI SPIKE: {symbol} {direction} | Baseline: {baseline:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f})")
+        emit_oi_alert(symbol, direction, baseline, current_oi, pct_change, abs_change, timestamp)
+        return
+    
+    # Check dump (DOWN)
+    if (pct_change <= -OI_DUMP_THRESHOLD_PCT and 
+        abs_change <= -OI_MIN_DELTA_CONTRACTS):
+        direction = "DOWN"
+        alert_key = (symbol, direction)
+        
+        # Rate limit check
+        if alert_key in last_oi_alert_at:
+            time_since_last = timestamp - last_oi_alert_at[alert_key]
+            if time_since_last < OI_ALERT_RATE_LIMIT_SEC:
+                return
+        
+        last_oi_alert_at[alert_key] = timestamp
+        
+        print(f"🔻 OI DUMP: {symbol} {direction} | Baseline: {baseline:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f})")
+        emit_oi_alert(symbol, direction, baseline, current_oi, pct_change, abs_change, timestamp)
+        return
+
+
+def post_oi_batch(samples: list) -> bool:
+    """
+    Post OI batch to VolSpike backend.
+    Returns True on success, False on error.
+    """
+    if not samples:
+        return False
+    
+    try:
+        url = f"{VOLSPIKE_API_URL}/api/market/open-interest/ingest"
+        payload = {
+            "data": samples,
+            "timestamp": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "totalSymbols": len(samples),
+            "source": "realtime",
+        }
+        
+        response = session.post(
+            url,
+            json=payload,
+            headers={
+                "X-API-Key": VOLSPIKE_API_KEY,
+                "Content-Type": "application/json",
+            },
+            timeout=10
+        )
+        
+        if response.ok:
+            result = response.json()
+            print(f"✅ Posted OI batch: {len(samples)} symbols ({result.get('inserted', 0)} inserted)")
+            return True
+        else:
+            print(f"⚠️  OI batch post failed: {response.status_code} - {response.text[:100]}")
+            return False
+    except Exception as e:
+        print(f"⚠️  Error posting OI batch: {e}")
+        return False
+
+
+def main_loop():
+    """Main polling loop"""
+    print("🚀 Starting Realtime OI Poller (Step 9: Full Implementation)")
+    print(f"   Backend URL: {VOLSPIKE_API_URL}")
+    print(f"   Max req/min: {MAX_REQ_PER_MIN}")
+    print(f"   Interval range: {MIN_INTERVAL_SEC}-{MAX_INTERVAL_SEC}s")
+    print(f"   Alert thresholds: ±{OI_SPIKE_THRESHOLD_PCT*100:.0f}% / ±{OI_MIN_DELTA_CONTRACTS:.0f} contracts")
+    
+    # Load liquid universe from backend
+    symbols = load_liquid_universe()
+    if not symbols:
+        print("❌ No symbols in liquid universe, exiting")
+        sys.exit(1)
+    
+    print(f"✅ Loaded {len(symbols)} symbols from backend")
+    
+    # Compute polling interval
+    interval_sec = compute_polling_interval(len(symbols))
+    print(f"📊 Computed polling interval: {interval_sec}s")
+    
+    # Initialize OI history
+    initialize_oi_history(symbols)
+    print(f"✅ Initialized OI history buffers")
+    
+    # Main loop
+    loop_count = 0
+    batch_samples = []
+    
+    try:
+        while True:
+            loop_start = time.time()
+            loop_count += 1
+            
+            # Fetch OI for each symbol from Binance
+            for symbol in symbols:
+                try:
+                    result = fetch_oi_for_symbol(symbol)
+                    if result is None:
+                        continue
+                    
+                    oi, mark_price = result
+                    if oi <= 0:
+                        continue
+                    
+                    timestamp = time.time()
+                    
+                    # Store in history
+                    oi_history[symbol].append((timestamp, oi))
+                    
+                    # Check for alerts (but don't POST yet - that's Step 9)
+                    maybe_emit_oi_alert(symbol, oi, timestamp)
+                    
+                    # Collect for batch
+                    sample = {
+                        "symbol": symbol,
+                        "openInterest": oi,
+                    }
+                    
+                    # Add USD and mark price if available
+                    if mark_price and mark_price > 0:
+                        sample["openInterestUsd"] = oi * mark_price
+                        sample["markPrice"] = mark_price
+                    
+                    batch_samples.append(sample)
+                    
+                except Exception as e:
+                    print(f"⚠️  Error processing {symbol}: {e}")
+                    continue
+            
+            # Post batch every 10 loops (or every ~50-120 seconds depending on interval)
+            if loop_count % 10 == 0 and batch_samples:
+                post_oi_batch(batch_samples)
+                batch_samples = []
+            
+            # Sleep until next interval
+            elapsed = time.time() - loop_start
+            sleep_time = max(0, interval_sec - elapsed)
+            
+            # Reload liquid universe every 100 loops (to pick up changes)
+            if loop_count % 100 == 0:
+                new_symbols = load_liquid_universe()
+                if new_symbols:
+                    # Update symbol list and reinitialize history for new symbols
+                    initialize_oi_history(new_symbols)
+                    symbols = new_symbols
+                    # Recompute interval
+                    interval_sec = compute_polling_interval(len(symbols))
+                    print(f"🔄 Reloaded liquid universe: {len(symbols)} symbols, interval: {interval_sec}s")
+            
+            if loop_count % 20 == 0:  # Print status every 20 loops
+                print(f"⏱️  Loop {loop_count} | Interval: {interval_sec}s | Samples in buffer: {sum(len(h) for h in oi_history.values())}")
+            
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+                
+    except KeyboardInterrupt:
+        print("\n🛑 Stopping poller...")
+        sys.exit(0)
+    except Exception as e:
+        print(f"❌ Fatal error: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main_loop()
+
