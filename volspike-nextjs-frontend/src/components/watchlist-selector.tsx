@@ -297,7 +297,7 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                             {watchlist.items.length} symbol{watchlist.items.length !== 1 ? 's' : ''}
                           </div>
                         </div>
-                        {/* Edit/Delete icons - fixed position */}
+                        {/* Edit/Delete icons - positioned just left of button column */}
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <Button
                             size="icon"
@@ -319,18 +319,21 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                        {/* Add/Remove button - far right */}
-                        {symbol && (
-                          <div className="flex-shrink-0">
+                        {/* Add/Remove button - fixed width column to ensure alignment */}
+                        {symbol ? (
+                          <div className="flex-shrink-0 w-[140px]">
                             <Button
                               size="sm"
                               onClick={() => handleSelectWatchlist(watchlist.id)}
                               disabled={isAddingSymbol || isRemovingSymbol}
                               variant={effectiveExistingWatchlistIds.includes(watchlist.id) ? 'destructive' : 'default'}
+                              className="w-full"
                             >
                               {effectiveExistingWatchlistIds.includes(watchlist.id) ? `Remove ${symbol}` : `Add ${symbol}`}
                             </Button>
                           </div>
+                        ) : (
+                          <div className="w-[140px]"></div>
                         )}
                       </div>
                     </>
