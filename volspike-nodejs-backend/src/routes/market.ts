@@ -445,9 +445,16 @@ market.get('/watchlist/:id', async (c) => {
         })
 
         return c.json(response)
-    } catch (error) {
-        logger.error('Watchlist market data error:', error)
-        return c.json({ error: 'Failed to fetch watchlist market data' }, 500)
+    } catch (error: any) {
+        logger.error('[Watchlist Market Data] ❌ Endpoint error:', {
+            error: error.message,
+            stack: error.stack,
+            watchlistId: c.req.param('id'),
+        })
+        return c.json({ 
+            error: 'Failed to fetch watchlist market data',
+            details: error.message,
+        }, 500)
     }
 })
 
