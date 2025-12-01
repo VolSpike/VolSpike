@@ -106,22 +106,24 @@ export function WatchlistFilter({ selectedWatchlistId, onWatchlistChange, classN
             ) : (
               safeWatchlists.map((watchlist) => (
                 <SelectItem key={watchlist.id} value={watchlist.id}>
-                  <div className="flex items-center justify-between w-full gap-2 group">
+                  <div className="flex items-center w-full gap-2 group">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <span className="truncate">{watchlist.name}</span>
                       <Badge variant="secondary" className="text-xs shrink-0">
                         {watchlist.items.length}
                       </Badge>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                      onClick={(e) => handleDeleteClick(e, { id: watchlist.id, name: watchlist.name })}
-                      title={`Delete "${watchlist.name}"`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex-shrink-0 ml-auto">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        onClick={(e) => handleDeleteClick(e, { id: watchlist.id, name: watchlist.name })}
+                        title={`Delete "${watchlist.name}"`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </SelectItem>
               ))
