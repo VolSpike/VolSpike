@@ -123,14 +123,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             });
         }
 
-        // Log OI lookup debug info
-        if (oiLookupDebug.length > 0) {
-            console.log(`🔍 [Open Interest Debug] buildSnapshot OI lookups:`, {
-                oiCacheSize: openInterestRef.current.size,
-                sampleLookups: oiLookupDebug,
-                oiCacheKeys: Array.from(openInterestRef.current.keys()).slice(0, 10)
-            });
-        }
+        // OI lookup debug info (removed console.log per user request)
 
         // Sort by volume (highest to lowest)
         out.sort((a, b) => b.volume24h - a.volume24h);
@@ -224,33 +217,15 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
 
             const fetchUrl = `${apiUrl}/api/market/open-interest`;
-            console.log(`🔍 [Open Interest Debug] Fetching from: ${fetchUrl}`);
-            console.log(`🔍 [Open Interest Debug] Current ticker count: ${tickersRef.current.size}`);
-            console.log(`🔍 [Open Interest Debug] Current OI cache size: ${openInterestRef.current.size}`);
-            
-            // Show sample ticker symbols (both raw and normalized for comparison)
-            const sampleTickers = Array.from(tickersRef.current.keys()).slice(0, 5);
-            const sampleNormalized = sampleTickers.map(s => ({ raw: s, normalized: normalizeSym(s) }));
-            console.log(`🔍 [Open Interest Debug] Sample ticker symbols:`, sampleNormalized);
 
             const response = await fetch(fetchUrl);
             
             if (!response.ok) {
-                console.error(`❌ [Open Interest Debug] Fetch failed: ${response.status} ${response.statusText}`);
-                const errorText = await response.text().catch(() => '');
-                console.error(`❌ [Open Interest Debug] Error response:`, errorText);
+                // Silently handle fetch errors - will retry on next interval
                 return;
             }
 
             const payload = await response.json();
-            console.log(`🔍 [Open Interest Debug] Response payload:`, {
-                hasData: !!payload?.data,
-                dataKeys: payload?.data ? Object.keys(payload.data).length : 0,
-                stale: payload?.stale,
-                dangerouslyStale: payload?.dangerouslyStale,
-                asOf: payload?.asOf ? new Date(payload.asOf).toISOString() : null,
-                sampleKeys: payload?.data ? Object.keys(payload.data).slice(0, 10) : []
-            });
             
             const data = payload?.data ?? {};
             const keys = Object.keys(data);
@@ -290,14 +265,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     }
                 }
                 
-                console.log(`🔍 [Open Interest Debug] Processing results:`, {
-                    totalKeys: keys.length,
-                    validEntries: newMap.size,
-                    matchedCount,
-                    matchedSamples,
-                    unmatchedSamples,
-                    tickerSymbols: Array.from(tickersRef.current.keys()).slice(0, 10)
-                });
+                // Processing OI data (debug logs removed)
                 
                 // Update ref with new data
                 openInterestRef.current = newMap;
@@ -314,37 +282,19 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     // localStorage might be full or disabled, ignore
                 }
                 
-                console.log(`✅ [Open Interest Debug] Updated cache: ${newMap.size} symbols, ${matchedCount} matched with tickers`, {
-                    stale: payload?.stale,
-                    dangerouslyStale: payload?.dangerouslyStale,
-                    asOf: payload?.asOf ? new Date(payload.asOf).toISOString() : null
-                });
+                // OI cache updated (debug logs removed)
 
                 // Always re-render with updated OI data (even if tickers aren't loaded yet, they'll be matched later)
                 const snapshot = buildSnapshot();
-                console.log(`🔍 [Open Interest Debug] Built snapshot: ${snapshot.length} items (tickers: ${tickersRef.current.size})`);
-                // Debug first few items
-                snapshot.slice(0, 5).forEach(item => {
-                    const normalizedSym = normalizeSym(item.symbol);
-                    const oiValue = openInterestRef.current.get(normalizedSym);
-                    console.log(`🔍 [Open Interest Debug] Snapshot item: ${item.symbol} -> normalized: ${normalizedSym}, OI: ${oiValue ?? 'NOT FOUND'}`);
-                });
                 if (snapshot.length > 0) {
                     render(snapshot);
-                } else if (tickersRef.current.size === 0) {
-                    console.warn('⚠️ [Open Interest Debug] No snapshot items and no tickers - OI data available but no tickers to match');
                 }
             } else {
                 // No clobbering! Keep existing ref so UI doesn't flip to 0s
-                console.warn('⚠️ [Open Interest Debug] Received empty data, keeping existing cache', {
-                    stale: payload?.stale,
-                    dangerouslyStale: payload?.dangerouslyStale,
-                    currentCacheSize: openInterestRef.current.size,
-                    payloadKeys: Object.keys(payload)
-                });
+                // Received empty data, keeping existing cache
             }
         } catch (error) {
-            console.error('❌ [Open Interest Debug] Fetch error:', error);
+            // Silently handle fetch errors - will retry on next interval
         }
     }, [buildSnapshot, render, normalizeSym]);
 
@@ -431,7 +381,6 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
             }
 
             if (seeded > 0) {
-                console.log(`🔍 [Open Interest Debug] Tickers seeded: ${seeded} symbols`);
                 // Fetch OI after tickers are loaded so we can match symbols
                 void fetchOpenInterest();
                 
@@ -490,7 +439,6 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                 // Warm start: seed tickers first, then fetch OI after tickers are loaded
                 void primeTickersSnapshot().then(() => {
                     // Fetch OI after tickers are seeded so we can match symbols
-                    console.log('🔍 [Open Interest Debug] Tickers seeded, fetching OI...');
                     void fetchOpenInterest();
                 });
                 // Also fetch OI immediately in case tickers are already loaded from localStorage
@@ -533,9 +481,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     }
 
                     // If tickers were updated and we have OI data, trigger a fetch to match symbols
-                    if (tickersUpdated && openInterestRef.current.size > 0) {
-                        console.log(`🔍 [Open Interest Debug] Tickers updated via WebSocket, re-rendering with OI data`);
-                    }
+                    // Tickers updated via WebSocket, re-rendering with OI data
 
                     const snapshot = buildSnapshot();
                     const now = Date.now();
@@ -645,11 +591,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate }: UseClientOnlyMar
                     }
                     openInterestFetchedAtRef.current = Date.now();
                     
-                    if (process.env.NODE_ENV === 'development') {
-                        console.log(`📊 Open Interest: Hydrated ${restoredMap.size} symbols from localStorage`, {
-                            asOf: new Date(cached.asOf).toISOString()
-                        });
-                    }
+                    // Open Interest hydrated from localStorage (debug logs removed)
                 }
             }
         } catch (e) {
