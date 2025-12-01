@@ -156,7 +156,7 @@ export function MarketTable({
         if (!selectedWatchlistId || !watchlistInfo) {
             return []
         }
-        return watchlistInfo.items?.map((item: any) => {
+        const symbols = watchlistInfo.items?.map((item: any) => {
             let symbol = item.contract?.symbol?.toUpperCase() || ''
             // Ensure symbol has USDT suffix (WebSocket symbols are like BTCUSDT)
             if (symbol && !symbol.endsWith('USDT')) {
@@ -164,15 +164,18 @@ export function MarketTable({
             }
             return symbol
         }).filter(Boolean) || []
+        
+        console.log(`[Watchlist Debug] Extracted ${symbols.length} symbols from watchlist:`, symbols)
+        return symbols
     }, [selectedWatchlistId, watchlistInfo])
     
     // Notify Dashboard about watchlist symbols so it can pass them to useClientOnlyMarketData
     useEffect(() => {
-        if (onWatchlistFilterChange && watchlistSymbols.length > 0) {
-            // Store symbols in a way Dashboard can access (via callback or context)
-            // For now, we'll filter client-side in displayData
+        if (onWatchlistFilterChange) {
+            console.log(`[Watchlist Debug] Notifying Dashboard: watchlistId=${selectedWatchlistId}, symbols=${watchlistSymbols.length}`)
+            onWatchlistFilterChange(selectedWatchlistId, watchlistSymbols)
         }
-    }, [watchlistSymbols, onWatchlistFilterChange])
+    }, [selectedWatchlistId, watchlistSymbols, onWatchlistFilterChange])
     
     // Display data: filter WebSocket data by watchlist symbols
     // Note: Symbols outside tier limits are now included in data via useClientOnlyMarketData hook
@@ -228,19 +231,7 @@ export function MarketTable({
     // Handle watchlist filter change
     const handleWatchlistFilterChange = (watchlistId: string | null) => {
         setSelectedWatchlistId(watchlistId)
-        if (onWatchlistFilterChange) {
-            // Pass watchlist symbols so Dashboard can include them in WebSocket data
-            const symbols = watchlistId && watchlistInfo 
-                ? watchlistInfo.items?.map((item: any) => {
-                    let symbol = item.contract?.symbol?.toUpperCase() || ''
-                    if (symbol && !symbol.endsWith('USDT')) {
-                        symbol = `${symbol}USDT`
-                    }
-                    return symbol
-                }).filter(Boolean) || []
-                : []
-            onWatchlistFilterChange(watchlistId, symbols)
-        }
+        // Symbols will be passed via useEffect when watchlistInfo loads
     }
     const scrollContainerRef = useRef<HTMLDivElement>(null)
     const prevPriceRef = useRef<Map<string, number>>(new Map())
