@@ -101,48 +101,60 @@ export function MarketTable({
     const [symbolToRemove, setSymbolToRemove] = useState<string | undefined>()
     const [watchlistsForRemoval, setWatchlistsForRemoval] = useState<Array<{ id: string; name: string }>>([])
 
-    // Fetch watchlist market data if a watchlist is selected
-    const { data: watchlistMarketData, error: watchlistError } = useQuery<MarketData[]>({
-        queryKey: ['watchlist-market-data', selectedWatchlistId],
+    // Get watchlist symbols if a watchlist is selected
+    // Filter the existing WebSocket data instead of fetching from REST API
+    const { data: watchlistInfo } = useQuery({
+        queryKey: ['watchlist-info', selectedWatchlistId],
         queryFn: async () => {
-            if (!selectedWatchlistId) return []
+            if (!selectedWatchlistId) return null
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            // Get auth token for API requests
             const token = session?.accessToken || session?.user?.id || ''
-            console.log(`[MarketTable] Fetching watchlist market data for watchlist ${selectedWatchlistId}`)
-            const response = await fetch(`${API_URL}/api/market/watchlist/${selectedWatchlistId}`, {
+            const response = await fetch(`${API_URL}/api/watchlist/${selectedWatchlistId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
                 credentials: 'include',
             })
             if (!response.ok) {
-                const errorText = await response.text()
-                console.error(`[MarketTable] Failed to fetch watchlist market data:`, {
-                    status: response.status,
-                    statusText: response.statusText,
-                    error: errorText,
-                })
-                throw new Error(`Failed to fetch watchlist market data: ${response.status} ${response.statusText}`)
+                throw new Error('Failed to fetch watchlist')
             }
-            const result = await response.json()
-            console.log(`[MarketTable] Received watchlist market data:`, {
-                watchlistId: result.watchlistId,
-                watchlistName: result.watchlistName,
-                symbolCount: result.symbols?.length || 0,
-                symbols: result.symbols?.map((s: MarketData) => s.symbol) || [],
-            })
-            return result.symbols || []
+            return response.json()
         },
         enabled: !!selectedWatchlistId && !!session?.user,
-        staleTime: 30000, // 30 seconds
-        refetchOnWindowFocus: false, // Prevent unnecessary refetches
-        retry: 1, // Only retry once on failure
+        staleTime: 60000, // 1 minute
     })
 
-    // Use watchlist data if filter is active, otherwise use regular data
-    // Important: Check if watchlistMarketData is defined (not just truthy) to handle empty arrays
-    const displayData = selectedWatchlistId && watchlistMarketData !== undefined ? watchlistMarketData : data
+    // Filter existing WebSocket data by watchlist symbols
+    const displayData = useMemo(() => {
+        if (!selectedWatchlistId || !watchlistInfo) {
+            return data
+        }
+        
+        // Get symbols from watchlist
+        const watchlistSymbols = watchlistInfo.watchlist?.items?.map((item: any) => 
+            item.contract?.symbol?.toUpperCase()
+        ).filter(Boolean) || []
+        
+        if (watchlistSymbols.length === 0) {
+            return []
+        }
+        
+        // Filter data by watchlist symbols (case-insensitive)
+        const filtered = data.filter(item => 
+            watchlistSymbols.some((symbol: string) => 
+                item.symbol.toUpperCase() === symbol.toUpperCase()
+            )
+        )
+        
+        console.log(`[MarketTable] Filtered data:`, {
+            watchlistId: selectedWatchlistId,
+            watchlistSymbols,
+            totalData: data.length,
+            filteredCount: filtered.length,
+        })
+        
+        return filtered
+    }, [data, selectedWatchlistId, watchlistInfo])
     
     // Debug logging
     if (selectedWatchlistId) {
