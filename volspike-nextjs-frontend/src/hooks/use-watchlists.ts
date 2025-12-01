@@ -95,12 +95,12 @@ export function useWatchlists() {
       }
 
       const result = await response.json()
-      console.log('[useWatchlists] ✅ Success:', {
+      console.log('[useWatchlists] ✅ Success:', JSON.stringify({
         watchlistsCount: result.watchlists?.length,
         watchlists: result.watchlists,
         limits: result.limits,
         fullResponse: result,
-      })
+      }, null, 2))
       return result
     },
     enabled: !!session?.user,
@@ -110,15 +110,18 @@ export function useWatchlists() {
   })
 
   // Log for debugging
-  console.log('[useWatchlists] 📊 Hook state:', {
+  console.log('[useWatchlists] 📊 Hook state:', JSON.stringify({
     isLoading,
     hasError: !!error,
     error: error?.message,
-    watchlistsData,
-    watchlistsCount: watchlistsData?.watchlists?.length,
+    watchlistsData: watchlistsData ? {
+      watchlistsCount: watchlistsData.watchlists?.length,
+      watchlists: watchlistsData.watchlists,
+      limits: watchlistsData.limits,
+    } : null,
     sessionUser: session?.user?.email,
     enabled: !!session?.user,
-  })
+  }, null, 2))
   
   if (error) {
     console.error('[useWatchlists] ❌ Query error:', error)
