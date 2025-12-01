@@ -54,11 +54,36 @@ export async function getMarketData(symbol?: string): Promise<MarketData[] | Mar
             }
 
             const ticker: BinanceTicker = response.data
+            
+            // Validate response data
+            if (!ticker || !ticker.symbol || !ticker.lastPrice) {
+                logger.warn(`Invalid ticker data returned for symbol ${symbol}`)
+                return null
+            }
+            
             const price = parseFloat(ticker.lastPrice)
             const volume24h = parseFloat(ticker.quoteVolume)
 
-            if (volume24h < 1000000) {
-                return null // Filter out low volume pairs
+            // Don't filter by volume for watchlist symbols - user explicitly added them
+            // Only filter if volume is 0 or invalid
+            if (isNaN(volume24h) || volume24h <= 0) {
+                logger.warn(`Invalid volume for symbol ${symbol}: ${volume24h}`)
+                return null
+            }
+
+            // Fetch funding rate separately
+            let fundingRate = 0
+            try {
+                const fundingResponse = await axios.get(`${BINANCE_BASE_URL}/fapi/v1/premiumIndex`, {
+                    params: { symbol },
+                    timeout: 5000
+                })
+                if (fundingResponse.data && fundingResponse.data.lastFundingRate) {
+                    fundingRate = parseFloat(fundingResponse.data.lastFundingRate)
+                }
+            } catch (fundingError) {
+                // Funding rate fetch failed, use 0 as default
+                logger.debug(`Failed to fetch funding rate for ${symbol}, using 0`)
             }
 
             return {
@@ -66,8 +91,8 @@ export async function getMarketData(symbol?: string): Promise<MarketData[] | Mar
                 price,
                 volume24h,
                 volumeChange: calculateVolumeChange(ticker),
-                fundingRate: 0, // Would need separate API call
-                openInterest: 0,
+                fundingRate,
+                openInterest: 0, // Would need separate API call
                 timestamp: Date.now(),
             }
         } catch (error) {

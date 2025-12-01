@@ -342,10 +342,12 @@ market.get('/watchlist/:id', async (c) => {
             return c.json({ error: 'Watchlist not found' }, 404)
         }
 
-        // Extract symbols from watchlist items
+        // Extract symbols from watchlist items and normalize to uppercase
         const symbols = watchlist.items
-            .map(item => item.contract.symbol)
+            .map(item => item.contract.symbol?.toUpperCase())
             .filter(symbol => symbol) // Filter out any null/undefined
+
+        logger.info(`Watchlist ${watchlistId} contains ${symbols.length} symbols: ${symbols.join(', ')}`)
 
         if (symbols.length === 0) {
             return c.json({
@@ -358,19 +360,27 @@ market.get('/watchlist/:id', async (c) => {
 
         // Fetch market data for each symbol individually
         // This allows symbols outside tier's normal visibility to be displayed
-        const symbolDataPromises = symbols.map(symbol => 
-            getMarketData(symbol).catch(error => {
+        const symbolDataPromises = symbols.map(async (symbol) => {
+            try {
+                const data = await getMarketData(symbol)
+                // getMarketData returns MarketData | MarketData[] | null
+                // When called with a symbol, it returns MarketData | null
+                if (data && typeof data === 'object' && 'symbol' in data && !Array.isArray(data)) {
+                    return data as MarketData
+                }
+                logger.warn(`Invalid data format returned for symbol ${symbol}`)
+                return null
+            } catch (error) {
                 logger.warn(`Failed to fetch data for symbol ${symbol}:`, error)
                 return null // Return null for failed fetches
-            })
-        )
+            }
+        })
 
         const symbolDataResults = await Promise.all(symbolDataPromises)
         
         // Filter out null results and ensure we have MarketData objects
         const marketData = symbolDataResults
             .filter((data): data is MarketData => data !== null && typeof data === 'object' && 'symbol' in data)
-            .map(data => data as MarketData)
 
         logger.info(`Fetched market data for ${marketData.length}/${symbols.length} symbols in watchlist ${watchlistId} by ${user.email}`)
 
