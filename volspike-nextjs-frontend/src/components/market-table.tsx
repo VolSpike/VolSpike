@@ -91,7 +91,7 @@ export function MarketTable({
     const { data: session } = useSession()
     const { watchlists, addSymbol, removeSymbol } = useWatchlists()
     const queryClient = useQueryClient()
-    const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest' | 'star'>('volume')
+    const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
@@ -510,24 +510,6 @@ export function MarketTable({
 
     const sortedData = useMemo(() => {
         return [...displayData].sort((a, b) => {
-            // Star sorting: starred first (asc) or non-starred first (desc)
-            if (sortBy === 'star') {
-                const aInWatchlist = isSymbolInWatchlist(a.symbol)
-                const bInWatchlist = isSymbolInWatchlist(b.symbol)
-                
-                if (sortOrder === 'asc') {
-                    // Starred first
-                    if (aInWatchlist && !bInWatchlist) return -1
-                    if (!aInWatchlist && bInWatchlist) return 1
-                } else {
-                    // Non-starred first
-                    if (!aInWatchlist && bInWatchlist) return -1
-                    if (aInWatchlist && !bInWatchlist) return 1
-                }
-                // If both have same watchlist status, maintain volume order
-                return b.volume24h - a.volume24h
-            }
-
             let aValue: number, bValue: number
 
             switch (sortBy) {
@@ -561,7 +543,7 @@ export function MarketTable({
 
             return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
         })
-    }, [displayData, sortBy, sortOrder, symbolsInWatchlists])
+    }, [displayData, sortBy, sortOrder])
 
     // Re-run scroll measurement when row count changes (e.g., filtering to small watchlists)
     useEffect(() => {
@@ -593,30 +575,8 @@ export function MarketTable({
         })
     }, [sortedData])
 
-    const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest' | 'star') => {
+    const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest') => {
         if (guestMode) return // Sorting locked in guest preview
-        
-        // Special handling for star column: three-state cycle
-        if (column === 'star') {
-            if (sortBy === 'star') {
-                // Currently sorting by star - cycle to next state
-                if (sortOrder === 'asc') {
-                    // State 1 -> State 2: Non-starred first
-                    setSortOrder('desc')
-                } else {
-                    // State 2 -> State 3: Back to default (volume)
-                    setSortBy('volume')
-                    setSortOrder('desc')
-                }
-            } else {
-                // Not currently sorting by star - start with starred first
-                setSortBy('star')
-                setSortOrder('asc')
-            }
-            return
-        }
-        
-        // Regular column sorting
         if (sortBy === column) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
             return
@@ -637,12 +597,6 @@ export function MarketTable({
         // For symbol/ticker column, reverse the arrow direction
         // A-Z (asc) shows down arrow, Z-A (desc) shows up arrow
         if (column === 'symbol') {
-            return sortOrder === 'asc' ?
-                <ArrowDown className="h-3 w-3 text-brand-500" /> :
-                <ArrowUp className="h-3 w-3 text-brand-500" />
-        }
-        // For star column: asc = starred first (down arrow), desc = non-starred first (up arrow)
-        if (column === 'star') {
             return sortOrder === 'asc' ?
                 <ArrowDown className="h-3 w-3 text-brand-500" /> :
                 <ArrowUp className="h-3 w-3 text-brand-500" />
@@ -960,20 +914,6 @@ export function MarketTable({
                                         </Button>
                                     </th>
                                 )}
-                                <th className="text-center p-3 align-middle">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleSort('star')}
-                                        disabled={guestMode || !session?.user}
-                                        title={guestMode ? 'Sign in to enable sorting (Free tier unlocks sorting)' : !session?.user ? 'Sign in to sort by watchlist' : undefined}
-                                        className={`h-auto p-0 font-semibold transition-colors flex items-center justify-center gap-1 ${guestMode || !session?.user ? 'opacity-60 cursor-not-allowed' : 'hover:text-brand-500'}`}
-                                    >
-                                        <Star className={`h-4 w-4 ${sortBy === 'star' ? 'text-brand-500' : 'text-foreground'}`} />
-                                        {sortBy === 'star' && <SortIcon column="star" />}
-                                        {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
-                                    </Button>
-                                </th>
                                 <th className="w-24"></th>
                             </tr>
                         </thead>
@@ -1156,48 +1096,49 @@ export function MarketTable({
                                                 {formatVolume(item.openInterest ?? 0)}
                                             </td>
                                         )}
-                                        {/* Star column - separate from actions */}
-                                        <td className={`p-3 text-center transition-colors duration-150${cellHoverBg}`}>
-                                            {session?.user && !guestMode && (
-                                                <div className="flex items-center justify-center">
-                                                    <Button
-                                                        className={`h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
-                                                            isSymbolInWatchlist(item.symbol)
-                                                                ? 'text-brand-600 dark:text-brand-400'
-                                                                : ''
-                                                        }`}
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => handleAddToWatchlist(e, item)}
-                                                        title={
-                                                            isSymbolInWatchlist(item.symbol)
-                                                                ? 'Remove from watchlist'
-                                                                : 'Add to watchlist'
-                                                        }
-                                                    >
-                                                        <Star
-                                                            className={`h-3.5 w-3.5 ${
-                                                                isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
-                                                            }`}
-                                                        />
-                                                    </Button>
-                                                </div>
-                                            )}
-                                        </td>
-                                        {/* Actions column - bell icon */}
                                         <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
-                                            <div className="flex items-center justify-end">
+                                            <div className="flex items-center justify-end gap-1">
+                                                {/* Star icon: Always visible if in watchlist, otherwise hover-only on desktop */}
+                                                {session?.user && !guestMode && (
+                                                    <div className={`pointer-events-none ${
+                                                        isSymbolInWatchlist(item.symbol)
+                                                            ? 'opacity-100' // Always visible if in watchlist
+                                                            : 'opacity-100 md:opacity-0 md:group-hover/row:opacity-100' // Hover-only on desktop if not in watchlist
+                                                    } transition-opacity duration-150`}>
+                                                <Button
+                                                            className={`pointer-events-auto h-7 w-7 hover:bg-brand-500/10 hover:text-brand-600 dark:hover:text-brand-400 ${
+                                                                isSymbolInWatchlist(item.symbol)
+                                                                    ? 'text-brand-600 dark:text-brand-400'
+                                                                    : ''
+                                                            }`}
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => handleAddToWatchlist(e, item)}
+                                                            title={
+                                                                isSymbolInWatchlist(item.symbol)
+                                                                    ? 'Remove from watchlist'
+                                                                    : 'Add to watchlist'
+                                                            }
+                                                >
+                                                            <Star
+                                                                className={`h-3.5 w-3.5 ${
+                                                                    isSymbolInWatchlist(item.symbol) ? 'fill-current' : ''
+                                                                }`}
+                                                            />
+                                                </Button>
+                                                    </div>
+                                                )}
                                                 {/* Bell icon: Always hover-only on desktop, always visible on mobile */}
                                                 <div className="pointer-events-none opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity duration-150">
-                                                    <Button
-                                                        className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={(e) => handleCreateAlert(e, item)}
-                                                        title="Create alert"
-                                                    >
-                                                        <Bell className="h-3.5 w-3.5" />
-                                                    </Button>
+                                                <Button
+                                                    className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => handleCreateAlert(e, item)}
+                                                    title="Create alert"
+                                                >
+                                                    <Bell className="h-3.5 w-3.5" />
+                                                </Button>
                                                 </div>
                                             </div>
                                         </td>
