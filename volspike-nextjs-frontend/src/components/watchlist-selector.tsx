@@ -394,7 +394,7 @@ export function WatchlistSelector({ open, onOpenChange, symbol, onWatchlistSelec
               ) : hasMaxWatchlists && isProTier ? (
                 <div className="w-full p-4 border rounded-lg bg-muted/30">
                   <p className="text-sm text-muted-foreground text-center">
-                    You've reached the maximum number of watchlists ({limits?.limits.watchlistLimit}) for your tier. 
+                    You&apos;ve reached the maximum number of watchlists ({limits?.limits.watchlistLimit}) for your tier. 
                     You can still manage your existing watchlists above.
                   </p>
                 </div>
