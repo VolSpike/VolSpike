@@ -141,13 +141,14 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         // Use ref to avoid recreating buildSnapshot when watchlistSymbols changes
         const normalizedWatchlistSymbols = watchlistSymbolsRef.current.map(s => normalizeSym(s));
         
+        // Create a Set of normalized watchlist symbols for fast lookup
+        const normalizedWatchlistSet = new Set(normalizedWatchlistSymbols);
+        
         if (normalizedWatchlistSymbols.length > 0) {
             console.log(`[buildSnapshot] Watchlist symbols requested:`, normalizedWatchlistSymbols);
             console.log(`[buildSnapshot] Total symbols in WebSocket:`, out.length);
+            console.log(`[buildSnapshot] Normalized watchlist set size:`, normalizedWatchlistSet.size);
         }
-        
-        // Create a Set of normalized watchlist symbols for fast lookup
-        const normalizedWatchlistSet = new Set(normalizedWatchlistSymbols);
         
         // Separate watchlist symbols from others
         const watchlistItems: MarketData[] = [];
@@ -164,6 +165,20 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
                 foundWatchlistSymbols.push(item.symbol);
             } else {
                 otherItems.push(item);
+            }
+        }
+        
+        // Debug: Verify separation worked correctly
+        if (normalizedWatchlistSymbols.length > 0 && process.env.NODE_ENV === 'development') {
+            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
+            const duplicatesInOther = otherItems.filter(item => 
+                watchlistSymbolSet.has(normalizeSym(item.symbol))
+            );
+            if (duplicatesInOther.length > 0) {
+                console.error(`[buildSnapshot] ❌ SEPARATION BUG: Found ${duplicatesInOther.length} watchlist symbols in otherItems:`, 
+                    duplicatesInOther.map(item => item.symbol));
+            } else {
+                console.log(`[buildSnapshot] ✅ Separation correct: ${watchlistItems.length} watchlist items, ${otherItems.length} other items, 0 duplicates`);
             }
         }
         
@@ -192,18 +207,6 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         const limit = tierLimits[tier as keyof typeof tierLimits] || 50;
         const limitedOtherItems = otherItems.slice(0, limit);
         
-        // Debug: Check if any watchlist symbols are in otherItems (they shouldn't be)
-        if (normalizedWatchlistSymbols.length > 0 && process.env.NODE_ENV === 'development') {
-            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
-            const duplicatesInOther = limitedOtherItems.filter(item => 
-                watchlistSymbolSet.has(normalizeSym(item.symbol))
-            );
-            if (duplicatesInOther.length > 0) {
-                console.warn(`[buildSnapshot] ⚠️ Found ${duplicatesInOther.length} watchlist symbols in otherItems (should be 0):`, 
-                    duplicatesInOther.map(item => item.symbol));
-            }
-        }
-        
         // Combine: watchlist items first (always included), then limited other items
         // Remove duplicates (watchlist symbols should already be excluded from otherItems, but double-check)
         const combined = [...watchlistItems];
@@ -213,8 +216,11 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         for (const item of limitedOtherItems) {
             const normalizedItemSym = normalizeSym(item.symbol);
             if (watchlistSymbolSet.has(normalizedItemSym)) {
-                // This shouldn't happen if separation worked correctly
+                // This shouldn't happen if separation worked correctly - log as error
                 skippedDuplicates++;
+                if (process.env.NODE_ENV === 'development') {
+                    console.error(`[buildSnapshot] ❌ DUPLICATE FOUND: ${item.symbol} is in both watchlistItems and otherItems`);
+                }
             } else {
                 combined.push(item);
                 addedOtherItems++;
@@ -224,7 +230,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         if (normalizedWatchlistSymbols.length > 0) {
             console.log(`[buildSnapshot] Final combined result: ${combined.length} unique items (${watchlistItems.length} watchlist + ${addedOtherItems} other, ${skippedDuplicates} duplicates skipped)`);
             if (skippedDuplicates > 0) {
-                console.warn(`[buildSnapshot] ⚠️ Found ${skippedDuplicates} duplicates - separation logic may have an issue`);
+                console.error(`[buildSnapshot] ❌ SEPARATION FAILED: Found ${skippedDuplicates} duplicates - watchlist symbols are in both lists!`);
             }
         }
         
