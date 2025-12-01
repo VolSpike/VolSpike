@@ -131,41 +131,16 @@ const writeManifestCache = (assets: AssetRecord[]) => {
         }
         manifestMemory = assets
         
-        // Check for 1000PEPE before writing
-        const pepAsset = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
-        if (pepAsset) {
-            console.log('[writeManifestCache] 1000PEPE before localStorage write:', {
-                hasLogoUrl: !!pepAsset.logoUrl,
-                logoUrlLength: pepAsset.logoUrl?.length || 0,
-                hasDescription: !!pepAsset.description,
-                descriptionLength: pepAsset.description?.length || 0,
-            })
-        }
-        
         const jsonString = JSON.stringify(payload)
-        console.log('[writeManifestCache] JSON size:', jsonString.length, 'bytes')
+        logDebug('Writing manifest cache:', jsonString.length, 'bytes,', assets.length, 'assets')
         
         // Check if localStorage has size limits (usually 5-10MB)
         try {
             localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
-            
-            // Verify it was written correctly
-            const verify = localStorage.getItem(MANIFEST_CACHE_KEY)
-            if (verify) {
-                const parsed = JSON.parse(verify)
-                const pepAfter = parsed?.assets?.find((a: AssetRecord) => a.baseSymbol.toUpperCase() === '1000PEPE')
-                if (pepAfter) {
-                    console.log('[writeManifestCache] 1000PEPE after localStorage write:', {
-                        hasLogoUrl: !!pepAfter.logoUrl,
-                        logoUrlLength: pepAfter.logoUrl?.length || 0,
-                        hasDescription: !!pepAfter.description,
-                        descriptionLength: pepAfter.description?.length || 0,
-                    })
-                }
-            }
+            logDebug('Manifest cache written successfully')
         } catch (storageError: any) {
             if (storageError.name === 'QuotaExceededError') {
-                console.error('[writeManifestCache] localStorage quota exceeded!', {
+                logDebug('localStorage quota exceeded, clearing old cache and retrying', {
                     jsonSize: jsonString.length,
                     error: storageError.message,
                 })
@@ -177,7 +152,6 @@ const writeManifestCache = (assets: AssetRecord[]) => {
             }
         }
     } catch (error) {
-        console.error('[writeManifestCache] Failed to persist manifest cache:', error)
         logDebug('Failed to persist manifest cache', error)
     }
 }
@@ -201,30 +175,7 @@ const fetchManifestFromApi = async (): Promise<AssetRecord[]> => {
     const assets: AssetRecord[] = Array.isArray(json?.assets) ? json.assets : []
     logDebug(`Fetched manifest from API (${assets.length} assets, source=${json?.source})`)
     
-    // Debug: Check 1000PEPE in API response
-    const pepInApi = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
-    if (pepInApi) {
-        console.log('[fetchManifestFromApi] 1000PEPE from API:', {
-            hasLogoUrl: !!pepInApi.logoUrl,
-            logoUrlLength: pepInApi.logoUrl?.length || 0,
-            hasDescription: !!pepInApi.description,
-            descriptionLength: pepInApi.description?.length || 0,
-        })
-    }
-    
     const normalized = assets.map(normalizeRecord)
-    
-    // Debug: Check 1000PEPE after normalization
-    const pepAfterNorm = normalized.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
-    if (pepAfterNorm) {
-        console.log('[fetchManifestFromApi] 1000PEPE after normalizeRecord:', {
-            hasLogoUrl: !!pepAfterNorm.logoUrl,
-            logoUrlLength: pepAfterNorm.logoUrl?.length || 0,
-            hasDescription: !!pepAfterNorm.description,
-            descriptionLength: pepAfterNorm.description?.length || 0,
-        })
-    }
-    
     return normalized
 }
 
@@ -282,12 +233,12 @@ export const prefetchAssetManifest = async (): Promise<void> => {
 export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined => {
     const cached = readCachedManifest()
     if (!cached) {
-        console.log(`[findAssetInManifestSync] No cached manifest for "${symbol}"`)
+        logDebug(`No cached manifest for "${symbol}"`)
         return undefined
     }
     
     const upper = symbol.toUpperCase()
-    console.log(`[findAssetInManifestSync] Searching for "${upper}" in ${cached.length} cached assets`)
+    logDebug(`Searching for "${upper}" in ${cached.length} cached assets`)
     
     const found = cached.find((asset) => {
         const baseMatch = asset.baseSymbol?.toUpperCase() === upper
@@ -295,7 +246,7 @@ export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined
         const extraMatch = Array.isArray(asset.extraSymbols) && asset.extraSymbols.some((s) => s.toUpperCase() === upper)
         
         if (baseMatch || binanceMatch || extraMatch) {
-            console.log(`[findAssetInManifestSync] ✅ Match found:`, {
+            logDebug(`✅ Match found:`, {
                 baseSymbol: asset.baseSymbol,
                 binanceSymbol: asset.binanceSymbol,
                 baseMatch,
@@ -308,9 +259,9 @@ export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined
     })
     
     if (!found) {
-        // Log sample of what we're searching through
+        // Log sample of what we're searching through (only in debug mode)
         const sample = cached.slice(0, 5).map(a => a.baseSymbol)
-        console.log(`[findAssetInManifestSync] ❌ No match. Sample symbols in cache:`, sample)
+        logDebug(`❌ No match. Sample symbols in cache:`, sample)
     }
     
     return found
