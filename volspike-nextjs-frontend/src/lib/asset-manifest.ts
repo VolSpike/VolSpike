@@ -80,7 +80,10 @@ const logDebug = (...args: any[]) => {
 }
 
 let manifestMemory: AssetRecord[] | null = null
+let manifestMemoryIsStatic = false
+let manifestMemoryIsStale = false
 let manifestPromise: Promise<AssetRecord[]> | null = null
+let staticManifestNormalized: AssetRecord[] | null = null
 
 const normalizeRecord = (record: AssetRecord): AssetRecord => {
     const extraSymbols = Array.isArray(record.extraSymbols)
@@ -103,33 +106,49 @@ const normalizeRecord = (record: AssetRecord): AssetRecord => {
     }
 }
 
+const getStaticManifest = (): AssetRecord[] => {
+    if (!staticManifestNormalized) {
+        staticManifestNormalized = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
+    }
+    return staticManifestNormalized
+}
+
 const readCachedManifest = (): AssetRecord[] | null => {
     if (manifestMemory) return manifestMemory
     if (typeof window === 'undefined') return null
     try {
         const raw = localStorage.getItem(MANIFEST_CACHE_KEY)
         if (!raw) return null
-        const parsed = JSON.parse(raw) as { assets?: AssetRecord[]; timestamp?: number }
+        const parsed = JSON.parse(raw) as { assets?: AssetRecord[]; timestamp?: number; isStatic?: boolean }
         if (!parsed?.assets || !parsed.timestamp) return null
         if (Date.now() - parsed.timestamp > MANIFEST_TTL_MS) {
             logDebug('Manifest cache stale, refreshing')
-            return null
+            manifestMemoryIsStale = true
+            manifestMemory = parsed.assets.map(normalizeRecord)
+            manifestMemoryIsStatic = !!parsed.isStatic
+            return manifestMemory
         }
         manifestMemory = parsed.assets.map(normalizeRecord)
+        manifestMemoryIsStatic = !!parsed.isStatic
+        manifestMemoryIsStale = false
         return manifestMemory
     } catch {
         return null
     }
 }
 
-const writeManifestCache = (assets: AssetRecord[]) => {
+const writeManifestCache = (assets: AssetRecord[], opts?: { isStatic?: boolean }) => {
+    const isStatic = !!opts?.isStatic
     if (typeof window === 'undefined') return
     try {
         const payload = {
             assets,
             timestamp: Date.now(),
+            isStatic,
         }
         manifestMemory = assets
+        manifestMemoryIsStatic = isStatic
+        manifestMemoryIsStale = false
         
         const jsonString = JSON.stringify(payload)
         logDebug('Writing manifest cache:', jsonString.length, 'bytes,', assets.length, 'assets')
@@ -185,7 +204,7 @@ const fetchManifestFromApi = async (): Promise<AssetRecord[]> => {
  */
 export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     const cached = readCachedManifest()
-    if (cached) {
+    if (cached && !manifestMemoryIsStatic && !manifestMemoryIsStale) {
         logDebug(`Using cached manifest (${cached.length} assets)`)
         return cached
     }
@@ -202,8 +221,8 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
                 logDebug('Manifest fetch failed, using static seed', error)
                 // Cache static fallback so manifest is always available synchronously
                 // This ensures instant loading even if API fails
-                const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
-                writeManifestCache(assets)
+                const assets = getStaticManifest()
+                writeManifestCache(assets, { isStatic: true })
                 return assets
             } finally {
                 manifestPromise = null
@@ -216,7 +235,7 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
 
 export const prefetchAssetManifest = async (): Promise<void> => {
     // If already in memory, return immediately
-    if (manifestMemory) return Promise.resolve()
+    if (manifestMemory && !manifestMemoryIsStatic && !manifestMemoryIsStale) return Promise.resolve()
     
     // If already loading, wait for it
     if (manifestPromise) return manifestPromise.then(() => undefined)
@@ -239,15 +258,35 @@ export const prefetchAssetManifest = async (): Promise<void> => {
  */
 export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined => {
     const cached = readCachedManifest()
-    if (!cached) {
-        logDebug(`No cached manifest for "${symbol}"`)
-        return undefined
+    const source = cached ?? (() => {
+        logDebug(`No cached manifest for "${symbol}", falling back to static seed and refreshing in background`)
+        const staticAssets = getStaticManifest()
+        manifestMemory = staticAssets
+        manifestMemoryIsStatic = true
+        // Kick off an async fetch to refresh from API without blocking
+        prefetchAssetManifest().catch(() => {
+            /* ignore */
+        })
+        // Persist static seed with a timestamp so subsequent sync lookups are instant
+        try {
+            writeManifestCache(staticAssets, { isStatic: true })
+        } catch {
+            // Ignore cache write errors
+        }
+        return staticAssets
+    })()
+
+    // If the in-memory manifest is stale, refresh it in the background without blocking
+    if (manifestMemoryIsStale) {
+        prefetchAssetManifest().catch(() => {
+            /* ignore */
+        })
     }
     
     const upper = symbol.toUpperCase()
-    logDebug(`Searching for "${upper}" in ${cached.length} cached assets`)
+    logDebug(`Searching for "${upper}" in ${source.length} cached assets`)
     
-    const found = cached.find((asset) => {
+    const found = source.find((asset) => {
         const baseMatch = asset.baseSymbol?.toUpperCase() === upper
         const binanceMatch = asset.binanceSymbol?.toUpperCase().replace(/USDT$/i, '') === upper
         const extraMatch = Array.isArray(asset.extraSymbols) && asset.extraSymbols.some((s) => s.toUpperCase() === upper)
@@ -267,7 +306,7 @@ export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined
     
     if (!found) {
         // Log sample of what we're searching through (only in debug mode)
-        const sample = cached.slice(0, 5).map(a => a.baseSymbol)
+        const sample = source.slice(0, 5).map(a => a.baseSymbol)
         logDebug(`❌ No match. Sample symbols in cache:`, sample)
     }
     
