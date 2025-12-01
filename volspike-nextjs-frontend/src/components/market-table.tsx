@@ -136,6 +136,8 @@ export function MarketTable({
         },
         enabled: !!selectedWatchlistId && !!session?.user,
         staleTime: 30000, // 30 seconds
+        refetchOnWindowFocus: false, // Prevent unnecessary refetches
+        retry: 1, // Only retry once on failure
     })
 
     // Use watchlist data if filter is active, otherwise use regular data
