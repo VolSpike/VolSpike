@@ -212,81 +212,44 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             }
         }
         
-        // Apply tier-based limits to non-watchlist items only
+        // Apply tier-based limits FIRST (take top N by volume, regardless of watchlist status)
         const tierLimits = {
             free: 50,
             pro: 100,
-            elite: otherItems.length // Elite gets all symbols
+            elite: out.length // Elite gets all symbols
         };
         const limit = tierLimits[tier as keyof typeof tierLimits] || 50;
-        const limitedOtherItems = otherItems.slice(0, limit);
+        const topNItems = out.slice(0, limit);
         
-        // Debug: Check if any watchlist symbols are in limitedOtherItems (they shouldn't be)
-        if (normalizedWatchlistSymbols.length > 0) {
-            const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
-            const duplicatesInLimited = limitedOtherItems.filter(item => 
-                watchlistSymbolSet.has(normalizeSym(item.symbol))
-            );
-            if (duplicatesInLimited.length > 0) {
-                console.error(`[buildSnapshot] ❌ Found ${duplicatesInLimited.length} watchlist symbols in limitedOtherItems (top ${limit}):`, 
-                    duplicatesInLimited.map(item => item.symbol));
-            } else {
-                console.log(`[buildSnapshot] ✅ No duplicates in limitedOtherItems (top ${limit}): ${limitedOtherItems.length} items`);
+        // Find watchlist symbols that are NOT in the top N
+        const topNSymbolSet = new Set(topNItems.map(item => normalizeSym(item.symbol)));
+        const watchlistItemsOutsideTopN: MarketData[] = [];
+        
+        for (const item of out) {
+            const normalizedSym = normalizeSym(item.symbol);
+            if (normalizedWatchlistSet.has(normalizedSym) && !topNSymbolSet.has(normalizedSym)) {
+                watchlistItemsOutsideTopN.push(item);
             }
         }
         
-        // Combine: watchlist items first (always included), then limited other items
-        // Remove duplicates (watchlist symbols should already be excluded from otherItems, but double-check)
-        const combined = [...watchlistItems];
-        const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
-        
-        // Debug: Log watchlist symbols for comparison
+        // Debug: Log watchlist symbols in top N
         if (normalizedWatchlistSymbols.length > 0) {
-            console.log(`[buildSnapshot] Watchlist symbols in Set:`, Array.from(watchlistSymbolSet));
-            
-            // Check ALL symbols in limitedOtherItems for duplicates
-            const duplicatesFound = limitedOtherItems.filter(item => 
-                watchlistSymbolSet.has(normalizeSym(item.symbol))
-            );
-            
-            if (duplicatesFound.length > 0) {
-                console.error(`[buildSnapshot] ❌ FOUND ${duplicatesFound.length} WATCHLIST SYMBOLS IN limitedOtherItems:`, 
-                    duplicatesFound.map(item => item.symbol));
-            } else {
-                console.log(`[buildSnapshot] ✅ Verified: No watchlist symbols found in limitedOtherItems (checked all ${limitedOtherItems.length} items)`);
-            }
-            
-            // Show ALL 50 symbols with their details
-            console.log(`[buildSnapshot] ALL ${limitedOtherItems.length} symbols in limitedOtherItems:`, 
-                limitedOtherItems.map((item, index) => ({
-                    index: index + 1,
-                    symbol: item.symbol,
-                    normalized: normalizeSym(item.symbol),
-                    volume24h: item.volume24h,
-                    inSet: watchlistSymbolSet.has(normalizeSym(item.symbol))
-                }))
-            );
+            const watchlistInTopN = topNItems.filter(item => 
+                normalizedWatchlistSet.has(normalizeSym(item.symbol))
+            ).length;
+            console.log(`[buildSnapshot] Top ${limit} symbols: ${topNItems.length} items (${watchlistInTopN} watchlist symbols included)`);
+            console.log(`[buildSnapshot] Watchlist symbols outside top ${limit}: ${watchlistItemsOutsideTopN.length} items`);
         }
         
-        let addedOtherItems = 0;
-        let skippedDuplicates = 0;
-        for (const item of limitedOtherItems) {
-            const normalizedItemSym = normalizeSym(item.symbol);
-            if (watchlistSymbolSet.has(normalizedItemSym)) {
-                // This shouldn't happen if separation worked correctly - log as error
-                skippedDuplicates++;
-                console.error(`[buildSnapshot] ❌ DUPLICATE FOUND: ${item.symbol} (normalized: ${normalizedItemSym}) is in both watchlistItems and limitedOtherItems`);
-            } else {
-                combined.push(item);
-                addedOtherItems++;
-            }
-        }
+        // Combine: top N items (which may include watchlist symbols) + watchlist symbols outside top N
+        // No need to deduplicate - watchlist symbols outside top N are already excluded from top N
+        const combined = [...topNItems, ...watchlistItemsOutsideTopN];
         
         if (normalizedWatchlistSymbols.length > 0) {
-            console.log(`[buildSnapshot] Final combined result: ${combined.length} unique items (${watchlistItems.length} watchlist + ${addedOtherItems} other, ${skippedDuplicates} duplicates skipped)`);
-            if (skippedDuplicates > 0) {
-                console.error(`[buildSnapshot] ❌ SEPARATION FAILED: Found ${skippedDuplicates} duplicates - watchlist symbols are in both lists!`);
-            }
+            const watchlistInTopN = topNItems.filter(item => 
+                normalizedWatchlistSet.has(normalizeSym(item.symbol))
+            ).length;
+            console.log(`[buildSnapshot] Final combined result: ${combined.length} unique items (${watchlistInTopN} watchlist in top ${limit} + ${topNItems.length - watchlistInTopN} other in top ${limit} + ${watchlistItemsOutsideTopN.length} watchlist outside top ${limit})`);
         }
         
         return combined;
