@@ -589,15 +589,8 @@ export function MarketTable({
             // Symbol is already in one or more watchlists
             if (watchlistsForSymbol.length === 1) {
                 // Only in one watchlist - remove directly
-                try {
-                    removeSymbol({ watchlistId: watchlistsForSymbol[0].watchlistId, symbol: item.symbol })
-                    // Invalidate watchlist market data if we're viewing that watchlist
-                    if (selectedWatchlistId === watchlistsForSymbol[0].watchlistId) {
-                        queryClient.invalidateQueries({ queryKey: ['watchlist-market-data', selectedWatchlistId] })
-                    }
-                } catch (error) {
-                    // Error already handled by hook
-                }
+                // The removeSymbol mutation will invalidate queries automatically
+                removeSymbol({ watchlistId: watchlistsForSymbol[0].watchlistId, symbol: item.symbol })
             } else {
                 // In multiple watchlists - show dialog to choose which ones to remove from
                 setSymbolToRemove(item.symbol)

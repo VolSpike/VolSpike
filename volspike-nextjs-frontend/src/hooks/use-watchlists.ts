@@ -277,6 +277,7 @@ export function useWatchlists() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['watchlists'] })
+      queryClient.invalidateQueries({ queryKey: ['watchlist-info', variables.watchlistId] })
       queryClient.invalidateQueries({ queryKey: ['watchlist-market-data'] })
       toast.success(`Removed ${variables.symbol} from watchlist`)
     },
