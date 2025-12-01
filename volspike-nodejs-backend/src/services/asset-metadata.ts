@@ -161,7 +161,8 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
         description: asset.description,
         websiteUrl: asset.websiteUrl,
         twitterUrl: asset.twitterUrl,
-        logoUrl: asset.logoUrl,
+        logoUrl: asset.logoUrl, // Base64 (backward compatibility)
+        logoImageUrl: (asset as any).logoImageUrl || null, // CoinGecko URL (preferred)
         status: asset.status,
         isComplete: asset.isComplete ?? false,
         updatedAt: asset.updatedAt.toISOString(),
@@ -527,7 +528,17 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
             payload.twitterUrl = profile.twitterUrl || null // Explicitly set to null if CoinGecko has no Twitter
         }
         
-        // Always update logo if we successfully fetched it
+        // CRITICAL: Store both original CoinGecko URL (for instant display) and base64 (for backward compatibility)
+        // Frontend will prefer logoImageUrl (URL) which browser caches naturally, avoiding memory issues
+        if (profile.logoUrl && (allowOverwrite || !asset.logoImageUrl)) {
+            // Store original CoinGecko image URL (preferred - browser caches it naturally)
+            payload.logoImageUrl = profile.logoUrl
+        } else if (forceRefresh && !profile.logoUrl) {
+            // If forceRefresh and no logo from CoinGecko, clear old logo (might be from wrong ID)
+            payload.logoImageUrl = null
+        }
+        
+        // Also store base64 for backward compatibility (but frontend will prefer URL)
         if (logoDataUrl && (allowOverwrite || !asset.logoUrl)) {
             payload.logoUrl = logoDataUrl
         } else if (forceRefresh && !logoDataUrl) {

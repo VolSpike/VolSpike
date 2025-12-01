@@ -10,7 +10,8 @@ export interface AssetRecord {
     description?: string | null
     websiteUrl?: string | null
     twitterUrl?: string | null
-    logoUrl?: string | null
+    logoUrl?: string | null // Base64 data URL (backward compatibility, deprecated)
+    logoImageUrl?: string | null // CoinGecko image URL (preferred - browser caches it)
     status?: AssetStatus
     isComplete?: boolean
     notes?: string | null
@@ -98,7 +99,8 @@ const normalizeRecord = (record: AssetRecord): AssetRecord => {
         description: record.description || null,
         websiteUrl: record.websiteUrl || null,
         twitterUrl: record.twitterUrl || null,
-        logoUrl: record.logoUrl || null,
+        logoUrl: record.logoUrl || null, // Base64 (backward compatibility)
+        logoImageUrl: record.logoImageUrl || null, // CoinGecko URL (preferred)
         status: record.status || 'AUTO',
         isComplete: record.isComplete ?? false,
     }

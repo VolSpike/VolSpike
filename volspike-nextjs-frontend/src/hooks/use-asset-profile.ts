@@ -156,11 +156,23 @@ const buildProfileFromManifest = (symbol: string, entry?: AssetRecord | AssetPro
     const description = 'description' in entry 
         ? (entry.description ?? undefined) 
         : undefined
+    
+    // CRITICAL: Prefer logoImageUrl (CoinGecko URL) over logoUrl (base64)
+    // logoImageUrl is preferred because:
+    // 1. Browser caches images naturally (no memory bloat)
+    // 2. Instant display (no conversion needed)
+    // 3. Smaller size (~100 bytes vs ~15KB)
+    const logoUrl = 'logoImageUrl' in entry && entry.logoImageUrl
+        ? entry.logoImageUrl
+        : ('logoUrl' in entry && entry.logoUrl && !entry.logoUrl.startsWith('data:image')
+            ? entry.logoUrl
+            : ('logoUrl' in entry ? entry.logoUrl : undefined))
+    
     return {
         id: entry.coingeckoId ?? upper,
         symbol: upper,
         name: name ?? upper,
-        logoUrl: entry.logoUrl ?? undefined,
+        logoUrl,
         websiteUrl: entry.websiteUrl ?? undefined,
         twitterUrl: entry.twitterUrl ?? undefined,
         description,
@@ -497,11 +509,18 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                             source: manifestEntry.source || 'db',
                         })
 
-                        // CRITICAL: Always fetch logo if missing (even if we have coingeckoId)
-                        // Memory cache doesn't have base64 logos to prevent out-of-memory crashes
-                        // So we need to fetch logo on-demand when displaying asset card
+                        // If we have a logo URL (CoinGecko URL), use it directly - browser will cache it
+                        // No need to fetch from CoinGecko API if we already have the URL
+                        if (manifestProfile.logoUrl && !manifestProfile.logoUrl.startsWith('data:image')) {
+                            // Logo is a CoinGecko URL, use it directly - instant display
+                            console.log(`[useAssetProfile] ✅ Using CoinGecko URL for ${upper}: ${manifestProfile.logoUrl.substring(0, 50)}...`)
+                            return
+                        }
+                        
+                        // Only fetch from CoinGecko if logo is missing AND we have coingeckoId
+                        // This should rarely happen now that backend stores logoImageUrl
                         if (!manifestProfile.logoUrl && manifestEntry.coingeckoId) {
-                            console.log(`[useAssetProfile] Fetching logo for ${upper} from CoinGecko (memory cache doesn't have base64 logos)`)
+                            console.log(`[useAssetProfile] Logo missing for ${upper}, fetching from CoinGecko...`)
                             // Fetch logo immediately - user is viewing the asset card
                             fetchProfileFromCoinGeckoWithId(upper, manifestEntry.coingeckoId)
                                 .then((profile) => {
@@ -520,12 +539,6 @@ export function useAssetProfile(symbol?: string | null): UseAssetProfileResult {
                                     // Keep showing manifest data even if CoinGecko fetch fails
                                 })
                             return // Don't wait for CoinGecko fetch
-                        }
-                        
-                        // If we have a logo URL (not base64), use it directly
-                        if (manifestProfile.logoUrl && !manifestProfile.logoUrl.startsWith('data:image')) {
-                            // Logo is a URL, use it directly
-                            return
                         }
 
                         // If no coingeckoId, backend refresh cycle should handle it

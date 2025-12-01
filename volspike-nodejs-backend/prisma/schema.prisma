@@ -173,7 +173,8 @@ model Asset {
   description     String?     @db.Text // Project description from CoinGecko
   websiteUrl      String?
   twitterUrl      String?
-  logoUrl         String?     // Optional custom logo URL
+  logoUrl         String?     // Base64 data URL (for backward compatibility)
+  logoImageUrl    String?     // Original CoinGecko image URL (preferred for frontend)
   status          AssetStatus @default(AUTO)
   isComplete      Boolean     @default(false) // Admin-reviewed and ready for weekly refresh cycles
   lastFailureReason String?   // Track last failure reason (RATE_LIMIT, NOT_FOUND, etc.) for retry logic
