@@ -590,6 +590,87 @@ adminAssetRoutes.post('/refresh/cycle', async (c) => {
     }
 })
 
+// POST /api/admin/assets/populate-logo-urls - One-time script to populate logoImageUrl for all assets
+adminAssetRoutes.post('/populate-logo-urls', async (c) => {
+    try {
+        logger.info('[AdminAssets] 🚀 Populate logoImageUrl triggered')
+
+        // Find all assets that have coingeckoId but no logoImageUrl
+        const assets = await prisma.asset.findMany({
+            where: {
+                coingeckoId: { not: null },
+                OR: [
+                    { logoImageUrl: null },
+                    { logoImageUrl: '' },
+                ],
+            },
+            select: {
+                id: true,
+                baseSymbol: true,
+                coingeckoId: true,
+                logoImageUrl: true,
+            },
+        })
+
+        logger.info(`[AdminAssets] Found ${assets.length} assets that need logoImageUrl`)
+
+        if (assets.length === 0) {
+            return c.json({
+                success: true,
+                message: 'All assets already have logoImageUrl!',
+                updated: 0,
+                total: 0,
+            })
+        }
+
+        // Start refresh in background (non-blocking)
+        // Use refreshSingleAsset which already populates logoImageUrl
+        Promise.all(
+            assets.map(async (asset) => {
+                try {
+                    const fullAsset = await prisma.asset.findUnique({ where: { id: asset.id } })
+                    if (!fullAsset) return { symbol: asset.baseSymbol, success: false, error: 'Asset not found' }
+                    
+                    // Force refresh to populate logoImageUrl
+                    const result = await refreshSingleAsset(fullAsset, true)
+                    if (result.success) {
+                        logger.info(`[AdminAssets] ✅ Populated logoImageUrl for ${asset.baseSymbol}`)
+                        return { symbol: asset.baseSymbol, success: true }
+                    } else {
+                        logger.warn(`[AdminAssets] ⚠️  Failed to populate logoImageUrl for ${asset.baseSymbol}: ${result.reason}`)
+                        return { symbol: asset.baseSymbol, success: false, reason: result.reason, error: result.error }
+                    }
+                } catch (error) {
+                    logger.error(`[AdminAssets] ❌ Error populating logoImageUrl for ${asset.baseSymbol}:`, error)
+                    return { 
+                        symbol: asset.baseSymbol, 
+                        success: false, 
+                        error: error instanceof Error ? error.message : String(error) 
+                    }
+                }
+            })
+        ).catch((error) => {
+            logger.error('[AdminAssets] Background populate logoImageUrl error:', error)
+        })
+
+        return c.json({
+            success: true,
+            message: `Started populating logoImageUrl for ${assets.length} assets in background`,
+            total: assets.length,
+            assets: assets.map(a => a.baseSymbol),
+        })
+    } catch (error) {
+        logger.error('[AdminAssets] Failed to populate logoImageUrl:', error)
+        return c.json(
+            {
+                error: 'Failed to populate logoImageUrl',
+                details: error instanceof Error ? error.message : String(error),
+            },
+            500
+        )
+    }
+})
+
 // POST /api/admin/assets/sync-binance - Sync all Binance perpetual symbols with intelligent enrichment
 adminAssetRoutes.post('/sync-binance', async (c) => {
     const startTime = Date.now()
