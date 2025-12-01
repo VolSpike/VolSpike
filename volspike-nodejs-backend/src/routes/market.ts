@@ -373,31 +373,52 @@ market.get('/watchlist/:id', async (c) => {
         const symbolDataPromises = symbols.map(async (symbol) => {
             try {
                 logger.info(`[Watchlist Market Data] Fetching data for symbol: ${symbol}`)
-                const data = await getMarketData(symbol, true) // Skip volume filter for watchlist symbols
+                let data
+                try {
+                    data = await getMarketData(symbol, true) // Skip volume filter for watchlist symbols
+                } catch (error: any) {
+                    logger.error(`[Watchlist Market Data] ❌ getMarketData threw error for ${symbol}:`, {
+                        error: error?.message || String(error),
+                        stack: error?.stack,
+                    })
+                    return null
+                }
                 
                 // Detailed logging to debug the issue
                 logger.info(`[Watchlist Market Data] getMarketData returned for ${symbol}:`, {
                     isNull: data === null,
+                    isUndefined: data === undefined,
                     isArray: Array.isArray(data),
                     type: typeof data,
                     hasSymbol: data && typeof data === 'object' && 'symbol' in data,
                     dataPreview: data && typeof data === 'object' && !Array.isArray(data) ? {
                         symbol: (data as any).symbol,
                         price: (data as any).price,
-                    } : null,
+                    } : Array.isArray(data) ? `Array with ${data.length} items` : data,
+                    fullData: JSON.stringify(data),
                 })
                 
                 // getMarketData returns MarketData | MarketData[] | null
-                // When called with a symbol, it returns MarketData | null
-                if (data && typeof data === 'object' && 'symbol' in data && !Array.isArray(data)) {
+                // When called with a symbol, it should return MarketData | null
+                // But handle array case just in case
+                if (Array.isArray(data)) {
+                    logger.warn(`[Watchlist Market Data] ⚠️  getMarketData returned array for ${symbol}, taking first item`)
+                    if (data.length > 0 && data[0] && typeof data[0] === 'object' && 'symbol' in data[0]) {
+                        return data[0] as MarketData
+                    }
+                    return null
+                }
+                
+                if (data && typeof data === 'object' && 'symbol' in data) {
                     logger.info(`[Watchlist Market Data] ✅ Successfully fetched data for ${symbol}: ${(data as MarketData).symbol}`)
                     return data as MarketData
                 }
+                
                 logger.warn(`[Watchlist Market Data] ❌ Invalid data format returned for symbol ${symbol}:`, {
                     dataType: typeof data,
                     isArray: Array.isArray(data),
                     hasSymbol: data && typeof data === 'object' && 'symbol' in data,
-                    data: data,
+                    data: JSON.stringify(data),
                 })
                 return null
             } catch (error: any) {
