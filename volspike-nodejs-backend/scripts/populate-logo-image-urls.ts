@@ -74,8 +74,22 @@ async function fetchCoinGeckoImageUrl(coingeckoId: string, retryCount: number = 
             }
         )
 
+        // Debug: Log what CoinGecko actually returned
+        if (!data?.image) {
+            console.log(`  ⚠️  CoinGecko response for ${coingeckoId} has no 'image' field`)
+            console.log(`  ⚠️  Response keys:`, Object.keys(data || {}).slice(0, 10))
+            return null
+        }
+
         // Prefer high-quality logo images: large > small > thumb
         const logoUrl = data?.image?.large || data?.image?.small || data?.image?.thumb || null
+        
+        if (!logoUrl) {
+            console.log(`  ⚠️  No image URL found in CoinGecko response for ${coingeckoId}`)
+            console.log(`  ⚠️  Image object keys:`, data?.image ? Object.keys(data.image) : 'null')
+            console.log(`  ⚠️  Image object:`, JSON.stringify(data?.image, null, 2).substring(0, 200))
+        }
+        
         return logoUrl
     } catch (error: any) {
         if (error.response?.status === 404) {
@@ -85,12 +99,19 @@ async function fetchCoinGeckoImageUrl(coingeckoId: string, retryCount: number = 
         
         if (error.response?.status === 429 && retryCount < maxRetries) {
             const delay = baseDelay * Math.pow(2, retryCount) // Exponential backoff: 5s, 10s, 20s
-            logger.warn(`Rate limited for ${coingeckoId}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}...`)
+            console.log(`  ⚠️  Rate limited (429) for ${coingeckoId}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}...`)
             await new Promise((resolve) => setTimeout(resolve, delay))
+            // Retry with incremented retry count
             return fetchCoinGeckoImageUrl(coingeckoId, retryCount + 1)
         }
         
-        logger.error(`Error fetching ${coingeckoId}: ${error.message}`)
+        // Log detailed error info
+        console.log(`  ❌ Error fetching ${coingeckoId}:`, {
+            message: error.message,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            retryCount,
+        })
         return null
     }
 }
