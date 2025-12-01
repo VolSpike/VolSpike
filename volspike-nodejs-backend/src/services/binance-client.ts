@@ -43,14 +43,14 @@ export async function getMarketData(symbol?: string, skipVolumeFilter: boolean =
     if (symbol) {
         // Fetch single symbol data
         try {
-            logger.debug(`[getMarketData] Fetching data for symbol: ${symbol}, skipVolumeFilter: ${skipVolumeFilter}`)
+            logger.info(`[getMarketData] Fetching data for symbol: ${symbol}, skipVolumeFilter: ${skipVolumeFilter}`)
             const response = await axios.get(`${BINANCE_BASE_URL}/fapi/v1/ticker/24hr`, {
                 params: { symbol },
-                timeout: 10000
+                timeout: 15000 // Increased timeout for watchlist symbols
             })
 
             if (!response.data) {
-                logger.warn(`[getMarketData] No data returned for symbol ${symbol}`)
+                logger.warn(`[getMarketData] ❌ No data returned for symbol ${symbol}`)
                 return null
             }
 
@@ -58,25 +58,45 @@ export async function getMarketData(symbol?: string, skipVolumeFilter: boolean =
             
             // Validate response data
             if (!ticker || !ticker.symbol || !ticker.lastPrice) {
-                logger.warn(`[getMarketData] Invalid ticker data returned for symbol ${symbol}`)
+                logger.warn(`[getMarketData] ❌ Invalid ticker data returned for symbol ${symbol}:`, {
+                    hasTicker: !!ticker,
+                    hasSymbol: !!ticker?.symbol,
+                    hasLastPrice: !!ticker?.lastPrice,
+                    tickerKeys: ticker ? Object.keys(ticker) : [],
+                })
                 return null
             }
             
             const price = parseFloat(ticker.lastPrice)
             const volume24h = parseFloat(ticker.quoteVolume)
 
-            logger.debug(`[getMarketData] Symbol ${symbol} - price: ${price}, volume: ${volume24h}, skipVolumeFilter: ${skipVolumeFilter}`)
+            logger.info(`[getMarketData] Symbol ${symbol} - price: ${price}, volume: ${volume24h}, skipVolumeFilter: ${skipVolumeFilter}`)
 
             // For watchlist symbols, skip volume filter (user explicitly added them)
             // Only filter if volume is 0 or invalid, or if skipVolumeFilter is false and volume is too low
             if (isNaN(volume24h) || volume24h <= 0) {
-                logger.warn(`[getMarketData] Invalid volume for symbol ${symbol}: ${volume24h}`)
-                return null
+                // For watchlist symbols, allow zero volume (might be a new listing or temporary issue)
+                if (skipVolumeFilter) {
+                    logger.warn(`[getMarketData] ⚠️ Symbol ${symbol} has zero/invalid volume but skipVolumeFilter=true, allowing it`)
+                    // Use a small default volume to prevent issues downstream
+                    const defaultVolume = 0.01
+                    logger.info(`[getMarketData] Using default volume ${defaultVolume} for ${symbol}`)
+                    // Continue with default volume instead of returning null
+                } else {
+                    logger.warn(`[getMarketData] ❌ Invalid volume for symbol ${symbol}: ${volume24h}`)
+                    return null
+                }
             }
 
+            // Only apply volume filter if skipVolumeFilter is false
             if (!skipVolumeFilter && volume24h < 1000000) {
                 logger.debug(`[getMarketData] Filtering out ${symbol} due to low volume: ${volume24h} (skipVolumeFilter=false)`)
                 return null
+            }
+            
+            // For watchlist symbols with skipVolumeFilter=true, always include them regardless of volume
+            if (skipVolumeFilter) {
+                logger.info(`[getMarketData] ✅ Including ${symbol} in watchlist (skipVolumeFilter=true, volume: ${volume24h})`)
             }
 
             // Fetch funding rate separately

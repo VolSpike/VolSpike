@@ -440,6 +440,19 @@ market.get('/watchlist/:id', async (c) => {
             results: symbolDataResults.map(r => r ? { symbol: r.symbol } : null),
         })
         
+        // Identify which symbols failed to fetch
+        const failedSymbols: string[] = []
+        symbols.forEach((symbol, index) => {
+            if (symbolDataResults[index] === null) {
+                failedSymbols.push(symbol)
+            }
+        })
+        
+        if (failedSymbols.length > 0) {
+            logger.warn(`[Watchlist Market Data] ⚠️ Failed to fetch ${failedSymbols.length} symbols:`, failedSymbols)
+            logger.warn(`[Watchlist Market Data] These symbols may be delisted, have invalid data, or Binance API errors`)
+        }
+        
         // Filter out null results and ensure we have MarketData objects
         const marketData = symbolDataResults
             .filter((data): data is MarketData => data !== null && typeof data === 'object' && 'symbol' in data)
@@ -447,7 +460,9 @@ market.get('/watchlist/:id', async (c) => {
         logger.info(`[Watchlist Market Data] After filtering:`, {
             marketDataLength: marketData.length,
             symbolsLength: symbols.length,
+            expectedSymbols: symbols,
             marketDataSymbols: marketData.map(d => d.symbol),
+            missingSymbols: symbols.filter(s => !marketData.map(d => d.symbol).includes(s)),
             userEmail: user.email,
         })
 
