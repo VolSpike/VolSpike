@@ -64,7 +64,7 @@ export const STATIC_ASSET_MANIFEST: Record<string, AssetRecord> = {
     },
 }
 
-const MANIFEST_CACHE_KEY = 'volspike:asset-manifest-v2' // Bump version to clear stale cache
+const MANIFEST_CACHE_KEY = 'volspike:asset-manifest-v3' // Bump version to clear stale cache
 const MANIFEST_TTL_MS = 6.9 * 24 * 60 * 60 * 1000 // slightly under a week to stagger refreshes
 
 const debugEnabled = () => {
@@ -80,6 +80,7 @@ const logDebug = (...args: any[]) => {
 }
 
 let manifestMemory: AssetRecord[] | null = null
+let manifestMemoryIsStale = false
 let manifestPromise: Promise<AssetRecord[]> | null = null
 
 const normalizeRecord = (record: AssetRecord): AssetRecord => {
@@ -113,9 +114,12 @@ const readCachedManifest = (): AssetRecord[] | null => {
         if (!parsed?.assets || !parsed.timestamp) return null
         if (Date.now() - parsed.timestamp > MANIFEST_TTL_MS) {
             logDebug('Manifest cache stale, refreshing')
-            return null
+            manifestMemoryIsStale = true
+            manifestMemory = parsed.assets.map(normalizeRecord)
+            return manifestMemory
         }
         manifestMemory = parsed.assets.map(normalizeRecord)
+        manifestMemoryIsStale = false
         return manifestMemory
     } catch {
         return null
@@ -130,6 +134,7 @@ const writeManifestCache = (assets: AssetRecord[]) => {
             timestamp: Date.now(),
         }
         manifestMemory = assets
+        manifestMemoryIsStale = false
         
         // Check for 1000PEPE before writing
         const pepAsset = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
@@ -234,7 +239,7 @@ const fetchManifestFromApi = async (): Promise<AssetRecord[]> => {
  */
 export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     const cached = readCachedManifest()
-    if (cached) return cached
+    if (cached && !manifestMemoryIsStale) return cached
 
     if (!manifestPromise) {
         manifestPromise = (async () => {
@@ -258,7 +263,7 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
 
 export const prefetchAssetManifest = async (): Promise<void> => {
     // If already in memory, return immediately
-    if (manifestMemory) return Promise.resolve()
+    if (manifestMemory && !manifestMemoryIsStale) return Promise.resolve()
     
     // If already loading, wait for it
     if (manifestPromise) return manifestPromise.then(() => undefined)
@@ -313,6 +318,14 @@ export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined
         console.log(`[findAssetInManifestSync] ❌ No match. Sample symbols in cache:`, sample)
     }
     
+    // If the cache we just used was stale, refresh it without blocking UI
+    if (manifestMemoryIsStale) {
+        manifestMemoryIsStale = false
+        prefetchAssetManifest().catch(() => {
+            /* ignore refresh errors */
+        })
+    }
+    
     return found
 }
 
@@ -330,5 +343,12 @@ export const findAssetInManifest = async (symbol: string): Promise<AssetRecord |
         const binanceMatch = asset.binanceSymbol?.toUpperCase().replace(/USDT$/i, '') === upper
         const extraMatch = Array.isArray(asset.extraSymbols) && asset.extraSymbols.some((s) => s.toUpperCase() === upper)
         return baseMatch || binanceMatch || extraMatch
+    })
+}
+
+// Warm manifest as soon as this module is loaded in the browser so first interaction is instant
+if (typeof window !== 'undefined') {
+    prefetchAssetManifest().catch(() => {
+        /* ignore warmup errors */
     })
 }
