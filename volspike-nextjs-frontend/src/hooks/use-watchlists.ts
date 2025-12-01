@@ -83,7 +83,17 @@ export function useWatchlists() {
     },
     enabled: !!session?.user,
     staleTime: 30000, // 30 seconds
+    retry: 2,
+    retryDelay: 1000,
   })
+
+  // Log for debugging
+  if (error) {
+    console.error('[useWatchlists] Query error:', error)
+  }
+  if (watchlistsData && !watchlistsData.watchlists) {
+    console.warn('[useWatchlists] Unexpected response structure:', watchlistsData)
+  }
 
   // Create watchlist mutation
   const createWatchlist = useMutation({
