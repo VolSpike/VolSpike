@@ -73,22 +73,8 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
 
     // Update watchlistSymbols ref when it changes (without triggering reconnection)
     // Also trigger immediate render if watchlist symbols are provided
-    // Note: render is declared later, so we use a ref pattern to avoid dependency issues
-    const renderRef = useRef<((snapshot: MarketData[]) => void) | null>(null);
-    
     useEffect(() => {
-        const prevSymbols = watchlistSymbolsRef.current;
         watchlistSymbolsRef.current = watchlistSymbols;
-        
-        // If watchlist symbols changed and we have symbols, immediately rebuild snapshot
-        // This ensures watchlist symbols appear instantly when switching to watchlist view
-        if (watchlistSymbols.length > 0 && renderRef.current) {
-            // Use ref to avoid dependency on buildSnapshot callback
-            const snapshot = buildSnapshotRef.current();
-            if (snapshot.length > 0) {
-                renderRef.current(snapshot);
-            }
-        }
     }, [watchlistSymbols]);
 
     // Normalize symbol: remove dashes/underscores and convert to uppercase
@@ -207,14 +193,17 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
         // Remove duplicates (in case a watchlist symbol is also in top N)
         const combined = [...watchlistItems];
         const watchlistSymbolSet = new Set(watchlistItems.map(item => normalizeSym(item.symbol)));
+        let addedOtherItems = 0;
         for (const item of limitedOtherItems) {
-            if (!watchlistSymbolSet.has(normalizeSym(item.symbol))) {
+            const normalizedItemSym = normalizeSym(item.symbol);
+            if (!watchlistSymbolSet.has(normalizedItemSym)) {
                 combined.push(item);
+                addedOtherItems++;
             }
         }
         
         if (normalizedWatchlistSymbols.length > 0) {
-            console.log(`[buildSnapshot] Final combined result: ${combined.length} items (${watchlistItems.length} watchlist + ${limitedOtherItems.length} other)`);
+            console.log(`[buildSnapshot] Final combined result: ${combined.length} unique items (${watchlistItems.length} watchlist + ${addedOtherItems} other, ${limitedOtherItems.length - addedOtherItems} duplicates skipped)`);
         }
         
         return combined;
