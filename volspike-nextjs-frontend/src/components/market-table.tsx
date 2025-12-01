@@ -211,6 +211,7 @@ export function MarketTable({
     const [canScroll, setCanScroll] = useState(false)
     const [atTop, setAtTop] = useState(true)
     const [atBottom, setAtBottom] = useState(false)
+    const [hasScrollableContent, setHasScrollableContent] = useState(false)
     const FLASH_ENABLED = (process.env.NEXT_PUBLIC_PRICE_FLASH ?? '').toString().toLowerCase() === 'true' || process.env.NEXT_PUBLIC_PRICE_FLASH === '1'
     const SCROLL_DEBUG_ENABLED =
         (process.env.NEXT_PUBLIC_DEBUG_SCROLL ?? '').toString().toLowerCase() === 'true' ||
@@ -327,6 +328,7 @@ export function MarketTable({
             // In guest preview we intentionally lock vertical scrolling,
             // so we hide scroll hints to avoid confusing users.
             setCanScroll(false)
+            setHasScrollableContent(false)
             setAtTop(true)
             setAtBottom(true)
             return
@@ -346,10 +348,14 @@ export function MarketTable({
             const scrollPos = node.scrollTop
 
             const can = scrollSize > clientSize + 1
+            // Only consider it scrollable if there's at least 10px of scrollable content
+            // This prevents showing scroll indicators when content fits perfectly
+            const hasScroll = scrollSize > clientSize + 10
             const atStart = scrollPos <= 1
             const atEnd = scrollPos + clientSize >= scrollSize - 1
 
             setCanScroll(can)
+            setHasScrollableContent(hasScroll)
             setAtTop(atStart)
             setAtBottom(atEnd)
 
@@ -1111,8 +1117,8 @@ export function MarketTable({
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background/95 via-background/60 to-transparent" />
                 )}
 
-                {/* Only show scroll indicator if there's actually scrollable content and we're not at the bottom */}
-                {canScroll && !atBottom && sortedData.length > 0 && (
+                {/* Only show scroll indicator if there's actually meaningful scrollable content and we're not at the bottom */}
+                {hasScrollableContent && !atBottom && sortedData.length > 0 && (
                     <div className="pointer-events-none absolute bottom-2 right-3 z-10 flex items-center justify-center rounded-full bg-background/80 p-1.5 text-muted-foreground shadow-sm">
                         <ArrowDown className="h-3 w-3" />
                     </div>
