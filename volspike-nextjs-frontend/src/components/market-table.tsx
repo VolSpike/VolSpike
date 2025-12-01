@@ -348,9 +348,10 @@ export function MarketTable({
             const scrollPos = node.scrollTop
 
             const can = scrollSize > clientSize + 1
-            // Only consider it scrollable if there's at least 10px of scrollable content
+            // Only consider it scrollable if there's at least 20px of scrollable content
             // This prevents showing scroll indicators when content fits perfectly
-            const hasScroll = scrollSize > clientSize + 10
+            // The arrow should only show when there's actually more rows than can fit
+            const hasScroll = scrollSize > clientSize + 20
             const atStart = scrollPos <= 1
             const atEnd = scrollPos + clientSize >= scrollSize - 1
 
@@ -1117,7 +1118,10 @@ export function MarketTable({
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background/95 via-background/60 to-transparent" />
                 )}
 
-                {/* Only show scroll indicator if there's actually meaningful scrollable content and we're not at the bottom */}
+                {/* Only show scroll indicator arrow when:
+                    1. There's actually scrollable content (content height > container height by at least 20px)
+                    2. User is not at the bottom (there's more content below)
+                    3. There's data to display */}
                 {hasScrollableContent && !atBottom && sortedData.length > 0 && (
                     <div className="pointer-events-none absolute bottom-2 right-3 z-10 flex items-center justify-center rounded-full bg-background/80 p-1.5 text-muted-foreground shadow-sm">
                         <ArrowDown className="h-3 w-3" />
