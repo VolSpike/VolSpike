@@ -942,7 +942,7 @@ export function MarketTable({
                                     </th>
                                 )}
                                 <th className="w-24 p-3 align-middle">
-                                    <div className="flex justify-end">
+                                    <div className="flex items-center justify-end gap-1">
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -954,6 +954,8 @@ export function MarketTable({
                                         >
                                             <Star className="h-3.5 w-3.5 text-foreground" />
                                         </Button>
+                                        {/* Spacer to align with bell icon column placement in rows */}
+                                        <span className="h-7 w-7 shrink-0" aria-hidden="true" />
                                     </div>
                                 </th>
                             </tr>
