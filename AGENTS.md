@@ -29,6 +29,56 @@ VolSpike is a comprehensive Binance Perpetual Futures trading dashboard featurin
 - **Status**: ✅ **Production Ready** - All authentication issues resolved
  - **Email Verification**: SendGrid transactional emails with site-hosted assets and bulletproof CTA
 
+## 🔴 CRITICAL ARCHITECTURE RULE: Binance Data Sources
+
+### ⚠️ **DO NOT USE BINANCE REST API IN FRONTEND OR BACKEND**
+
+**IMPORTANT**: The VolSpike dashboard frontend **NEVER** calls Binance REST API. All market data comes from **direct WebSocket connections** in the browser.
+
+### Data Source Architecture:
+
+1. **VolSpike Dashboard Frontend (Browser)**:
+   - ✅ **ONLY uses Binance WebSocket** (`wss://fstream.binance.com/stream`)
+   - ✅ Direct connection from user's browser to Binance
+   - ✅ Real-time market data via `useClientOnlyMarketData` hook
+   - ✅ No REST API calls to Binance
+   - ✅ No backend dependency for market data
+   - ❌ **NEVER** call Binance REST API from frontend
+   - ❌ **NEVER** fetch market data from backend REST endpoints
+
+2. **VolSpike Backend (Railway)**:
+   - ✅ **ONLY handles**: Authentication, Payments, User Data, Watchlists, Alerts
+   - ✅ **DOES NOT** fetch market data from Binance
+   - ✅ **DOES NOT** provide market data endpoints (except for watchlist filtering)
+   - ❌ **NEVER** call Binance REST API for market data
+   - ❌ **NEVER** create endpoints that fetch from Binance REST API
+
+3. **Digital Ocean Script**:
+   - ✅ **ONLY place** that uses Binance REST API
+   - ✅ Detects volume spikes and posts alerts to backend
+   - ✅ Runs independently on Digital Ocean server
+   - ✅ Uses Binance REST API for volume spike detection
+
+### Watchlist Filtering:
+
+- **Watchlists store symbols only** (e.g., `1000PEPEUSDT`)
+- **Frontend filters existing WebSocket data** by watchlist symbols
+- **DO NOT** fetch watchlist data from Binance REST API
+- **DO NOT** create backend endpoints that fetch from Binance REST API for watchlists
+- Filter the `data` array (from WebSocket) client-side by watchlist symbols
+
+### Common Mistakes to Avoid:
+
+❌ **WRONG**: Creating `/api/market/watchlist/:id` endpoint that calls Binance REST API  
+❌ **WRONG**: Using `getMarketData()` function in backend for watchlist data  
+❌ **WRONG**: Fetching market data from backend REST endpoints in frontend  
+❌ **WRONG**: Assuming backend has market data - it doesn't!
+
+✅ **CORRECT**: Fetch watchlist info (symbols only) from `/api/watchlist/:id`  
+✅ **CORRECT**: Filter existing WebSocket `data` array by watchlist symbols  
+✅ **CORRECT**: All market data comes from `useClientOnlyMarketData` hook  
+✅ **CORRECT**: Watchlist filtering is client-side only
+
 ## 🎯 Current Architecture Benefits
 
 ### **Zero Redis Dependency**
@@ -547,7 +597,8 @@ NODE_ENV=production
 - **IMPORTANT**: Any changes to currency formatting or payment method display logic MUST be documented in AGENTS.md, OVERVIEW.md, and IMPLEMENTATION_PLAN.md. This logic has been broken multiple times, so it's critical to maintain consistency.
 
 ### Real-time Data (Client-Side WebSocket)
-- **Direct Binance WebSocket** from user's browser
+- **Direct Binance WebSocket** from user's browser (`wss://fstream.binance.com/stream`)
+- **NO Binance REST API calls** from frontend or backend (except Digital Ocean script)
 - **No server dependency** for market data
 - **Automatic reconnection** with exponential backoff
 - **localStorage fallback** for region-blocked users
@@ -556,6 +607,8 @@ NODE_ENV=production
 - **Sorted by volume** (highest to lowest)
 - **Stable WebSocket connections** with useCallback optimization
 - **Enhanced funding rate alerts** with visual thresholds (±0.03%)
+- **Watchlist filtering**: Client-side filtering of WebSocket data by watchlist symbols
+- **NEVER** fetch market data from Binance REST API in frontend or backend
 
 ### Notification System
 - Email alerts (SendGrid)
