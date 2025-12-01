@@ -91,7 +91,7 @@ export function MarketTable({
     const { data: session } = useSession()
     const { watchlists, addSymbol, removeSymbol } = useWatchlists()
     const queryClient = useQueryClient()
-    const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest'>('volume')
+    const [sortBy, setSortBy] = useState<'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest' | 'star'>('volume')
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
     const [hoveredRow, setHoveredRow] = useState<string | null>(null)
     const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null)
@@ -510,6 +510,24 @@ export function MarketTable({
 
     const sortedData = useMemo(() => {
         return [...displayData].sort((a, b) => {
+            // Star sorting: starred first (asc) or non-starred first (desc)
+            if (sortBy === 'star') {
+                const aInWatchlist = isSymbolInWatchlist(a.symbol)
+                const bInWatchlist = isSymbolInWatchlist(b.symbol)
+                
+                if (sortOrder === 'asc') {
+                    // Starred first
+                    if (aInWatchlist && !bInWatchlist) return -1
+                    if (!aInWatchlist && bInWatchlist) return 1
+                } else {
+                    // Non-starred first
+                    if (!aInWatchlist && bInWatchlist) return -1
+                    if (aInWatchlist && !bInWatchlist) return 1
+                }
+                // If both have same watchlist status, maintain volume order
+                return b.volume24h - a.volume24h
+            }
+
             let aValue: number, bValue: number
 
             switch (sortBy) {
@@ -543,7 +561,7 @@ export function MarketTable({
 
             return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
         })
-    }, [displayData, sortBy, sortOrder])
+    }, [displayData, sortBy, sortOrder, symbolToWatchlistsMap])
 
     // Re-run scroll measurement when row count changes (e.g., filtering to small watchlists)
     useEffect(() => {
@@ -575,8 +593,30 @@ export function MarketTable({
         })
     }, [sortedData])
 
-    const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest') => {
+    const handleSort = (column: 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest' | 'star') => {
         if (guestMode) return // Sorting locked in guest preview
+        
+        // Special handling for star column: three-state cycle
+        if (column === 'star') {
+            if (sortBy === 'star') {
+                // Currently sorting by star - cycle to next state
+                if (sortOrder === 'asc') {
+                    // State 1 -> State 2: Non-starred first
+                    setSortOrder('desc')
+                } else {
+                    // State 2 -> State 3: Back to default (volume)
+                    setSortBy('volume')
+                    setSortOrder('desc')
+                }
+            } else {
+                // Not currently sorting by star - start with starred first
+                setSortBy('star')
+                setSortOrder('asc')
+            }
+            return
+        }
+        
+        // Regular column sorting
         if (sortBy === column) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
             return
@@ -597,6 +637,12 @@ export function MarketTable({
         // For symbol/ticker column, reverse the arrow direction
         // A-Z (asc) shows down arrow, Z-A (desc) shows up arrow
         if (column === 'symbol') {
+            return sortOrder === 'asc' ?
+                <ArrowDown className="h-3 w-3 text-brand-500" /> :
+                <ArrowUp className="h-3 w-3 text-brand-500" />
+        }
+        // For star column: asc = starred first (down arrow), desc = non-starred first (up arrow)
+        if (column === 'star') {
             return sortOrder === 'asc' ?
                 <ArrowDown className="h-3 w-3 text-brand-500" /> :
                 <ArrowUp className="h-3 w-3 text-brand-500" />
