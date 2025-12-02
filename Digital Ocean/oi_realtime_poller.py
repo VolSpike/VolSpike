@@ -319,30 +319,37 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, timestamp: float):
 def post_oi_batch(samples: list) -> bool:
     """
     Post OI batch to VolSpike backend.
+    Splits large batches into chunks to avoid timeouts.
     Returns True on success, False on error.
     """
     if not samples:
-        return False
+        return True
     
-    try:
-        url = f"{VOLSPIKE_API_URL}/api/market/open-interest/ingest"
-        payload = {
-            "data": samples,
-            "timestamp": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "totalSymbols": len(samples),
-            "source": "realtime",
-        }
-        
-        response = session.post(
-            url,
-            json=payload,
-            headers={
-                "X-API-Key": VOLSPIKE_API_KEY,
-                "Content-Type": "application/json",
-            },
-            timeout=10
-        )
-        
+    # Split into chunks of 100 symbols to avoid timeouts
+    CHUNK_SIZE = 100
+    chunks = [samples[i:i + CHUNK_SIZE] for i in range(0, len(samples), CHUNK_SIZE)]
+    
+    success_count = 0
+    for chunk_idx, chunk in enumerate(chunks):
+        try:
+            url = f"{VOLSPIKE_API_URL}/api/market/open-interest/ingest"
+            payload = {
+                "data": chunk,
+                "timestamp": datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "totalSymbols": len(chunk),
+                "source": "realtime",
+            }
+            
+            response = session.post(
+                url,
+                json=payload,
+                headers={
+                    "X-API-Key": VOLSPIKE_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                timeout=60  # Increased timeout for large batches
+            )
+            
             if response.ok:
                 result = response.json()
                 inserted = result.get('inserted', 0)
