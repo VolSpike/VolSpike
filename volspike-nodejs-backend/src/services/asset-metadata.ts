@@ -436,16 +436,8 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
         }
 
         const profile = await fetchCoinProfile(coingeckoId)
-            hasTwitter: !!profile.twitterUrl,
-            hasLogoUrl: !!profile.logoUrl,
-        })
 
         const logoDataUrl = await fetchAsDataUrl(profile.logoUrl)
-        logger.debug(`[AssetMetadata] Logo fetch result for ${symbol}`, {
-            originalUrl: profile.logoUrl,
-            convertedToDataUrl: !!logoDataUrl,
-            isDataUrl: logoDataUrl?.startsWith('data:'),
-        })
 
         const payload: Partial<Asset> = {}
 

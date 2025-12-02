@@ -329,24 +329,8 @@ export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined
         const binanceMatch = asset.binanceSymbol?.toUpperCase().replace(/USDT$/i, '') === upper
         const extraMatch = Array.isArray(asset.extraSymbols) && asset.extraSymbols.some((s) => s.toUpperCase() === upper)
         
-        if (baseMatch || binanceMatch || extraMatch) {
-            console.log(`[findAssetInManifestSync] ✅ Match found:`, {
-                baseSymbol: asset.baseSymbol,
-                binanceSymbol: asset.binanceSymbol,
-                baseMatch,
-                binanceMatch,
-                extraMatch,
-            })
-        }
-        
         return baseMatch || binanceMatch || extraMatch
     })
-    
-    if (!found) {
-        // Log sample of what we're searching through
-        const sample = cached.slice(0, 5).map(a => a.baseSymbol)
-        console.log(`[findAssetInManifestSync] ❌ No match. Sample symbols in cache:`, sample)
-    }
     
     // If the cache we just used was stale, refresh it without blocking UI
     if (manifestMemoryIsStale) {
