@@ -6,6 +6,11 @@ import { useEffect, useRef } from 'react'
  * Runs automatically in the background without user intervention
  */
 export function useAssetDetection(marketData: Array<{ symbol: string }> | undefined) {
+    console.log('[AssetDetection] Hook called/rendered', {
+        hasMarketData: !!marketData,
+        marketDataLength: marketData?.length || 0,
+    })
+    
     const lastDetectionRef = useRef<number>(0)
     const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const isDetectingRef = useRef<boolean>(false)
