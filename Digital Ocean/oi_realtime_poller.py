@@ -25,23 +25,38 @@ from urllib3.util.retry import Retry
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Load environment variables from .volspike.env file
-ENV_FILE = Path.home() / ".volspike.env"
+# Check both /home/trader/.volspike.env (common location) and user's home directory
+ENV_FILE_PATHS = [
+    Path("/home/trader/.volspike.env"),  # Common location for trader user
+    Path.home() / ".volspike.env",        # User's home directory (works for root or trader)
+]
+
+ENV_FILE = None
 env_loaded = False
-if ENV_FILE.exists():
-    try:
-        with open(ENV_FILE, "r") as f:
-            for line_num, line in enumerate(f, 1):
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, value = line.split("=", 1)
-                    # Remove quotes if present
-                    value = value.strip('"').strip("'").strip()
-                    os.environ[key.strip()] = value
-                    env_loaded = True
-    except Exception as e:
-        print(f"⚠️  Warning: Failed to load {ENV_FILE}: {e}")
-else:
-    print(f"⚠️  Warning: {ENV_FILE} not found - using system environment variables")
+
+for env_path in ENV_FILE_PATHS:
+    if env_path.exists():
+        ENV_FILE = env_path
+        try:
+            with open(env_path, "r") as f:
+                for line_num, line in enumerate(f, 1):
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'").strip()
+                        os.environ[key.strip()] = value
+                        env_loaded = True
+            break  # Found and loaded, stop looking
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to load {env_path}: {e}")
+            continue
+
+if not ENV_FILE:
+    print(f"⚠️  Warning: .volspike.env not found in any of these locations:")
+    for path in ENV_FILE_PATHS:
+        print(f"      - {path}")
+    print(f"   Using system environment variables instead")
 
 # Configuration
 VOLSPIKE_API_URL = os.getenv("VOLSPIKE_API_URL", "http://localhost:3001")
