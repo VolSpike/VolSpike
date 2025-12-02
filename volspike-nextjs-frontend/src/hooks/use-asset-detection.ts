@@ -124,26 +124,44 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
 
         // Initial detection after a short delay (let Market Data stabilize)
         console.log('[AssetDetection] ⏰ Setting up initial detection timer (10s delay)')
-        initialTimeoutRef.current = setTimeout(() => {
-            console.log('[AssetDetection] ⏰ Initial detection timer fired')
-            detectNewAssets()
+        const timeoutId = setTimeout(() => {
+            console.log('[AssetDetection] ⏰ Initial detection timer fired - calling detectNewAssets')
+            try {
+                detectNewAssets()
+            } catch (error) {
+                console.error('[AssetDetection] ❌ Error in initial detection timer:', error)
+            }
         }, 10000) // Wait 10 seconds after component mount
+        initialTimeoutRef.current = timeoutId
+        console.log('[AssetDetection] ✅ Initial timer set with ID:', timeoutId)
 
         // Set up periodic detection
         console.log('[AssetDetection] ⏰ Setting up periodic detection timer (5min interval)')
-        detectionIntervalRef.current = setInterval(() => {
-            console.log('[AssetDetection] ⏰ Periodic detection timer fired')
-            detectNewAssets()
+        const intervalId = setInterval(() => {
+            console.log('[AssetDetection] ⏰ Periodic detection timer fired - calling detectNewAssets')
+            try {
+                detectNewAssets()
+            } catch (error) {
+                console.error('[AssetDetection] ❌ Error in periodic detection timer:', error)
+            }
         }, DETECTION_INTERVAL_MS)
+        detectionIntervalRef.current = intervalId
+        console.log('[AssetDetection] ✅ Periodic timer set with ID:', intervalId)
 
         return () => {
             // Only cleanup timers, don't reset initializedRef
             // This prevents re-initialization when marketData reference changes
+            console.log('[AssetDetection] 🧹 Cleanup function called', {
+                hasInitialTimeout: !!initialTimeoutRef.current,
+                hasInterval: !!detectionIntervalRef.current,
+            })
             if (initialTimeoutRef.current) {
+                console.log('[AssetDetection] 🧹 Clearing initial timeout:', initialTimeoutRef.current)
                 clearTimeout(initialTimeoutRef.current)
                 initialTimeoutRef.current = null
             }
             if (detectionIntervalRef.current) {
+                console.log('[AssetDetection] 🧹 Clearing periodic interval:', detectionIntervalRef.current)
                 clearInterval(detectionIntervalRef.current)
                 detectionIntervalRef.current = null
             }
