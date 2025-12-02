@@ -225,16 +225,17 @@ app.post('/liquid-universe/update', async (c) => {
     const symbolsToRemove = await prisma.openInterestLiquidSymbol.findMany({
       where: {
         symbol: {
-          notIn: Array.from(symbolsInUpdate),
+          notIn: Array.from(symbolsInUpdate) as string[],
         },
       },
     })
 
     if (symbolsToRemove.length > 0) {
+      const symbolsToRemoveList = symbolsToRemove.map((s) => s.symbol)
       await prisma.openInterestLiquidSymbol.deleteMany({
         where: {
           symbol: {
-            in: symbolsToRemove.map((s) => s.symbol),
+            in: symbolsToRemoveList,
           },
         },
       })
