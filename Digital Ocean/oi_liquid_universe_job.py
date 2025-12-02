@@ -171,7 +171,37 @@ def post_liquid_universe(universe, meta):
 def main():
     """Main job execution"""
     print(f"🔄 Starting liquid universe classification job")
-    print(f"   Backend: {VOLSPIKE_API_URL}")
+    print(f"   Environment file: {ENV_FILE} ({'found' if ENV_FILE.exists() else 'NOT FOUND'})")
+    if ENV_FILE.exists():
+        print(f"   Environment loaded: {env_loaded}")
+        # Debug: Show what was loaded
+        if env_loaded:
+            print(f"   Loaded VOLSPIKE_API_URL: {os.getenv('VOLSPIKE_API_URL', 'NOT SET')}")
+            print(f"   Loaded VOLSPIKE_API_KEY: {'SET' if os.getenv('VOLSPIKE_API_KEY') else 'NOT SET'}")
+    
+    # Check configuration
+    if not VOLSPIKE_API_URL or VOLSPIKE_API_URL == "http://localhost:3001":
+        print(f"\n❌ ERROR: VOLSPIKE_API_URL not set correctly!")
+        print(f"   Current value: '{VOLSPIKE_API_URL}'")
+        print(f"   Expected: 'https://volspike-production.up.railway.app'")
+        print(f"\n   To fix:")
+        print(f"   1. Check if /home/trader/.volspike.env exists:")
+        print(f"      cat /home/trader/.volspike.env")
+        print(f"   2. Make sure it contains:")
+        print(f"      VOLSPIKE_API_URL=https://volspike-production.up.railway.app")
+        print(f"      VOLSPIKE_API_KEY=your-api-key")
+        print(f"   3. If file doesn't exist or is missing variables, add them:")
+        print(f"      nano /home/trader/.volspike.env")
+        return 1
+    
+    if not VOLSPIKE_API_KEY:
+        print("\n❌ ERROR: VOLSPIKE_API_KEY not set!")
+        print("   Please check /home/trader/.volspike.env file")
+        print("   Make sure it contains: VOLSPIKE_API_KEY=your-api-key")
+        return 1
+    
+    print(f"   ✅ Backend: {VOLSPIKE_API_URL}")
+    print(f"   ✅ API Key: {'*' * min(20, len(VOLSPIKE_API_KEY))}... (set)")
     print(f"   Thresholds: Enter >= ${ENTER_THRESHOLD/1e6:.2f}M, Exit < ${EXIT_THRESHOLD/1e6:.2f}M")
     
     try:
