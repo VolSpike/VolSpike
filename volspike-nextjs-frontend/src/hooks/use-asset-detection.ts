@@ -111,6 +111,17 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
                 if (result.success && result.created > 0) {
                     console.log(`[AssetDetection] ✅ Detected ${result.created} new assets:`, result.newSymbols)
                     // Note: Enrichment happens automatically in the backend
+                    
+                    // CRITICAL: Invalidate manifest cache so new assets appear immediately
+                    // This ensures incomplete assets show up instantly in the slide-out card
+                    console.log('[AssetDetection] 🔄 Invalidating manifest cache to show new assets')
+                    try {
+                        const { invalidateManifestCache } = await import('@/lib/asset-manifest')
+                        invalidateManifestCache()
+                        console.log('[AssetDetection] ✅ Manifest cache invalidated')
+                    } catch (error) {
+                        console.warn('[AssetDetection] ⚠️ Failed to invalidate manifest cache:', error)
+                    }
                 } else if (result.success && result.created === 0) {
                     console.log('[AssetDetection] ℹ️ No new assets detected (all assets already exist)')
                 }
