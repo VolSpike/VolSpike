@@ -573,3 +573,81 @@ try {
 2. Write integration tests for API endpoints
 3. Update documentation and user guides
 
+---
+
+## Implementation Details
+
+### New Asset Detection Hook (`useAssetDetection`)
+
+**Location**: `volspike-nextjs-frontend/src/hooks/use-asset-detection.ts`
+
+**Key Features**:
+- Monitors Market Data from WebSocket (`useClientOnlyMarketData`)
+- Extracts symbols every 5 minutes automatically
+- Calls public endpoint `/api/assets/detect-new` (no admin auth required)
+- Invalidates manifest cache after detection to ensure instant display
+- Uses refs (`marketDataRef`, `initializedRef`) to prevent re-initialization loops
+
+**Preventing Re-render Loops**:
+- Empty dependency array `[]` in effect to prevent re-runs
+- `initializedRef` guard prevents multiple timer setups
+- `marketDataRef` for accessing latest data without triggering effects
+- Cleanup function doesn't reset `initializedRef` to prevent re-initialization
+
+**Timer Management**:
+- Initial detection: 10-second delay after mount
+- Periodic detection: Every 5 minutes
+- Timers stored in refs (`initialTimeoutRef`, `detectionIntervalRef`)
+- Cleanup only runs if not already initialized
+
+### Cache Invalidation
+
+**Location**: `volspike-nextjs-frontend/src/lib/asset-manifest.ts`
+
+**Function**: `invalidateManifestCache()`
+
+**When Called**:
+- After new asset detection (in `useAssetDetection` hook)
+- Clears memory cache (`manifestMemory = null`)
+- Clears localStorage cache (`localStorage.removeItem(MANIFEST_CACHE_KEY)`)
+- Resets manifest promise (`manifestPromise = null`)
+
+**Why**: Ensures newly detected assets (including incomplete ones) appear instantly in slide-out cards without waiting for cache TTL.
+
+### Public Detection Endpoint
+
+**Location**: `volspike-nodejs-backend/src/routes/assets.ts`
+
+**Endpoint**: `POST /api/assets/detect-new`
+
+**Why Public**: 
+- Frontend needs to call automatically without user interaction
+- Market Data is already public (WebSocket stream)
+- Only creates new assets, doesn't modify existing ones
+- Enrichment happens in background with rate limiting
+
+**Request**: `{ symbols: string[] }` (array of Market Data symbols)
+**Response**: `{ success: boolean, created: number, newSymbols: string[], message: string }`
+
+### `isComplete` Flag Behavior
+
+**Important**: The `isComplete` flag ONLY affects refresh scheduling, NOT data display.
+
+- **Incomplete Assets**: 
+  - Still display data instantly in slide-out cards
+  - Included in manifest (no filtering)
+  - Not included in weekly refresh cycles
+  - Admin can review and mark as complete
+
+- **Complete Assets**:
+  - Included in weekly refresh cycles
+  - Show "Next refresh" date in admin panel
+  - Display green checkmark in admin panel
+  - Refresh if stale (>1 week old)
+
+## References
+
+- See `MANIFEST_CACHE_TROUBLESHOOTING.md` for documentation on manifest cache issues and fixes.
+- See `IMPLEMENTATION_NOTES.md` for detailed implementation notes, fixes, and architecture decisions.
+- See `DEBUG_ASSET_DETECTION.md` for debugging guide for detection issues.
+
