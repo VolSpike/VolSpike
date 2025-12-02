@@ -690,6 +690,8 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
 
         logger.info(`[AssetMetadata] Detected ${uniqueNewSymbols.length} new assets from Market Data`, {
             newSymbols: uniqueNewSymbols.slice(0, 10), // Log first 10
+            hasRLS: uniqueNewSymbols.includes('RLS'),
+            allNewSymbols: uniqueNewSymbols, // Log all for debugging
         })
 
         // Create new Asset records

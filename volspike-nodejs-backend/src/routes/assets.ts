@@ -50,9 +50,17 @@ assetsRoutes.post('/detect-new', async (c) => {
         logger.info('[Assets] New asset detection requested (public endpoint)', {
             symbolCount: data.symbols.length,
             sampleSymbols: data.symbols.slice(0, 5),
+            hasRLS: data.symbols.some(s => s.includes('RLS')),
+            allRLSSymbols: data.symbols.filter(s => s.includes('RLS')),
         })
 
         const result = await detectNewAssetsFromMarketData(data.symbols)
+        
+        logger.info('[Assets] Detection result:', {
+            created: result.created,
+            newSymbols: result.newSymbols,
+            hasRLS: result.newSymbols.includes('RLS'),
+        })
 
         if (result.created > 0) {
             // Trigger automatic enrichment for newly created assets (non-blocking)
