@@ -319,13 +319,6 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
               .trim()
         : undefined
     
-    // Log cleaned description
-    if (description) {
-        logger.debug(`[AssetMetadata] Cleaned description for ${coingeckoId}:`, {
-            length: description.length,
-            first100Chars: description.substring(0, 100),
-        })
-    }
 
     return {
         name: data?.name as string | undefined,
@@ -433,12 +426,6 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
     const allowOverwrite = forceRefresh || asset.status !== 'VERIFIED'
 
     try {
-        logger.debug(`[AssetMetadata] Starting refresh for ${symbol}`, {
-            hasCoingeckoId: !!asset.coingeckoId,
-            hasLogo: !!asset.logoUrl,
-            hasDisplayName: !!asset.displayName,
-            status: asset.status,
-        })
 
         const { id: coingeckoId, source } = await pickCoingeckoId(symbol, asset.coingeckoId)
         if (!coingeckoId) {
@@ -448,15 +435,7 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
             return { success: false, reason: 'NO_COINGECKO_ID', error: 'No CoinGecko ID found for this symbol' }
         }
 
-        logger.debug(`[AssetMetadata] Found CoinGecko id for ${symbol}: ${coingeckoId} (source: ${source})`)
-
         const profile = await fetchCoinProfile(coingeckoId)
-        logger.debug(`[AssetMetadata] Fetched profile for ${symbol}`, {
-            hasName: !!profile.name,
-            name: profile.name,
-            hasDescription: !!profile.description,
-            hasHomepage: !!profile.homepage,
-            homepage: profile.homepage, // Log actual homepage value
             hasTwitter: !!profile.twitterUrl,
             hasLogoUrl: !!profile.logoUrl,
         })
