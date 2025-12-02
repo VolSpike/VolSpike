@@ -52,7 +52,8 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
                 })
 
                 if (!response.ok) {
-                    console.warn('[AssetDetection] Failed to detect new assets:', response.statusText)
+                    const errorText = await response.text().catch(() => response.statusText)
+                    console.warn('[AssetDetection] Failed to detect new assets:', response.status, errorText)
                     return
                 }
 
