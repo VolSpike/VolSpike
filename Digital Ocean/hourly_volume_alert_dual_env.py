@@ -53,7 +53,93 @@ session.mount(
                                   status_forcelist=[429, 500, 502, 503, 504]))
 )
 
+# WebSocket Funding API Configuration
+WS_FUNDING_API_URL = "http://localhost:8888/funding"
+WS_FUNDING_ENABLED = os.getenv("WS_FUNDING_ENABLED", "true").lower() == "true"
+
+# Comparison metrics (for validation)
+comparison_stats = {
+    "total_comparisons": 0,
+    "matches": 0,
+    "mismatches": 0,
+    "total_diff": 0.0,
+    "max_diff": 0.0,
+    "max_diff_symbol": None,
+}
+
 # ────────────────────────── helpers ────────────────────────────
+
+def fetch_funding_from_ws(symbol: str) -> dict:
+    """
+    Fetch funding rate and mark price from WebSocket service.
+    Returns dict with 'fundingRate' and 'markPrice', or None on error.
+    """
+    if not WS_FUNDING_ENABLED:
+        return None
+    
+    try:
+        resp = session.get(
+            f"{WS_FUNDING_API_URL}/{symbol}",
+            timeout=1
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return {
+                "fundingRate": data.get("fundingRate"),
+                "markPrice": data.get("markPrice"),
+            }
+        elif resp.status_code == 503:
+            # Data stale, but we got it - log warning
+            print(f"  ⚠️  WS funding data stale for {symbol}")
+            return None
+    except Exception as e:
+        # Silent failure - WebSocket service may not be running
+        pass
+    return None
+
+
+def compare_funding_data(rest_funding: float, ws_funding: float, symbol: str):
+    """
+    Compare REST vs WebSocket funding rates and log differences.
+    Updates comparison statistics.
+    """
+    if rest_funding is None or ws_funding is None:
+        return
+    
+    comparison_stats["total_comparisons"] += 1
+    
+    diff = abs(rest_funding - ws_funding)
+    diff_pct = (diff / abs(rest_funding)) * 100 if rest_funding != 0 else 0
+    
+    comparison_stats["total_diff"] += diff_pct
+    
+    if diff_pct > comparison_stats["max_diff"]:
+        comparison_stats["max_diff"] = diff_pct
+        comparison_stats["max_diff_symbol"] = symbol
+    
+    if diff_pct > 0.1:  # >0.1% difference
+        comparison_stats["mismatches"] += 1
+        print(f"  ⚠️  Funding mismatch for {symbol}: REST={rest_funding:.6f}, WS={ws_funding:.6f}, diff={diff_pct:.3f}%")
+    else:
+        comparison_stats["matches"] += 1
+
+
+def log_comparison_summary():
+    """Log summary of comparison statistics"""
+    if comparison_stats["total_comparisons"] == 0:
+        return
+    
+    avg_diff = comparison_stats["total_diff"] / comparison_stats["total_comparisons"]
+    match_rate = (comparison_stats["matches"] / comparison_stats["total_comparisons"]) * 100
+    
+    print(f"\n📊 Funding Comparison Summary:")
+    print(f"   Total comparisons: {comparison_stats['total_comparisons']}")
+    print(f"   Matches: {comparison_stats['matches']} ({match_rate:.1f}%)")
+    print(f"   Mismatches: {comparison_stats['mismatches']}")
+    print(f"   Avg difference: {avg_diff:.3f}%")
+    if comparison_stats["max_diff_symbol"]:
+        print(f"   Max difference: {comparison_stats['max_diff']:.3f}% ({comparison_stats['max_diff_symbol']})")
+
 
 def fmt(vol: float) -> str:
     if vol >= 1e9:
@@ -248,13 +334,25 @@ def fetch_and_post_open_interest() -> None:
                     open_interest = float(oi_resp["openInterest"])
 
                     # Get current mark price to calculate USD notional
-                    mark_resp = session.get(
-                        f"{API}/fapi/v1/premiumIndex",
-                        params={"symbol": sym},
-                        timeout=5
-                    ).json()
-
-                    mark_price = float(mark_resp.get("markPrice", 0))
+                    # Try WebSocket first, fallback to REST
+                    mark_price = None
+                    
+                    # Try WebSocket service
+                    funding_data_ws = fetch_funding_from_ws(sym)
+                    if funding_data_ws and funding_data_ws.get("markPrice"):
+                        mark_price = funding_data_ws["markPrice"]
+                    
+                    # Fallback to REST API if WebSocket unavailable
+                    if mark_price is None:
+                        try:
+                            mark_resp = session.get(
+                                f"{API}/fapi/v1/premiumIndex",
+                                params={"symbol": sym},
+                                timeout=5
+                            ).json()
+                            mark_price = float(mark_resp.get("markPrice", 0))
+                        except:
+                            mark_price = 0
 
                     # Calculate USD notional (Open Interest in contracts * Mark Price)
                     oi_usd = open_interest * mark_price
@@ -336,13 +434,26 @@ def scan(top_of_hour: bool, is_middle_hour: bool = False, utc_now: datetime.date
 
         # Fetch current price and funding rate for VolSpike
         price = current_price  # We already have it from the candle
-        funding_rate = None
+        
+        # Fetch funding rate from REST API (existing, for comparison)
+        funding_rate_rest = None
         try:
             funding_resp = session.get(f"{API}/fapi/v1/premiumIndex",
                                       params={"symbol": sym}, timeout=5).json()
-            funding_rate = float(funding_resp.get("lastFundingRate", 0))
+            funding_rate_rest = float(funding_resp.get("lastFundingRate", 0))
         except:
-            pass  # If we can't get funding, send alert anyway
+            pass  # If we can't get funding from REST, continue
+        
+        # Fetch funding rate from WebSocket service (new)
+        funding_data_ws = fetch_funding_from_ws(sym)
+        funding_rate_ws = funding_data_ws["fundingRate"] if funding_data_ws else None
+        
+        # Compare REST vs WebSocket (validation mode)
+        if funding_rate_rest is not None and funding_rate_ws is not None:
+            compare_funding_data(funding_rate_rest, funding_rate_ws, sym)
+        
+        # Use WebSocket data for alert (fallback to REST if WS unavailable)
+        funding_rate = funding_rate_ws if funding_rate_ws is not None else funding_rate_rest
 
         # Check for update alerts (middle or end of hour)
         update_alert = False
@@ -420,6 +531,12 @@ if VOLSPIKE_API_URL_DEV and VOLSPIKE_API_KEY_DEV:
 else:
     print("🔧 DEV environment NOT configured - sending to PROD only")
 
+if WS_FUNDING_ENABLED:
+    print("🔌 WebSocket funding service: ENABLED (parallel validation mode)")
+    print(f"   API URL: {WS_FUNDING_API_URL}")
+else:
+    print("🔌 WebSocket funding service: DISABLED (using REST only)")
+
 while True:
     utc_now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
     top_of_hour = (utc_now.minute == 0)
@@ -428,6 +545,10 @@ while True:
     print("Starting volume scan…", flush=True)
     try:
         scan(top_of_hour, is_middle_hour, utc_now)
+        
+        # Log comparison summary every 100 comparisons
+        if comparison_stats["total_comparisons"] > 0 and comparison_stats["total_comparisons"] % 100 == 0:
+            log_comparison_summary()
     except Exception as e:
         print("⚠️  Error:", e)
 

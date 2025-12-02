@@ -1,0 +1,22 @@
+[Unit]
+Description=Binance Funding Rate WebSocket Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=trader
+WorkingDirectory=/home/trader/volspike/Digital Ocean
+ExecStart=/usr/bin/python3 /home/trader/volspike/Digital Ocean/binance_funding_ws_daemon.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables (optional)
+# Environment="WS_RECONNECT_INITIAL_DELAY=1"
+# Environment="WS_RECONNECT_MAX_DELAY=60"
+# Environment="STALE_THRESHOLD=180"
+
+[Install]
+WantedBy=multi-user.target
+

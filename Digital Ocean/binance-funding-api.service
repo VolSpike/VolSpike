@@ -1,0 +1,22 @@
+[Unit]
+Description=Binance Funding Rate HTTP API Server
+After=network.target binance-funding-ws.service
+Requires=binance-funding-ws.service
+
+[Service]
+Type=simple
+User=trader
+WorkingDirectory=/home/trader/volspike/Digital Ocean
+ExecStart=/usr/bin/python3 /home/trader/volspike/Digital Ocean/funding_api_server.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables (optional)
+# Environment="API_PORT=8888"
+# Environment="API_HOST=127.0.0.1"
+
+[Install]
+WantedBy=multi-user.target
+

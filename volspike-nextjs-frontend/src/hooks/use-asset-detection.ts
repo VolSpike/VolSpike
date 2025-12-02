@@ -41,9 +41,9 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
                     return
                 }
 
-                // Call backend detection endpoint
+                // Call backend detection endpoint (public endpoint, no auth required)
                 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-                const response = await fetch(`${apiBase}/api/admin/assets/detect-new`, {
+                const response = await fetch(`${apiBase}/api/assets/detect-new`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
