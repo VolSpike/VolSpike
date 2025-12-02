@@ -136,7 +136,9 @@
 
 **Goal:** Periodically populate `liquid_oi_universe` using `binance-proxy.js` and `ticker/24hr`.
 
-1. In backend (or a separate worker script, e.g. `src/workers/oiLiquidityJob.ts`):
+**CRITICAL ARCHITECTURE NOTE**: Per AGENTS.md, this job MUST run on Digital Ocean, NOT Railway backend. Only Digital Ocean scripts are allowed to call Binance REST API.
+
+1. **On Digital Ocean droplet**, create Python script `oi_liquid_universe_job.py`:
    * Every 5 min:
      * `GET http://<droplet-host>:3002/api/binance/futures/info` → exchangeInfo.
      * `GET https://fapi.binance.com/fapi/v1/ticker/24hr` → 24h stats.
