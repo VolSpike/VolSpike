@@ -24,17 +24,24 @@ from urllib3.util.retry import Retry
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# Load environment variables from .volspike.env file (same as volume alert script)
+# Load environment variables from .volspike.env file
 ENV_FILE = Path.home() / ".volspike.env"
+env_loaded = False
 if ENV_FILE.exists():
-    with open(ENV_FILE, "r") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                # Remove quotes if present
-                value = value.strip('"').strip("'")
-                os.environ[key.strip()] = value
+    try:
+        with open(ENV_FILE, "r") as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    # Remove quotes if present
+                    value = value.strip('"').strip("'").strip()
+                    os.environ[key.strip()] = value
+                    env_loaded = True
+    except Exception as e:
+        print(f"⚠️  Warning: Failed to load {ENV_FILE}: {e}")
+else:
+    print(f"⚠️  Warning: {ENV_FILE} not found - using system environment variables")
 
 # Configuration
 VOLSPIKE_API_URL = os.getenv("VOLSPIKE_API_URL", "http://localhost:3001")
@@ -336,7 +343,23 @@ def post_oi_batch(samples: list) -> bool:
 def main_loop():
     """Main polling loop"""
     print("🚀 Starting Realtime OI Poller (Step 9: Full Implementation)")
+    print(f"   Environment file: {ENV_FILE} ({'found' if ENV_FILE.exists() else 'NOT FOUND'})")
+    
+    # Check configuration
+    if not VOLSPIKE_API_URL or VOLSPIKE_API_URL == "http://localhost:3001":
+        print(f"❌ ERROR: VOLSPIKE_API_URL not set correctly!")
+        print(f"   Current value: {VOLSPIKE_API_URL}")
+        print(f"   Expected: https://volspike-production.up.railway.app")
+        print(f"   Please check /home/trader/.volspike.env file")
+        sys.exit(1)
+    
+    if not VOLSPIKE_API_KEY:
+        print("❌ ERROR: VOLSPIKE_API_KEY not set!")
+        print("   Please check /home/trader/.volspike.env file")
+        sys.exit(1)
+    
     print(f"   Backend URL: {VOLSPIKE_API_URL}")
+    print(f"   API Key: {'*' * min(20, len(VOLSPIKE_API_KEY))}... (set)")
     print(f"   Max req/min: {MAX_REQ_PER_MIN}")
     print(f"   Interval range: {MIN_INTERVAL_SEC}-{MAX_INTERVAL_SEC}s")
     print(f"   Alert thresholds: ±{OI_SPIKE_THRESHOLD_PCT*100:.0f}% / ±{OI_MIN_DELTA_CONTRACTS:.0f} contracts")
