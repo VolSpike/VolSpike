@@ -317,12 +317,10 @@ export const invalidateManifestCache = (): void => {
 export const findAssetInManifestSync = (symbol: string): AssetRecord | undefined => {
     const cached = readCachedManifest()
     if (!cached) {
-        console.log(`[findAssetInManifestSync] No cached manifest for "${symbol}"`)
         return undefined
     }
     
     const upper = symbol.toUpperCase()
-    console.log(`[findAssetInManifestSync] Searching for "${upper}" in ${cached.length} cached assets`)
     
     const found = cached.find((asset) => {
         const baseMatch = asset.baseSymbol?.toUpperCase() === upper
