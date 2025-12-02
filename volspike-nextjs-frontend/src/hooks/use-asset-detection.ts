@@ -14,7 +14,14 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
     const DETECTION_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 
     useEffect(() => {
+        console.log('[AssetDetection] Hook effect triggered', {
+            hasMarketData: !!marketData,
+            marketDataLength: marketData?.length || 0,
+            marketDataType: typeof marketData,
+        })
+        
         if (!marketData || marketData.length === 0) {
+            console.warn('[AssetDetection] ⚠️ No market data available, skipping detection')
             return
         }
 
@@ -89,12 +96,15 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
         }
 
         // Initial detection after a short delay (let Market Data stabilize)
+        console.log('[AssetDetection] Setting up detection timers (initial: 10s, periodic: 5min)')
         const initialTimeout = setTimeout(() => {
+            console.log('[AssetDetection] ⏰ Initial detection timer fired (10s delay)')
             detectNewAssets()
         }, 10000) // Wait 10 seconds after component mount
 
         // Set up periodic detection
         detectionIntervalRef.current = setInterval(() => {
+            console.log('[AssetDetection] ⏰ Periodic detection timer fired (5min interval)')
             detectNewAssets()
         }, DETECTION_INTERVAL_MS)
 
