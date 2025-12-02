@@ -38,11 +38,10 @@
    # SSH into Digital Ocean
    ssh root@YOUR_IP
    
-   # Set environment variables
-   export VOLSPIKE_API_URL="https://volspike-production.up.railway.app"
-   export VOLSPIKE_API_KEY="your-api-key"
+   # Verify .volspike.env exists and has required variables
+   cat /home/trader/.volspike.env | grep -E "VOLSPIKE_API_URL|VOLSPIKE_API_KEY"
    
-   # Run script
+   # Run script (automatically loads from .volspike.env)
    cd /home/trader/volume-spike-bot
    python3 oi_liquid_universe_job.py
    ```
@@ -69,9 +68,8 @@
    WorkingDirectory=/home/trader/volume-spike-bot
    ExecStart=/usr/bin/python3 /home/trader/volume-spike-bot/oi_liquid_universe_job.py
    
-   Environment="VOLSPIKE_API_URL=https://volspike-production.up.railway.app"
-   Environment="VOLSPIKE_API_KEY=your-api-key"
-   Environment="BINANCE_PROXY_URL=http://localhost:3002"
+   # Note: Script automatically loads from /home/trader/.volspike.env
+   # No need to set Environment variables here unless you want to override
    
    StandardOutput=journal
    StandardError=journal
@@ -113,11 +111,10 @@
    # SSH into Digital Ocean
    ssh root@YOUR_IP
    
-   # Set environment variables
-   export VOLSPIKE_API_URL="https://volspike-production.up.railway.app"
-   export VOLSPIKE_API_KEY="your-api-key"
+   # Verify .volspike.env exists and has required variables
+   cat /home/trader/.volspike.env | grep -E "VOLSPIKE_API_URL|VOLSPIKE_API_KEY"
    
-   # Run script
+   # Run script (automatically loads from .volspike.env)
    cd /home/trader/volume-spike-bot
    python3 oi_realtime_poller.py
    ```
@@ -146,8 +143,8 @@
    Restart=always
    RestartSec=10
    
-   Environment="VOLSPIKE_API_URL=https://volspike-production.up.railway.app"
-   Environment="VOLSPIKE_API_KEY=your-api-key"
+   # Note: Script automatically loads from /home/trader/.volspike.env
+   # No need to set Environment variables here unless you want to override
    
    StandardOutput=journal
    StandardError=journal
@@ -242,8 +239,10 @@ After deploying both scripts:
    - ✅ Backend only stores/retrieves data
 
 2. **Environment Variables:**
-   - Both scripts need `VOLSPIKE_API_URL` and `VOLSPIKE_API_KEY`
-   - Liquid universe job also needs `BINANCE_PROXY_URL` (optional, defaults to localhost:3002)
+   - Both scripts automatically load from `/home/trader/.volspike.env`
+   - Required: `VOLSPIKE_API_URL` and `VOLSPIKE_API_KEY`
+   - Optional: `BINANCE_PROXY_URL` (defaults to localhost:3002)
+   - Optional: `OI_LIQUID_ENTER_QUOTE_24H` and `OI_LIQUID_EXIT_QUOTE_24H` (for thresholds)
 
 3. **Testing:**
    - Always test manually before setting up as service
