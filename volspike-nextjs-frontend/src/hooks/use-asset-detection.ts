@@ -21,15 +21,16 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
         marketDataRef.current = marketData
     }, [marketData])
 
+    // Watch for market data availability and initialize when ready
     useEffect(() => {
         // Only initialize once
         if (initializedRef.current) {
             return
         }
 
+        // Wait for market data to be available
         if (!marketData || marketData.length === 0) {
-            console.log('[AssetDetection] ⚠️ No market data available yet, will retry when data arrives')
-            return
+            return // Don't log here - market data might not be ready yet
         }
 
         console.log('[AssetDetection] ✅ Initializing detection (one-time setup)', {
@@ -146,6 +147,6 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
             }
             initializedRef.current = false
         }
-    }, []) // Empty dependency array - only run once on mount
+    }, [marketData]) // Re-run when marketData becomes available (but initializedRef prevents multiple setups)
 }
 
