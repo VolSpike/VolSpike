@@ -37,14 +37,15 @@
 
 ### 1.2 New components
 
-1. **OI Liquidity Classifier Job** (backend job / worker)
-   * Runs inside backend or as a Node worker.
+1. **OI Liquidity Classifier Job** (Python script on Digital Ocean)
+   * **CRITICAL**: Runs on Digital Ocean droplet, NOT on Railway backend.
+   * Per AGENTS.md: "Digital Ocean Script: ✅ ONLY place that uses Binance REST API"
    * Uses:
-     * `binance-proxy` for latest `exchangeInfo`.
-     * Direct call to `GET /fapi/v1/ticker/24hr` (from backend) to get 24h stats.
-   * Produces and stores:
-     * `liquid_oi_universe` (set of symbols),
-     * Per-symbol metadata (24h quote volume, timestamps).
+     * `binance-proxy` for latest `exchangeInfo` (or direct Binance if proxy unavailable).
+     * Direct call to `GET /fapi/v1/ticker/24hr` from Digital Ocean to get 24h stats.
+   * Produces and posts to backend:
+     * Liquid universe symbols and metadata via `POST /api/market/open-interest/liquid-universe/update`.
+   * Backend stores in `open_interest_liquid_symbols` table.
 
 2. **Realtime OI Poller** (Python or Node process on DO)
    * Reads `liquid_oi_universe` from backend/Redis/Postgres.
@@ -78,7 +79,7 @@
   * New realtime OI poller:
     * `GET /fapi/v1/openInterest?symbol=SYM`.
     * Optionally `GET /fapi/v1/premiumIndex?symbol=SYM`.
-  * Backend liquidity job (for `ticker/24hr`).
+  * Digital Ocean liquid universe job (for `ticker/24hr` - runs on DO, not backend).
 
 This separation keeps the proxy focused on symbol metadata and avoids turning it into a bottleneck for high-frequency OI calls.
 
