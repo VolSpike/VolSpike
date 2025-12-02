@@ -21,9 +21,9 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
         marketDataRef.current = marketData
     }, [marketData])
 
-    // Watch for market data availability and initialize when ready
+    // Initialize detection once when market data becomes available
     useEffect(() => {
-        // Only initialize once
+        // Only initialize once (check before checking market data)
         if (initializedRef.current) {
             return
         }
@@ -37,6 +37,7 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
             marketDataLength: marketData.length,
         })
 
+        // Mark as initialized BEFORE setting up timers (prevents re-initialization)
         initializedRef.current = true
 
         const detectNewAssets = async () => {
@@ -136,7 +137,8 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
         }, DETECTION_INTERVAL_MS)
 
         return () => {
-            console.log('[AssetDetection] 🧹 Cleaning up timers')
+            // Only cleanup timers, don't reset initializedRef
+            // This prevents re-initialization when marketData reference changes
             if (initialTimeoutRef.current) {
                 clearTimeout(initialTimeoutRef.current)
                 initialTimeoutRef.current = null
@@ -145,7 +147,7 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
                 clearInterval(detectionIntervalRef.current)
                 detectionIntervalRef.current = null
             }
-            initializedRef.current = false
+            // DON'T reset initializedRef here - we want to initialize only once
         }
     }, [marketData]) // Re-run when marketData becomes available (but initializedRef prevents multiple setups)
 }
