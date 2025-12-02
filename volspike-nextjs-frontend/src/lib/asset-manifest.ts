@@ -308,6 +308,29 @@ export const prefetchAssetManifest = async (): Promise<void> => {
 }
 
 /**
+ * Invalidate manifest cache - forces next loadAssetManifest() call to fetch fresh data
+ * This is called when new assets are detected to ensure they appear immediately
+ */
+export const invalidateManifestCache = (): void => {
+    if (typeof window === 'undefined') return
+    
+    // Clear memory cache
+    manifestMemory = null
+    manifestMemoryIsStale = true
+    
+    // Clear localStorage cache
+    try {
+        localStorage.removeItem(MANIFEST_CACHE_KEY)
+        console.log('[AssetManifest] ✅ Cache invalidated - next load will fetch fresh data')
+    } catch (error) {
+        console.warn('[AssetManifest] ⚠️ Failed to clear localStorage cache:', error)
+    }
+    
+    // Reset promise so next call fetches fresh
+    manifestPromise = null
+}
+
+/**
  * Synchronously find asset in manifest if manifest is already loaded in memory
  * Falls back to async lookup if manifest needs to be fetched
  */
