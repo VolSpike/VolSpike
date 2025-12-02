@@ -37,12 +37,22 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
                 // Extract unique symbols from Market Data
                 const symbols = marketData.map((item) => item.symbol).filter(Boolean)
 
+                console.log('[AssetDetection] 🔍 Checking for new assets...', {
+                    marketDataLength: marketData.length,
+                    symbolsCount: symbols.length,
+                    sampleSymbols: symbols.slice(0, 10),
+                    hasRLS: symbols.some(s => s.includes('RLS')),
+                })
+
                 if (symbols.length === 0) {
+                    console.warn('[AssetDetection] ⚠️ No symbols found in market data')
                     return
                 }
 
                 // Call backend detection endpoint (public endpoint, no auth required)
                 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                console.log('[AssetDetection] 📡 Calling detection endpoint:', `${apiBase}/api/assets/detect-new`)
+                
                 const response = await fetch(`${apiBase}/api/assets/detect-new`, {
                     method: 'POST',
                     headers: {
@@ -53,19 +63,26 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
 
                 if (!response.ok) {
                     const errorText = await response.text().catch(() => response.statusText)
-                    console.warn('[AssetDetection] Failed to detect new assets:', response.status, errorText)
+                    console.error('[AssetDetection] ❌ Failed to detect new assets:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: errorText,
+                    })
                     return
                 }
 
                 const result = await response.json()
+                console.log('[AssetDetection] 📥 Detection response:', result)
 
                 if (result.success && result.created > 0) {
                     console.log(`[AssetDetection] ✅ Detected ${result.created} new assets:`, result.newSymbols)
                     // Note: Enrichment happens automatically in the backend
+                } else if (result.success && result.created === 0) {
+                    console.log('[AssetDetection] ℹ️ No new assets detected (all assets already exist)')
                 }
             } catch (error) {
-                // Silently fail - this is a background process, don't disrupt user experience
-                console.debug('[AssetDetection] Error detecting new assets:', error)
+                // Log errors more prominently for debugging
+                console.error('[AssetDetection] ❌ Error detecting new assets:', error)
             } finally {
                 isDetectingRef.current = false
             }

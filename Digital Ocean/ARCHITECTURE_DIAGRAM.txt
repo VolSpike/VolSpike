@@ -1,0 +1,251 @@
+═══════════════════════════════════════════════════════════════════════════════
+  FUNDING RATE DATA FLOW - CURRENT VALIDATION MODE
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         BINANCE (External)                                  │
+│                                                                             │
+│  ┌──────────────────────┐              ┌──────────────────────┐            │
+│  │  WebSocket Stream    │              │  REST API            │            │
+│  │  !ticker@arr         │              │  /fapi/v1/           │            │
+│  │  !markPrice@arr      │              │  premiumIndex        │            │
+│  └──────────┬───────────┘              └──────────┬───────────┘            │
+└─────────────┼────────────────────────────────────┼─────────────────────────┘
+              │                                    │
+              │                                    │
+              ▼                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    YOUR DIGITAL OCEAN DROPLET                               │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │ WebSocket Daemon (binance_funding_ws_daemon.py)                 │       │
+│  │ systemd service: binance-funding-ws                             │       │
+│  │                                                                 │       │
+│  │  • Connects to Binance WebSocket                                │       │
+│  │  • Maintains in-memory funding_state dict                       │       │
+│  │  • Auto-reconnects with exponential backoff                     │       │
+│  │  • Writes to: .funding_state.json                               │       │
+│  │                                                                 │       │
+│  │  Data: {                                                        │       │
+│  │    "BTCUSDT": {                                                 │       │
+│  │      "fundingRate": 0.0001,                                     │       │
+│  │      "markPrice": 43250.50,                                     │       │
+│  │      "nextFundingTime": 1234567890,                             │       │
+│  │      "updatedAt": 1234567890.123                                │       │
+│  │    }                                                            │       │
+│  │  }                                                              │       │
+│  └───────────────────────┬─────────────────────────────────────────┘       │
+│                          │                                                 │
+│                          │ Reads state file                                │
+│                          ▼                                                 │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │ HTTP API Server (funding_api_server.py)                         │       │
+│  │ systemd service: binance-funding-api                            │       │
+│  │ Port: 8888 (localhost only)                                     │       │
+│  │                                                                 │       │
+│  │  Endpoints:                                                     │       │
+│  │  • GET /funding/health                                          │       │
+│  │  • GET /funding/{symbol}                                        │       │
+│  │  • GET /funding/batch?symbols=...                               │       │
+│  │                                                                 │       │
+│  │  Returns: {                                                     │       │
+│  │    "symbol": "BTCUSDT",                                         │       │
+│  │    "fundingRate": 0.0001,                                       │       │
+│  │    "markPrice": 43250.50,                                       │       │
+│  │    "ageSeconds": 1.2                                            │       │
+│  │  }                                                              │       │
+│  └───────────────────────┬─────────────────────────────────────────┘       │
+│                          │                                                 │
+│                          │ HTTP calls                                      │
+│                          ▼                                                 │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │ Volume Alert Script (hourly_volume_alert_dual_env.py)           │       │
+│  │ CURRENT MODE: Parallel Validation                               │       │
+│  │                                                                 │       │
+│  │  Every 5 minutes:                                               │       │
+│  │  ┌────────────────────────────────────────────────────┐         │       │
+│  │  │ For each symbol:                                   │         │       │
+│  │  │                                                    │         │       │
+│  │  │ 1. Fetch from REST API ─────────┐                 │         │       │
+│  │  │    funding_rate_rest            │                 │         │       │
+│  │  │                                 │                 │         │       │
+│  │  │ 2. Fetch from WebSocket ────────┤                 │         │       │
+│  │  │    funding_rate_ws              │                 │         │       │
+│  │  │                                 │                 │         │       │
+│  │  │ 3. Compare ─────────────────────┘                 │         │       │
+│  │  │    if diff > 0.1%:                                │         │       │
+│  │  │      Log mismatch                                 │         │       │
+│  │  │                                                    │         │       │
+│  │  │ 4. Use for alert:                                 │         │       │
+│  │  │    funding_rate = ws ?? rest  (prefer WS)         │         │       │
+│  │  │                                                    │         │       │
+│  │  │ 5. Send alert to backend                          │         │       │
+│  │  └────────────────────────────────────────────────────┘         │       │
+│  │                                                                 │       │
+│  │  Every 100 comparisons:                                         │       │
+│  │  └─ Log summary (match rate, avg diff, max diff)               │       │
+│  │                                                                 │       │
+│  └─────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  VERIFICATION TOOLS - WHAT THEY DO
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. quick_verify.sh                                                          │
+│                                                                             │
+│    ┌────────────┐     ┌─────────────┐     ┌──────────────┐                │
+│    │ Check WS   │ ──> │ Check API   │ ──> │ Test Health  │                │
+│    │ Daemon     │     │ Server      │     │ Endpoint     │                │
+│    └────────────┘     └─────────────┘     └──────────────┘                │
+│                                                  │                          │
+│                                                  ▼                          │
+│                                           ┌──────────────┐                 │
+│                                           │ Quick Test   │                 │
+│                                           │ BTCUSDT      │                 │
+│                                           └──────────────┘                 │
+│                                                  │                          │
+│                                                  ▼                          │
+│                                           ┌──────────────┐                 │
+│                                           │ Show Status  │                 │
+│                                           │ & Next Steps │                 │
+│                                           └──────────────┘                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. verify_funding_data.py                                                   │
+│                                                                             │
+│    Every 10 seconds:                                                        │
+│                                                                             │
+│    For 10 symbols:                                                          │
+│      ┌──────────────┐     ┌──────────────┐                                │
+│      │ Fetch REST   │     │ Fetch WS     │                                │
+│      │ Funding      │     │ Funding      │                                │
+│      └──────┬───────┘     └──────┬───────┘                                │
+│             │                    │                                         │
+│             └────────┬───────────┘                                         │
+│                      ▼                                                     │
+│              ┌───────────────┐                                             │
+│              │ Calculate     │                                             │
+│              │ Difference    │                                             │
+│              └───────┬───────┘                                             │
+│                      ▼                                                     │
+│              ┌───────────────┐                                             │
+│              │ Display Table │                                             │
+│              │ with Colors   │                                             │
+│              └───────────────┘                                             │
+│                                                                             │
+│    Shows: Symbol, REST, WS, Diff %, Mark Price, WS Age, Status             │
+│    Color: Green (match), Yellow (close), Red (diff)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. simulate_dual_alerts.py                                                  │
+│                                                                             │
+│    For each test symbol:                                                    │
+│                                                                             │
+│      ┌──────────────┐                                                      │
+│      │ Fetch Klines │                                                      │
+│      │ (Volume Data)│                                                      │
+│      └──────┬───────┘                                                      │
+│             │                                                              │
+│             ▼                                                              │
+│      ┌──────────────┐     ┌──────────────┐                                │
+│      │ Fetch REST   │     │ Fetch WS     │                                │
+│      │ Funding      │     │ Funding      │                                │
+│      └──────┬───────┘     └──────┬───────┘                                │
+│             │                    │                                         │
+│             └────────┬───────────┘                                         │
+│                      ▼                                                     │
+│              ┌───────────────┐                                             │
+│              │ Simulate      │                                             │
+│              │ Alert with    │                                             │
+│              │ Both Sources  │                                             │
+│              └───────┬───────┘                                             │
+│                      ▼                                                     │
+│              ┌───────────────┐                                             │
+│              │ Show Side-by- │                                             │
+│              │ Side Alerts   │                                             │
+│              └───────────────┘                                             │
+│                                                                             │
+│    Shows: Volume data, Funding comparison, Alert messages, Impact          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  AFTER VALIDATION: WEBSOCKET-ONLY MODE
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Volume Alert Script (SIMPLIFIED)                                            │
+│                                                                             │
+│  Every 5 minutes:                                                           │
+│  ┌────────────────────────────────────────────────────┐                    │
+│  │ For each symbol:                                   │                    │
+│  │                                                    │                    │
+│  │ 1. Fetch from WebSocket ONLY                       │                    │
+│  │    funding_rate = fetch_funding_from_ws(symbol)    │                    │
+│  │                                                    │                    │
+│  │ 2. Use for alert                                   │                    │
+│  │    Send alert with funding_rate                    │                    │
+│  │                                                    │                    │
+│  └────────────────────────────────────────────────────┘                    │
+│                                                                             │
+│  Benefits:                                                                  │
+│  • No REST API calls (86,400 fewer/day)                                    │
+│  • Fresher data (real-time vs 5-min poll)                                  │
+│  • Better reliability (auto-reconnect)                                      │
+│  • Lower server load                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  VALIDATION DECISION TREE
+═══════════════════════════════════════════════════════════════════════════════
+
+Start Verification
+      │
+      ▼
+Run quick_verify.sh
+      │
+      ├─ Services running? ──No──> Fix services, restart
+      │         │
+      │        Yes
+      ▼         
+Run verify_funding_data.py (10 min)
+      │
+      ├─ Avg diff < 0.1%? ──No──> Continue monitoring
+      │         │
+      │        Yes
+      ▼         
+Run simulate_dual_alerts.py (5 min)
+      │
+      ├─ Alerts identical? ──No──> Investigate differences
+      │         │
+      │        Yes
+      ▼         
+Monitor logs (24-48 hours)
+      │
+      ├─ Match rate > 95%? ──No──> Continue monitoring
+      │         │
+      │        Yes
+      ├─ Max diff < 1.0%? ──No──> Continue monitoring
+      │         │
+      │        Yes
+      ▼
+✅ SAFE TO SWITCH
+      │
+      ▼
+Modify script, remove REST calls
+      │
+      ▼
+Monitor production (1 week)
+      │
+      ▼
+✅ FULL WEBSOCKET OPERATION
+
+
+═══════════════════════════════════════════════════════════════════════════════

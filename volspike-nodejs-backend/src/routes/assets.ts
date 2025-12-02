@@ -57,7 +57,8 @@ assetsRoutes.post('/detect-new', async (c) => {
         if (result.created > 0) {
             // Trigger automatic enrichment for newly created assets (non-blocking)
             logger.info(`[Assets] Triggering automatic enrichment for ${result.created} new assets`)
-            setImmediate(async () => {
+            // Use process.nextTick for Node.js compatibility (setImmediate might not be available)
+            process.nextTick(async () => {
                 try {
                     // Enrich new assets one by one, respecting rate limits
                     const newAssets = await prisma.asset.findMany({
