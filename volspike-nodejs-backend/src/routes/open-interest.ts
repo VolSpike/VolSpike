@@ -160,6 +160,102 @@ app.post('/ingest', handleIngest)
 app.post('/', handleIngest)
 
 /**
+ * POST /api/market/open-interest/liquid-universe/update
+ * 
+ * Update liquid universe (called from Digital Ocean script)
+ * Requires API key authentication
+ */
+app.post('/liquid-universe/update', async (c) => {
+  try {
+    // Validate API key
+    const ALERT_INGEST_API_KEY = process.env.ALERT_INGEST_API_KEY
+    if (!ALERT_INGEST_API_KEY) {
+      logger.error('Liquid universe update: ALERT_INGEST_API_KEY not configured')
+      return c.json({ error: 'Server configuration error' }, 500)
+    }
+
+    const providedKey = c.req.header('X-API-Key')
+    if (!providedKey || providedKey !== ALERT_INGEST_API_KEY) {
+      logger.warn('Liquid universe update: Invalid API key')
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+
+    // Parse request body
+    const body = await c.req.json()
+    const symbols = body.symbols || []
+    const updatedAt = body.updatedAt ? new Date(body.updatedAt) : new Date()
+
+    // Store/update liquid universe
+    const now = new Date()
+    let upserted = 0
+
+    for (const symbolData of symbols) {
+      const symbol = symbolData.symbol
+      const quoteVolume24h = parseFloat(symbolData.quoteVolume24h) || 0
+      const enteredAt = symbolData.enteredAt ? new Date(symbolData.enteredAt) : now
+      const lastSeenAt = symbolData.lastSeenAt ? new Date(symbolData.lastSeenAt) : now
+
+      const existing = await prisma.openInterestLiquidSymbol.findUnique({
+        where: { symbol },
+      })
+
+      if (existing) {
+        await prisma.openInterestLiquidSymbol.update({
+          where: { symbol },
+          data: {
+            quoteVolume24h,
+            lastSeenAt,
+          },
+        })
+      } else {
+        await prisma.openInterestLiquidSymbol.create({
+          data: {
+            symbol,
+            quoteVolume24h,
+            enteredAt,
+            lastSeenAt,
+          },
+        })
+      }
+      upserted++
+    }
+
+    // Remove symbols not in the update
+    const symbolsInUpdate = new Set(symbols.map((s: any) => s.symbol))
+    const symbolsToRemove = await prisma.openInterestLiquidSymbol.findMany({
+      where: {
+        symbol: {
+          notIn: Array.from(symbolsInUpdate),
+        },
+      },
+    })
+
+    if (symbolsToRemove.length > 0) {
+      await prisma.openInterestLiquidSymbol.deleteMany({
+        where: {
+          symbol: {
+            in: symbolsToRemove.map((s) => s.symbol),
+          },
+        },
+      })
+      logger.info(`Removed ${symbolsToRemove.length} symbols from liquid universe`)
+    }
+
+    logger.info(`✅ Liquid universe updated: ${upserted} symbols, ${symbolsToRemove.length} removed`)
+
+    return c.json({
+      success: true,
+      upserted,
+      removed: symbolsToRemove.length,
+      totalSymbols: upserted,
+    })
+  } catch (error) {
+    logger.error('Failed to update liquid universe:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+/**
  * GET /api/market/open-interest/liquid-universe
  * 
  * Get current liquid universe (public endpoint, no auth required)

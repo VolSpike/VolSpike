@@ -22,7 +22,6 @@ import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
 import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
 import { syncPendingPayments } from './services/payment-sync'
-import { runLiquidUniverseJob } from './services/oi-liquidity-job'
 import type { AppBindings, AppVariables } from './types/hono'
 
 // Initialize Prisma
@@ -476,64 +475,10 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         }
     }, 120000) // 2 minute delay to ensure database is ready
 
-    // Liquid universe classification job: Every 5 minutes
-    const LIQUID_UNIVERSE_INTERVAL = 5 * 60 * 1000 // 5 minutes
-    const liquidUniverseEnabled = process.env.ENABLE_LIQUID_UNIVERSE_JOB?.toLowerCase() !== 'false'
-
-    if (liquidUniverseEnabled) {
-        logger.info('✅ Liquid universe classification job enabled (every 5 minutes)')
-
-        // Run initial job after 1 minute (let server stabilize)
-        setTimeout(async () => {
-            try {
-                logger.info('🔄 Running initial liquid universe classification job')
-                const result = await runLiquidUniverseJob()
-                if (result.success) {
-                    logger.info(`✅ Initial liquid universe classification job completed: ${result.totalSymbols} symbols (${result.symbolsAdded} added, ${result.symbolsRemoved} removed)`)
-                } else {
-                    logger.error(`❌ Initial liquid universe classification job failed:`, {
-                        success: result.success,
-                        totalSymbols: result.totalSymbols,
-                        errors: result.errors,
-                    })
-                }
-            } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error)
-                const errorStack = error instanceof Error ? error.stack : undefined
-                logger.error('❌ Initial liquid universe classification job threw exception:', {
-                    error: errorMsg,
-                    stack: errorStack,
-                    errorType: error instanceof Error ? error.constructor.name : typeof error,
-                })
-            }
-        }, 60 * 1000) // 1 minute
-
-        // Schedule periodic jobs (every 5 minutes)
-        setInterval(async () => {
-            try {
-                const result = await runLiquidUniverseJob()
-                if (result.success) {
-                    logger.info(`✅ Liquid universe job completed: ${result.totalSymbols} symbols (${result.symbolsAdded > 0 ? `+${result.symbolsAdded}` : result.symbolsAdded} added, ${result.symbolsRemoved > 0 ? `-${result.symbolsRemoved}` : result.symbolsRemoved} removed)`)
-                } else {
-                    logger.error(`❌ Scheduled liquid universe classification job failed:`, {
-                        success: result.success,
-                        totalSymbols: result.totalSymbols,
-                        errors: result.errors,
-                    })
-                }
-            } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error)
-                const errorStack = error instanceof Error ? error.stack : undefined
-                logger.error('❌ Scheduled liquid universe classification job threw exception:', {
-                    error: errorMsg,
-                    stack: errorStack,
-                    errorType: error instanceof Error ? error.constructor.name : typeof error,
-                })
-            }
-        }, LIQUID_UNIVERSE_INTERVAL)
-    } else {
-        logger.info('ℹ️ Liquid universe classification job disabled (set ENABLE_LIQUID_UNIVERSE_JOB=true to enable)')
-    }
+    // NOTE: Liquid universe classification job runs on Digital Ocean, NOT here
+    // Per AGENTS.md: "Digital Ocean Script: ✅ ONLY place that uses Binance REST API"
+    // The backend only receives updates via POST /api/market/open-interest/liquid-universe/update
+    logger.info('ℹ️  Liquid universe classification runs on Digital Ocean (per AGENTS.md architecture)')
 
     logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
 } else {
