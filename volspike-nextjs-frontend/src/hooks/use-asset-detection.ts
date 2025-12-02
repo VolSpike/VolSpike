@@ -6,39 +6,57 @@ import { useEffect, useRef } from 'react'
  * Runs automatically in the background without user intervention
  */
 export function useAssetDetection(marketData: Array<{ symbol: string }> | undefined) {
-    console.log('[AssetDetection] Hook called/rendered', {
-        hasMarketData: !!marketData,
-        marketDataLength: marketData?.length || 0,
-    })
-    
     const lastDetectionRef = useRef<number>(0)
     const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+    const initialTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const isDetectingRef = useRef<boolean>(false)
+    const initializedRef = useRef<boolean>(false)
+    const marketDataRef = useRef<Array<{ symbol: string }> | undefined>(marketData)
 
     // Detection interval: Check every 5 minutes (new assets don't appear that frequently)
     const DETECTION_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 
+    // Update ref when marketData changes (without triggering effect)
     useEffect(() => {
-        console.log('[AssetDetection] Hook effect triggered', {
-            hasMarketData: !!marketData,
-            marketDataLength: marketData?.length || 0,
-            marketDataType: typeof marketData,
-        })
-        
-        if (!marketData || marketData.length === 0) {
-            console.warn('[AssetDetection] ⚠️ No market data available, skipping detection')
+        marketDataRef.current = marketData
+    }, [marketData])
+
+    useEffect(() => {
+        // Only initialize once
+        if (initializedRef.current) {
             return
         }
+
+        if (!marketData || marketData.length === 0) {
+            console.log('[AssetDetection] ⚠️ No market data available yet, will retry when data arrives')
+            return
+        }
+
+        console.log('[AssetDetection] ✅ Initializing detection (one-time setup)', {
+            marketDataLength: marketData.length,
+        })
+
+        initializedRef.current = true
 
         const detectNewAssets = async () => {
             // Prevent concurrent detection calls
             if (isDetectingRef.current) {
+                console.log('[AssetDetection] ⏭️ Detection already in progress, skipping')
                 return
             }
 
             const now = Date.now()
             // Skip if we just checked recently
             if (now - lastDetectionRef.current < DETECTION_INTERVAL_MS) {
+                const timeSinceLastCheck = Math.round((now - lastDetectionRef.current) / 1000)
+                console.log(`[AssetDetection] ⏭️ Skipping (checked ${timeSinceLastCheck}s ago, need ${DETECTION_INTERVAL_MS / 1000}s)`)
+                return
+            }
+
+            // Get current market data from ref (always up-to-date)
+            const currentMarketData = marketDataRef.current
+            if (!currentMarketData || currentMarketData.length === 0) {
+                console.warn('[AssetDetection] ⚠️ No market data available for detection')
                 return
             }
 
@@ -47,10 +65,10 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
 
             try {
                 // Extract unique symbols from Market Data
-                const symbols = marketData.map((item) => item.symbol).filter(Boolean)
+                const symbols = currentMarketData.map((item) => item.symbol).filter(Boolean)
 
                 console.log('[AssetDetection] 🔍 Checking for new assets...', {
-                    marketDataLength: marketData.length,
+                    marketDataLength: currentMarketData.length,
                     symbolsCount: symbols.length,
                     sampleSymbols: symbols.slice(0, 10),
                     hasRLS: symbols.some(s => s.includes('RLS')),
@@ -58,6 +76,7 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
 
                 if (symbols.length === 0) {
                     console.warn('[AssetDetection] ⚠️ No symbols found in market data')
+                    isDetectingRef.current = false
                     return
                 }
 
@@ -80,6 +99,7 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
                         statusText: response.statusText,
                         error: errorText,
                     })
+                    isDetectingRef.current = false
                     return
                 }
 
@@ -101,24 +121,31 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
         }
 
         // Initial detection after a short delay (let Market Data stabilize)
-        console.log('[AssetDetection] Setting up detection timers (initial: 10s, periodic: 5min)')
-        const initialTimeout = setTimeout(() => {
-            console.log('[AssetDetection] ⏰ Initial detection timer fired (10s delay)')
+        console.log('[AssetDetection] ⏰ Setting up initial detection timer (10s delay)')
+        initialTimeoutRef.current = setTimeout(() => {
+            console.log('[AssetDetection] ⏰ Initial detection timer fired')
             detectNewAssets()
         }, 10000) // Wait 10 seconds after component mount
 
         // Set up periodic detection
+        console.log('[AssetDetection] ⏰ Setting up periodic detection timer (5min interval)')
         detectionIntervalRef.current = setInterval(() => {
-            console.log('[AssetDetection] ⏰ Periodic detection timer fired (5min interval)')
+            console.log('[AssetDetection] ⏰ Periodic detection timer fired')
             detectNewAssets()
         }, DETECTION_INTERVAL_MS)
 
         return () => {
-            clearTimeout(initialTimeout)
+            console.log('[AssetDetection] 🧹 Cleaning up timers')
+            if (initialTimeoutRef.current) {
+                clearTimeout(initialTimeoutRef.current)
+                initialTimeoutRef.current = null
+            }
             if (detectionIntervalRef.current) {
                 clearInterval(detectionIntervalRef.current)
+                detectionIntervalRef.current = null
             }
+            initializedRef.current = false
         }
-    }, [marketData])
+    }, []) // Empty dependency array - only run once on mount
 }
 
