@@ -361,13 +361,60 @@ funding_rate = funding_data_ws["fundingRate"] if funding_data_ws else 0.0
 
 ---
 
-## Next Steps
+## Deployment Steps
 
-1. **Now**: Run `./quick_verify.sh` on Digital Ocean
+### FIRST: Deploy Scripts to Digital Ocean
+
+**On Your Local Machine** (repository root):
+
+```bash
+# 1. Navigate to repository root
+cd "/Users/nikolaysitnikov/Documents/Documents_Nik_MacBook/Everyday Life/AI/VolumeFunding/VolSpike"
+
+# 2. Edit deployment script - set your Digital Ocean IP
+# Edit: deploy_verification_tools.sh
+# Change line: DO_HOST="your-droplet-ip" to your actual IP
+
+# 3. Run deployment
+./deploy_verification_tools.sh
+```
+
+**The script uploads:**
+- All verification scripts (verify_funding_data.py, simulate_dual_alerts.py, quick_verify.sh)
+- All documentation (VERIFY_FUNDING_WEBSOCKET.md, QUICK_REFERENCE.md, etc.)
+- Makes scripts executable
+- Verifies upload success
+
+**See**: [DEPLOY_VERIFICATION_TOOLS.md](DEPLOY_VERIFICATION_TOOLS.md) for detailed deployment instructions.
+
+---
+
+## Verification Steps
+
+### After Deployment - On Digital Ocean:
+
+1. **Now**: SSH and run `./quick_verify.sh`
+   ```bash
+   ssh trader@your-droplet-ip
+   cd /home/trader/scripts
+   ./quick_verify.sh
+   ```
+
 2. **Today**: Run verification scripts, observe results
+   ```bash
+   python3 verify_funding_data.py
+   python3 simulate_dual_alerts.py
+   ```
+
 3. **24-48 hours**: Monitor production logs
+   ```bash
+   sudo journalctl -u your-volume-alert-service -f | grep "Funding Comparison"
+   ```
+
 4. **After validation**: Switch to WebSocket-only mode
+
 5. **Week 1**: Monitor production closely
+
 6. **Week 2+**: Full WebSocket operation
 
 ---

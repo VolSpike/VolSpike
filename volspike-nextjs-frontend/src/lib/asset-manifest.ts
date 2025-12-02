@@ -123,7 +123,6 @@ const readCachedManifest = (): AssetRecord[] | null => {
         // CRITICAL: If cache has too few assets (< 100), it's incomplete - don't use it
         // This prevents using stale/incomplete caches that only have a few assets
         if (parsed.assets.length < 100) {
-            console.log(`[readCachedManifest] Cache has only ${parsed.assets.length} assets - too few, ignoring incomplete cache`)
             localStorage.removeItem(MANIFEST_CACHE_KEY) // Clear incomplete cache
             return null // Force fresh fetch from backend
         }
@@ -135,8 +134,6 @@ const readCachedManifest = (): AssetRecord[] | null => {
         // We can use it for metadata, but we MUST fetch fresh manifest from backend to get logos
         // Don't set manifestMemory here - let loadAssetManifest() fetch fresh data with logos
         // This ensures logos are always available instantly
-        
-        console.log(`[readCachedManifest] Found localStorage cache (${parsed.assets.length} assets, stale=${isStale}), but logos missing - will fetch fresh from backend`)
         
         // Return null to force fresh fetch - we need logos!
         return null
@@ -256,7 +253,6 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     
     // Check if we already have manifest in memory (from previous fetch)
     if (manifestMemory && !manifestMemoryIsStale) {
-        console.log(`[loadAssetManifest] Using memory cache: ${manifestMemory.length} assets (with logos)`)
         return manifestMemory
     }
     
@@ -266,24 +262,21 @@ export const loadAssetManifest = async (): Promise<AssetRecord[]> => {
     }
     
     // Always fetch fresh from backend to get logos
-    console.log('[loadAssetManifest] Fetching fresh manifest from backend (to get logos)...')
-        manifestPromise = (async () => {
-            try {
-                const assets = await fetchManifestFromApi()
-            console.log(`[loadAssetManifest] ✅ Fetched ${assets.length} assets from backend (with logos)`)
+    manifestPromise = (async () => {
+        try {
+            const assets = await fetchManifestFromApi()
             writeManifestCache(assets) // Stores full data in memory, stripped version in localStorage
             manifestMemoryIsStale = false
-                return assets
-            } catch (error) {
-            console.error('[loadAssetManifest] Backend fetch failed:', error)
-                logDebug('Manifest fetch failed, using static seed', error)
-                const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
-                writeManifestCache(assets)
-                return assets
-            } finally {
-                manifestPromise = null
-            }
-        })()
+            return assets
+        } catch (error) {
+            logDebug('Manifest fetch failed, using static seed', error)
+            const assets = Object.values(STATIC_ASSET_MANIFEST).map(normalizeRecord)
+            writeManifestCache(assets)
+            return assets
+        } finally {
+            manifestPromise = null
+        }
+    })()
 
     return manifestPromise
 }
@@ -321,9 +314,8 @@ export const invalidateManifestCache = (): void => {
     // Clear localStorage cache
     try {
         localStorage.removeItem(MANIFEST_CACHE_KEY)
-        console.log('[AssetManifest] ✅ Cache invalidated - next load will fetch fresh data')
     } catch (error) {
-        console.warn('[AssetManifest] ⚠️ Failed to clear localStorage cache:', error)
+        // Silently fail - cache will be refreshed on next load
     }
     
     // Reset promise so next call fetches fresh

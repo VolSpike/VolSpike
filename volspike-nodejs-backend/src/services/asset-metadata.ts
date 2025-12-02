@@ -139,19 +139,6 @@ export const getAssetManifest = async (): Promise<{ assets: AssetManifestEntry[]
         orderBy: { baseSymbol: 'asc' },
     })
 
-    // Debug: Check 1000PEPE specifically
-    const pepAsset = assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
-    if (pepAsset) {
-        logger.info('[AssetManifest] 1000PEPE asset from DB:', {
-            baseSymbol: pepAsset.baseSymbol,
-            hasLogoUrl: !!pepAsset.logoUrl,
-            logoUrlLength: pepAsset.logoUrl?.length || 0,
-            logoUrlPreview: pepAsset.logoUrl?.substring(0, 50) || 'NULL',
-            hasDescription: !!pepAsset.description,
-            descriptionLength: pepAsset.description?.length || 0,
-            descriptionPreview: pepAsset.description?.substring(0, 50) || 'NULL',
-        })
-    }
 
     const manifest = assets.map<AssetManifestEntry>((asset) => ({
         baseSymbol: asset.baseSymbol,
@@ -289,12 +276,7 @@ const fetchCoinProfile = async (coingeckoId: string, retryCount: number = 0): Pr
         const isValid = await validateUrl(homepageRaw)
         if (isValid) {
             homepage = homepageRaw
-            logger.info(`[AssetMetadata] ✅ Extracted and validated homepage from CoinGecko for ${coingeckoId}: ${homepage}`)
-        } else {
-            logger.warn(`[AssetMetadata] ⚠️  Homepage URL failed validation for ${coingeckoId}: ${homepageRaw} (filtered out)`)
         }
-    } else {
-        logger.info(`[AssetMetadata] ⚠️  No homepage found in CoinGecko response for ${coingeckoId}`)
     }
 
     const twitterName: string | undefined = data?.links?.twitter_screen_name
@@ -408,7 +390,6 @@ const validateUrl = async (url: string): Promise<boolean> => {
 
         for (const pattern of invalidPatterns) {
             if (pattern.test(url)) {
-                logger.debug(`[AssetMetadata] URL matches invalid pattern (local/private): ${url}`)
                 return false
             }
         }
@@ -423,7 +404,6 @@ const validateUrl = async (url: string): Promise<boolean> => {
 
             // Consider 4xx (client errors) as potentially broken, but 2xx/3xx as valid
             if (response.status >= 400 && response.status < 500) {
-                logger.debug(`[AssetMetadata] URL returned client error (${response.status}): ${url}`)
                 return false
             }
 
@@ -433,23 +413,15 @@ const validateUrl = async (url: string): Promise<boolean> => {
             if (axios.isAxiosError(error)) {
                 const status = error.response?.status
                 if (status && status >= 500) {
-                    logger.debug(`[AssetMetadata] URL returned server error (${status}): ${url}`)
                     return false
                 }
                 if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT' || error.code === 'ENOTFOUND') {
-                    logger.debug(`[AssetMetadata] URL is not accessible (${error.code}): ${url}`)
                     return false
                 }
             }
-            logger.debug(`[AssetMetadata] URL validation failed: ${url}`, {
-                error: error instanceof Error ? error.message : String(error),
-            })
             return false
         }
     } catch (error) {
-        logger.debug(`[AssetMetadata] URL validation error: ${url}`, {
-            error: error instanceof Error ? error.message : String(error),
-        })
         return false
     }
 }
@@ -688,11 +660,7 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
             return { created: 0, newSymbols: [] }
         }
 
-        logger.info(`[AssetMetadata] Detected ${uniqueNewSymbols.length} new assets from Market Data`, {
-            newSymbols: uniqueNewSymbols.slice(0, 10), // Log first 10
-            hasRLS: uniqueNewSymbols.includes('RLS'),
-            allNewSymbols: uniqueNewSymbols, // Log all for debugging
-        })
+        logger.info(`[AssetMetadata] Detected ${uniqueNewSymbols.length} new assets from Market Data`)
 
         // Create new Asset records
         let created = 0

@@ -1,12 +1,63 @@
 # Quick Reference - Funding Rate WebSocket Verification
 
-## 🚀 Quick Start (Run on Digital Ocean)
+## 📦 FIRST: Deploy Scripts to Digital Ocean
+
+**Before running any verification, deploy the scripts from your local repository:**
+
+### On Your Local Machine:
+
+```bash
+# 1. Navigate to repository root
+cd "/Users/nikolaysitnikov/Documents/Documents_Nik_MacBook/Everyday Life/AI/VolumeFunding/VolSpike"
+
+# 2. Edit deployment script (set your Digital Ocean IP)
+# Edit: deploy_verification_tools.sh
+# Change: DO_HOST="your-droplet-ip" to your actual IP
+
+# 3. Run deployment script
+./deploy_verification_tools.sh
+```
+
+**The script will:**
+- Upload all verification scripts (.py, .sh)
+- Upload all documentation (.md, .txt)
+- Make scripts executable
+- Verify upload success
+- Check service status
+
+**Alternative: Manual Upload via SCP**
+
+```bash
+# Set your Digital Ocean IP
+export DO_HOST="your-droplet-ip"
+export DO_USER="trader"
+export DO_PATH="/home/trader/scripts"
+
+# Navigate to Digital Ocean directory
+cd "Digital Ocean"
+
+# Upload all files
+scp verify_funding_data.py ${DO_USER}@${DO_HOST}:${DO_PATH}/
+scp simulate_dual_alerts.py ${DO_USER}@${DO_HOST}:${DO_PATH}/
+scp quick_verify.sh ${DO_USER}@${DO_HOST}:${DO_PATH}/
+scp *.md ${DO_USER}@${DO_HOST}:${DO_PATH}/
+
+# Make executable
+ssh ${DO_USER}@${DO_HOST} "cd ${DO_PATH} && chmod +x *.py *.sh"
+```
+
+---
+
+## 🚀 Quick Start (After Deployment)
+
+### On Digital Ocean:
 
 ```bash
 # SSH into Digital Ocean
 ssh trader@your-droplet-ip
 
-cd /path/to/scripts
+# Navigate to scripts directory
+cd /home/trader/scripts
 
 # Run automated verification
 ./quick_verify.sh

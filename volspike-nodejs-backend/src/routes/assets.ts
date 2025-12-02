@@ -12,20 +12,6 @@ assetsRoutes.get('/manifest', async (c) => {
     try {
         const manifest = await getAssetManifest()
         
-        // Debug: Check 1000PEPE in manifest response
-        const pepManifest = manifest.assets.find(a => a.baseSymbol.toUpperCase() === '1000PEPE')
-        if (pepManifest) {
-            logger.info('[Assets] 1000PEPE in manifest response:', {
-                baseSymbol: pepManifest.baseSymbol,
-                hasLogoUrl: !!pepManifest.logoUrl,
-                logoUrlLength: pepManifest.logoUrl?.length || 0,
-                logoUrlPreview: pepManifest.logoUrl?.substring(0, 50) || 'NULL',
-                hasDescription: !!pepManifest.description,
-                descriptionLength: pepManifest.description?.length || 0,
-                descriptionPreview: pepManifest.description?.substring(0, 50) || 'NULL',
-            })
-        }
-        
         return c.json({
             ...manifest,
             staleAfterMs: 7 * 24 * 60 * 60 * 1000,
@@ -47,25 +33,10 @@ assetsRoutes.post('/detect-new', async (c) => {
         const body = await c.req.json()
         const data = detectNewSchema.parse(body)
 
-        logger.info('[Assets] New asset detection requested (public endpoint)', {
-            symbolCount: data.symbols.length,
-            sampleSymbols: data.symbols.slice(0, 5),
-            hasRLS: data.symbols.some(s => s.includes('RLS')),
-            allRLSSymbols: data.symbols.filter(s => s.includes('RLS')),
-        })
-
         const result = await detectNewAssetsFromMarketData(data.symbols)
-        
-        logger.info('[Assets] Detection result:', {
-            created: result.created,
-            newSymbols: result.newSymbols,
-            hasRLS: result.newSymbols.includes('RLS'),
-        })
 
         if (result.created > 0) {
             // Trigger automatic enrichment for newly created assets (non-blocking)
-            logger.info(`[Assets] Triggering automatic enrichment for ${result.created} new assets`)
-            // Use process.nextTick for Node.js compatibility (setImmediate might not be available)
             process.nextTick(async () => {
                 try {
                     // Enrich new assets one by one, respecting rate limits
@@ -84,10 +55,8 @@ assetsRoutes.post('/detect-new', async (c) => {
                             await new Promise((resolve) => setTimeout(resolve, 3000))
                         }
                     }
-
-                    logger.info(`[Assets] ✅ Enriched ${newAssets.length} new assets`)
                 } catch (enrichError) {
-                    logger.warn('[Assets] ⚠️ Background enrichment failed (non-critical):', enrichError)
+                    logger.warn('[Assets] Background enrichment failed (non-critical):', enrichError)
                 }
             })
         }
