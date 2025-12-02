@@ -464,15 +464,7 @@ export const refreshSingleAsset = async (asset: Asset, forceRefresh: boolean = f
         
         // For websiteUrl: if CoinGecko has no homepage, set to null (don't keep old wrong URLs)
         if (allowOverwrite || !asset.websiteUrl) {
-            const newWebsiteUrl = profile.homepage || null
-            logger.debug(`[AssetMetadata] Setting websiteUrl for ${symbol}:`, {
-                oldWebsiteUrl: asset.websiteUrl,
-                newWebsiteUrl: newWebsiteUrl,
-                fromCoinGecko: !!profile.homepage,
-                allowOverwrite,
-                forceRefresh,
-            })
-            payload.websiteUrl = newWebsiteUrl // Explicitly set to null if CoinGecko has no homepage
+            payload.websiteUrl = profile.homepage || null
         }
         
         // For twitterUrl: if CoinGecko has no Twitter, set to null (don't keep old wrong URLs)

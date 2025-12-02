@@ -185,29 +185,17 @@ const writeManifestCache = (assets: AssetRecord[]) => {
         manifestMemory = assetsForMemory
         manifestMemoryIsStale = false
         
-        console.log(`[writeManifestCache] Stored ${manifestMemory.length} assets in memory (using CoinGecko URLs for logos)`)
-        
         const jsonString = JSON.stringify(payload)
-        const sizeMB = (jsonString.length / 1024 / 1024).toFixed(2)
-        console.log(`[writeManifestCache] Writing ${assets.length} assets to localStorage (${sizeMB} MB, logos excluded)`)
         
         try {
             localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
-            console.log(`[writeManifestCache] ✅ Successfully cached manifest (${sizeMB} MB)`)
         } catch (storageError: any) {
             if (storageError.name === 'QuotaExceededError') {
-                console.error('[writeManifestCache] localStorage quota exceeded!', {
-                    jsonSize: jsonString.length,
-                    sizeMB,
-                    error: storageError.message,
-                })
                 // Try to clear old cache and retry
                 localStorage.removeItem(MANIFEST_CACHE_KEY)
                 try {
                     localStorage.setItem(MANIFEST_CACHE_KEY, jsonString)
-                    console.log('[writeManifestCache] ✅ Retry after clearing old cache succeeded')
                 } catch (retryError) {
-                    console.error('[writeManifestCache] ❌ Retry failed, cache not persisted:', retryError)
                     // Cache will be fetched fresh on next page load
                 }
             } else {
