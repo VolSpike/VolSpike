@@ -346,8 +346,17 @@ export async function runLiquidUniverseJob(): Promise<{
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
     errors.push(errorMsg)
-    logger.error('❌ Liquid universe job failed:', error)
+    
+    // Log full error details
+    logger.error('❌ Liquid universe job failed with exception:', {
+      error: errorMsg,
+      stack: errorStack,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      errors: errors,
+    })
+    
     return {
       success: false,
       symbolsAdded: 0,

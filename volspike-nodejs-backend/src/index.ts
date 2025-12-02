@@ -487,19 +487,48 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         setTimeout(async () => {
             try {
                 logger.info('🔄 Running initial liquid universe classification job')
-                await runLiquidUniverseJob()
-                logger.info('✅ Initial liquid universe classification job completed')
+                const result = await runLiquidUniverseJob()
+                if (result.success) {
+                    logger.info(`✅ Initial liquid universe classification job completed: ${result.totalSymbols} symbols (${result.symbolsAdded} added, ${result.symbolsRemoved} removed)`)
+                } else {
+                    logger.error(`❌ Initial liquid universe classification job failed:`, {
+                        success: result.success,
+                        totalSymbols: result.totalSymbols,
+                        errors: result.errors,
+                    })
+                }
             } catch (error) {
-                logger.error('❌ Initial liquid universe classification job failed:', error)
+                const errorMsg = error instanceof Error ? error.message : String(error)
+                const errorStack = error instanceof Error ? error.stack : undefined
+                logger.error('❌ Initial liquid universe classification job threw exception:', {
+                    error: errorMsg,
+                    stack: errorStack,
+                    errorType: error instanceof Error ? error.constructor.name : typeof error,
+                })
             }
         }, 60 * 1000) // 1 minute
 
         // Schedule periodic jobs (every 5 minutes)
         setInterval(async () => {
             try {
-                await runLiquidUniverseJob()
+                const result = await runLiquidUniverseJob()
+                if (result.success) {
+                    logger.info(`✅ Liquid universe job completed: ${result.totalSymbols} symbols (${result.symbolsAdded > 0 ? `+${result.symbolsAdded}` : result.symbolsAdded} added, ${result.symbolsRemoved > 0 ? `-${result.symbolsRemoved}` : result.symbolsRemoved} removed)`)
+                } else {
+                    logger.error(`❌ Scheduled liquid universe classification job failed:`, {
+                        success: result.success,
+                        totalSymbols: result.totalSymbols,
+                        errors: result.errors,
+                    })
+                }
             } catch (error) {
-                logger.error('❌ Scheduled liquid universe classification job failed:', error)
+                const errorMsg = error instanceof Error ? error.message : String(error)
+                const errorStack = error instanceof Error ? error.stack : undefined
+                logger.error('❌ Scheduled liquid universe classification job threw exception:', {
+                    error: errorMsg,
+                    stack: errorStack,
+                    errorType: error instanceof Error ? error.constructor.name : typeof error,
+                })
             }
         }, LIQUID_UNIVERSE_INTERVAL)
     } else {
