@@ -18,10 +18,23 @@ import sys
 import warnings
 from collections import deque
 from typing import Dict, Tuple, Optional, List
+from pathlib import Path
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# Load environment variables from .volspike.env file (same as volume alert script)
+ENV_FILE = Path.home() / ".volspike.env"
+if ENV_FILE.exists():
+    with open(ENV_FILE, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                # Remove quotes if present
+                value = value.strip('"').strip("'")
+                os.environ[key.strip()] = value
 
 # Configuration
 VOLSPIKE_API_URL = os.getenv("VOLSPIKE_API_URL", "http://localhost:3001")

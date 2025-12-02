@@ -20,40 +20,49 @@ Before starting, make sure you have:
 
 ---
 
-## Step 1: Get Your Backend API URL and Key
+## Step 1: Verify Environment File
 
-### 1.1 Find Your Backend URL
+The scripts automatically load environment variables from `/home/trader/.volspike.env` (same as your volume alert script).
 
-Your backend is likely deployed on Railway. To find the URL:
+### 1.1 Check Your Environment File
 
-1. Go to [Railway Dashboard](https://railway.app)
-2. Open your backend service
-3. Click on "Settings" → "Networking"
-4. Copy the **Public Domain** URL (e.g., `https://volspike-production.up.railway.app`)
-
-**Or check your existing volume alert script:**
 ```bash
-# On Digital Ocean server
-sudo systemctl show volume-alert --property=Environment | grep VOLSPIKE_API_URL
+# SSH into Digital Ocean
+ssh root@YOUR_IP
+
+# Check if .volspike.env exists and has required variables
+cat /home/trader/.volspike.env
 ```
 
-### 1.2 Find Your API Key
-
-The API key is stored in your backend's environment variables as `ALERT_INGEST_API_KEY`.
-
-**Option A: Check Railway Dashboard**
-1. Go to Railway → Your Backend Service
-2. Click "Variables" tab
-3. Find `ALERT_INGEST_API_KEY`
-4. Copy the value (it's the same key used by your volume alert script)
-
-**Option B: Check Existing Script Configuration**
+**Required variables:**
 ```bash
-# On Digital Ocean server
-sudo systemctl show volume-alert --property=Environment | grep VOLSPIKE_API_KEY
+VOLSPIKE_API_URL=https://volspike-production.up.railway.app
+VOLSPIKE_API_KEY=your-api-key-here
 ```
 
-**The API key should look like:** `48a1a55a8af5cdc6d6e8b31108e3063570dc9564f6fa844e89c7ee5f943ced09`
+**Optional variables (for liquid universe job):**
+```bash
+BINANCE_PROXY_URL=http://localhost:3002
+OI_LIQUID_ENTER_QUOTE_24H=4000000
+OI_LIQUID_EXIT_QUOTE_24H=2000000
+```
+
+### 1.2 Add Missing Variables (If Needed)
+
+If `.volspike.env` doesn't have `VOLSPIKE_API_URL` or `VOLSPIKE_API_KEY`, add them:
+
+```bash
+# Edit the file
+nano /home/trader/.volspike.env
+
+# Add or update:
+VOLSPIKE_API_URL=https://volspike-production.up.railway.app
+VOLSPIKE_API_KEY=your-api-key-here
+
+# Save and exit (Ctrl+O, Enter, Ctrl+X)
+```
+
+**Note:** The scripts will automatically load from this file - no need to set environment variables manually or in systemd service files.
 
 ---
 
@@ -61,15 +70,15 @@ sudo systemctl show volume-alert --property=Environment | grep VOLSPIKE_API_KEY
 
 Before deploying to Digital Ocean, test the script on your local machine to ensure it works:
 
-### 2.1 Set Environment Variables Locally
+### 2.1 Set Environment Variables Locally (For Testing)
 
 ```bash
-# On your local machine
+# On your local machine (for testing only)
 export VOLSPIKE_API_URL="https://volspike-production.up.railway.app"
 export VOLSPIKE_API_KEY="your-api-key-here"
 ```
 
-**Replace with your actual values from Step 1.**
+**Note:** On Digital Ocean, the scripts automatically load from `/home/trader/.volspike.env`, so you don't need to set these manually.
 
 ### 2.2 Install Dependencies
 
@@ -210,17 +219,18 @@ python3 -m py_compile oi_realtime_poller.py
 
 Before setting up as a service, test it manually to ensure it works:
 
-### 5.1 Set Environment Variables Temporarily
+### 5.1 Verify Environment File
 
 ```bash
-# Set environment variables for testing
-export VOLSPIKE_API_URL="https://volspike-production.up.railway.app"
-export VOLSPIKE_API_KEY="your-api-key-here"
+# Check that .volspike.env exists and has required variables
+cat /home/trader/.volspike.env | grep -E "VOLSPIKE_API_URL|VOLSPIKE_API_KEY"
 
-# Verify they're set
-echo $VOLSPIKE_API_URL
-echo $VOLSPIKE_API_KEY
+# Should show:
+# VOLSPIKE_API_URL=https://volspike-production.up.railway.app
+# VOLSPIKE_API_KEY=your-api-key-here
 ```
+
+**Note:** The script automatically loads from `/home/trader/.volspike.env`, so no need to export variables manually.
 
 ### 5.2 Run the Script Manually
 
@@ -272,19 +282,16 @@ ExecStart=/usr/bin/python3 /home/trader/volume-spike-bot/oi_realtime_poller.py
 Restart=always
 RestartSec=10
 
-# Environment Variables
-Environment="VOLSPIKE_API_URL=https://volspike-production.up.railway.app"
-Environment="VOLSPIKE_API_KEY=your-api-key-here"
+# Note: Script automatically loads from /home/trader/.volspike.env
+# No need to set Environment variables here unless you want to override
 
-# Optional: Configure polling behavior
-Environment="OI_MAX_REQ_PER_MIN=2000"
-Environment="OI_MIN_INTERVAL_SEC=5"
-Environment="OI_MAX_INTERVAL_SEC=20"
-
-# Optional: Configure alert thresholds
-Environment="OI_SPIKE_THRESHOLD_PCT=0.05"
-Environment="OI_DUMP_THRESHOLD_PCT=0.05"
-Environment="OI_MIN_DELTA_CONTRACTS=5000"
+# Optional: Override defaults (if not in .volspike.env)
+# Environment="OI_MAX_REQ_PER_MIN=2000"
+# Environment="OI_MIN_INTERVAL_SEC=5"
+# Environment="OI_MAX_INTERVAL_SEC=20"
+# Environment="OI_SPIKE_THRESHOLD_PCT=0.05"
+# Environment="OI_DUMP_THRESHOLD_PCT=0.05"
+# Environment="OI_MIN_DELTA_CONTRACTS=5000"
 
 # Standard output and error logging
 StandardOutput=journal
@@ -295,8 +302,8 @@ WantedBy=multi-user.target
 ```
 
 **Important:**
-- Replace `your-api-key-here` with your actual API key from Step 1
-- Replace the API URL if different
+- The script automatically loads `VOLSPIKE_API_URL` and `VOLSPIKE_API_KEY` from `/home/trader/.volspike.env`
+- No need to set them in the service file (same pattern as your volume alert script)
 - Adjust `User=` if your scripts run as a different user (check existing service: `sudo systemctl cat volume-alert`)
 
 ### 6.3 Save and Exit
