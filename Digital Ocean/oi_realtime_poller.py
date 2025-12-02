@@ -343,16 +343,25 @@ def post_oi_batch(samples: list) -> bool:
             timeout=10
         )
         
-        if response.ok:
-            result = response.json()
-            print(f"✅ Posted OI batch: {len(samples)} symbols ({result.get('inserted', 0)} inserted)")
-            return True
-        else:
-            print(f"⚠️  OI batch post failed: {response.status_code} - {response.text[:100]}")
+            if response.ok:
+                result = response.json()
+                inserted = result.get('inserted', 0)
+                if len(chunks) > 1:
+                    print(f"✅ Posted OI batch chunk {chunk_idx + 1}/{len(chunks)}: {len(chunk)} symbols ({inserted} inserted)")
+                else:
+                    print(f"✅ Posted OI batch: {len(chunk)} symbols ({inserted} inserted)")
+                success_count += 1
+            else:
+                print(f"⚠️  OI batch chunk {chunk_idx + 1}/{len(chunks)} failed: {response.status_code} - {response.text[:100]}")
+                return False
+        except Exception as e:
+            print(f"⚠️  Error posting OI batch chunk {chunk_idx + 1}/{len(chunks)}: {e}")
             return False
-    except Exception as e:
-        print(f"⚠️  Error posting OI batch: {e}")
-        return False
+    
+    # All chunks succeeded
+    if len(chunks) > 1:
+        print(f"✅ Posted all {len(chunks)} chunks: {len(samples)} total symbols")
+    return True
 
 
 def main_loop():
@@ -394,6 +403,10 @@ def main_loop():
     # Initialize OI history
     initialize_oi_history(symbols)
     print(f"✅ Initialized OI history buffers")
+    
+    print(f"🔄 Starting polling loop...")
+    print(f"   Will poll {len(symbols)} symbols every {interval_sec}s")
+    print(f"   Will post batches every 10 loops (~{interval_sec * 10}s)")
     
     # Main loop
     loop_count = 0
