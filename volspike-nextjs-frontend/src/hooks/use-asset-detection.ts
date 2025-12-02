@@ -149,9 +149,16 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
         console.log('[AssetDetection] ✅ Periodic timer set with ID:', intervalId)
 
         return () => {
-            // Only cleanup timers, don't reset initializedRef
-            // This prevents re-initialization when marketData reference changes
-            console.log('[AssetDetection] 🧹 Cleanup function called', {
+            // Only cleanup timers if we're actually re-initializing (shouldn't happen due to initializedRef check)
+            // But if cleanup runs, don't clear timers if we're already initialized - they should keep running
+            if (initializedRef.current) {
+                // Already initialized, don't cleanup - timers should keep running
+                console.log('[AssetDetection] ⚠️ Cleanup called but already initialized - keeping timers running')
+                return
+            }
+            
+            // Only cleanup if we're not initialized (shouldn't happen, but safety check)
+            console.log('[AssetDetection] 🧹 Cleanup function called (not initialized)', {
                 hasInitialTimeout: !!initialTimeoutRef.current,
                 hasInterval: !!detectionIntervalRef.current,
             })
@@ -165,7 +172,6 @@ export function useAssetDetection(marketData: Array<{ symbol: string }> | undefi
                 clearInterval(detectionIntervalRef.current)
                 detectionIntervalRef.current = null
             }
-            // DON'T reset initializedRef here - we want to initialize only once
         }
     }, [marketData]) // Re-run when marketData becomes available (but initializedRef prevents multiple setups)
 }
