@@ -5,7 +5,8 @@ import { AdminLayout } from '@/components/admin/layout/admin-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, TrendingDown, Bell, BarChart3, ExternalLink, Coins, RefreshCw, Loader2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, Bell, BarChart3, ExternalLink, Coins, RefreshCw, Loader2, Lock } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { format, formatDistanceToNow } from 'date-fns'
 import type { VolumeAlert } from '@/hooks/use-volume-alerts'
 
@@ -155,34 +156,52 @@ export default function AlertPreviewPage() {
           {/* Metrics row - varies by tier */}
           <div className="flex items-end justify-between gap-2">
             <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-              {/* Price display: Pro sees % change, others see absolute */}
-              {tier === 'pro' && formatPercentChange(alert.priceChange) ? (
-                <span className={getPercentChangeColor(alert.priceChange)}>
-                  Price: {formatPercentChange(alert.priceChange)}
+              {/* Price display: Both Free and Pro see % change when available */}
+              {formatPercentChange(alert.priceChange) ? (
+                <span>
+                  Price: <span className={getPercentChangeColor(alert.priceChange)}>{formatPercentChange(alert.priceChange)}</span>
                 </span>
               ) : alert.price ? (
                 <span>Price: {formatPrice(alert.price)}</span>
               ) : null}
 
-              {/* Funding rate */}
+              {/* Funding rate - only color values >0.03% or <-0.03% */}
               {alert.fundingRate !== undefined && alert.fundingRate !== null && (
-                <span
-                  className={
-                    alert.fundingRate > 0.03
-                      ? 'text-brand-600 dark:text-brand-400'
-                      : alert.fundingRate < -0.03
-                        ? 'text-danger-600 dark:text-danger-400'
-                        : ''
-                  }
-                >
-                  Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                <span>
+                  Funding:{' '}
+                  <span
+                    className={
+                      alert.fundingRate > 0.0003
+                        ? 'text-brand-600 dark:text-brand-400'
+                        : alert.fundingRate < -0.0003
+                          ? 'text-danger-600 dark:text-danger-400'
+                          : ''
+                    }
+                  >
+                    {(alert.fundingRate * 100).toFixed(3)}%
+                  </span>
                 </span>
               )}
 
-              {/* OI change - Pro only */}
+              {/* OI change - Pro sees value, Free sees faded with upgrade tooltip */}
               {tier === 'pro' && formatPercentChange(alert.oiChange) && (
-                <span className={getPercentChangeColor(alert.oiChange)}>
-                  OI: {formatPercentChange(alert.oiChange)}
+                <span>
+                  OI: <span className={getPercentChangeColor(alert.oiChange)}>{formatPercentChange(alert.oiChange)}</span>
+                </span>
+              )}
+              {tier === 'free' && (
+                <span className="flex items-center gap-1">
+                  OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Lock className="h-3 w-3 text-muted-foreground/50 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[200px]">
+                        <p className="text-xs">OI change is a Pro feature. Upgrade to see real-time Open Interest changes.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </span>
               )}
             </div>
@@ -315,10 +334,10 @@ export default function AlertPreviewPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Badge variant="outline" className="bg-muted">Free</Badge>
-                    Standard Cards
+                    Enhanced Cards (Free)
                   </CardTitle>
                   <CardDescription>
-                    Shows absolute price, no OI data
+                    Shows price % change, OI locked with upgrade prompt
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -331,10 +350,10 @@ export default function AlertPreviewPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Badge variant="outline" className="bg-pro-500/10 text-pro-600 border-pro-500/30">Pro</Badge>
-                    Enhanced Cards
+                    Enhanced Cards (Pro)
                   </CardTitle>
                   <CardDescription>
-                    Shows price %, OI % changes (when available)
+                    Shows price % and OI % changes (full access)
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -383,22 +402,25 @@ export default function AlertPreviewPage() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <h4 className="font-medium">Enhanced Metrics (Pro Only)</h4>
+                <h4 className="font-medium">Free Tier</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li><span className="text-brand-500">Price: +5.23%</span> - Price change from hour open</li>
-                  <li><span className="text-danger-500">OI: -2.14%</span> - Open Interest change from hour start</li>
-                  <li>Color coded: green for positive, red for negative</li>
+                  <li>Price: <span className="text-brand-500">+5.23%</span> - Price change from hour open</li>
+                  <li>Funding: value colored only when {'>'}0.03% or {'<'}-0.03%</li>
+                  <li>OI: <span className="text-muted-foreground/30 blur-[2px]">+0.00%</span> - Locked with upgrade prompt</li>
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-medium">Standard Display (Free)</h4>
+                <h4 className="font-medium">Pro Tier (Full Access)</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>Price: $97,500.00 - Absolute price at alert time</li>
-                  <li>Funding rate shown for all tiers</li>
-                  <li>No OI change display</li>
+                  <li>Price: <span className="text-brand-500">+5.23%</span> - Price change from hour open</li>
+                  <li>Funding: value colored only when {'>'}0.03% or {'<'}-0.03%</li>
+                  <li>OI: <span className="text-danger-500">-2.14%</span> - Open Interest change from hour start</li>
                 </ul>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-4">
+              Note: Labels (Price, Funding, OI) are never colored - only values are colored based on positive/negative.
+            </p>
           </CardContent>
         </Card>
 
