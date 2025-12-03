@@ -7,8 +7,61 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TrendingUp, TrendingDown, Bell, BarChart3, ExternalLink, Coins, RefreshCw, Loader2, Lock } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import Link from 'next/link'
 import { format, formatDistanceToNow } from 'date-fns'
 import type { VolumeAlert } from '@/hooks/use-volume-alerts'
+
+// OI Lock component with tooltip on hover and dialog on click
+function OILock() {
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  return (
+    <>
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="inline-flex items-center"
+            >
+              <Lock className="h-3 w-3 text-sec-500 cursor-pointer hover:text-sec-400 transition-colors" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            Pro feature
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-[280px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-sec-500" />
+              OI Change
+            </DialogTitle>
+          </DialogHeader>
+          <div className="pt-2">
+            <p className="text-sm text-muted-foreground mb-3">
+              See real-time Open Interest changes on volume alerts.
+            </p>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sec-500 hover:text-sec-400 transition-colors"
+              onClick={() => setDialogOpen(false)}
+            >
+              Unlock with Pro
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 export default function AlertPreviewPage() {
   const [alerts, setAlerts] = useState<VolumeAlert[]>([])
@@ -192,16 +245,7 @@ export default function AlertPreviewPage() {
               {tier === 'free' && (
                 <span className="flex items-center gap-1">
                   OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Lock className="h-3 w-3 text-muted-foreground/50 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-[200px]">
-                        <p className="text-xs">OI change is a Pro feature. Upgrade to see real-time Open Interest changes.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <OILock />
                 </span>
               )}
             </div>

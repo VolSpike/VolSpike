@@ -97,10 +97,8 @@ export function OITeaserHeader() {
     const [dialogOpen, setDialogOpen] = useState(false)
 
     const handleClick = () => {
-        // On touch devices, open dialog instead of relying on hover tooltip
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            setDialogOpen(true)
-        }
+        // Open dialog on click (both desktop and mobile)
+        setDialogOpen(true)
     }
 
     const content = (
@@ -144,7 +142,7 @@ export function OITeaserHeader() {
                     </TooltipTrigger>
                     <TooltipContent
                         side="bottom"
-                        className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden hidden md:block"
+                        className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden"
                         sideOffset={8}
                     >
                         <div className="oi-teaser-tooltip-gradient h-1 w-full" />
