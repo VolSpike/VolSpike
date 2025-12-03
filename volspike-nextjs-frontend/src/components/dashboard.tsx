@@ -45,17 +45,14 @@ export function Dashboard() {
     // Determine user tier
     const userTier = session?.user?.tier || 'free'
 
-    // Clear unread badge when viewing alerts tab or on desktop where both panels are visible
+    // Clear unread badge when viewing alerts tab
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const isDesktop = window.innerWidth >= 1280
-            if (currentTab === 'alerts' || isDesktop) {
-                setUnreadAlertsCount(0)
-            }
+        if (currentTab === 'alerts') {
+            setUnreadAlertsCount(0)
         }
     }, [currentTab])
 
-    // Also clear badge on window resize to desktop
+    // Clear badge on window resize to desktop (where both panels visible)
     useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth >= 1280) {
@@ -63,6 +60,12 @@ export function Dashboard() {
             }
         }
         window.addEventListener('resize', handleResize)
+
+        // Also clear immediately if already on desktop
+        if (typeof window !== 'undefined' && window.innerWidth >= 1280) {
+            setUnreadAlertsCount(0)
+        }
+
         return () => window.removeEventListener('resize', handleResize)
     }, [])
 
