@@ -4,6 +4,38 @@
 
 This document provides guidance for AI assistants (like Claude) working on the VolSpike project. For comprehensive project documentation, see [AGENTS.md](AGENTS.md).
 
+## Digital Ocean Server Access
+
+**SSH Configuration**: Claude has access to the Digital Ocean droplet via SSH.
+
+**Connection Details**:
+- **Host alias**: `volspike-do` (configured in `~/.ssh/config`)
+- **IP Address**: `167.71.196.5`
+- **User**: `root`
+- **SSH Key**: `~/.ssh/volspike-temp`
+- **Connection command**: `ssh volspike-do`
+
+**Quick Commands**:
+```bash
+# Connect to server
+ssh volspike-do
+
+# Run command remotely
+ssh volspike-do "command here"
+
+# Check running services
+ssh volspike-do "systemctl list-units --type=service --state=running | grep -E '(volume|funding|oi)'"
+
+# View logs
+ssh volspike-do "sudo journalctl -u service-name -f"
+```
+
+**Important Notes**:
+- Scripts are located in `/home/trader/volume-spike-bot/`
+- Environment variables are in `/home/trader/.volspike.env`
+- Services run as `trader` user (not root)
+- Funding API server runs on `localhost:8888`
+
 ## Essential Reading
 
 Before working on any task, please read:
@@ -204,6 +236,7 @@ VolSpike/
   - Never fetch market data from backend
 - **Path Aliases**: Use `@/` → `src/`
 - **NO emojis** unless explicitly requested by user
+- **NO .md files**: NEVER create .md documentation files unless explicitly requested by user
 
 ### Node.js Backend
 
@@ -635,6 +668,13 @@ npm run seed:test
 - `dist/` and `.next/` - Build outputs
 - Admin routes and middleware - Critical security
 - Payment display logic - Must update docs if modified
+
+### DO NOT Create (Unless Explicitly Requested)
+- **NO .md files** - NEVER create markdown documentation files unless user specifically asks
+- **NO README files** - Don't create README.md or similar docs proactively
+- **NO guide files** - Don't create GUIDE.md, INSTRUCTIONS.md, SUMMARY.md, etc. without request
+- **Focus on code** - Implement functionality, not documentation
+- **Exception**: Bug reports, analysis documents are OK when debugging issues
 
 ### Before Making Changes
 - [ ] Check if database migration is needed
