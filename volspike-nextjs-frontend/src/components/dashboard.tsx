@@ -268,7 +268,7 @@ export function Dashboard() {
                                 <TabsTrigger value="market" className="flex-1">Market Data</TabsTrigger>
                                 <TabsTrigger value="alerts" className="relative flex-1">
                                     Volume Alerts
-                                    {unreadAlertsCount > 0 && (
+                                    {unreadAlertsCount > 0 && currentTab !== 'alerts' && (
                                         <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-lg">
                                             {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
                                         </span>
