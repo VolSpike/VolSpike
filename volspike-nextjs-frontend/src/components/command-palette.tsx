@@ -121,7 +121,7 @@ export function CommandPalette({ userTier = 'free', onCreateAlert }: CommandPale
 
                 <CommandGroup heading="Resources">
                     <CommandItem
-                        onSelect={() => runCommand(() => window.open('https://www.binance.com/en/futures', '_blank'))}
+                        onSelect={() => runCommand(() => window.open('https://www.binance.com/activity/referral-entry/CPA?ref=CPA_0090FDRWPL&utm_source=volspike', '_blank'))}
                     >
                         <BarChart3 className="mr-2 h-4 w-4" />
                         <span>Binance Futures</span>

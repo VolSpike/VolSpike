@@ -1448,7 +1448,7 @@ export function MarketTable({
                                     <Button
                                         variant="outline"
                                         className="w-full"
-                                        onClick={() => window.open(`https://www.binance.com/en/futures/${formatSymbol(selectedSymbol.symbol)}USDT`, '_blank')}
+                                        onClick={() => window.open(`https://www.binance.com/activity/referral-entry/CPA?ref=CPA_0090FDRWPL&utm_source=volspike&symbol=${formatSymbol(selectedSymbol.symbol)}USDT`, '_blank')}
                                     >
                                         <ExternalLink className="h-4 w-4 mr-2" />
                                         View on Binance
