@@ -71,15 +71,26 @@ export function Dashboard() {
 
     // Handle new volume alerts for badge notification
     const handleNewVolumeAlert = useCallback(() => {
+        const width = typeof window !== 'undefined' ? window.innerWidth : 0
+        console.log('🔔 handleNewVolumeAlert called', { width, currentTab, shouldShow: width < 1280 && currentTab === 'market' })
+
         // Only increment badge on mobile/tablet when user is viewing Market Data tab
         // On desktop (xl+), both panels are visible so no badge needed
         if (typeof window !== 'undefined' && window.innerWidth < 1280) {
             // Mobile/tablet: only show badge when on Market Data tab
             if (currentTab === 'market') {
-                setUnreadAlertsCount(prev => prev + 1)
+                console.log('✅ Incrementing badge count')
+                setUnreadAlertsCount(prev => {
+                    const newCount = prev + 1
+                    console.log('Badge count:', prev, '→', newCount)
+                    return newCount
+                })
+            } else {
+                console.log('❌ Not incrementing - on alerts tab')
             }
+        } else {
+            console.log('❌ Not incrementing - desktop view or window undefined')
         }
-        // On desktop, do nothing - both panels always visible
     }, [currentTab])
 
     // Alert builder handlers (defined early to avoid hoisting issues)
@@ -289,9 +300,11 @@ export function Dashboard() {
                             value={currentTab}
                             onValueChange={(value) => {
                                 const nextValue = value as 'market' | 'alerts'
+                                console.log('Tab changed:', currentTab, '→', nextValue)
                                 setCurrentTab(nextValue)
                                 // Clear unread count when user switches to alerts tab
                                 if (nextValue === 'alerts') {
+                                    console.log('Clearing badge count')
                                     setUnreadAlertsCount(0)
                                 }
                             }}
@@ -300,11 +313,15 @@ export function Dashboard() {
                                 <TabsTrigger value="market" className="flex-1">Market Data</TabsTrigger>
                                 <TabsTrigger value="alerts" className="relative flex-1">
                                     Volume Alerts
-                                    {unreadAlertsCount > 0 && currentTab !== 'alerts' && (
-                                        <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-lg">
-                                            {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
-                                        </span>
-                                    )}
+                                    {(() => {
+                                        const shouldShow = unreadAlertsCount > 0 && currentTab !== 'alerts'
+                                        console.log('Badge render check:', { unreadAlertsCount, currentTab, shouldShow })
+                                        return shouldShow ? (
+                                            <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-lg">
+                                                {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
+                                            </span>
+                                        ) : null
+                                    })()}
                                 </TabsTrigger>
                             </TabsList>
                             <TabsContent value="market" className="mt-4 animate-fade-in">
