@@ -1,0 +1,412 @@
+====================================================================================================
+DETAILED COMPARISON REPORT: REST API vs WebSocket
+====================================================================================================
+Report generated: 2025-12-03 00:26:07.575
+
+[1/15] Testing BTCUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:07.575
+    Response Time: 2025-12-03 00:26:07.727
+    Latency:       152.02 ms
+    Funding Rate:  -0.00000599
+    Mark Price:    $91176.8000
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:08.228
+    Response Time: 2025-12-03 00:26:08.230
+    Data Age:      546.60 ms
+    Funding Rate:  -0.00000599
+    Mark Price:    $91176.8000
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[2/15] Testing ETHUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:09.231
+    Response Time: 2025-12-03 00:26:09.387
+    Latency:       156.13 ms
+    Funding Rate:  0.00003954
+    Mark Price:    $2989.3400
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:09.888
+    Response Time: 2025-12-03 00:26:09.889
+    Data Age:      108.61 ms
+    Funding Rate:  0.00003954
+    Mark Price:    $2989.3400
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[3/15] Testing SOLUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:10.890
+    Response Time: 2025-12-03 00:26:11.074
+    Latency:       183.40 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $137.8308
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:11.575
+    Response Time: 2025-12-03 00:26:11.577
+    Data Age:      878.93 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $137.8527
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0219
+    Percent Diff:  0.0159%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[4/15] Testing BNBUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:12.578
+    Response Time: 2025-12-03 00:26:12.730
+    Latency:       151.97 ms
+    Funding Rate:  0.00000000
+    Mark Price:    $875.7158
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:13.231
+    Response Time: 2025-12-03 00:26:13.232
+    Data Age:      509.11 ms
+    Funding Rate:  0.00000000
+    Mark Price:    $875.7158
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[5/15] Testing XRPUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:14.234
+    Response Time: 2025-12-03 00:26:14.398
+    Latency:       164.78 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $2.1422
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:14.899
+    Response Time: 2025-12-03 00:26:14.901
+    Data Age:      158.91 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $2.1422
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[6/15] Testing ADAUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:15.902
+    Response Time: 2025-12-03 00:26:16.067
+    Latency:       165.15 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $0.4311
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:16.568
+    Response Time: 2025-12-03 00:26:16.569
+    Data Age:      821.20 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $0.4311
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[7/15] Testing DOGEUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:17.571
+    Response Time: 2025-12-03 00:26:17.730
+    Latency:       159.31 ms
+    Funding Rate:  0.00009309
+    Mark Price:    $0.1454
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:18.231
+    Response Time: 2025-12-03 00:26:18.232
+    Data Age:      70.95 ms
+    Funding Rate:  0.00009309
+    Mark Price:    $0.1454
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0069%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[8/15] Testing AVAXUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:19.233
+    Response Time: 2025-12-03 00:26:19.388
+    Latency:       155.29 ms
+    Funding Rate:  0.00009062
+    Mark Price:    $13.6010
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:19.889
+    Response Time: 2025-12-03 00:26:19.890
+    Data Age:      122.09 ms
+    Funding Rate:  0.00009062
+    Mark Price:    $13.6020
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0010
+    Percent Diff:  0.0074%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[9/15] Testing LINKUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:20.891
+    Response Time: 2025-12-03 00:26:21.041
+    Latency:       150.02 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $13.4570
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:21.542
+    Response Time: 2025-12-03 00:26:21.544
+    Data Age:      371.87 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $13.4560
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0010
+    Percent Diff:  0.0074%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[10/15] Testing SUIUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:22.545
+    Response Time: 2025-12-03 00:26:22.701
+    Latency:       156.10 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $1.6225
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:23.202
+    Response Time: 2025-12-03 00:26:23.203
+    Data Age:      437.94 ms
+    Funding Rate:  0.00010000
+    Mark Price:    $1.6228
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0003
+    Percent Diff:  0.0175%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[11/15] Testing MATICUSDT...
+----------------------------------------------------------------------------------------------------
+  ⚠️  Skipped (missing data)
+
+[12/15] Testing DOTUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:24.852
+    Response Time: 2025-12-03 00:26:24.997
+    Latency:       145.32 ms
+    Funding Rate:  -0.00010222
+    Mark Price:    $2.2482
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:25.498
+    Response Time: 2025-12-03 00:26:25.499
+    Data Age:      727.92 ms
+    Funding Rate:  -0.00010222
+    Mark Price:    $2.2482
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[13/15] Testing LTCUSDT...
+----------------------------------------------------------------------------------------------------
+WebSocket state error for LTCUSDT: Expecting ',' delimiter: line 2357 column 30 (char 65507)
+  ⚠️  Skipped (missing data)
+
+[14/15] Testing TRXUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:27.153
+    Response Time: 2025-12-03 00:26:27.309
+    Latency:       155.74 ms
+    Funding Rate:  -0.00000962
+    Mark Price:    $0.2806
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:27.810
+    Response Time: 2025-12-03 00:26:27.811
+    Data Age:      33.71 ms
+    Funding Rate:  -0.00000962
+    Mark Price:    $0.2806
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+[15/15] Testing ATOMUSDT...
+----------------------------------------------------------------------------------------------------
+
+  REST API Call:
+    Request Time:  2025-12-03 00:26:28.812
+    Response Time: 2025-12-03 00:26:28.964
+    Latency:       152.39 ms
+    Funding Rate:  0.00004230
+    Mark Price:    $2.3516
+
+  WebSocket State:
+    Request Time:  2025-12-03 00:26:29.465
+    Response Time: 2025-12-03 00:26:29.467
+    Data Age:      682.58 ms
+    Funding Rate:  0.00004230
+    Mark Price:    $2.3516
+
+  Funding Rate Comparison:
+    Absolute Diff: 0.00000000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+  Mark Price Comparison:
+    Absolute Diff: $0.0000
+    Percent Diff:  0.0000%
+    Match:         ✅ YES
+
+----------------------------------------------------------------------------------------------------
+
+
+====================================================================================================
+SUMMARY STATISTICS
+====================================================================================================
+
+Total Symbols Tested: 13
+
+Funding Rate Matches: 13/13 (100.0%)
+Mark Price Matches:   13/13 (100.0%)
+
+Funding Rate - Avg Diff: 0.0000%
+Funding Rate - Max Diff: 0.0000%
+
+Mark Price - Avg Diff:   0.0042%
+Mark Price - Max Diff:   0.0175%
+
+====================================================================================================
+
+✅ RECOMMENDATION: WebSocket data is IDENTICAL to REST API
+   Safe to switch Volume Alert enrichment to WebSocket-only mode
+

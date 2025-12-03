@@ -395,8 +395,8 @@ cd "/Users/nikolaysitnikov/Documents/Documents_Nik_MacBook/Everyday Life/AI/Volu
 
 1. **Now**: SSH and run `./quick_verify.sh`
    ```bash
-   ssh trader@your-droplet-ip
-   cd /home/trader/scripts
+   ssh root@your-droplet-ip
+   cd /root/scripts
    ./quick_verify.sh
    ```
 

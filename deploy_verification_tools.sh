@@ -17,9 +17,9 @@ set -e
 # CONFIGURATION - EDIT THESE VALUES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-DO_HOST="your-droplet-ip"           # ← CHANGE THIS to your Digital Ocean IP
-DO_USER="trader"                     # ← CHANGE THIS if using different user
-DO_PATH="/home/trader/scripts"       # ← CHANGE THIS if using different path
+DO_HOST="167.71.196.5"               # ← Digital Ocean droplet IP
+DO_USER="root"                       # ← SSH as root user
+DO_PATH="/home/trader/volume-spike-bot"  # ← Actual scripts directory
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -81,22 +81,22 @@ echo -e "${GREEN}✓ Directory created: ${DO_PATH}${NC}"
 
 # Upload files
 echo ""
-echo -e "${BLUE}[3/5] Uploading verification scripts and documentation...${NC}"
+echo -e "${BLUE}[3/5] Uploading verification scripts...${NC}"
 
 cd "$LOCAL_DIR"
 
-# List of files to upload
+# List of files to upload (ONLY scripts, NO .md files)
 FILES=(
     "verify_funding_data.py"
     "simulate_dual_alerts.py"
     "quick_verify.sh"
     "compare_funding_ws_vs_rest.py"
     "validate_funding_comparison.py"
-    "VERIFY_FUNDING_WEBSOCKET.md"
-    "QUICK_REFERENCE.md"
-    "VERIFICATION_SUMMARY.md"
-    "ARCHITECTURE_DIAGRAM.txt"
-    "DEPLOY_VERIFICATION_TOOLS.md"
+    "troubleshoot_websocket.sh"
+    "diagnose_websocket_issue.sh"
+    "fix_websocket_paths.sh"
+    "binance_funding_ws_daemon_improved.py"
+    "check_websocket_status.sh"
 )
 
 UPLOADED=0
@@ -154,10 +154,6 @@ echo "  Python scripts (.py):  ${PY_COUNT}"
 SH_COUNT=$(ssh ${DO_USER}@${DO_HOST} "ls ${DO_PATH}/*.sh 2>/dev/null | wc -l" | tr -d ' ')
 echo "  Shell scripts (.sh):   ${SH_COUNT}"
 
-# Check documentation
-MD_COUNT=$(ssh ${DO_USER}@${DO_HOST} "ls ${DO_PATH}/*.md 2>/dev/null | wc -l" | tr -d ' ')
-echo "  Documentation (.md):   ${MD_COUNT}"
-
 # Check services status
 echo ""
 echo -e "${BLUE}Checking WebSocket services status...${NC}"
@@ -195,8 +191,6 @@ echo ""
 echo "  4. Start real-time verification:"
 echo -e "     ${BLUE}python3 verify_funding_data.py${NC}"
 echo ""
-echo "  5. For detailed instructions:"
-echo -e "     ${BLUE}cat QUICK_REFERENCE.md${NC}"
 echo ""
 echo "======================================================================"
 echo ""

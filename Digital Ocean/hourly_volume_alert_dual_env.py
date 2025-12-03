@@ -471,11 +471,12 @@ while True:
     except Exception as e:
         print("⚠️  Error:", e)
 
+    # DISABLED: OI posting now handled by oi_realtime_poller.py (every 30 seconds)
     # Fetch and post Open Interest data every 5 minutes
-    try:
-        fetch_and_post_open_interest()
-    except Exception as e:
-        print(f"⚠️  Open Interest error: {e}")
+    # try:
+    #     fetch_and_post_open_interest()
+    # except Exception as e:
+    #     print(f"⚠️  Open Interest error: {e}")
 
     # Sleep until next 5-minute boundary
     utc_now = datetime.datetime.utcnow()

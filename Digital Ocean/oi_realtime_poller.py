@@ -505,6 +505,12 @@ def main_loop():
 
             # POST immediately after each loop (every 30 seconds)
             if batch_samples:
+                # DEBUG: Print first 3 samples to verify mark prices
+                if loop_count <= 2:  # Only first 2 loops
+                    print(f"🔍 DEBUG - First 3 samples being posted:")
+                    for sample in batch_samples[:3]:
+                        print(f"   {sample['symbol']}: OI={sample['openInterest']:.0f}, Mark=${sample.get('markPrice', 0):.2f}, USD=${sample.get('openInterestUsd', 0):.2f}")
+
                 post_oi_batch(batch_samples)
                 print(f"✅ Posted {len(batch_samples)} OI samples in {time.time() - loop_start:.1f}s")
 

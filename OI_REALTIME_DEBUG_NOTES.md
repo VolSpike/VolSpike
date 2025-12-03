@@ -281,5 +281,49 @@ Backend cache endpoint requires authentication. User should verify on dashboard 
 
 ---
 
-**Last Updated**: 2025-12-03 05:05 UTC
-**Status**: ✅ DEPLOYED AND WORKING - All 342 symbols posting successfully with valid mark prices!
+**Last Updated**: 2025-12-03 05:10 UTC
+**Status**: ⚠️ POSTING TO BACKEND BUT DASHBOARD STILL SHOWS $0.00 - Need to investigate backend/frontend
+
+## CRITICAL ISSUE - Dashboard Still Shows $0.00
+
+User confirmed as Pro user, dashboard STILL shows $0.00 for all Open Interest values despite:
+- ✅ Service posting 342/342 symbols successfully
+- ✅ Backend accepting all symbols (342 inserted)
+- ✅ All symbols have valid mark prices from state file
+
+**This means the problem is NOT in the poller - it's in:**
+1. Backend cache/storage logic
+2. Frontend data fetching
+3. WebSocket broadcasting
+
+**VERIFIED SO FAR**:
+- ✅ Poller loads 648 mark prices from state file correctly (BTC: $93,163, ETH: $3,052, SOL: $142.45)
+- ✅ Backend receives and accepts all 342 symbols (342 inserted per batch)
+- ✅ Frontend fetches from GET `/api/market/open-interest` endpoint
+- ✅ Backend GET endpoint returns `oiCache.data` (populated during POST ingestion)
+
+**ROOT CAUSE HYPOTHESIS**:
+Backend cache computation (open-interest.ts:109-118) stores **openInterestUsd** values.
+If `openInterestUsd` is 0 (which happens when `markPrice: 0`), the cache stores 0.
+
+## ⚠️ CRITICAL FINDING - Backend Cache Only Has 43 Symbols!
+
+**Poller is sending**:
+- 343 symbols total
+- With CORRECT mark prices (SUIUSDT: $1.75, XRPUSDT: $2.21, etc.)
+- With CORRECT openInterestUsd values (hundreds of millions)
+- Backend logs show "342 inserted" (actually 343 now)
+
+**Backend cache contains**:
+- Only 43 symbols total
+- NO major symbols (BTC, ETH, SOL, BNB, SUI, XRP all MISSING)
+- Only obscure symbols: ZILUSDT, HANAUSDT, XAIUSDT, XPINUSDT, ONTUSDT
+
+**This means**:
+The backend is accepting and inserting to database (342 inserted), but something is WRONG with the cache update logic (lines 107-123 in open-interest.ts).
+
+**Most likely cause**:
+The cache update loop (lines 110-118) might be skipping symbols where openInterestUsd is falsy or where computation fails.
+
+**URGENT ACTION NEEDED**:
+Need to add logging to backend cache update logic to see why only 43 symbols make it to cache

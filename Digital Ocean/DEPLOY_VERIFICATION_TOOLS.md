@@ -43,8 +43,8 @@ Before deploying, ensure you have:
 ```bash
 # Set your Digital Ocean droplet IP and user
 export DO_HOST="your-droplet-ip"        # Replace with your droplet IP
-export DO_USER="trader"                 # Replace if using different user
-export DO_PATH="/home/trader/scripts"   # Target directory on Digital Ocean
+export DO_USER="root"                   # Using root user
+export DO_PATH="/root/scripts"          # Target directory on Digital Ocean
 
 # Verify connection
 ssh ${DO_USER}@${DO_HOST} "echo 'Connection successful'"
@@ -101,19 +101,19 @@ If your Digital Ocean droplet has git access to your repository:
 ### Step 1: SSH into Digital Ocean
 
 ```bash
-ssh trader@your-droplet-ip
+ssh root@your-droplet-ip
 ```
 
 ### Step 2: Clone or Pull Repository
 
 ```bash
 # If repository not cloned yet
-cd /home/trader
+cd /root
 git clone https://github.com/YourUsername/VolSpike.git
 cd VolSpike/Digital\ Ocean
 
 # OR if already cloned, pull latest changes
-cd /home/trader/VolSpike
+cd /root/VolSpike
 git pull origin main
 cd Digital\ Ocean
 ```
@@ -144,7 +144,7 @@ If you prefer a GUI tool:
 
 4. **SSH** into droplet and run:
    ```bash
-   cd /home/trader/scripts
+   cd /root/scripts
    chmod +x *.py *.sh
    ```
 
@@ -157,7 +157,7 @@ If you prefer a GUI tool:
 SSH into Digital Ocean and check if required packages are installed:
 
 ```bash
-ssh trader@your-droplet-ip
+ssh root@your-droplet-ip
 
 # Check Python version
 python3 --version

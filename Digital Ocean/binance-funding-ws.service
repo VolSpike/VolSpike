@@ -1,22 +1,47 @@
 [Unit]
-Description=Binance Funding Rate WebSocket Daemon
-After=network.target
+Description=Binance Funding Rate WebSocket Daemon (Production-Grade)
+Documentation=https://github.com/VolSpike/VolSpike
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=trader
-WorkingDirectory=/home/trader/volspike/Digital Ocean
-ExecStart=/usr/bin/python3 /home/trader/volspike/Digital Ocean/binance_funding_ws_daemon.py
+Group=trader
+WorkingDirectory=/home/trader/volume-spike-bot
+
+# Main process
+ExecStart=/usr/bin/python3 /home/trader/volume-spike-bot/binance_funding_ws_daemon.py
+
+# Restart policy - ALWAYS restart on failure
 Restart=always
-RestartSec=10
+RestartSec=5
+
+# If it fails 5 times in 5 minutes, wait 30s before trying again
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Health monitoring - restart if no activity for 3 minutes
+WatchdogSec=180
+
+# Resource limits (prevent runaway memory usage)
+MemoryMax=512M
+MemoryHigh=384M
+
+# Logging
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=binance-funding-ws
 
-# Environment variables (optional)
-# Environment="WS_RECONNECT_INITIAL_DELAY=1"
-# Environment="WS_RECONNECT_MAX_DELAY=60"
-# Environment="STALE_THRESHOLD=180"
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/trader/volume-spike-bot
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
 
 [Install]
 WantedBy=multi-user.target
-

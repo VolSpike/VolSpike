@@ -1,22 +1,51 @@
 [Unit]
-Description=Binance Funding Rate HTTP API Server
-After=network.target binance-funding-ws.service
+Description=Binance Funding Rate HTTP API Server (Production-Grade)
+Documentation=https://github.com/VolSpike/VolSpike
+After=network-online.target binance-funding-ws.service
+Wants=network-online.target
 Requires=binance-funding-ws.service
 
 [Service]
 Type=simple
 User=trader
-WorkingDirectory=/home/trader/volspike/Digital Ocean
-ExecStart=/usr/bin/python3 /home/trader/volspike/Digital Ocean/funding_api_server.py
+Group=trader
+WorkingDirectory=/home/trader/volume-spike-bot
+
+# Main process
+ExecStart=/usr/bin/python3 /home/trader/volume-spike-bot/funding_api_server.py
+
+# Wait for service to be ready
+ExecStartPost=/bin/sleep 3
+
+# Restart policy - ALWAYS restart on failure
 Restart=always
-RestartSec=10
+RestartSec=5
+
+# If it fails 5 times in 5 minutes, wait 30s before trying again
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Health monitoring - restart if no activity for 2 minutes
+WatchdogSec=120
+
+# Resource limits
+MemoryMax=512M
+MemoryHigh=384M
+
+# Logging
 StandardOutput=journal
 StandardError=journal
+SyslogIdentifier=binance-funding-api
 
-# Environment variables (optional)
-# Environment="API_PORT=8888"
-# Environment="API_HOST=127.0.0.1"
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/trader/volume-spike-bot
+
+# Environment
+Environment="PYTHONUNBUFFERED=1"
 
 [Install]
 WantedBy=multi-user.target
-

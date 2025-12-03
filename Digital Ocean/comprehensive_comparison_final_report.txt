@@ -1,0 +1,55 @@
+====================================================================================================
+COMPREHENSIVE COMPARISON: ALL USDT PERPETUAL FUTURES
+REST API vs WebSocket - Funding Rates & Mark Prices
+====================================================================================================
+Report generated: 2025-12-03 00:52:23.938
+
+Total USDT perpetual futures on Binance: 534
+
+Fetching REST API data for 534 symbols...
+REST API returned data for: 534 symbols
+WebSocket tracking: 534 symbols
+
+====================================================================================================
+RESULTS SUMMARY
+====================================================================================================
+
+✅ Perfect Matches: 534/534 (100.0%)
+❌ Price Mismatches: 0
+❌ Funding Mismatches: 0
+⚠️  Missing in WebSocket: 0
+⚠️  Missing in REST: 0
+⚠️  Data Quality Issues: 0
+
+====================================================================================================
+SAMPLE PERFECT MATCHES (first 20)
+====================================================================================================
+
+0GUSDT          Funding:  -0.00000384   Price: $      1.1738   ✅
+1000000BOBUSDT  Funding:   0.00005000   Price: $      0.0254   ✅
+1000000MOGUSDT  Funding:   0.00005000   Price: $      0.3090   ✅
+1000BONKUSDT    Funding:   0.00005000   Price: $      0.0099   ✅
+1000CATUSDT     Funding:  -0.00004929   Price: $      0.0033   ✅
+1000CHEEMSUSDT  Funding:   0.00005000   Price: $      0.0013   ✅
+1000FLOKIUSDT   Funding:   0.00010000   Price: $      0.0481   ✅
+1000LUNCUSDT    Funding:   0.00004994   Price: $      0.0280   ✅
+1000PEPEUSDT    Funding:   0.00010000   Price: $      0.0046   ✅
+1000RATSUSDT    Funding:   0.00049802   Price: $      0.0302   ✅
+1000SATSUSDT    Funding:   0.00005000   Price: $      0.0000   ✅
+1000SHIBUSDT    Funding:   0.00010000   Price: $      0.0085   ✅
+1000WHYUSDT     Funding:   0.00005000   Price: $      0.0000   ✅
+1000XECUSDT     Funding:   0.00010000   Price: $      0.0120   ✅
+1INCHUSDT       Funding:   0.00002928   Price: $      0.2048   ✅
+1MBABYDOGEUSDT  Funding:   0.00005000   Price: $      0.0007   ✅
+2ZUSDT          Funding:   0.00005000   Price: $      0.1238   ✅
+42USDT          Funding:   0.00005000   Price: $      0.0491   ✅
+4USDT           Funding:   0.00005000   Price: $      0.0295   ✅
+A2ZUSDT         Funding:   0.00005000   Price: $      0.0021   ✅
+
+====================================================================================================
+FINAL VERDICT
+====================================================================================================
+
+✅ EXCELLENT: WebSocket data matches REST API with >95% accuracy
+   Safe to switch to WebSocket-only mode
+

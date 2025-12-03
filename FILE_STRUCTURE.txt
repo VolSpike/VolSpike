@@ -1,0 +1,223 @@
+═══════════════════════════════════════════════════════════════════════════════
+  FUNDING RATE WEBSOCKET VERIFICATION - FILE STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+📁 VolSpike/ (Repository Root - Your Local Machine)
+│
+├── 📄 START_HERE.md ⭐
+│   └─> Quick 3-step guide - READ THIS FIRST
+│
+├── 📄 FUNDING_WEBSOCKET_VERIFICATION.md ⭐
+│   └─> Complete workflow and documentation
+│
+├── 🔧 deploy_verification_tools.sh ⭐
+│   └─> Upload scripts to Digital Ocean
+│       • Edit: Set DO_HOST to your Digital Ocean IP
+│       • Run: ./deploy_verification_tools.sh
+│
+└── 📁 Digital Ocean/ (Scripts to upload)
+    │
+    ├── ─────────────────────────────────────────────────────────────
+    │   VERIFICATION SCRIPTS (Upload to Digital Ocean)
+    ├── ─────────────────────────────────────────────────────────────
+    │
+    ├── 🔧 quick_verify.sh ⭐
+    │   └─> Automated health check
+    │       Run: ./quick_verify.sh
+    │
+    ├── 🐍 verify_funding_data.py ⭐
+    │   └─> Real-time visual comparison
+    │       Run: python3 verify_funding_data.py
+    │
+    ├── 🐍 simulate_dual_alerts.py ⭐
+    │   └─> Alert simulation
+    │       Run: python3 simulate_dual_alerts.py
+    │
+    ├── 🐍 compare_funding_ws_vs_rest.py
+    │   └─> Static comparison (already exists)
+    │       Run: python3 compare_funding_ws_vs_rest.py --max-symbols 50
+    │
+    ├── 🐍 validate_funding_comparison.py
+    │   └─> Log parser (already exists)
+    │
+    ├── ─────────────────────────────────────────────────────────────
+    │   DOCUMENTATION (Upload to Digital Ocean)
+    ├── ─────────────────────────────────────────────────────────────
+    │
+    ├── 📄 DEPLOY_VERIFICATION_TOOLS.md
+    │   └─> Deployment instructions (3 methods)
+    │
+    ├── 📄 QUICK_REFERENCE.md ⭐
+    │   └─> Command cheat sheet
+    │
+    ├── 📄 VERIFY_FUNDING_WEBSOCKET.md
+    │   └─> Complete verification guide
+    │
+    ├── 📄 VERIFICATION_SUMMARY.md
+    │   └─> Implementation overview
+    │
+    ├── 📄 ARCHITECTURE_DIAGRAM.txt
+    │   └─> Visual diagrams
+    │
+    ├── ─────────────────────────────────────────────────────────────
+    │   PRODUCTION SCRIPTS (Already on Digital Ocean)
+    ├── ─────────────────────────────────────────────────────────────
+    │
+    ├── 🐍 binance_funding_ws_daemon.py
+    │   └─> WebSocket daemon (systemd service)
+    │
+    ├── 🐍 funding_api_server.py
+    │   └─> HTTP API server (port 8888)
+    │
+    └── 🐍 hourly_volume_alert_dual_env.py
+        └─> Volume alert script (already doing parallel validation!)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  WORKFLOW - WHAT TO DO IN ORDER
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: On Your Local Machine (Repository Root)                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  1. Read START_HERE.md ⭐
+     └─> Quick overview of everything
+
+  2. Edit deploy_verification_tools.sh
+     └─> Set DO_HOST="your-actual-droplet-ip"
+
+  3. Run deployment
+     └─> ./deploy_verification_tools.sh
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: On Digital Ocean (After Deployment)                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  4. SSH into Digital Ocean
+     └─> ssh root@your-droplet-ip
+     └─> cd /root/scripts
+
+  5. Run quick health check
+     └─> ./quick_verify.sh
+     └─> Takes 1 minute
+
+  6. Watch live data comparison
+     └─> python3 verify_funding_data.py
+     └─> Watch for 2-3 cycles (20-30 seconds)
+     └─> Press Ctrl+C to stop
+
+  7. See alert simulations
+     └─> python3 simulate_dual_alerts.py
+     └─> Watch for 1-2 iterations (30-60 seconds)
+     └─> Press Ctrl+C to stop
+
+  8. Monitor production logs
+     └─> sudo journalctl -u your-volume-alert-service -f | grep "Funding Comparison"
+     └─> Leave running for 24-48 hours
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: Make Decision (After 24-48 Hours)                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  9. Review metrics
+     └─> Check match rate > 95%
+     └─> Check avg diff < 0.1%
+     └─> Check max diff < 1.0%
+
+  10. If validation passes
+      └─> Switch to WebSocket-only mode
+      └─> Save 86,400 REST API calls per day!
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  FILE LOCATIONS AFTER DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Local Machine (Repository):
+  /Users/nikolaysitnikov/.../VolSpike/
+  ├── START_HERE.md
+  ├── FUNDING_WEBSOCKET_VERIFICATION.md
+  ├── deploy_verification_tools.sh
+  └── Digital Ocean/
+      ├── verify_funding_data.py
+      ├── simulate_dual_alerts.py
+      ├── quick_verify.sh
+      └── *.md (documentation)
+
+Digital Ocean Droplet:
+  /home/trader/scripts/  (or your custom path)
+  ├── verify_funding_data.py ⭐
+  ├── simulate_dual_alerts.py ⭐
+  ├── quick_verify.sh ⭐
+  ├── compare_funding_ws_vs_rest.py
+  ├── validate_funding_comparison.py
+  ├── DEPLOY_VERIFICATION_TOOLS.md
+  ├── QUICK_REFERENCE.md ⭐
+  ├── VERIFY_FUNDING_WEBSOCKET.md
+  ├── VERIFICATION_SUMMARY.md
+  └── ARCHITECTURE_DIAGRAM.txt
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  QUICK COMMAND REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+Local Machine:
+  cd "/Users/nikolaysitnikov/.../VolSpike"
+  ./deploy_verification_tools.sh
+
+Digital Ocean (after SSH):
+  cd /root/scripts
+  ./quick_verify.sh                      # Health check
+  python3 verify_funding_data.py         # Live comparison
+  python3 simulate_dual_alerts.py        # Alert simulation
+  sudo journalctl -u ... | grep "Funding Comparison"  # Monitor logs
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  KEY FILES TO READ
+═══════════════════════════════════════════════════════════════════════════════
+
+Priority 1 (START HERE):
+  ⭐ START_HERE.md
+  ⭐ FUNDING_WEBSOCKET_VERIFICATION.md
+
+Priority 2 (Reference):
+  📖 Digital Ocean/QUICK_REFERENCE.md
+  📖 Digital Ocean/VERIFY_FUNDING_WEBSOCKET.md
+
+Priority 3 (If Needed):
+  📖 Digital Ocean/DEPLOY_VERIFICATION_TOOLS.md
+  📖 Digital Ocean/VERIFICATION_SUMMARY.md
+  📖 Digital Ocean/ARCHITECTURE_DIAGRAM.txt
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  ANSWER TO YOUR ORIGINAL QUESTION
+═══════════════════════════════════════════════════════════════════════════════
+
+Q: "How can I see that we are getting the right data values for funding rate
+    and visually view the data that we are getting live?"
+
+A: Run these 3 commands on Digital Ocean (after deploying):
+
+   1. ./quick_verify.sh
+      → Shows health status and quick comparison
+
+   2. python3 verify_funding_data.py
+      → Shows live data side-by-side every 10 seconds
+      → Color-coded differences
+      → Real-time statistics
+
+   3. python3 simulate_dual_alerts.py
+      → Shows how volume alerts differ (or don't differ)
+      → Side-by-side comparison
+      → Impact assessment
+
+   All three give you VISUAL, LIVE data to verify correctness!
+
+
+═══════════════════════════════════════════════════════════════════════════════

@@ -106,7 +106,9 @@ const handleIngest = async (c: any) => {
 
     // Update in-memory cache for backward compatibility with GET endpoint
     // Cache uses openInterestUsd (or computes it if missing)
-    const oiMap: Record<string, number> = {}
+    // IMPORTANT: Merge with existing cache instead of replacing it
+    // (realtime poller sends data in chunks, we need to accumulate all chunks)
+    const oiMap: Record<string, number> = oiCache?.data ? { ...oiCache.data } : {}
     for (const item of validatedData) {
       const normalizedKey = normalizeSym(item.symbol)
       if (typeof item.openInterestUsd === 'number') {

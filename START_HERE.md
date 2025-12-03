@@ -29,8 +29,8 @@ nano deploy_verification_tools.sh
 
 ```bash
 # SSH into Digital Ocean
-ssh trader@your-droplet-ip
-cd /home/trader/scripts
+ssh root@your-droplet-ip
+cd /root/scripts
 
 # Quick health check (2 min)
 ./quick_verify.sh
@@ -159,8 +159,8 @@ nano deploy_verification_tools.sh  # Set your IP
 ./deploy_verification_tools.sh
 
 # 2. Digital Ocean - verify (15 min)
-ssh trader@your-droplet-ip
-cd /home/trader/scripts
+ssh root@your-droplet-ip
+cd /root/scripts
 ./quick_verify.sh
 python3 verify_funding_data.py  # Ctrl+C after watching
 python3 simulate_dual_alerts.py # Ctrl+C after watching

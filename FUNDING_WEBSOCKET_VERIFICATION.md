@@ -57,8 +57,8 @@ nano deploy_verification_tools.sh
 ```bash
 # Set variables
 export DO_HOST="your-droplet-ip"
-export DO_USER="trader"
-export DO_PATH="/home/trader/scripts"
+export DO_USER="root"
+export DO_PATH="/root/scripts"
 
 # Navigate to Digital Ocean directory
 cd "Digital Ocean"
@@ -77,8 +77,8 @@ ssh ${DO_USER}@${DO_HOST} "cd ${DO_PATH} && chmod +x *.py *.sh"
 
 **SSH into Digital Ocean:**
 ```bash
-ssh trader@your-droplet-ip
-cd /home/trader/scripts
+ssh root@your-droplet-ip
+cd /root/scripts
 ```
 
 **Run quick verification:**
@@ -291,7 +291,7 @@ Once switched to WebSocket-only:
 **"Connection refused" when running deploy script:**
 ```bash
 # Check SSH connection manually
-ssh trader@your-droplet-ip "echo 'test'"
+ssh root@your-droplet-ip "echo 'test'"
 
 # If fails, verify:
 # 1. IP address is correct
@@ -302,7 +302,7 @@ ssh trader@your-droplet-ip "echo 'test'"
 **"Permission denied" when running scripts:**
 ```bash
 # Make scripts executable
-ssh trader@your-droplet-ip "cd /home/trader/scripts && chmod +x *.py *.sh"
+ssh root@your-droplet-ip "cd /root/scripts && chmod +x *.py *.sh"
 ```
 
 ### Verification Issues
@@ -382,8 +382,8 @@ cd "/Users/nikolaysitnikov/Documents/Documents_Nik_MacBook/Everyday Life/AI/Volu
 
 **On Digital Ocean (after deployment):**
 ```bash
-ssh trader@your-droplet-ip
-cd /home/trader/scripts
+ssh root@your-droplet-ip
+cd /root/scripts
 ./quick_verify.sh
 python3 verify_funding_data.py      # Ctrl+C after 2-3 cycles
 python3 simulate_dual_alerts.py     # Ctrl+C after 1-2 iterations

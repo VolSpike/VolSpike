@@ -30,8 +30,8 @@ cd "/Users/nikolaysitnikov/Documents/Documents_Nik_MacBook/Everyday Life/AI/Volu
 ```bash
 # Set your Digital Ocean IP
 export DO_HOST="your-droplet-ip"
-export DO_USER="trader"
-export DO_PATH="/home/trader/scripts"
+export DO_USER="root"
+export DO_PATH="/root/scripts"
 
 # Navigate to Digital Ocean directory
 cd "Digital Ocean"
@@ -54,10 +54,10 @@ ssh ${DO_USER}@${DO_HOST} "cd ${DO_PATH} && chmod +x *.py *.sh"
 
 ```bash
 # SSH into Digital Ocean
-ssh trader@your-droplet-ip
+ssh root@your-droplet-ip
 
 # Navigate to scripts directory
-cd /home/trader/scripts
+cd /root/scripts
 
 # Run automated verification
 ./quick_verify.sh
