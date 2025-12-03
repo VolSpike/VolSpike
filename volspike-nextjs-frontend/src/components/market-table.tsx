@@ -1237,7 +1237,11 @@ export function MarketTable({
             )}
 
             {/* Detail Drawer */}
-            <Sheet open={!!selectedSymbol} onOpenChange={(open) => !open && setSelectedSymbol(null)}>
+            <Sheet
+                open={!!selectedSymbol}
+                onOpenChange={(open) => !open && setSelectedSymbol(null)}
+                modal={false}
+            >
                 <SheetContent className="w-full sm:max-w-md bg-background/95 backdrop-blur-xl border-border/50">
                     {selectedSymbol && (
                         <>
