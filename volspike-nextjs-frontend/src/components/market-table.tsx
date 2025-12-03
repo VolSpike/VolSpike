@@ -931,10 +931,10 @@ export function MarketTable({
                                 </th>
                                 <th className="text-right p-3">
                                     {userTier === 'free' ? (
-                                        /* Free tier: Show teaser header with lock icon and tooltip */
-                                        <div className="h-auto p-0 font-semibold text-right">
+                                        /* Free tier: Show teaser header with lock icon and tooltip - same styling as other headers */
+                                        <span className="h-auto p-0 font-semibold">
                                             <OITeaserHeader />
-                                        </div>
+                                        </span>
                                     ) : (
                                         /* Pro/Elite: Normal sortable header */
                                         <Button
@@ -1150,7 +1150,7 @@ export function MarketTable({
                                         <td className={`p-3 text-right transition-colors duration-150${cellHoverBg}`}>
                                             {userTier === 'free' ? (
                                                 /* Free tier: Show teaser cell with blurred placeholder */
-                                                <OITeaserCell volume24h={item.volume24h} />
+                                                <OITeaserCell symbol={item.symbol} />
                                             ) : (
                                                 /* Pro/Elite: Show real OI data */
                                                 <span className="font-mono-tabular text-sm text-muted-foreground">
@@ -1402,7 +1402,7 @@ export function MarketTable({
                                             )}
                                         </div>
                                         {userTier === 'free' ? (
-                                            <OITeaserCell volume24h={selectedSymbol.volume24h} className="justify-start" />
+                                            <OITeaserCell symbol={selectedSymbol.symbol} />
                                         ) : (
                                             <div className="font-mono-tabular font-semibold">{formatVolume(selectedSymbol.openInterest ?? 0)}</div>
                                         )}

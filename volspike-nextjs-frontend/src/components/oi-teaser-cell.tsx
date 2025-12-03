@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Lock } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -10,85 +11,61 @@ import {
 } from '@/components/ui/tooltip'
 
 interface OITeaserCellProps {
-    /** Approximate OI value for visual teaser (not real data) */
-    volume24h: number
+    /** Symbol used as seed for deterministic placeholder value */
+    symbol: string
     className?: string
 }
 
 /**
- * OI Teaser Cell - Shows a blurred/faded placeholder for Free tier users
- * with a beautiful tooltip prompting upgrade to Pro.
+ * OI Teaser Cell - Shows a blurred/faded placeholder for Free tier users.
  *
  * Design principles:
- * - Shows "data" structure without real values (teaser effect)
- * - Elegant blur/fade with lock icon overlay
- * - Tooltip with gradient accent and clear upgrade CTA
- * - Matches VolSpike's Pro tier cyan color theme
+ * - Shows static "data" structure without real values (teaser effect)
+ * - Placeholder value is deterministic based on symbol (no random changes)
+ * - Simple blur/fade effect, no hover overlays
+ * - Tooltip only on header, not individual cells
  */
-export function OITeaserCell({ volume24h, className = '' }: OITeaserCellProps) {
-    // Generate a plausible-looking fake OI value based on volume
-    // This creates visual interest without revealing real data
-    const fakeOI = generatePlaceholderOI(volume24h)
+export function OITeaserCell({ symbol, className = '' }: OITeaserCellProps) {
+    // Generate a deterministic placeholder value based on symbol
+    // This ensures the value never changes for the same symbol
+    const fakeOI = useMemo(() => generatePlaceholderOI(symbol), [symbol])
 
     return (
-        <TooltipProvider delayDuration={200}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <div className={`relative cursor-help group ${className}`}>
-                        {/* Blurred placeholder value */}
-                        <span className="oi-teaser-value font-mono-tabular text-sm select-none">
-                            {fakeOI}
-                        </span>
-
-                        {/* Lock overlay that appears on hover */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <div className="bg-background/80 backdrop-blur-[2px] rounded px-1.5 py-0.5 flex items-center gap-1 border border-sec-500/30 shadow-sm">
-                                <Lock className="h-3 w-3 text-sec-500" />
-                                <span className="text-[10px] font-medium text-sec-500">Pro</span>
-                            </div>
-                        </div>
-                    </div>
-                </TooltipTrigger>
-                <TooltipContent
-                    side="top"
-                    className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden"
-                    sideOffset={8}
-                >
-                    <div className="oi-teaser-tooltip-gradient h-1 w-full" />
-                    <div className="px-3 py-2.5 space-y-2">
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sec-500/15">
-                                <Lock className="h-3 w-3 text-sec-500" />
-                            </div>
-                            <span className="font-semibold text-sm">Open Interest</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            Track real-time Open Interest data to spot institutional positioning and market sentiment shifts.
-                        </p>
-                        <Link
-                            href="/pricing"
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
-                        >
-                            Upgrade to Pro
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </Link>
-                    </div>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <span className={`oi-teaser-value font-mono-tabular text-sm select-none text-muted-foreground ${className}`}>
+            {fakeOI}
+        </span>
     )
 }
 
 /**
- * Generates a placeholder OI value that looks realistic
- * Based on volume to maintain visual consistency
+ * Generates a deterministic placeholder OI value based on symbol.
+ * Uses a simple hash to ensure consistent output for the same symbol.
  */
-function generatePlaceholderOI(volume24h: number): string {
-    // OI is typically 20-60% of 24h volume for liquid pairs
-    const multiplier = 0.3 + (Math.random() * 0.3) // 30-60%
-    const fakeValue = volume24h * multiplier
+function generatePlaceholderOI(symbol: string): string {
+    // Create a simple deterministic hash from symbol
+    let hash = 0
+    for (let i = 0; i < symbol.length; i++) {
+        const char = symbol.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32bit integer
+    }
+
+    // Use hash to generate a consistent multiplier between 0.3 and 0.6
+    const normalizedHash = Math.abs(hash) / 2147483647 // Normalize to 0-1
+    const multiplier = 0.3 + (normalizedHash * 0.3)
+
+    // Base value varies by symbol "size" (BTC, ETH get bigger values)
+    const baseValues: Record<string, number> = {
+        'BTCUSDT': 45_000_000_000,
+        'ETHUSDT': 20_000_000_000,
+        'SOLUSDT': 3_500_000_000,
+        'BNBUSDT': 1_200_000_000,
+        'XRPUSDT': 1_800_000_000,
+        'DOGEUSDT': 800_000_000,
+    }
+
+    const baseValue = baseValues[symbol.toUpperCase()] || (500_000_000 + (normalizedHash * 2_000_000_000))
+    const fakeValue = baseValue * multiplier
 
     const abs = Math.abs(fakeValue)
     if (abs >= 1_000_000_000) {
@@ -104,14 +81,15 @@ function generatePlaceholderOI(volume24h: number): string {
 }
 
 /**
- * OI Teaser Header - Shows a locked header for Free tier users
+ * OI Teaser Header - Shows header with lock icon and tooltip for Free tier users.
+ * Styled identically to other column headers (no opacity change, same font).
  */
 export function OITeaserHeader() {
     return (
         <TooltipProvider delayDuration={200}>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1.5 cursor-help opacity-60">
+                    <div className="inline-flex items-center gap-1.5 cursor-help whitespace-nowrap">
                         <span>Open Interest</span>
                         <Lock className="h-3 w-3 text-sec-500" />
                     </div>
