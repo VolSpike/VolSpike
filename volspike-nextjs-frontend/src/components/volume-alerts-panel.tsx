@@ -166,8 +166,13 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     e.stopPropagation() // Prevent alert card click animation
     e.preventDefault()
 
-    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${asset}USDT.P`
-    const tradingViewDesktopUrl = `tradingview://chart?symbol=BINANCE:${asset}USDT.P`
+    const symbol = `BINANCE:${asset}USDT.P`
+    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=${symbol}`
+
+    // Mobile apps use Universal Links (https://) instead of custom URL schemes
+    // This ensures the symbol parameter is passed correctly
+    const tradingViewMobileUrl = `https://www.tradingview.com/chart/${encodeURIComponent(symbol)}/`
+    const tradingViewDesktopUrl = `tradingview://chart?symbol=${symbol}`
 
     // Detect platform
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
@@ -178,17 +183,9 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     const isMobile = isIOS || isAndroid
 
     if (isMobile) {
-      // Mobile: Try to open in TradingView app first, fallback to browser
-      // Use the deep link URL scheme
-      window.location.href = tradingViewDesktopUrl
-
-      // Fallback to browser if app doesn't open within 1.5s
-      setTimeout(() => {
-        // If still on the same page (app didn't open), open browser
-        if (!document.hidden) {
-          window.location.href = tradingViewUrl
-        }
-      }, 1500)
+      // Mobile: Use Universal Link which will open in app if installed
+      // Universal Links work better than custom URL schemes on mobile
+      window.location.href = tradingViewMobileUrl
     } else if (isMac) {
       // macOS: TradingView Desktop doesn't support symbol deep links
       window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')

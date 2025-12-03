@@ -24,6 +24,13 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
         return `https://www.tradingview.com/chart/?symbol=BINANCE:${upper}USDT.P`
     }, [baseSymbol])
 
+    const tradingViewMobileUrl = useMemo(() => {
+        const upper = baseSymbol.toUpperCase()
+        const symbol = `BINANCE:${upper}USDT.P`
+        // Universal Link format for mobile apps - this ensures the symbol is passed correctly
+        return `https://www.tradingview.com/chart/${encodeURIComponent(symbol)}/`
+    }, [baseSymbol])
+
     const tradingViewDesktopUrl = useMemo(() => {
         const upper = baseSymbol.toUpperCase()
         // TradingView desktop app URL scheme (Windows only - macOS doesn't support symbol deep links)
@@ -42,15 +49,9 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
         const isMobile = isIOS || isAndroid
 
         if (isMobile) {
-            // Mobile: Try to open in TradingView app first, fallback to browser
-            window.location.href = tradingViewDesktopUrl
-
-            // Fallback to browser if app doesn't open within 1.5s
-            setTimeout(() => {
-                if (!document.hidden) {
-                    window.location.href = tradingViewUrl
-                }
-            }, 1500)
+            // Mobile: Use Universal Link which will open in app if installed
+            // Universal Links work better than custom URL schemes on mobile
+            window.location.href = tradingViewMobileUrl
         } else if (isMac) {
             // macOS: TradingView Desktop doesn't support symbol deep links
             // Just open in browser - user can manually use "Open link from clipboard" if they want Desktop
