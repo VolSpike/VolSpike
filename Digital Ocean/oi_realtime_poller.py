@@ -16,6 +16,7 @@ import datetime
 import requests
 import sys
 import warnings
+import json
 from collections import deque
 from typing import Dict, Tuple, Optional, List
 from pathlib import Path
@@ -96,6 +97,9 @@ session.mount("https://", adapter)
 WS_FUNDING_API_URL = os.getenv("WS_FUNDING_API_URL", "http://localhost:8888/funding")
 WS_FUNDING_ENABLED = os.getenv("WS_FUNDING_ENABLED", "true").lower() == "true"
 
+# WebSocket daemon state file (contains all mark prices)
+STATE_FILE = "/home/trader/volume-spike-bot/.funding_state.json"
+
 # ─────────────────────── OI History (Ring Buffers) ───────────────────────
 # symbol -> deque[(timestamp_epoch, oi_contracts)]
 # Max length: enough to cover 3 hours at chosen interval (approx 1080 for 10s interval)
@@ -165,61 +169,44 @@ def load_liquid_universe() -> list:
         return []
 
 
-def fetch_mark_price_from_ws(symbol: str) -> Optional[float]:
+def load_mark_prices_from_state() -> Dict[str, float]:
     """
-    Fetch mark price from WebSocket service.
-    Returns mark price as float, or None on error.
+    Load all mark prices from WebSocket daemon state file.
+    Returns dict of {symbol: markPrice}.
+    This replaces 341 HTTP calls with ONE file read!
     """
-    if not WS_FUNDING_ENABLED:
-        return None
-
     try:
-        resp = session.get(
-            f"{WS_FUNDING_API_URL}/{symbol}",
-            timeout=1
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            mark_price = data.get("markPrice")
-            if mark_price is None:
-                print(f"⚠️  WebSocket returned 200 but no markPrice for {symbol}: {data}")
-            return mark_price
-        elif resp.status_code == 503:
-            # Data stale, but we got it - log warning
-            print(f"⚠️  WebSocket returned 503 (stale data) for {symbol}")
-            return None
-        else:
-            print(f"⚠️  WebSocket returned status {resp.status_code} for {symbol}")
-            return None
+        with open(STATE_FILE, 'r') as f:
+            state_data = json.load(f)
+            funding_state = state_data.get('funding_state', {})
+            mark_prices = {}
+            for symbol, data in funding_state.items():
+                if 'markPrice' in data and data['markPrice'] is not None and data['markPrice'] > 0:
+                    mark_prices[symbol] = data['markPrice']
+            print(f"📊 Loaded {len(mark_prices)} mark prices from WebSocket state file")
+            return mark_prices
     except Exception as e:
-        # Log exception for debugging
-        print(f"⚠️  Exception fetching mark price from WebSocket for {symbol}: {e}")
-    return None
+        print(f"⚠️  Failed to load WebSocket state file: {e}")
+        return {}
 
 
-def fetch_oi_for_symbol(symbol: str) -> Optional[Tuple[float, Optional[float]]]:
+def fetch_oi_for_symbol(symbol: str, mark_price: float) -> Optional[Tuple[float, float]]:
     """
     Fetch Open Interest for a symbol from Binance.
     Returns (openInterest_contracts, markPrice) or None on error.
+    Mark price is passed in from state file (not fetched via HTTP).
     """
     try:
-        # Fetch Open Interest
+        # Fetch Open Interest from Binance
         oi_url = f"https://fapi.binance.com/fapi/v1/openInterest"
         oi_response = session.get(oi_url, params={"symbol": symbol}, timeout=5)
-        
+
         if not oi_response.ok:
             return None
-        
+
         oi_data = oi_response.json()
         open_interest = float(oi_data.get("openInterest", 0))
-        
-        # Fetch mark price from WebSocket ONLY (no REST fallback)
-        mark_price = fetch_mark_price_from_ws(symbol)
 
-        # If WebSocket service is unavailable, use 0 (will be handled gracefully by backend)
-        if mark_price is None:
-            mark_price = 0.0
-        
         return (open_interest, mark_price)
     except Exception as e:
         print(f"⚠️  Error fetching OI for {symbol}: {e}")
@@ -464,10 +451,16 @@ def main_loop():
             loop_count += 1
             batch_samples = []
 
+            # Load ALL mark prices from state file (ONE file read instead of 341 HTTP calls!)
+            mark_prices = load_mark_prices_from_state()
+
             # Fetch OI for all symbols concurrently using ThreadPoolExecutor
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit all fetch tasks
-                future_to_symbol = {executor.submit(fetch_oi_for_symbol, sym): sym for sym in symbols}
+                # Submit all fetch tasks with mark prices from state file
+                future_to_symbol = {
+                    executor.submit(fetch_oi_for_symbol, sym, mark_prices.get(sym, 0.0)): sym
+                    for sym in symbols
+                }
 
                 # Process results as they complete
                 for future in as_completed(future_to_symbol):
@@ -495,12 +488,12 @@ def main_loop():
                             "openInterest": oi,
                         }
 
-                        # Always add mark price and USD value (even if 0 for debugging)
+                        # Always add mark price and USD value
                         if mark_price is not None and mark_price > 0:
                             sample["openInterestUsd"] = oi * mark_price
                             sample["markPrice"] = mark_price
                         else:
-                            # Mark price is 0 or None - this indicates WebSocket fetch failed
+                            # Mark price is 0 - symbol not in state file
                             sample["openInterestUsd"] = 0.0
                             sample["markPrice"] = 0.0
 
