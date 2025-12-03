@@ -304,7 +304,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     return () => {
       socket.disconnect()
     }
-  }, [tier, session, guestLive])
+  }, [tier, session, guestLive, onNewAlert])
   
   // Set up polling: fast for guest-live, fallback when socket disconnected otherwise
   useEffect(() => {
