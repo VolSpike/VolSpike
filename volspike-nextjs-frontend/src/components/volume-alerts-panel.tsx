@@ -170,38 +170,14 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
   }
 
-  // Binance link handler with mobile deep link support
+  // Binance link handler - opens futures in new browser tab
   const handleBinanceClick = (asset: string, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent alert card click animation
     e.preventDefault()
 
     const symbol = `${asset}USDT`
     const binanceWebUrl = `https://www.binance.com/en/futures/${symbol}`
-
-    // Detect if mobile
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-    const isIOS = /iPhone|iPad|iPod/.test(ua)
-    const isAndroid = /Android/.test(ua)
-    const isMobile = isIOS || isAndroid
-
-    if (isMobile) {
-      // Try to open in Binance app using deep link
-      // Binance uses binance:// URL scheme for deep linking
-      const binanceDeepLink = `binance://futures/${symbol}`
-
-      // Try deep link first
-      window.location.href = binanceDeepLink
-
-      // Fallback to web if app doesn't open within 1.5s
-      setTimeout(() => {
-        if (!document.hidden) {
-          window.open(binanceWebUrl, '_blank', 'noopener,noreferrer')
-        }
-      }, 1500)
-    } else {
-      // Desktop: open in new tab
-      window.open(binanceWebUrl, '_blank', 'noopener,noreferrer')
-    }
+    window.open(binanceWebUrl, '_blank', 'noopener,noreferrer')
   }
   
   return (
