@@ -78,7 +78,7 @@ const OILockButton = memo(function OILockButton() {
           </TooltipTrigger>
           <TooltipContent
             side="top"
-            className="oi-teaser-tooltip max-w-[200px] p-0 overflow-hidden"
+            className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
             sideOffset={4}
           >
             <div className="oi-teaser-tooltip-gradient h-1 w-full" />
