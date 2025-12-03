@@ -674,7 +674,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
 
                             {/* OI - faded with lock for guests */}
                             <span className="flex items-center gap-1">
-                              OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
+                              OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.0%</span>
                               <OILock />
                             </span>
                           </div>
@@ -908,7 +908,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                             )}
                             {tier === 'free' && (
                               <span className="flex items-center gap-1">
-                                OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
+                                OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.0%</span>
                                 <OILock />
                               </span>
                             )}
