@@ -29,9 +29,11 @@ interface VolumeAlertsPanelProps {
   onNewAlert?: () => void
   guestMode?: boolean
   guestVisibleCount?: number
+  /** When true, uses compact layout (Price+OI on line 1, Funding on line 2) for side-by-side pane mode */
+  compact?: boolean
 }
 
-export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2 }: VolumeAlertsPanelProps = {}) {
+export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2, compact = false }: VolumeAlertsPanelProps = {}) {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
     pollInterval: 15000, // standard fallback
     autoFetch: true,
@@ -652,20 +654,31 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Price/PriceChange, Funding, OI on one line with action icons */}
-                      {/* Guest mode: Show Price % if available, Funding with correct threshold, OI faded with lock */}
+                      {/* Metrics: Price, OI, Funding (in that order) with action icons */}
+                      {/* Guest mode: Show Price % if available, OI faded with lock, Funding */}
+                      {/* Compact mode (side-by-side panes): Price+OI on line 1, Funding on line 2 */}
+                      {/* Full width (tab mode): All on one line */}
                       <div className="flex items-end justify-between gap-2">
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                          {/* Price display: Show % change if available, else absolute */}
-                          {formatPercentChange(alert.priceChange) ? (
-                            <span>
-                              Price: <span className={getPercentChangeColor(alert.priceChange)}>{formatPercentChange(alert.priceChange)}</span>
-                            </span>
-                          ) : alert.price ? (
-                            <span>Price: {formatPrice(alert.price)}</span>
-                          ) : null}
+                        <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
+                          {/* Line 1: Price and OI */}
+                          <div className="flex items-center gap-3">
+                            {/* Price display: Show % change if available, else absolute */}
+                            {formatPercentChange(alert.priceChange) ? (
+                              <span>
+                                Price: <span className={getPercentChangeColor(alert.priceChange)}>{formatPercentChange(alert.priceChange)}</span>
+                              </span>
+                            ) : alert.price ? (
+                              <span>Price: {formatPrice(alert.price)}</span>
+                            ) : null}
 
-                          {/* Funding rate - color only when >0.03% or <-0.03% (threshold 0.0003) */}
+                            {/* OI - faded with lock for guests */}
+                            <span className="flex items-center gap-1">
+                              OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
+                              <OILock />
+                            </span>
+                          </div>
+
+                          {/* Line 2 (compact) or same line (full): Funding */}
                           {alert.fundingRate !== undefined && alert.fundingRate !== null && (
                             <span>
                               Funding:{' '}
@@ -682,12 +695,6 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                               </span>
                             </span>
                           )}
-
-                          {/* OI - faded with lock for guests */}
-                          <span className="flex items-center gap-1">
-                            OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
-                            <OILock />
-                          </span>
                         </div>
 
                         {/* Action icon buttons */}
@@ -875,21 +882,39 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Price/PriceChange, Funding, OI on one line with action icons */}
+                      {/* Metrics: Price, OI, Funding (in that order) with action icons */}
                       {/* Pro/Elite: Show priceChange % and oiChange % */}
                       {/* Free: Show priceChange % but OI faded with lock */}
+                      {/* Compact mode (side-by-side panes): Price+OI on line 1, Funding on line 2 */}
+                      {/* Full width (tab mode): All on one line */}
                       <div className="flex items-end justify-between gap-2">
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                          {/* Price display: Pro/Free see % change if available, Elite sees absolute */}
-                          {(tier === 'pro' || tier === 'free') && formatPercentChange(alert.priceChange) ? (
-                            <span>
-                              Price: <span className={getPercentChangeColor(alert.priceChange)}>{formatPercentChange(alert.priceChange)}</span>
-                            </span>
-                          ) : alert.price ? (
-                            <span>Price: {formatPrice(alert.price)}</span>
-                          ) : null}
+                        <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
+                          {/* Line 1: Price and OI */}
+                          <div className="flex items-center gap-3">
+                            {/* Price display: Pro/Free see % change if available, Elite sees absolute */}
+                            {(tier === 'pro' || tier === 'free') && formatPercentChange(alert.priceChange) ? (
+                              <span>
+                                Price: <span className={getPercentChangeColor(alert.priceChange)}>{formatPercentChange(alert.priceChange)}</span>
+                              </span>
+                            ) : alert.price ? (
+                              <span>Price: {formatPrice(alert.price)}</span>
+                            ) : null}
 
-                          {/* Funding rate - same for all tiers, color only when >0.03% or <-0.03% (threshold 0.0003) */}
+                            {/* OI change - Pro/Elite see value, Free sees faded with lock */}
+                            {(tier === 'pro' || tier === 'elite') && formatPercentChange(alert.oiChange) && (
+                              <span>
+                                OI: <span className={getPercentChangeColor(alert.oiChange)}>{formatPercentChange(alert.oiChange)}</span>
+                              </span>
+                            )}
+                            {tier === 'free' && (
+                              <span className="flex items-center gap-1">
+                                OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
+                                <OILock />
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Line 2 (compact) or same line (full): Funding */}
                           {alert.fundingRate !== undefined && alert.fundingRate !== null && (
                             <span>
                               Funding:{' '}
@@ -904,19 +929,6 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                               >
                                 {(alert.fundingRate * 100).toFixed(3)}%
                               </span>
-                            </span>
-                          )}
-
-                          {/* OI change - Pro/Elite see value, Free sees faded with lock */}
-                          {(tier === 'pro' || tier === 'elite') && formatPercentChange(alert.oiChange) && (
-                            <span>
-                              OI: <span className={getPercentChangeColor(alert.oiChange)}>{formatPercentChange(alert.oiChange)}</span>
-                            </span>
-                          )}
-                          {tier === 'free' && (
-                            <span className="flex items-center gap-1">
-                              OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
-                              <OILock />
                             </span>
                           )}
                         </div>
