@@ -95,16 +95,6 @@ session.mount("https://", adapter)
 WS_FUNDING_API_URL = os.getenv("WS_FUNDING_API_URL", "http://localhost:8888/funding")
 WS_FUNDING_ENABLED = os.getenv("WS_FUNDING_ENABLED", "true").lower() == "true"
 
-# Comparison metrics (for validation)
-mark_price_comparison_stats = {
-    "total_comparisons": 0,
-    "matches": 0,
-    "mismatches": 0,
-    "total_diff": 0.0,
-    "max_diff": 0.0,
-    "max_diff_symbol": None,
-}
-
 # ─────────────────────── OI History (Ring Buffers) ───────────────────────
 # symbol -> deque[(timestamp_epoch, oi_contracts)]
 # Max length: enough to cover 3 hours at chosen interval (approx 1080 for 10s interval)
@@ -199,30 +189,6 @@ def fetch_mark_price_from_ws(symbol: str) -> Optional[float]:
     return None
 
 
-def compare_mark_price_data(rest_price: float, ws_price: float, symbol: str):
-    """
-    Compare REST vs WebSocket mark prices and log differences.
-    Updates comparison statistics.
-    """
-    if rest_price is None or ws_price is None or rest_price == 0:
-        return
-    
-    mark_price_comparison_stats["total_comparisons"] += 1
-    
-    diff = abs(rest_price - ws_price)
-    diff_pct = (diff / rest_price) * 100
-    
-    mark_price_comparison_stats["total_diff"] += diff_pct
-    
-    if diff_pct > mark_price_comparison_stats["max_diff"]:
-        mark_price_comparison_stats["max_diff"] = diff_pct
-        mark_price_comparison_stats["max_diff_symbol"] = symbol
-    
-    if diff_pct > 0.1:  # >0.1% difference
-        mark_price_comparison_stats["mismatches"] += 1
-        print(f"⚠️  Mark price mismatch for {symbol}: REST={rest_price:.2f}, WS={ws_price:.2f}, diff={diff_pct:.3f}%")
-
-
 def fetch_oi_for_symbol(symbol: str) -> Optional[Tuple[float, Optional[float]]]:
     """
     Fetch Open Interest for a symbol from Binance.
@@ -239,28 +205,12 @@ def fetch_oi_for_symbol(symbol: str) -> Optional[Tuple[float, Optional[float]]]:
         oi_data = oi_response.json()
         open_interest = float(oi_data.get("openInterest", 0))
         
-        # Fetch mark price (for USD calculation)
-        # Try WebSocket first, fallback to REST
-        mark_price_ws = fetch_mark_price_from_ws(symbol)
-        
-        # Also fetch from REST for comparison (validation mode)
-        mark_price_rest = None
-        try:
-            premium_url = f"https://fapi.binance.com/fapi/v1/premiumIndex"
-            premium_response = session.get(premium_url, params={"symbol": symbol}, timeout=5)
-            if premium_response.ok:
-                premium_data = premium_response.json()
-                mark_price_rest = float(premium_data.get("markPrice", 0))
-        except Exception:
-            # Mark price fetch is optional, continue without it
-            pass
-        
-        # Compare REST vs WebSocket (validation mode)
-        if mark_price_rest is not None and mark_price_ws is not None:
-            compare_mark_price_data(mark_price_rest, mark_price_ws, symbol)
-        
-        # Use WebSocket data (fallback to REST if WS unavailable)
-        mark_price = mark_price_ws if mark_price_ws is not None else mark_price_rest
+        # Fetch mark price from WebSocket ONLY (no REST fallback)
+        mark_price = fetch_mark_price_from_ws(symbol)
+
+        # If WebSocket service is unavailable, use 0 (will be handled gracefully by backend)
+        if mark_price is None:
+            mark_price = 0.0
         
         return (open_interest, mark_price)
     except Exception as e:
@@ -451,10 +401,10 @@ def main_loop():
     print(f"   Environment file: {ENV_FILE} ({'found' if ENV_FILE.exists() else 'NOT FOUND'})")
     
     if WS_FUNDING_ENABLED:
-        print(f"🔌 WebSocket funding service: ENABLED (parallel validation mode)")
+        print(f"🔌 WebSocket funding service: ENABLED (WebSocket-only mode, NO REST fallback)")
         print(f"   API URL: {WS_FUNDING_API_URL}")
     else:
-        print("🔌 WebSocket funding service: DISABLED (using REST only)")
+        print("🔌 WebSocket funding service: DISABLED (will use 0 for mark prices)")
     
     # Check configuration
     if not VOLSPIKE_API_URL or VOLSPIKE_API_URL == "http://localhost:3001":
@@ -562,15 +512,6 @@ def main_loop():
             
             if loop_count % 20 == 0:  # Print status every 20 loops
                 print(f"⏱️  Loop {loop_count} | Interval: {interval_sec}s | Samples in buffer: {sum(len(h) for h in oi_history.values())}")
-                
-                # Log comparison summary every 100 comparisons
-                if mark_price_comparison_stats["total_comparisons"] > 0 and mark_price_comparison_stats["total_comparisons"] % 100 == 0:
-                    total = mark_price_comparison_stats["total_comparisons"]
-                    matches = mark_price_comparison_stats["matches"]
-                    mismatches = mark_price_comparison_stats["mismatches"]
-                    avg_diff = mark_price_comparison_stats["total_diff"] / total if total > 0 else 0
-                    match_rate = (matches / total) * 100 if total > 0 else 0
-                    print(f"📊 Mark Price Comparison: {matches}/{total} matches ({match_rate:.1f}%), avg diff: {avg_diff:.3f}%")
             
             if sleep_time > 0:
                 time.sleep(sleep_time)
