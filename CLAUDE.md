@@ -15,7 +15,8 @@ This document provides guidance for AI assistants (like Claude) working on the V
 - **SSH Key**: `~/.ssh/volspike-temp`
 - **Connection command**: `ssh volspike-do`
 
-**Quick Commands**:
+### Quick Commands
+
 ```bash
 # Connect to server
 ssh volspike-do
@@ -24,17 +25,109 @@ ssh volspike-do
 ssh volspike-do "command here"
 
 # Check running services
-ssh volspike-do "systemctl list-units --type=service --state=running | grep -E '(volume|funding|oi)'"
+ssh volspike-do "sudo systemctl list-units --type=service | grep -i volume"
 
 # View logs
-ssh volspike-do "sudo journalctl -u service-name -f"
+ssh volspike-do "sudo journalctl -u volspike.service -n 50 --no-pager"
+ssh volspike-do "sudo journalctl -u volspike.service -f"  # Follow logs
 ```
 
-**Important Notes**:
-- Scripts are located in `/home/trader/volume-spike-bot/`
-- Environment variables are in `/home/trader/.volspike.env`
-- Services run as `trader` user (not root)
-- Funding API server runs on `localhost:8888`
+### Deploying Python Scripts to Digital Ocean
+
+**CRITICAL**: Digital Ocean scripts are deployed via **SCP** (not git). Never try to `git pull` on Digital Ocean.
+
+**Deployment Workflow**:
+
+1. **Copy script to Digital Ocean**:
+   ```bash
+   scp "Digital Ocean/hourly_volume_alert_dual_env.py" volspike-do:/home/trader/volume-spike-bot/hourly_volume_alert_dual_env.py
+   ```
+
+2. **Find the correct service name**:
+   ```bash
+   ssh volspike-do "sudo systemctl list-units --type=service | grep -i volume"
+   ```
+
+   Common service names:
+   - `volspike.service` - Main volume alert service
+   - `volspike-dashboard.service` - Streamlit dashboard
+
+3. **Restart the service**:
+   ```bash
+   ssh volspike-do "sudo systemctl restart volspike.service"
+   ```
+
+4. **Verify service is running**:
+   ```bash
+   ssh volspike-do "sudo systemctl status volspike.service"
+   ```
+
+5. **Check logs for errors**:
+   ```bash
+   ssh volspike-do "sudo journalctl -u volspike.service -n 50 --no-pager"
+   ```
+
+**Common Mistakes to Avoid**:
+- ❌ **WRONG**: `ssh volspike-do "cd /home/trader/VolSpike && git pull origin main"`
+- ❌ **WRONG**: Using service name `hourly-volume-alert-dual-env.service` (doesn't exist)
+- ❌ **WRONG**: Using IP address directly instead of SSH alias `volspike-do`
+
+**Correct Deployment Example**:
+```bash
+# 1. Copy script
+scp "Digital Ocean/hourly_volume_alert_dual_env.py" volspike-do:/home/trader/volume-spike-bot/hourly_volume_alert_dual_env.py
+
+# 2. Restart service (use correct name!)
+ssh volspike-do "sudo systemctl restart volspike.service && sudo systemctl status volspike.service"
+
+# 3. Verify logs
+ssh volspike-do "sudo journalctl -u volspike.service -n 20 --no-pager"
+```
+
+### Server Directory Structure
+
+- **Scripts**: `/home/trader/volume-spike-bot/`
+  - `hourly_volume_alert_dual_env.py` - Main volume alert script
+  - `oi_realtime_poller.py` - Open Interest polling script
+  - `oi_liquid_universe_job.py` - Liquid symbol classification
+  - `binance_funding_ws_daemon.py` - Funding rate WebSocket daemon
+  - `funding_api_server.py` - Funding rate API server
+
+- **Environment**: `/home/trader/.volspike.env`
+  - Backend URLs and API keys
+  - Telegram bot credentials
+
+- **Services**: Managed by systemd
+  - `volspike.service` - Main volume alert service
+  - `binance-funding-ws.service` - Funding WebSocket daemon
+  - `binance-funding-api.service` - Funding API server
+  - `volspike-dashboard.service` - Streamlit dashboard
+
+- **Virtual Environment**: `/home/trader/volume-spike-bot/.venv/`
+  - Python packages and dependencies
+
+### Troubleshooting
+
+**Service won't start**:
+```bash
+# Check service status
+ssh volspike-do "sudo systemctl status volspike.service"
+
+# Check full logs
+ssh volspike-do "sudo journalctl -u volspike.service -n 100 --no-pager"
+
+# Restart service
+ssh volspike-do "sudo systemctl restart volspike.service"
+```
+
+**Script not updating**:
+- Make sure you copied the script to the correct path
+- Verify the service is using the correct script file
+- Check service file: `ssh volspike-do "cat /etc/systemd/system/volspike.service"`
+
+**Permission errors**:
+- Scripts run as `trader` user, not root
+- Environment file is owned by `trader`: `ssh volspike-do "ls -la /home/trader/.volspike.env"`
 
 ## Essential Reading
 
