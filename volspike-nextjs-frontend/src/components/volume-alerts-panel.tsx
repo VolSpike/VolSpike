@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { GuestCTA } from '@/components/guest-cta'
-import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play } from 'lucide-react'
+import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play, BarChart3, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
 interface VolumeAlertsPanelProps {
@@ -159,6 +159,41 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
   const formatRelativeTime = (timestamp: string) => {
     const relative = formatDistanceToNow(new Date(timestamp), { addSuffix: true })
     return relative.replace('about ', '') // Remove "about" prefix
+  }
+
+  // TradingView link handler (same logic as asset-project-overview)
+  const handleTradingViewClick = (asset: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent alert card click animation
+    e.preventDefault()
+
+    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${asset}USDT.P`
+    const tradingViewDesktopUrl = `tradingview://chart?symbol=BINANCE:${asset}USDT.P`
+
+    // Detect platform
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(ua)
+    const isWindows = /Win/.test(ua)
+
+    if (isMac) {
+      // macOS: TradingView Desktop doesn't support symbol deep links
+      window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
+    } else if (isWindows) {
+      // Windows: Try desktop app first, fallback to browser
+      const wasFocused = document.hasFocus()
+
+      // Open desktop app URL
+      window.location.href = tradingViewDesktopUrl
+
+      // Fallback to browser if desktop app doesn't open within 2s
+      setTimeout(() => {
+        if (document.hasFocus() === wasFocused) {
+          window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
+        }
+      }, 2000)
+    } else {
+      // Mobile/other: open in browser
+      window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
+    }
   }
   
   return (
@@ -551,28 +586,45 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div>This hour: {formatVolume(alert.currentVolume)}</div>
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
-                      
-                      {/* Price and funding on one line */}
-                      {(alert.price || alert.fundingRate) && (
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          {alert.price && (
-                            <span>Price: {formatPrice(alert.price)}</span>
-                          )}
-                          {alert.fundingRate !== undefined && alert.fundingRate !== null && (
-                            <span
-                              className={
-                                alert.fundingRate > 0.03 
-                                  ? 'text-brand-600 dark:text-brand-400' 
-                                  : alert.fundingRate < -0.03 
-                                    ? 'text-danger-600 dark:text-danger-400' 
-                                    : ''
-                              }
-                            >
-                              Funding: {(alert.fundingRate * 100).toFixed(3)}%
-                            </span>
-                          )}
-                        </div>
-                      )}
+
+                      {/* Price and funding on one line with TradingView icon */}
+                      <div className="flex items-end justify-between gap-2">
+                        {(alert.price || alert.fundingRate) ? (
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {alert.price && (
+                              <span>Price: {formatPrice(alert.price)}</span>
+                            )}
+                            {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                              <span
+                                className={
+                                  alert.fundingRate > 0.03
+                                    ? 'text-brand-600 dark:text-brand-400'
+                                    : alert.fundingRate < -0.03
+                                      ? 'text-danger-600 dark:text-danger-400'
+                                      : ''
+                                }
+                              >
+                                Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div></div>
+                        )}
+
+                        {/* TradingView icon button */}
+                        <button
+                          onClick={(e) => handleTradingViewClick(alert.asset, e)}
+                          className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                          title="Open in TradingView"
+                          aria-label="Open in TradingView"
+                        >
+                          <div className="relative">
+                            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
+                            <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -731,28 +783,45 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div>This hour: {formatVolume(alert.currentVolume)}</div>
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
-                      
-                      {/* Price and funding on one line */}
-                      {(alert.price || alert.fundingRate) && (
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          {alert.price && (
-                            <span>Price: {formatPrice(alert.price)}</span>
-                          )}
-                          {alert.fundingRate !== undefined && alert.fundingRate !== null && (
-                            <span
-                              className={
-                                alert.fundingRate > 0.03 
-                                  ? 'text-brand-600 dark:text-brand-400' 
-                                  : alert.fundingRate < -0.03 
-                                    ? 'text-danger-600 dark:text-danger-400' 
-                                    : ''
-                              }
-                            >
-                              Funding: {(alert.fundingRate * 100).toFixed(3)}%
-                            </span>
-                          )}
-                        </div>
-                      )}
+
+                      {/* Price and funding on one line with TradingView icon */}
+                      <div className="flex items-end justify-between gap-2">
+                        {(alert.price || alert.fundingRate) ? (
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            {alert.price && (
+                              <span>Price: {formatPrice(alert.price)}</span>
+                            )}
+                            {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                              <span
+                                className={
+                                  alert.fundingRate > 0.03
+                                    ? 'text-brand-600 dark:text-brand-400'
+                                    : alert.fundingRate < -0.03
+                                      ? 'text-danger-600 dark:text-danger-400'
+                                      : ''
+                                }
+                              >
+                                Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div></div>
+                        )}
+
+                        {/* TradingView icon button */}
+                        <button
+                          onClick={(e) => handleTradingViewClick(alert.asset, e)}
+                          className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                          title="Open in TradingView"
+                          aria-label="Open in TradingView"
+                        >
+                          <div className="relative">
+                            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
+                            <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
