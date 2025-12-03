@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSocket } from './use-socket';
 
 const parseFundingRate = (raw: any): number => {
     if (!raw) return 0;
@@ -52,6 +53,7 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
     const [lastUpdate, setLastUpdate] = useState<number>(0);
     const [nextUpdate, setNextUpdate] = useState<number>(0);
 
+    const { socket } = useSocket(); // Socket.IO for OI real-time updates
     const wsRef = useRef<WebSocket | null>(null);
     const onDataUpdateRef = useRef<typeof onDataUpdate>(onDataUpdate);
     const tickersRef = useRef<Map<string, any>>(new Map());
@@ -726,6 +728,35 @@ export function useClientOnlyMarketData({ tier, onDataUpdate, watchlistSymbols =
             }
         };
     }, [fetchOpenInterest, nextBoundaryDelay]);
+
+    // Listen for real-time Open Interest updates via Socket.IO
+    // When OI updates arrive (every 30s from poller), refetch the entire cache
+    // Use debounce to avoid refetching on every single symbol update (343 events per batch)
+    useEffect(() => {
+        if (!socket) return;
+
+        let debounceTimer: NodeJS.Timeout | null = null;
+
+        const handleOIUpdate = () => {
+            // Debounce: wait 2 seconds after first event before refetching
+            // This allows all 343 events to arrive and merge into cache
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+            }
+            debounceTimer = setTimeout(() => {
+                void fetchOpenInterest();
+            }, 2000);
+        };
+
+        socket.on('open-interest-update', handleOIUpdate);
+
+        return () => {
+            socket.off('open-interest-update', handleOIUpdate);
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+            }
+        };
+    }, [socket, fetchOpenInterest]);
 
     // Watchdog: if OI asOf drifts beyond 6 minutes, try lightweight refetch every 30s
     useEffect(() => {
