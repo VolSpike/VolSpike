@@ -47,11 +47,10 @@ initial_alert_minute: dict[str, int] = {}
 
 # ─────────────────────── requests session ───────────────────────
 session = requests.Session()
-session.mount(
-    "https://",
-    HTTPAdapter(max_retries=Retry(total=3, backoff_factor=1,
-                                  status_forcelist=[429, 500, 502, 503, 504]))
-)
+adapter = HTTPAdapter(max_retries=Retry(total=3, backoff_factor=1,
+                                        status_forcelist=[429, 500, 502, 503, 504]))
+session.mount("http://", adapter)
+session.mount("https://", adapter)
 
 # WebSocket Funding API Configuration
 WS_FUNDING_API_URL = "http://localhost:8888/funding"

@@ -21,6 +21,7 @@ from typing import Dict, Tuple, Optional, List
 from pathlib import Path
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -171,7 +172,7 @@ def fetch_mark_price_from_ws(symbol: str) -> Optional[float]:
     """
     if not WS_FUNDING_ENABLED:
         return None
-    
+
     try:
         resp = session.get(
             f"{WS_FUNDING_API_URL}/{symbol}",
@@ -179,13 +180,20 @@ def fetch_mark_price_from_ws(symbol: str) -> Optional[float]:
         )
         if resp.status_code == 200:
             data = resp.json()
-            return data.get("markPrice")
+            mark_price = data.get("markPrice")
+            if mark_price is None:
+                print(f"⚠️  WebSocket returned 200 but no markPrice for {symbol}: {data}")
+            return mark_price
         elif resp.status_code == 503:
             # Data stale, but we got it - log warning
+            print(f"⚠️  WebSocket returned 503 (stale data) for {symbol}")
             return None
-    except Exception:
-        # Silent failure - WebSocket service may not be running
-        pass
+        else:
+            print(f"⚠️  WebSocket returned status {resp.status_code} for {symbol}")
+            return None
+    except Exception as e:
+        # Log exception for debugging
+        print(f"⚠️  Exception fetching mark price from WebSocket for {symbol}: {e}")
     return None
 
 
@@ -440,79 +448,93 @@ def main_loop():
     # Initialize OI history
     initialize_oi_history(symbols)
     print(f"✅ Initialized OI history buffers")
-    
-    print(f"🔄 Starting polling loop...")
-    print(f"   Will poll {len(symbols)} symbols every {interval_sec}s")
-    print(f"   Will post batches every 10 loops (~{interval_sec * 10}s)")
-    
-    # Main loop
+
+    # Main loop with concurrent fetching
     loop_count = 0
-    batch_samples = []
-    
+    max_workers = 20  # Concurrent threads for fetching
+
+    print(f"🔄 Starting polling loop with {max_workers} concurrent workers...")
+    print(f"   Will poll {len(symbols)} symbols every {interval_sec}s")
+    print(f"   Will POST OI data immediately after each loop (every {interval_sec}s)")
+    print(f"   Will reload liquid universe every 20 loops (~{interval_sec * 20}s)")
+
     try:
         while True:
             loop_start = time.time()
             loop_count += 1
-            
-            # Fetch OI for each symbol from Binance
-            for symbol in symbols:
-                try:
-                    result = fetch_oi_for_symbol(symbol)
-                    if result is None:
+            batch_samples = []
+
+            # Fetch OI for all symbols concurrently using ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all fetch tasks
+                future_to_symbol = {executor.submit(fetch_oi_for_symbol, sym): sym for sym in symbols}
+
+                # Process results as they complete
+                for future in as_completed(future_to_symbol):
+                    symbol = future_to_symbol[future]
+                    try:
+                        result = future.result()
+                        if result is None:
+                            continue
+
+                        oi, mark_price = result
+                        if oi <= 0:
+                            continue
+
+                        timestamp = time.time()
+
+                        # Store in history
+                        oi_history[symbol].append((timestamp, oi))
+
+                        # Check for alerts
+                        maybe_emit_oi_alert(symbol, oi, timestamp)
+
+                        # Collect for batch
+                        sample = {
+                            "symbol": symbol,
+                            "openInterest": oi,
+                        }
+
+                        # Always add mark price and USD value (even if 0 for debugging)
+                        if mark_price is not None and mark_price > 0:
+                            sample["openInterestUsd"] = oi * mark_price
+                            sample["markPrice"] = mark_price
+                        else:
+                            # Mark price is 0 or None - this indicates WebSocket fetch failed
+                            sample["openInterestUsd"] = 0.0
+                            sample["markPrice"] = 0.0
+
+                        batch_samples.append(sample)
+
+                    except Exception as e:
+                        print(f"⚠️  Error processing {symbol}: {e}")
                         continue
-                    
-                    oi, mark_price = result
-                    if oi <= 0:
-                        continue
-                    
-                    timestamp = time.time()
-                    
-                    # Store in history
-                    oi_history[symbol].append((timestamp, oi))
-                    
-                    # Check for alerts (but don't POST yet - that's Step 9)
-                    maybe_emit_oi_alert(symbol, oi, timestamp)
-                    
-                    # Collect for batch
-                    sample = {
-                        "symbol": symbol,
-                        "openInterest": oi,
-                    }
-                    
-                    # Add USD and mark price if available
-                    if mark_price and mark_price > 0:
-                        sample["openInterestUsd"] = oi * mark_price
-                        sample["markPrice"] = mark_price
-                    
-                    batch_samples.append(sample)
-                    
-                except Exception as e:
-                    print(f"⚠️  Error processing {symbol}: {e}")
-                    continue
-            
-            # Post batch every 10 loops (or every ~50-120 seconds depending on interval)
-            if loop_count % 10 == 0 and batch_samples:
+
+            # POST immediately after each loop (every 30 seconds)
+            if batch_samples:
                 post_oi_batch(batch_samples)
-                batch_samples = []
-            
+                print(f"✅ Posted {len(batch_samples)} OI samples in {time.time() - loop_start:.1f}s")
+
+            # Reload liquid universe every 20 loops (~10 minutes at 30-sec intervals)
+            if loop_count % 20 == 0:
+                new_symbols = load_liquid_universe()
+                if new_symbols and new_symbols != symbols:
+                    # Update symbol list and reinitialize history for new symbols
+                    old_count = len(symbols)
+                    symbols = new_symbols
+                    initialize_oi_history(symbols)
+                    # Recompute interval
+                    interval_sec = compute_polling_interval(len(symbols))
+                    print(f"🔄 Reloaded liquid universe: {old_count} → {len(symbols)} symbols, interval: {interval_sec}s")
+
+            # Print status every 10 loops
+            if loop_count % 10 == 0:
+                elapsed = time.time() - loop_start
+                print(f"⏱️  Loop {loop_count} | {len(symbols)} symbols | Fetched in {elapsed:.1f}s | Next in {max(0, interval_sec - elapsed):.1f}s")
+
             # Sleep until next interval
             elapsed = time.time() - loop_start
             sleep_time = max(0, interval_sec - elapsed)
-            
-            # Reload liquid universe every 100 loops (to pick up changes)
-            if loop_count % 100 == 0:
-                new_symbols = load_liquid_universe()
-                if new_symbols:
-                    # Update symbol list and reinitialize history for new symbols
-                    initialize_oi_history(new_symbols)
-                    symbols = new_symbols
-                    # Recompute interval
-                    interval_sec = compute_polling_interval(len(symbols))
-                    print(f"🔄 Reloaded liquid universe: {len(symbols)} symbols, interval: {interval_sec}s")
-            
-            if loop_count % 20 == 0:  # Print status every 20 loops
-                print(f"⏱️  Loop {loop_count} | Interval: {interval_sec}s | Samples in buffer: {sum(len(h) for h in oi_history.values())}")
-            
             if sleep_time > 0:
                 time.sleep(sleep_time)
                 
