@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
 import { useAlertSounds } from '@/hooks/use-alert-sounds'
@@ -24,6 +24,99 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { formatDistanceToNow, format } from 'date-fns'
+
+/**
+ * OI Lock component - Stable standalone component to prevent re-renders
+ * Shows tooltip on hover and dialog on click for Free tier users
+ */
+const OILockButton = memo(function OILockButton() {
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setDialogOpen(true)
+  }
+
+  const tooltipContent = (
+    <>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sec-500/15">
+          <Lock className="h-2.5 w-2.5 text-sec-500" />
+        </div>
+        <span className="font-semibold text-xs">Pro Feature</span>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+        See real-time Open Interest changes on volume alerts.
+      </p>
+      <Link
+        href="/pricing"
+        className="inline-flex items-center gap-1 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+        onClick={(e) => e.stopPropagation()}
+      >
+        Upgrade to Pro
+        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </Link>
+    </>
+  )
+
+  return (
+    <>
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 w-5 p-0 min-w-0 cursor-help"
+              onClick={handleClick}
+            >
+              <Lock className="h-3 w-3 text-sec-500 hover:text-sec-400 transition-colors" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            className="oi-teaser-tooltip max-w-[200px] p-0 overflow-hidden"
+            sideOffset={4}
+          >
+            <div className="oi-teaser-tooltip-gradient h-1 w-full" />
+            <div className="px-2.5 py-2">
+              {tooltipContent}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-[280px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-sec-500" />
+              OI Change
+            </DialogTitle>
+          </DialogHeader>
+          <div className="pt-2">
+            <p className="text-sm text-muted-foreground mb-3">
+              See real-time Open Interest changes on volume alerts.
+            </p>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sec-500 hover:text-sec-400 transition-colors"
+              onClick={() => setDialogOpen(false)}
+            >
+              Unlock with Pro
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+})
 
 interface VolumeAlertsPanelProps {
   onNewAlert?: () => void
@@ -192,95 +285,6 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     return relative.replace('about ', '') // Remove "about" prefix
   }
 
-  // OI Lock component with tooltip on hover and dialog on click
-  // Matches the stable oi-teaser-cell.tsx implementation pattern
-  const [oiLockDialogOpen, setOiLockDialogOpen] = useState(false)
-
-  const tooltipContent = (
-    <>
-      <div className="flex items-center gap-2 mb-2">
-        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sec-500/15">
-          <Lock className="h-2.5 w-2.5 text-sec-500" />
-        </div>
-        <span className="font-semibold text-xs">Pro Feature</span>
-      </div>
-      <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-        See real-time Open Interest changes on volume alerts.
-      </p>
-      <Link
-        href="/pricing"
-        className="inline-flex items-center gap-1 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
-        onClick={(e) => {
-          e.stopPropagation()
-          setOiLockDialogOpen(false)
-        }}
-      >
-        Upgrade to Pro
-        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </Link>
-    </>
-  )
-
-  const OILock = () => (
-    <>
-      <TooltipProvider delayDuration={100}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 w-5 p-0 min-w-0 cursor-help"
-              onClick={(e) => {
-                e.stopPropagation()
-                e.preventDefault()
-                setOiLockDialogOpen(true)
-              }}
-            >
-              <Lock className="h-3 w-3 text-sec-500 hover:text-sec-400 transition-colors" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            side="top"
-            className="oi-teaser-tooltip max-w-[200px] p-0 overflow-hidden"
-            sideOffset={4}
-          >
-            <div className="oi-teaser-tooltip-gradient h-1 w-full" />
-            <div className="px-2.5 py-2">
-              {tooltipContent}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <Dialog open={oiLockDialogOpen} onOpenChange={setOiLockDialogOpen}>
-        <DialogContent className="max-w-[280px] rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-sec-500" />
-              OI Change
-            </DialogTitle>
-          </DialogHeader>
-          <div className="pt-2">
-            <p className="text-sm text-muted-foreground mb-3">
-              See real-time Open Interest changes on volume alerts.
-            </p>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-sec-500 hover:text-sec-400 transition-colors"
-              onClick={() => setOiLockDialogOpen(false)}
-            >
-              Unlock with Pro
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  )
 
   // TradingView link handler - opens chart in new browser tab with referral
   const handleTradingViewClick = (asset: string, e: React.MouseEvent) => {
@@ -713,7 +717,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                             {/* OI - faded with lock for guests */}
                             <span className="flex items-center gap-1">
                               OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.0%</span>
-                              <OILock />
+                              <OILockButton />
                             </span>
                           </div>
 
@@ -947,7 +951,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                             {tier === 'free' && (
                               <span className="flex items-center gap-1">
                                 OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.0%</span>
-                                <OILock />
+                                <OILockButton />
                               </span>
                             )}
                           </div>
