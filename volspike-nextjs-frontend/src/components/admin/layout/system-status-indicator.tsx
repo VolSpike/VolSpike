@@ -29,12 +29,14 @@ export function SystemStatusIndicator() {
                 // Admin API requires JWT token (not user.id)
                 const token = (session as any)?.accessToken as string | undefined
                 if (!token || !token.includes('.')) {
-                    // Not a valid JWT token
+                    // Not a valid JWT token - show unknown until token is available
                     setStatus('unknown')
                     return
                 }
 
                 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+                // Try the detailed metrics health endpoint first
                 const response = await fetch(`${API_BASE_URL}/api/admin/metrics/health`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -43,21 +45,36 @@ export function SystemStatusIndicator() {
                     cache: 'no-store',
                 })
 
-                if (!response.ok) {
-                    setStatus('unhealthy')
+                if (response.ok) {
+                    const data = await response.json()
+                    // Determine overall status based on database health
+                    if (data.databaseStatus?.status === 'healthy') {
+                        setStatus('healthy')
+                    } else {
+                        setStatus('degraded')
+                    }
                     setLastCheck(new Date())
                     return
                 }
 
-                const data = await response.json()
-                
-                // Determine overall status
-                if (data.databaseStatus?.status === 'healthy') {
-                    setStatus('healthy')
-                } else {
-                    setStatus('degraded')
+                // If metrics/health fails (e.g., auth issue), try the simple admin health endpoint
+                const simpleResponse = await fetch(`${API_BASE_URL}/api/admin/health`, {
+                    cache: 'no-store',
+                })
+
+                if (simpleResponse.ok) {
+                    const data = await simpleResponse.json()
+                    if (data.status === 'healthy') {
+                        setStatus('healthy')
+                    } else {
+                        setStatus('degraded')
+                    }
+                    setLastCheck(new Date())
+                    return
                 }
-                
+
+                // Both health checks failed - backend is down
+                setStatus('unhealthy')
                 setLastCheck(new Date())
             } catch (error) {
                 console.error('[SystemStatus] Health check failed:', error)
@@ -69,8 +86,8 @@ export function SystemStatusIndicator() {
         // Initial check
         checkHealth()
 
-        // Check every 30 seconds
-        const interval = setInterval(checkHealth, 30000)
+        // Check every 60 seconds (reduced frequency)
+        const interval = setInterval(checkHealth, 60000)
 
         return () => clearInterval(interval)
     }, [session])

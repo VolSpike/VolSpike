@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 
 export interface AdminNotification {
@@ -20,6 +20,8 @@ interface UseAdminNotificationsReturn {
     refreshNotifications: () => Promise<void>
     markAsRead: (notificationIds?: string[]) => Promise<void>
     markAllAsRead: () => Promise<void>
+    pausePolling: () => void
+    resumePolling: () => void
 }
 
 /**
@@ -32,11 +34,22 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
     const [unreadCount, setUnreadCount] = useState(0)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const isPausedRef = useRef(false)
+    const hasInitialLoadRef = useRef(false)
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
+    // Pause and resume polling
+    const pausePolling = useCallback(() => {
+        isPausedRef.current = true
+    }, [])
+
+    const resumePolling = useCallback(() => {
+        isPausedRef.current = false
+    }, [])
+
     // Fetch notifications from API
-    const fetchNotifications = useCallback(async () => {
+    const fetchNotifications = useCallback(async (showLoading: boolean = true) => {
         if (!session?.user) return
 
         // Get access token from session (required for admin API)
@@ -50,7 +63,10 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
         }
 
         try {
-            setLoading(true)
+            // Only show loading on initial load, not on background refreshes
+            if (showLoading && !hasInitialLoadRef.current) {
+                setLoading(true)
+            }
             setError(null)
 
             // Fetch notifications and unread count in parallel
@@ -83,6 +99,7 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
 
             setNotifications(notificationsData.notifications || [])
             setUnreadCount(countData.count || 0)
+            hasInitialLoadRef.current = true
         } catch (err) {
             // Silently fail - don't disrupt user experience
             console.debug('[useAdminNotifications] Error fetching notifications:', err)
@@ -105,6 +122,19 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
                 return
             }
 
+            // Optimistically update local state
+            const idsToMark = notificationIds || notifications.map(n => n.id)
+            const unreadIdsBeingMarked = notifications
+                .filter(n => idsToMark.includes(n.id) && !n.isRead)
+                .map(n => n.id)
+
+            // Update notifications state optimistically
+            setNotifications(prev => prev.map(n =>
+                idsToMark.includes(n.id) ? { ...n, isRead: true } : n
+            ))
+            // Decrease unread count by the number of unread notifications being marked
+            setUnreadCount(prev => Math.max(0, prev - unreadIdsBeingMarked.length))
+
             try {
                 const response = await fetch(`${apiBase}/api/admin/notifications/mark-read`, {
                     method: 'POST',
@@ -120,15 +150,15 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
                 if (!response.ok) {
                     throw new Error('Failed to mark notifications as read')
                 }
-
-                // Refresh notifications after marking as read
-                await fetchNotifications()
+                // Don't refetch - we already updated optimistically
             } catch (err) {
                 console.error('[useAdminNotifications] Error marking as read:', err)
                 setError(err instanceof Error ? err.message : 'Failed to mark as read')
+                // Revert optimistic update on error by refetching
+                await fetchNotifications(false)
             }
         },
-        [session, apiBase, fetchNotifications]
+        [session, apiBase, notifications, fetchNotifications]
     )
 
     // Mark all notifications as read
@@ -145,11 +175,13 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
             return
         }
 
-        fetchNotifications()
+        fetchNotifications(true)
 
-        // Poll for new notifications every 30 seconds
+        // Poll for new notifications every 30 seconds (only when not paused)
         const interval = setInterval(() => {
-            fetchNotifications()
+            if (!isPausedRef.current) {
+                fetchNotifications(false) // Don't show loading for background fetches
+            }
         }, 30000)
 
         return () => clearInterval(interval)
@@ -159,7 +191,7 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
     useEffect(() => {
         const accessToken = (session as any)?.accessToken
         if (accessToken && session?.user) {
-            fetchNotifications()
+            fetchNotifications(true)
         }
     }, [(session as any)?.accessToken, fetchNotifications])
 
@@ -168,9 +200,11 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
         unreadCount,
         loading,
         error,
-        refreshNotifications: fetchNotifications,
+        refreshNotifications: () => fetchNotifications(false),
         markAsRead,
         markAllAsRead,
+        pausePolling,
+        resumePolling,
     }
 }
 

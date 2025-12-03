@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Bell, X, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,11 +22,23 @@ export function AdminNotificationBell() {
     const router = useRouter()
     const [open, setOpen] = useState(false)
     const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
-    const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useAdminNotifications(10)
+    const { notifications, unreadCount, loading, markAsRead, markAllAsRead, pausePolling, resumePolling } = useAdminNotifications(10)
+    const isFirstLoad = useRef(true)
+
+    // Pause polling while dropdown is open
+    useEffect(() => {
+        if (open) {
+            pausePolling()
+            isFirstLoad.current = false
+        } else {
+            resumePolling()
+        }
+    }, [open, pausePolling, resumePolling])
 
     // Filter out dismissed notifications from display
     const visibleNotifications = notifications.filter((n) => !dismissedIds.has(n.id))
-    const visibleUnreadCount = visibleNotifications.filter((n) => !n.isRead).length
+    // Calculate unread count excluding dismissed notifications
+    const visibleUnreadCount = Math.max(0, unreadCount - dismissedIds.size)
 
     // Format notification time as relative (e.g., "2 minutes ago")
     const formatTime = (dateString: string) => {
@@ -64,23 +76,25 @@ export function AdminNotificationBell() {
         }
     }
 
-    // Handle dismissing a notification (removes from popup but keeps in history)
-    const handleDismiss = (e: React.MouseEvent, notificationId: string) => {
+    // Handle dismissing a notification (marks as read and removes from popup)
+    const handleDismiss = async (e: React.MouseEvent, notification: AdminNotification) => {
         e.stopPropagation() // Prevent navigation
+        // Add to dismissed set immediately for instant UI feedback
         setDismissedIds((prev) => {
             const newSet = new Set(prev)
-            newSet.add(notificationId)
+            newSet.add(notification.id)
             return newSet
         })
+        // Mark as read in the backend if it's unread
+        if (!notification.isRead) {
+            await markAsRead([notification.id])
+        }
     }
 
-    // Reset dismissed IDs when dropdown closes (so they reappear next time if still unread)
+    // Handle dropdown open/close - keep dismissed notifications dismissed
     const handleOpenChange = (newOpen: boolean) => {
         setOpen(newOpen)
-        if (!newOpen) {
-            // Reset dismissed IDs when closing - they'll reappear if still unread
-            setDismissedIds(new Set())
-        }
+        // Don't reset dismissedIds - keep them dismissed until page refresh
     }
 
     // Handle marking all as read
@@ -98,10 +112,10 @@ export function AdminNotificationBell() {
                     aria-label="Notifications"
                 >
                     <Bell className="h-[1.2rem] w-[1.2rem]" />
-                    {/* Red badge showing unread count */}
-                    {unreadCount > 0 && (
+                    {/* Red badge showing unread count (excluding dismissed) */}
+                    {visibleUnreadCount > 0 && (
                         <span className="absolute top-0 right-0 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-background">
-                            {unreadCount > 9 ? '9+' : unreadCount}
+                            {visibleUnreadCount > 9 ? '9+' : visibleUnreadCount}
                         </span>
                     )}
                 </Button>
@@ -184,10 +198,10 @@ export function AdminNotificationBell() {
 
                                     {/* Dismiss button (X icon) - appears on hover for all notifications */}
                                     <button
-                                        onClick={(e) => handleDismiss(e, notification.id)}
+                                        onClick={(e) => handleDismiss(e, notification)}
                                         className="absolute top-3 right-3 p-1 rounded-md hover:bg-muted transition-colors opacity-0 group-hover:opacity-100 z-10"
                                         aria-label="Dismiss notification"
-                                        title="Dismiss (removes from popup, keeps in history)"
+                                        title="Dismiss and mark as read"
                                     >
                                         <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                                     </button>
