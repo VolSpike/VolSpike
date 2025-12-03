@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { GuestCTA } from '@/components/guest-cta'
-import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play, BarChart3, ExternalLink } from 'lucide-react'
+import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play, BarChart3, ExternalLink, Coins } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
 interface VolumeAlertsPanelProps {
@@ -168,6 +168,40 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
 
     const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${asset}USDT.P`
     window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  // Binance link handler with mobile deep link support
+  const handleBinanceClick = (asset: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent alert card click animation
+    e.preventDefault()
+
+    const symbol = `${asset}USDT`
+    const binanceWebUrl = `https://www.binance.com/en/futures/${symbol}`
+
+    // Detect if mobile
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    const isIOS = /iPhone|iPad|iPod/.test(ua)
+    const isAndroid = /Android/.test(ua)
+    const isMobile = isIOS || isAndroid
+
+    if (isMobile) {
+      // Try to open in Binance app using deep link
+      // Binance uses binance:// URL scheme for deep linking
+      const binanceDeepLink = `binance://futures/${symbol}`
+
+      // Try deep link first
+      window.location.href = binanceDeepLink
+
+      // Fallback to web if app doesn't open within 1.5s
+      setTimeout(() => {
+        if (!document.hidden) {
+          window.open(binanceWebUrl, '_blank', 'noopener,noreferrer')
+        }
+      }, 1500)
+    } else {
+      // Desktop: open in new tab
+      window.open(binanceWebUrl, '_blank', 'noopener,noreferrer')
+    }
   }
   
   return (
@@ -561,7 +595,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Price and funding on one line with TradingView icon */}
+                      {/* Price and funding on one line with action icons */}
                       <div className="flex items-end justify-between gap-2">
                         {(alert.price || alert.fundingRate) ? (
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -586,18 +620,31 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                           <div></div>
                         )}
 
-                        {/* TradingView icon button */}
-                        <button
-                          onClick={(e) => handleTradingViewClick(alert.asset, e)}
-                          className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
-                          title="Open in TradingView"
-                          aria-label="Open in TradingView"
-                        >
-                          <div className="relative">
-                            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
-                            <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
-                          </div>
-                        </button>
+                        {/* Action icon buttons */}
+                        <div className="flex items-center gap-1">
+                          {/* Binance icon button */}
+                          <button
+                            onClick={(e) => handleBinanceClick(alert.asset, e)}
+                            className="group/bn flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
+                            title="Open in Binance"
+                            aria-label="Open in Binance"
+                          >
+                            <Coins className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/bn:text-warning-500 transition-colors" />
+                          </button>
+
+                          {/* TradingView icon button */}
+                          <button
+                            onClick={(e) => handleTradingViewClick(alert.asset, e)}
+                            className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                            title="Open in TradingView"
+                            aria-label="Open in TradingView"
+                          >
+                            <div className="relative">
+                              <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
+                              <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
+                            </div>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -758,7 +805,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Price and funding on one line with TradingView icon */}
+                      {/* Price and funding on one line with action icons */}
                       <div className="flex items-end justify-between gap-2">
                         {(alert.price || alert.fundingRate) ? (
                           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -783,18 +830,31 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                           <div></div>
                         )}
 
-                        {/* TradingView icon button */}
-                        <button
-                          onClick={(e) => handleTradingViewClick(alert.asset, e)}
-                          className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
-                          title="Open in TradingView"
-                          aria-label="Open in TradingView"
-                        >
-                          <div className="relative">
-                            <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
-                            <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
-                          </div>
-                        </button>
+                        {/* Action icon buttons */}
+                        <div className="flex items-center gap-1">
+                          {/* Binance icon button */}
+                          <button
+                            onClick={(e) => handleBinanceClick(alert.asset, e)}
+                            className="group/bn flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
+                            title="Open in Binance"
+                            aria-label="Open in Binance"
+                          >
+                            <Coins className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/bn:text-warning-500 transition-colors" />
+                          </button>
+
+                          {/* TradingView icon button */}
+                          <button
+                            onClick={(e) => handleTradingViewClick(alert.asset, e)}
+                            className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                            title="Open in TradingView"
+                            aria-label="Open in TradingView"
+                          >
+                            <div className="relative">
+                              <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
+                              <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
+                            </div>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
