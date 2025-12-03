@@ -24,66 +24,9 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
         return `https://www.tradingview.com/chart/?symbol=BINANCE:${upper}USDT.P`
     }, [baseSymbol])
 
-    const tradingViewMobileUrl = useMemo(() => {
-        const upper = baseSymbol.toUpperCase()
-        const symbol = `BINANCE:${upper}USDT.P`
-        // Universal Link format for mobile apps - this ensures the symbol is passed correctly
-        return `https://www.tradingview.com/chart/${encodeURIComponent(symbol)}/`
-    }, [baseSymbol])
-
-    const tradingViewDesktopUrl = useMemo(() => {
-        const upper = baseSymbol.toUpperCase()
-        // TradingView desktop app URL scheme (Windows only - macOS doesn't support symbol deep links)
-        return `tradingview://chart?symbol=BINANCE:${upper}USDT.P`
-    }, [baseSymbol])
-
     const handleTradingViewClick = (e: React.MouseEvent) => {
         e.preventDefault()
-
-        // Detect platform
-        const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-        const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(ua)
-        const isWindows = /Windows|Win32|Win64/.test(ua)
-        const isIOS = /iPhone|iPad|iPod/.test(ua)
-        const isAndroid = /Android/.test(ua)
-        const isMobile = isIOS || isAndroid
-
-        if (isMobile) {
-            // Mobile: Use Universal Link which will open in app if installed
-            // Universal Links work better than custom URL schemes on mobile
-            window.location.href = tradingViewMobileUrl
-        } else if (isMac) {
-            // macOS: TradingView Desktop doesn't support symbol deep links
-            // Just open in browser - user can manually use "Open link from clipboard" if they want Desktop
-            window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
-        } else if (isWindows) {
-            // Windows: Try desktop app first, fallback to browser
-            const wasFocused = document.hasFocus()
-
-            // Try to open desktop app using window.location
-            try {
-                window.location.href = tradingViewDesktopUrl
-            } catch (err) {
-                // Fallback to anchor method if window.location fails
-                const desktopLink = document.createElement('a')
-                desktopLink.href = tradingViewDesktopUrl
-                desktopLink.style.display = 'none'
-                document.body.appendChild(desktopLink)
-                desktopLink.click()
-                document.body.removeChild(desktopLink)
-            }
-
-            // Check if desktop app opened (page loses focus) or fallback to browser
-            setTimeout(() => {
-                // If page is still focused, desktop app likely didn't open, so open browser
-                if (document.hasFocus() && wasFocused) {
-                    window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
-                }
-            }, 500)
-        } else {
-            // Other platforms (Linux, etc.): Just open in browser
-            window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
-        }
+        window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
     }
 
     const displayName = profile?.name || baseSymbol.toUpperCase()

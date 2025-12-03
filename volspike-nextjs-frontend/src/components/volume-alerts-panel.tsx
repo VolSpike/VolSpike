@@ -161,51 +161,13 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     return relative.replace('about ', '') // Remove "about" prefix
   }
 
-  // TradingView link handler with mobile deep link support
+  // TradingView link handler - opens chart in new browser tab
   const handleTradingViewClick = (asset: string, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent alert card click animation
     e.preventDefault()
 
-    const symbol = `BINANCE:${asset}USDT.P`
-    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=${symbol}`
-
-    // Mobile apps use Universal Links (https://) instead of custom URL schemes
-    // This ensures the symbol parameter is passed correctly
-    const tradingViewMobileUrl = `https://www.tradingview.com/chart/${encodeURIComponent(symbol)}/`
-    const tradingViewDesktopUrl = `tradingview://chart?symbol=${symbol}`
-
-    // Detect platform
-    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
-    const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(ua)
-    const isWindows = /Win/.test(ua)
-    const isIOS = /iPhone|iPad|iPod/.test(ua)
-    const isAndroid = /Android/.test(ua)
-    const isMobile = isIOS || isAndroid
-
-    if (isMobile) {
-      // Mobile: Use Universal Link which will open in app if installed
-      // Universal Links work better than custom URL schemes on mobile
-      window.location.href = tradingViewMobileUrl
-    } else if (isMac) {
-      // macOS: TradingView Desktop doesn't support symbol deep links
-      window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
-    } else if (isWindows) {
-      // Windows: Try desktop app first, fallback to browser
-      const wasFocused = document.hasFocus()
-
-      // Open desktop app URL
-      window.location.href = tradingViewDesktopUrl
-
-      // Fallback to browser if desktop app doesn't open within 2s
-      setTimeout(() => {
-        if (document.hasFocus() === wasFocused) {
-          window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
-        }
-      }, 2000)
-    } else {
-      // Other: open in browser
-      window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
-    }
+    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${asset}USDT.P`
+    window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
   }
   
   return (
