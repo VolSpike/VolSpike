@@ -9,7 +9,20 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { GuestCTA } from '@/components/guest-cta'
-import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play, BarChart3, ExternalLink, Coins } from 'lucide-react'
+import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Play, BarChart3, ExternalLink, Coins, Lock } from 'lucide-react'
+import Link from 'next/link'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { formatDistanceToNow, format } from 'date-fns'
 
 interface VolumeAlertsPanelProps {
@@ -176,6 +189,58 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     const relative = formatDistanceToNow(new Date(timestamp), { addSuffix: true })
     return relative.replace('about ', '') // Remove "about" prefix
   }
+
+  // OI Lock component with tooltip on hover and dialog on click
+  const [oiLockDialogOpen, setOiLockDialogOpen] = useState(false)
+
+  const OILock = () => (
+    <>
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setOiLockDialogOpen(true)
+              }}
+              className="inline-flex items-center"
+            >
+              <Lock className="h-3 w-3 text-sec-500 cursor-pointer hover:text-sec-400 transition-colors" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            Pro feature
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <Dialog open={oiLockDialogOpen} onOpenChange={setOiLockDialogOpen}>
+        <DialogContent className="max-w-[280px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-sec-500" />
+              OI Change
+            </DialogTitle>
+          </DialogHeader>
+          <div className="pt-2">
+            <p className="text-sm text-muted-foreground mb-3">
+              See real-time Open Interest changes on volume alerts.
+            </p>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sec-500 hover:text-sec-400 transition-colors"
+              onClick={() => setOiLockDialogOpen(false)}
+            >
+              Unlock with Pro
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 
   // TradingView link handler - opens chart in new browser tab
   const handleTradingViewClick = (asset: string, e: React.MouseEvent) => {
@@ -588,30 +653,42 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                       </div>
 
                       {/* Price/PriceChange, Funding, OI on one line with action icons */}
-                      {/* Guest mode: Always show standard format (Price: $x.xx) */}
+                      {/* Guest mode: Show Price % if available, Funding with correct threshold, OI faded with lock */}
                       <div className="flex items-end justify-between gap-2">
-                        {(alert.price || alert.fundingRate) ? (
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                            {alert.price && (
-                              <span>Price: {formatPrice(alert.price)}</span>
-                            )}
-                            {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                          {/* Price display: Show % change if available, else absolute */}
+                          {formatPercentChange(alert.priceChange) ? (
+                            <span>
+                              Price: <span className={getPercentChangeColor(alert.priceChange)}>{formatPercentChange(alert.priceChange)}</span>
+                            </span>
+                          ) : alert.price ? (
+                            <span>Price: {formatPrice(alert.price)}</span>
+                          ) : null}
+
+                          {/* Funding rate - color only when >0.03% or <-0.03% (threshold 0.0003) */}
+                          {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                            <span>
+                              Funding:{' '}
                               <span
                                 className={
-                                  alert.fundingRate > 0.03
+                                  alert.fundingRate > 0.0003
                                     ? 'text-brand-600 dark:text-brand-400'
-                                    : alert.fundingRate < -0.03
+                                    : alert.fundingRate < -0.0003
                                       ? 'text-danger-600 dark:text-danger-400'
                                       : ''
                                 }
                               >
-                                Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                                {(alert.fundingRate * 100).toFixed(3)}%
                               </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div></div>
-                        )}
+                            </span>
+                          )}
+
+                          {/* OI - faded with lock for guests */}
+                          <span className="flex items-center gap-1">
+                            OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
+                            <OILock />
+                          </span>
+                        </div>
 
                         {/* Action icon buttons */}
                         <div className="flex items-center gap-1">
@@ -799,38 +876,47 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                       </div>
 
                       {/* Price/PriceChange, Funding, OI on one line with action icons */}
-                      {/* Pro tier: Show priceChange % and oiChange % instead of absolute price */}
-                      {/* Free/Elite tiers: Show standard format (Price: $x.xx) */}
+                      {/* Pro/Elite: Show priceChange % and oiChange % */}
+                      {/* Free: Show priceChange % but OI faded with lock */}
                       <div className="flex items-end justify-between gap-2">
                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                          {/* Price display: Pro sees % change, others see absolute */}
-                          {tier === 'pro' && formatPercentChange(alert.priceChange) ? (
-                            <span className={getPercentChangeColor(alert.priceChange)}>
-                              Price: {formatPercentChange(alert.priceChange)}
+                          {/* Price display: Pro/Free see % change if available, Elite sees absolute */}
+                          {(tier === 'pro' || tier === 'free') && formatPercentChange(alert.priceChange) ? (
+                            <span>
+                              Price: <span className={getPercentChangeColor(alert.priceChange)}>{formatPercentChange(alert.priceChange)}</span>
                             </span>
                           ) : alert.price ? (
                             <span>Price: {formatPrice(alert.price)}</span>
                           ) : null}
 
-                          {/* Funding rate - same for all tiers */}
+                          {/* Funding rate - same for all tiers, color only when >0.03% or <-0.03% (threshold 0.0003) */}
                           {alert.fundingRate !== undefined && alert.fundingRate !== null && (
-                            <span
-                              className={
-                                alert.fundingRate > 0.03
-                                  ? 'text-brand-600 dark:text-brand-400'
-                                  : alert.fundingRate < -0.03
-                                    ? 'text-danger-600 dark:text-danger-400'
-                                    : ''
-                              }
-                            >
-                              Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                            <span>
+                              Funding:{' '}
+                              <span
+                                className={
+                                  alert.fundingRate > 0.0003
+                                    ? 'text-brand-600 dark:text-brand-400'
+                                    : alert.fundingRate < -0.0003
+                                      ? 'text-danger-600 dark:text-danger-400'
+                                      : ''
+                                }
+                              >
+                                {(alert.fundingRate * 100).toFixed(3)}%
+                              </span>
                             </span>
                           )}
 
-                          {/* OI change - Pro only */}
-                          {tier === 'pro' && formatPercentChange(alert.oiChange) && (
-                            <span className={getPercentChangeColor(alert.oiChange)}>
-                              OI: {formatPercentChange(alert.oiChange)}
+                          {/* OI change - Pro/Elite see value, Free sees faded with lock */}
+                          {(tier === 'pro' || tier === 'elite') && formatPercentChange(alert.oiChange) && (
+                            <span>
+                              OI: <span className={getPercentChangeColor(alert.oiChange)}>{formatPercentChange(alert.oiChange)}</span>
+                            </span>
+                          )}
+                          {tier === 'free' && (
+                            <span className="flex items-center gap-1">
+                              OI: <span className="text-muted-foreground/30 select-none blur-[2px]">+0.00%</span>
+                              <OILock />
                             </span>
                           )}
                         </div>
