@@ -120,7 +120,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [tier, getLastBroadcastTime, guestLive, guestVisibleCount])
+  }, [tier])
   
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {

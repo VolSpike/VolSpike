@@ -93,24 +93,55 @@ volumeAlertsRouter.get('/', async (c) => {
     // or from authenticated user if available
     const tierParam = c.req.query('tier') || 'free'
     const tier = ['free', 'pro', 'elite'].includes(tierParam) ? tierParam : 'free'
-    
+
     // Tier-based limits
     const limits: Record<string, number> = {
       free: 10,
       pro: 50,
       elite: 100,
     }
-    
+
     const limit = limits[tier] || 10
     const symbol = c.req.query('symbol') // Optional filter
-    
+
+    // Calculate the last broadcast time based on tier
+    // This ensures users only see alerts that have been broadcasted to their tier
+    const now = new Date()
+    const currentMinute = now.getMinutes()
+    let lastBroadcastTime: Date
+
+    if (tier === 'elite') {
+      // Elite sees everything in real-time
+      lastBroadcastTime = now
+    } else if (tier === 'pro') {
+      // Pro tier: broadcasts at :00, :05, :10, :15, :20, :25, :30, :35, :40, :45, :50, :55
+      // Find the last completed 5-minute interval
+      const lastBroadcastMinute = Math.floor(currentMinute / 5) * 5
+      lastBroadcastTime = new Date(now)
+      lastBroadcastTime.setMinutes(lastBroadcastMinute, 0, 0)
+    } else {
+      // Free tier: broadcasts at :00, :15, :30, :45
+      // Find the last completed 15-minute interval
+      const lastBroadcastMinute = Math.floor(currentMinute / 15) * 15
+      lastBroadcastTime = new Date(now)
+      lastBroadcastTime.setMinutes(lastBroadcastMinute, 0, 0)
+    }
+
+    logger.info(`Fetching alerts for tier=${tier}, lastBroadcastTime=${lastBroadcastTime.toISOString()}`)
+
     const alerts = await prisma.volumeAlert.findMany({
-      where: symbol ? { symbol } : {},
+      where: {
+        ...(symbol ? { symbol } : {}),
+        // Only return alerts from completed broadcast intervals
+        timestamp: {
+          lte: lastBroadcastTime,
+        },
+      },
       orderBy: { timestamp: 'desc' },
       take: limit,
     })
-    
-    return c.json({ alerts, tier, limit })
+
+    return c.json({ alerts, tier, limit, lastBroadcastTime: lastBroadcastTime.toISOString() })
   } catch (error) {
     logger.error('Failed to fetch alerts:', error)
     return c.json({ error: 'Failed to fetch alerts' }, 500)
