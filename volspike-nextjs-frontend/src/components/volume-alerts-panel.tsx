@@ -47,7 +47,7 @@ const OILockButton = memo(function OILockButton() {
         <span className="font-semibold text-xs">Pro Feature</span>
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-        See real-time Open Interest changes on volume alerts.
+        See OI changes on alerts.
       </p>
       <Link
         href="/pricing"

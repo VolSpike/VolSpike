@@ -762,6 +762,13 @@ npm run seed:test
 - Admin routes and middleware - Critical security
 - Payment display logic - Must update docs if modified
 
+### Git Commit Rules - CRITICAL
+- **NEVER commit `.env` files** - Always check `git status` before committing
+- **NEVER use `git add -A` blindly** - Always review what's being staged first
+- **Always unstage `.env` files** if accidentally staged: `git restore --staged <file>`
+- **Check for untracked `.env` files** before any commit
+- **If `.env` files are accidentally committed**: Remove with `git rm --cached <file>` immediately
+
 ### DO NOT Create (Unless Explicitly Requested)
 - **NO .md files** - NEVER create markdown documentation files unless user specifically asks
 - **NO README files** - Don't create README.md or similar docs proactively
@@ -1063,6 +1070,26 @@ Before considering any task complete:
 - [ ] Mobile responsive design works
 - [ ] No console errors or warnings
 - [ ] Production build succeeds
+
+---
+
+## Lessons Learned (Update This Section)
+
+**IMPORTANT**: When encountering repeatable mistakes or discovering patterns that cause issues, ADD them here to prevent future occurrences. This section should grow over time.
+
+### React Component Patterns
+- **Never define components inside other components** - Causes re-renders, tooltip instability, and state issues
+- **Use `memo()` for stable child components** - Prevents unnecessary re-renders from parent state changes
+- **Extract stateful UI elements (tooltips, dialogs) as separate components** - Each instance gets its own isolated state
+
+### Git Mistakes to Avoid
+- **Always check `git status` after `git add`** - Before committing, verify no `.env` files are staged
+- **Never use `git add -A` without reviewing** - Could accidentally stage secrets
+- **Immediately fix accidental commits of .env files** - Use `git rm --cached` to remove from tracking
+
+### UI/UX Patterns
+- **Tooltip max-width must accommodate content** - Test with actual content, not just estimated widths
+- **Event propagation in nested clickable elements** - Always use `e.stopPropagation()` and `e.preventDefault()`
 
 ---
 
