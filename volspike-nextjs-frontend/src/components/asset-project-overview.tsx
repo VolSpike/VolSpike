@@ -21,7 +21,8 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
 
     const tradingViewUrl = useMemo(() => {
         const upper = baseSymbol.toUpperCase()
-        return `https://www.tradingview.com/chart/?symbol=BINANCE:${upper}USDT.P`
+        // Referral link with symbol parameter to open the correct chart
+        return `https://www.tradingview.com/chart/?symbol=BINANCE:${upper}USDT.P&share_your_love=moneygarden`
     }, [baseSymbol])
 
     const handleTradingViewClick = (e: React.MouseEvent) => {

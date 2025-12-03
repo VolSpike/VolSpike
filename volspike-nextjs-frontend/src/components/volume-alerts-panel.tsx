@@ -244,12 +244,13 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     </>
   )
 
-  // TradingView link handler - opens chart in new browser tab
+  // TradingView link handler - opens chart in new browser tab with referral
   const handleTradingViewClick = (asset: string, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent alert card click animation
     e.preventDefault()
 
-    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${asset}USDT.P`
+    // Referral link with symbol parameter to open the correct chart
+    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${asset}USDT.P&share_your_love=moneygarden`
     window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
   }
 
