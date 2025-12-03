@@ -13,20 +13,23 @@ export default function AlertPreviewPage() {
   const [alerts, setAlerts] = useState<VolumeAlert[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
   // Fetch real alerts from the API
-  const fetchAlerts = async () => {
-    setLoading(true)
+  const fetchAlerts = async (showLoading = true) => {
+    if (showLoading) setLoading(true)
     setError(null)
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      // Use tier=elite to get all alerts without time-based filtering
-      const response = await fetch(`${apiUrl}/api/volume-alerts?limit=20&tier=elite`)
+      // Use tier=pro to get alerts as Pro users see them
+      const response = await fetch(`${apiUrl}/api/volume-alerts?limit=20&tier=pro`)
       if (!response.ok) {
         throw new Error(`Failed to fetch alerts: ${response.status}`)
       }
       const data = await response.json()
       setAlerts(data.alerts || [])
+      setLastRefresh(new Date())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
     } finally {
@@ -34,9 +37,19 @@ export default function AlertPreviewPage() {
     }
   }
 
+  // Initial fetch
   useEffect(() => {
     fetchAlerts()
   }, [])
+
+  // Auto-refresh every 30 seconds when enabled
+  useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(() => {
+      fetchAlerts(false) // Don't show loading spinner on auto-refresh
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [autoRefresh])
 
   // Helper functions
   const formatVolume = (value: number) => {
@@ -131,17 +144,6 @@ export default function AlertPreviewPage() {
                 {alert.alertType === 'HALF_UPDATE' ? '30m Update' : 'Hourly Update'}
               </Badge>
             )}
-            {/* Show data availability badges */}
-            {alert.priceChange !== undefined && alert.priceChange !== null && (
-              <Badge variant="outline" className="text-xs bg-brand-500/5 border-brand-500/20 text-brand-600">
-                Has Price%
-              </Badge>
-            )}
-            {alert.oiChange !== undefined && alert.oiChange !== null && (
-              <Badge variant="outline" className="text-xs bg-elite-500/5 border-elite-500/20 text-elite-600">
-                Has OI%
-              </Badge>
-            )}
           </div>
 
           {/* Volume */}
@@ -220,22 +222,40 @@ export default function AlertPreviewPage() {
           <div>
             <h1 className="text-2xl font-bold">Enhanced Alert Cards Preview</h1>
             <p className="text-muted-foreground mt-1">
-              Compare how real alert cards look across different tiers with enhanced metrics
+              Compare how alert cards look for Free vs Pro tiers
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={fetchAlerts}
-            disabled={loading}
-            className="gap-2"
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Refresh Alerts
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground cursor-pointer flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={autoRefresh}
+                  onChange={(e) => setAutoRefresh(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                Auto-refresh (30s)
+              </label>
+              {lastRefresh && (
+                <span className="text-xs text-muted-foreground">
+                  Last: {format(lastRefresh, 'h:mm:ss a')}
+                </span>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => fetchAlerts()}
+              disabled={loading}
+              className="gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -289,7 +309,7 @@ export default function AlertPreviewPage() {
         {/* Side-by-side comparison */}
         {!loading && alerts.length > 0 && (
           <>
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-6 lg:grid-cols-2">
               {/* Free Tier */}
               <Card>
                 <CardHeader>
@@ -321,22 +341,6 @@ export default function AlertPreviewPage() {
                   {alerts.slice(0, 3).map((alert) => renderAlertCard(alert, 'pro'))}
                 </CardContent>
               </Card>
-
-              {/* Elite Tier */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-elite-500/10 text-elite-600 border-elite-500/30">Elite</Badge>
-                    Standard Cards
-                  </CardTitle>
-                  <CardDescription>
-                    Same as Free (no enhanced metrics yet)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {alerts.slice(0, 3).map((alert) => renderAlertCard(alert, 'elite'))}
-                </CardContent>
-              </Card>
             </div>
 
             {/* Full list for Pro */}
@@ -344,10 +348,10 @@ export default function AlertPreviewPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Badge variant="outline" className="bg-pro-500/10 text-pro-600 border-pro-500/30">Pro</Badge>
-                  All Real Alerts (Enhanced View)
+                  All Alerts (Pro View)
                 </CardTitle>
                 <CardDescription>
-                  Full list showing real production alerts - badges indicate which have enhanced data
+                  Full list of production alerts as seen by Pro tier users
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -379,15 +383,15 @@ export default function AlertPreviewPage() {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <h4 className="font-medium">New Enhanced Metrics (Pro Only)</h4>
+                <h4 className="font-medium">Enhanced Metrics (Pro Only)</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li><span className="text-brand-500">Price: +5.23%</span> - Price change from hour open</li>
                   <li><span className="text-danger-500">OI: -2.14%</span> - Open Interest change from hour start</li>
-                  <li>Badges show which alerts have enhanced data available</li>
+                  <li>Color coded: green for positive, red for negative</li>
                 </ul>
               </div>
               <div className="space-y-2">
-                <h4 className="font-medium">Standard Display (Free/Elite)</h4>
+                <h4 className="font-medium">Standard Display (Free)</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>Price: $97,500.00 - Absolute price at alert time</li>
                   <li>Funding rate shown for all tiers</li>
