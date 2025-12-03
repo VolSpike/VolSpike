@@ -193,25 +193,63 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
   }
 
   // OI Lock component with tooltip on hover and dialog on click
+  // Matches the stable oi-teaser-cell.tsx implementation pattern
   const [oiLockDialogOpen, setOiLockDialogOpen] = useState(false)
+
+  const tooltipContent = (
+    <>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sec-500/15">
+          <Lock className="h-2.5 w-2.5 text-sec-500" />
+        </div>
+        <span className="font-semibold text-xs">Pro Feature</span>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+        See real-time Open Interest changes on volume alerts.
+      </p>
+      <Link
+        href="/pricing"
+        className="inline-flex items-center gap-1 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOiLockDialogOpen(false)
+        }}
+      >
+        Upgrade to Pro
+        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </Link>
+    </>
+  )
 
   const OILock = () => (
     <>
-      <TooltipProvider delayDuration={200}>
+      <TooltipProvider delayDuration={100}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 w-5 p-0 min-w-0 cursor-help"
               onClick={(e) => {
                 e.stopPropagation()
+                e.preventDefault()
                 setOiLockDialogOpen(true)
               }}
-              className="inline-flex items-center"
             >
-              <Lock className="h-3 w-3 text-sec-500 cursor-pointer hover:text-sec-400 transition-colors" />
-            </button>
+              <Lock className="h-3 w-3 text-sec-500 hover:text-sec-400 transition-colors" />
+            </Button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
-            Pro feature
+          <TooltipContent
+            side="top"
+            className="oi-teaser-tooltip max-w-[200px] p-0 overflow-hidden"
+            sideOffset={4}
+          >
+            <div className="oi-teaser-tooltip-gradient h-1 w-full" />
+            <div className="px-2.5 py-2">
+              {tooltipContent}
+            </div>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
