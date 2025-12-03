@@ -931,10 +931,8 @@ export function MarketTable({
                                 </th>
                                 <th className="text-right p-3">
                                     {userTier === 'free' ? (
-                                        /* Free tier: Show teaser header with lock icon and tooltip - same styling as other headers */
-                                        <span className="h-auto p-0 font-semibold">
-                                            <OITeaserHeader />
-                                        </span>
+                                        /* Free tier: Non-clickable header with tooltip - uses OITeaserHeader for tooltip */
+                                        <OITeaserHeader />
                                     ) : (
                                         /* Pro/Elite: Normal sortable header */
                                         <Button

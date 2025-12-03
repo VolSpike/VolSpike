@@ -9,6 +9,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { Button } from '@/components/ui/button'
 
 interface OITeaserCellProps {
     /** Symbol used as seed for deterministic placeholder value */
@@ -82,17 +83,21 @@ function generatePlaceholderOI(symbol: string): string {
 
 /**
  * OI Teaser Header - Shows header with lock icon and tooltip for Free tier users.
- * Styled identically to other column headers (no opacity change, same font).
+ * Uses Button component to match exact styling of other column headers.
  */
 export function OITeaserHeader() {
     return (
         <TooltipProvider delayDuration={200}>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <div className="inline-flex items-center gap-1.5 cursor-help whitespace-nowrap">
-                        <span>Open Interest</span>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-semibold cursor-help"
+                    >
+                        <span className="mr-1.5">Open Interest</span>
                         <Lock className="h-3 w-3 text-sec-500" />
-                    </div>
+                    </Button>
                 </TooltipTrigger>
                 <TooltipContent
                     side="bottom"
