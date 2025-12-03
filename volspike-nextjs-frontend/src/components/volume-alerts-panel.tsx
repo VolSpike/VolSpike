@@ -29,9 +29,11 @@ interface VolumeAlertsPanelProps {
   onNewAlert?: () => void
   guestMode?: boolean
   guestVisibleCount?: number
+  /** When true (side-by-side pane), Price+OI on line 1, Funding on line 2. When false (tab), all on one line. */
+  compact?: boolean
 }
 
-export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2 }: VolumeAlertsPanelProps = {}) {
+export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2, compact = false }: VolumeAlertsPanelProps = {}) {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
     pollInterval: 15000, // standard fallback
     autoFetch: true,
@@ -251,14 +253,15 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
   }
 
-  // Binance link handler - opens futures in new browser tab
+  // Binance link handler - opens futures via referral link in new browser tab
   const handleBinanceClick = (asset: string, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent alert card click animation
     e.preventDefault()
 
     const symbol = `${asset}USDT`
-    const binanceWebUrl = `https://www.binance.com/en/futures/${symbol}`
-    window.open(binanceWebUrl, '_blank', 'noopener,noreferrer')
+    // Referral link with symbol parameter for tracking
+    const binanceReferralUrl = `https://www.binance.com/activity/referral-entry/CPA?ref=CPA_0090FDRWPL&utm_source=volspike&symbol=${symbol}`
+    window.open(binanceReferralUrl, '_blank', 'noopener,noreferrer')
   }
   
   return (
@@ -652,11 +655,12 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Metrics: Price+OI always on one line, Funding below, action icons bottom-right */}
+                      {/* Metrics: Price, OI, Funding with action icons */}
                       {/* Guest mode: Show Price % if available, OI faded with lock, Funding */}
+                      {/* Compact (pane): Price+OI line 1, Funding line 2. Full (tab): all on one line */}
                       <div className="flex items-end justify-between gap-2">
-                        <div className="text-xs text-muted-foreground space-y-0.5">
-                          {/* Line 1: Price and OI (always together, no wrap) */}
+                        <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
+                          {/* Price and OI (always together, no wrap) */}
                           <div className="flex items-center gap-3 whitespace-nowrap">
                             {/* Price display: Show % change if available, else absolute */}
                             {formatPercentChange(alert.priceChange) ? (
@@ -674,7 +678,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                             </span>
                           </div>
 
-                          {/* Line 2: Funding */}
+                          {/* Funding - same line (tab) or new line (pane) */}
                           {alert.fundingRate !== undefined && alert.fundingRate !== null && (
                             <span>
                               Funding:{' '}
@@ -878,12 +882,13 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Metrics: Price+OI always on one line, Funding below, action icons bottom-right */}
+                      {/* Metrics: Price, OI, Funding with action icons */}
                       {/* Pro/Elite: Show priceChange % and oiChange % */}
                       {/* Free: Show priceChange % but OI faded with lock */}
+                      {/* Compact (pane): Price+OI line 1, Funding line 2. Full (tab): all on one line */}
                       <div className="flex items-end justify-between gap-2">
-                        <div className="text-xs text-muted-foreground space-y-0.5">
-                          {/* Line 1: Price and OI (always together, no wrap) */}
+                        <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
+                          {/* Price and OI (always together, no wrap) */}
                           <div className="flex items-center gap-3 whitespace-nowrap">
                             {/* Price display: Pro/Free see % change if available, Elite sees absolute */}
                             {(tier === 'pro' || tier === 'free') && formatPercentChange(alert.priceChange) ? (
@@ -908,7 +913,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                             )}
                           </div>
 
-                          {/* Line 2: Funding */}
+                          {/* Funding - same line (tab) or new line (pane) */}
                           {alert.fundingRate !== undefined && alert.fundingRate !== null && (
                             <span>
                               Funding:{' '}
