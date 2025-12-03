@@ -21,6 +21,7 @@ const ingestAlertSchema = z.object({
   candleDirection: z.enum(['bullish', 'bearish']).optional(),
   message: z.string(),
   timestamp: z.string().datetime(),
+  detectionTime: z.string().datetime().optional(), // 5-minute poll time when alert was detected
   hourTimestamp: z.string().datetime(),
   isUpdate: z.boolean().optional(),
   alertType: z.enum(['SPIKE', 'HALF_UPDATE', 'FULL_UPDATE']).optional(),
@@ -63,6 +64,7 @@ volumeAlertsRouter.post('/ingest', verifyIngestAuth, async (c) => {
         candleDirection: data.candleDirection,
         message: data.message,
         timestamp: new Date(data.timestamp),
+        detectionTime: data.detectionTime ? new Date(data.detectionTime) : new Date(data.timestamp),
         hourTimestamp: new Date(data.hourTimestamp),
         isUpdate: data.isUpdate || false,
         alertType: data.alertType || 'SPIKE',
@@ -106,6 +108,7 @@ volumeAlertsRouter.get('/', async (c) => {
 
     // Calculate the last broadcast time based on tier
     // This ensures users only see alerts that have been broadcasted to their tier
+    // We use detectionTime (when alert was detected on DO) not timestamp (when it arrived)
     const now = new Date()
     const currentMinute = now.getMinutes()
     let lastBroadcastTime: Date
@@ -133,9 +136,20 @@ volumeAlertsRouter.get('/', async (c) => {
       where: {
         ...(symbol ? { symbol } : {}),
         // Only return alerts from completed broadcast intervals
-        timestamp: {
-          lte: lastBroadcastTime,
-        },
+        // Use detectionTime (when detected on DO) or fallback to timestamp (for backwards compat)
+        OR: [
+          {
+            detectionTime: {
+              lte: lastBroadcastTime,
+            }
+          },
+          {
+            detectionTime: null,
+            timestamp: {
+              lte: lastBroadcastTime,
+            }
+          }
+        ]
       },
       orderBy: { timestamp: 'desc' },
       take: limit,

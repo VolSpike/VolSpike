@@ -16,6 +16,7 @@ export interface VolumeAlert {
   candleDirection?: 'bullish' | 'bearish' | null
   message: string
   timestamp: string
+  detectionTime?: string
   hourTimestamp: string
   isUpdate: boolean
   alertType: 'SPIKE' | 'HALF_UPDATE' | 'FULL_UPDATE'

@@ -120,6 +120,11 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
         return False
 
     try:
+        # Calculate detectionTime - round utc_now to nearest 5-minute boundary
+        # This represents when the Digital Ocean poll detected this alert
+        detection_minute = (utc_now.minute // 5) * 5
+        detection_time = utc_now.replace(minute=detection_minute, second=0, microsecond=0)
+
         payload = {
             "symbol": sym,
             "asset": asset,
@@ -131,6 +136,7 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
             "candleDirection": candle_direction,
             "message": alert_msg,
             "timestamp": utc_now.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "detectionTime": detection_time.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "hourTimestamp": curr_hour.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "isUpdate": is_update,
             "alertType": alert_type,

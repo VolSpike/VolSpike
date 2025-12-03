@@ -60,15 +60,33 @@ export function broadcastVolumeAlert(alert: VolumeAlert) {
     return
   }
 
+  // Use detectionTime (when detected on DO) or fallback to timestamp
+  const alertTime = alert.detectionTime || alert.timestamp
+  const alertMinute = alertTime.getMinutes()
+
   // Elite tier: broadcast immediately (real-time)
   ioInstance.to('tier-elite').emit('volume-alert', alert)
   console.log(`📢 Broadcasted to Elite tier: ${alert.asset} (${alert.volumeRatio.toFixed(2)}x)`)
-  
-  // Pro tier: queue for 5-minute batch
-  alertQueues.pro.push(alert)
-  
-  // Free tier: queue for 15-minute batch
-  alertQueues.free.push(alert)
+
+  // Pro tier: Check if alert was detected at a 5-minute interval
+  // If yes, broadcast immediately; otherwise queue for next interval
+  const isProInterval = alertMinute % 5 === 0
+  if (isProInterval) {
+    ioInstance.to('tier-pro').emit('volume-alert', alert)
+    console.log(`📢 Immediately broadcasted to Pro tier: ${alert.asset} (detected at :${alertMinute.toString().padStart(2, '0')})`)
+  } else {
+    alertQueues.pro.push(alert)
+  }
+
+  // Free tier: Check if alert was detected at a 15-minute interval
+  // If yes, broadcast immediately; otherwise queue for next interval
+  const isFreeInterval = alertMinute % 15 === 0
+  if (isFreeInterval) {
+    ioInstance.to('tier-free').emit('volume-alert', alert)
+    console.log(`📢 Immediately broadcasted to Free tier: ${alert.asset} (detected at :${alertMinute.toString().padStart(2, '0')})`)
+  } else {
+    alertQueues.free.push(alert)
+  }
 }
 
 function startTierBasedBroadcasting() {

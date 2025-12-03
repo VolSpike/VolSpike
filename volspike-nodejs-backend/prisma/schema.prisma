@@ -215,12 +215,14 @@ model VolumeAlert {
   candleDirection String? // "bullish" or "bearish" - indicates if volume spike on up or down candle
   alertType       AlertType @default(SPIKE)
   message         String // Human-readable alert message
-  timestamp       DateTime  @default(now())
+  timestamp       DateTime  @default(now()) // When alert arrived at backend
+  detectionTime   DateTime? // When alert was detected on Digital Ocean (5-min poll time) - used for tier-based broadcasting
   hourTimestamp   DateTime // The hour this alert is for (rounded)
   isUpdate        Boolean   @default(false) // true for HALF-UPDATE/UPDATE
 
   @@index([symbol, timestamp])
   @@index([timestamp])
+  @@index([detectionTime])
   @@index([hourTimestamp])
   @@map("volume_alerts")
 }
