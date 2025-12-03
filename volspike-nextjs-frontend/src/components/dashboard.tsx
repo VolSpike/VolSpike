@@ -338,13 +338,7 @@ export function Dashboard() {
                             {marketDataCard}
                         </div>
                         <div className="flex-1">
-                            {/* Side-by-side mode: use compact layout for alerts */}
-                            <VolumeAlertsPanel
-                                onNewAlert={handleNewVolumeAlert}
-                                guestMode={isGuest}
-                                guestVisibleCount={2}
-                                compact={true}
-                            />
+                            {volumeAlertsCard}
                         </div>
                     </div>
                 </div>

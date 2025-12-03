@@ -29,11 +29,9 @@ interface VolumeAlertsPanelProps {
   onNewAlert?: () => void
   guestMode?: boolean
   guestVisibleCount?: number
-  /** When true, uses compact layout (Price+OI on line 1, Funding on line 2) for side-by-side pane mode */
-  compact?: boolean
 }
 
-export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2, compact = false }: VolumeAlertsPanelProps = {}) {
+export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2 }: VolumeAlertsPanelProps = {}) {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
     pollInterval: 15000, // standard fallback
     autoFetch: true,
@@ -654,14 +652,12 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Metrics: Price, OI, Funding (in that order) with action icons */}
+                      {/* Metrics: Price+OI always on one line, Funding below, action icons bottom-right */}
                       {/* Guest mode: Show Price % if available, OI faded with lock, Funding */}
-                      {/* Compact mode (side-by-side panes): Price+OI on line 1, Funding on line 2 */}
-                      {/* Full width (tab mode): All on one line */}
                       <div className="flex items-end justify-between gap-2">
-                        <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
-                          {/* Line 1: Price and OI */}
-                          <div className="flex items-center gap-3">
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          {/* Line 1: Price and OI (always together, no wrap) */}
+                          <div className="flex items-center gap-3 whitespace-nowrap">
                             {/* Price display: Show % change if available, else absolute */}
                             {formatPercentChange(alert.priceChange) ? (
                               <span>
@@ -678,7 +674,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                             </span>
                           </div>
 
-                          {/* Line 2 (compact) or same line (full): Funding */}
+                          {/* Line 2: Funding */}
                           {alert.fundingRate !== undefined && alert.fundingRate !== null && (
                             <span>
                               Funding:{' '}
@@ -697,12 +693,12 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                           )}
                         </div>
 
-                        {/* Action icon buttons */}
-                        <div className="flex items-center gap-1">
+                        {/* Action icon buttons - tighter spacing */}
+                        <div className="flex items-center gap-0">
                           {/* Binance icon button */}
                           <button
                             onClick={(e) => handleBinanceClick(alert.asset, e)}
-                            className="group/bn flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
+                            className="group/bn flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
                             title="Open in Binance"
                             aria-label="Open in Binance"
                           >
@@ -712,7 +708,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                           {/* TradingView icon button */}
                           <button
                             onClick={(e) => handleTradingViewClick(alert.asset, e)}
-                            className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                            className="group/tv flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
                             title="Open in TradingView"
                             aria-label="Open in TradingView"
                           >
@@ -882,15 +878,13 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Metrics: Price, OI, Funding (in that order) with action icons */}
+                      {/* Metrics: Price+OI always on one line, Funding below, action icons bottom-right */}
                       {/* Pro/Elite: Show priceChange % and oiChange % */}
                       {/* Free: Show priceChange % but OI faded with lock */}
-                      {/* Compact mode (side-by-side panes): Price+OI on line 1, Funding on line 2 */}
-                      {/* Full width (tab mode): All on one line */}
                       <div className="flex items-end justify-between gap-2">
-                        <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
-                          {/* Line 1: Price and OI */}
-                          <div className="flex items-center gap-3">
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          {/* Line 1: Price and OI (always together, no wrap) */}
+                          <div className="flex items-center gap-3 whitespace-nowrap">
                             {/* Price display: Pro/Free see % change if available, Elite sees absolute */}
                             {(tier === 'pro' || tier === 'free') && formatPercentChange(alert.priceChange) ? (
                               <span>
@@ -914,7 +908,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                             )}
                           </div>
 
-                          {/* Line 2 (compact) or same line (full): Funding */}
+                          {/* Line 2: Funding */}
                           {alert.fundingRate !== undefined && alert.fundingRate !== null && (
                             <span>
                               Funding:{' '}
@@ -933,12 +927,12 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                           )}
                         </div>
 
-                        {/* Action icon buttons */}
-                        <div className="flex items-center gap-1">
+                        {/* Action icon buttons - tighter spacing */}
+                        <div className="flex items-center gap-0">
                           {/* Binance icon button */}
                           <button
                             onClick={(e) => handleBinanceClick(alert.asset, e)}
-                            className="group/bn flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
+                            className="group/bn flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
                             title="Open in Binance"
                             aria-label="Open in Binance"
                           >
@@ -948,7 +942,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                           {/* TradingView icon button */}
                           <button
                             onClick={(e) => handleTradingViewClick(alert.asset, e)}
-                            className="group/tv flex-shrink-0 p-1.5 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                            className="group/tv flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
                             title="Open in TradingView"
                             aria-label="Open in TradingView"
                           >
