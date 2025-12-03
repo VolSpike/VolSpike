@@ -110,11 +110,60 @@ def tg_send(text: str):
         print("Telegram send exception:", e)
 
 
+def fetch_oi_snapshot(api_url: str, api_key: str, symbol: str, ts: datetime.datetime) -> dict:
+    """
+    Fetch OI snapshot for a symbol at a specific timestamp from backend.
+    Returns dict with 'openInterest' if found, or None on error.
+    """
+    if not api_key or not api_url:
+        return None
+
+    try:
+        resp = session.get(
+            f"{api_url}/api/market/open-interest/snapshot",
+            params={
+                "symbol": symbol,
+                "ts": ts.strftime('%Y-%m-%dT%H:%M:%SZ')
+            },
+            headers={"X-API-Key": api_key},
+            timeout=3
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("found"):
+                return data
+        return None
+    except Exception as e:
+        # Silent failure - don't spam logs
+        return None
+
+
+def fetch_current_oi(symbol: str) -> float:
+    """
+    Fetch current Open Interest (contracts) for a symbol from Binance.
+    Returns OI in contracts, or None on error.
+    """
+    try:
+        resp = session.get(
+            f"{API}/fapi/v1/openInterest",
+            params={"symbol": symbol},
+            timeout=5
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if "openInterest" in data:
+                return float(data["openInterest"])
+        return None
+    except Exception:
+        return None
+
+
 def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, asset: str,
                          curr_vol: float, prev_vol: float, ratio: float, price: float,
                          funding_rate: float, alert_msg: str, curr_hour: datetime.datetime,
                          utc_now: datetime.datetime, is_update: bool, alert_type: str,
-                         candle_direction: str) -> bool:
+                         candle_direction: str, price_change: float = None,
+                         oi_change: float = None) -> bool:
     """Send alert to a specific VolSpike backend environment."""
     if not api_key or not api_url:
         return False
@@ -142,6 +191,12 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
             "alertType": alert_type,
         }
 
+        # Add enhanced fields if available
+        if price_change is not None:
+            payload["priceChange"] = price_change
+        if oi_change is not None:
+            payload["oiChange"] = oi_change
+
         r = session.post(
             f"{api_url}/api/volume-alerts/ingest",
             json=payload,
@@ -154,7 +209,13 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
 
         if r.status_code == 200:
             candle_emoji = "🟢" if candle_direction == "bullish" else "🔴"
-            print(f"  ✅ Posted to VolSpike {env_name}: {asset} {candle_emoji}")
+            # Include enhanced metrics in log if available
+            extras = ""
+            if price_change is not None:
+                extras += f" P:{price_change*100:+.2f}%"
+            if oi_change is not None:
+                extras += f" OI:{oi_change*100:+.2f}%"
+            print(f"  ✅ Posted to VolSpike {env_name}: {asset} {candle_emoji}{extras}")
             return True
         else:
             print(f"  ⚠️  VolSpike {env_name} error {r.status_code}: {r.text[:120]}")
@@ -166,13 +227,15 @@ def volspike_send_to_env(api_url: str, api_key: str, env_name: str, sym: str, as
 
 def volspike_send(sym: str, asset: str, curr_vol: float, prev_vol: float, ratio: float,
                   price: float, funding_rate: float, alert_msg: str, curr_hour: datetime.datetime,
-                  utc_now: datetime.datetime, is_update: bool, alert_type: str, candle_direction: str):
+                  utc_now: datetime.datetime, is_update: bool, alert_type: str, candle_direction: str,
+                  price_change: float = None, oi_change: float = None):
     """Send alert to VolSpike backends (production and dev if configured)."""
     # Send to production (required)
     prod_success = volspike_send_to_env(
         VOLSPIKE_API_URL, VOLSPIKE_API_KEY, "PROD",
         sym, asset, curr_vol, prev_vol, ratio, price, funding_rate,
-        alert_msg, curr_hour, utc_now, is_update, alert_type, candle_direction
+        alert_msg, curr_hour, utc_now, is_update, alert_type, candle_direction,
+        price_change, oi_change
     )
 
     # Send to dev (optional - only if env vars are set)
@@ -180,7 +243,8 @@ def volspike_send(sym: str, asset: str, curr_vol: float, prev_vol: float, ratio:
         dev_success = volspike_send_to_env(
             VOLSPIKE_API_URL_DEV, VOLSPIKE_API_KEY_DEV, "DEV",
             sym, asset, curr_vol, prev_vol, ratio, price, funding_rate,
-            alert_msg, curr_hour, utc_now, is_update, alert_type, candle_direction
+            alert_msg, curr_hour, utc_now, is_update, alert_type, candle_direction,
+            price_change, oi_change
         )
     else:
         # Dev not configured, skip silently
@@ -424,6 +488,29 @@ def scan(top_of_hour: bool, is_middle_hour: bool = False, utc_now: datetime.date
             else:
                 alert_type = "SPIKE"
 
+            # ── Enhanced metrics: priceChange and oiChange ──
+            # Price change: (current_price - open_price) / open_price
+            price_change = None
+            if open_price > 0:
+                price_change = (current_price - open_price) / open_price
+
+            # OI change: (current_oi - hour_start_oi) / hour_start_oi
+            oi_change = None
+            try:
+                # Fetch hour-start OI from backend
+                hour_start_oi_data = fetch_oi_snapshot(
+                    VOLSPIKE_API_URL, VOLSPIKE_API_KEY, sym, curr_hour
+                )
+                if hour_start_oi_data and hour_start_oi_data.get("openInterest"):
+                    hour_start_oi = hour_start_oi_data["openInterest"]
+                    # Fetch current OI from Binance
+                    current_oi = fetch_current_oi(sym)
+                    if current_oi and hour_start_oi > 0:
+                        oi_change = (current_oi - hour_start_oi) / hour_start_oi
+            except Exception as e:
+                # Silent failure - OI data not critical
+                pass
+
             # Add candle emoji to console output
             candle_emoji = "🟢" if is_bullish else "🔴"
             print(f"\033[95;1m{line}  ← {'VOLUME SPIKE!' if spike else (update_prefix + 'VOLUME SPIKE!')} {candle_emoji}\033[0m")
@@ -445,7 +532,9 @@ def scan(top_of_hour: bool, is_middle_hour: bool = False, utc_now: datetime.date
                 utc_now=utc_now,
                 is_update=bool(update_prefix),
                 alert_type=alert_type,
-                candle_direction=candle_direction
+                candle_direction=candle_direction,
+                price_change=price_change,
+                oi_change=oi_change
             )
         else:
             note = " (ratio hit, volume < min)" if ratio >= VOLUME_MULTIPLE and curr_vol < MIN_QUOTE_VOL else ""

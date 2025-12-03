@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,65 +7,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Enums for admin functionality
-enum Role {
-  USER
-  ADMIN
-}
-
-enum UserStatus {
-  ACTIVE
-  SUSPENDED
-  BANNED
-}
-
-enum AssetStatus {
-  AUTO
-  VERIFIED
-  HIDDEN
-}
-
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
-  passwordHash         String? // For email/password authentication
-  passwordChangedAt    DateTime? // Track when password was last changed (for session invalidation)
-  walletAddress        String?   @unique
-  tier                 String    @default("free") // free, pro, elite
-  refreshInterval      Int       @default(900) // seconds
-  theme                String    @default("light")
-  stripeCustomerId     String?   @unique
+  id                   String              @id @default(cuid())
+  email                String              @unique
+  walletAddress        String?             @unique
+  tier                 String              @default("free")
+  refreshInterval      Int                 @default(900)
+  theme                String              @default("light")
+  stripeCustomerId     String?             @unique
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
   emailVerified        DateTime?
-  verificationAttempts Int       @default(0)
   lastVerificationSent DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-
-  // Admin fields
-  role             Role       @default(USER)
-  status           UserStatus @default(ACTIVE)
-  notes            String?    @db.Text
-  lastLoginAt      DateTime?
-  loginAttempts    Int        @default(0)
-  lockedUntil      DateTime?
-  ipAddress        String?
-  userAgent        String?
-  twoFactorEnabled Boolean    @default(false)
-  twoFactorSecret  String? // Encrypted
-
-  // Relations
-  watchlists         Watchlist[]
-  alerts             Alert[]
-  alertSubscriptions AlertSubscription[]
-  preferences        Preference?
-  sessions           Session[]
-  accounts           Account[]
-  verificationTokens VerificationToken[]
-  auditLogs          AuditLog[]          @relation("AuditActor")
-  adminSessions      AdminSession[]
-  walletAccounts     WalletAccount[]
-  cryptoPayments     CryptoPayment[]
-  adminNotifications AdminNotification[] @relation("AdminNotifications")
+  verificationAttempts Int                 @default(0)
+  ipAddress            String?
+  lastLoginAt          DateTime?
+  lockedUntil          DateTime?
+  loginAttempts        Int                 @default(0)
+  notes                String?
+  passwordHash         String?
+  role                 Role                @default(USER)
+  status               UserStatus          @default(ACTIVE)
+  twoFactorEnabled     Boolean             @default(false)
+  twoFactorSecret      String?
+  userAgent            String?
+  passwordChangedAt    DateTime?
+  accounts             Account[]
+  adminNotifications   AdminNotification[] @relation("AdminNotifications")
+  adminSessions        AdminSession[]
+  alertSubscriptions   AlertSubscription[]
+  alerts               Alert[]
+  auditLogs            AuditLog[]          @relation("AuditActor")
+  cryptoPayments       CryptoPayment[]
+  preferences          Preference?
+  sessions             Session[]
+  verificationTokens   VerificationToken[]
+  walletAccounts       WalletAccount[]
+  watchlists           Watchlist[]
 
   @@map("users")
 }
@@ -76,13 +51,13 @@ model User {
 model WalletAccount {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider    String // 'evm' | 'solana'
-  caip10      String // EIP-4361 compliant identifier: 'eip155:1:0x...' or 'solana:101:...'
-  address     String // Wallet address
-  chainId     String? // Network ID for chain allowlist
+  provider    String
+  caip10      String
+  address     String
+  chainId     String?
   lastLoginAt DateTime @default(now())
   createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, caip10])
   @@index([userId])
@@ -95,15 +70,14 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -121,32 +95,30 @@ model Session {
 
 model VerificationToken {
   id         String   @id @default(cuid())
-  identifier String // email address
+  identifier String
   token      String   @unique
   expires    DateTime
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([identifier, token])
   @@map("verification_tokens")
 }
 
 model Contract {
-  id        String   @id @default(cuid())
-  symbol    String   @unique
-  isActive  Boolean  @default(true)
-  precision Int
-  createdAt DateTime @default(now())
-
-  watchlistItems  WatchlistItem[]
-  marketSnapshots MarketSnapshot[]
+  id              String           @id @default(cuid())
+  symbol          String           @unique
+  isActive        Boolean          @default(true)
+  precision       Int
+  createdAt       DateTime         @default(now())
   alerts          Alert[]
+  marketSnapshots MarketSnapshot[]
+  watchlistItems  WatchlistItem[]
 
   @@map("contracts")
 }
 
-// TimescaleDB hypertable for time-series data
 model MarketSnapshot {
   id           String   @id @default(cuid())
   contractId   String
@@ -155,32 +127,30 @@ model MarketSnapshot {
   fundingRate  Float?
   openInterest Float?
   timestamp    DateTime @default(now())
-
-  contract Contract @relation(fields: [contractId], references: [id])
+  contract     Contract @relation(fields: [contractId], references: [id])
 
   @@index([contractId, timestamp])
   @@map("market_snapshots")
 }
 
-// Canonical mapping of Binance perps to underlying projects
 model Asset {
   id                String      @id @default(cuid())
-  baseSymbol        String      @unique // e.g. BTC, SOL, 1000PEPE base
-  binanceSymbol     String? // Primary Binance perp symbol, e.g. BTCUSDT
-  extraSymbols      String?     @db.Text // JSON array of additional symbols / aliases
-  coingeckoId       String? // CoinGecko id for enrichment
-  displayName       String? // Human-friendly name override (e.g. "Ethena")
-  description       String?     @db.Text // Project description from CoinGecko
+  baseSymbol        String      @unique
+  binanceSymbol     String?
+  extraSymbols      String?
+  coingeckoId       String?
+  displayName       String?
   websiteUrl        String?
   twitterUrl        String?
-  logoUrl           String? // Base64 data URL (for backward compatibility)
-  logoImageUrl      String? // Original CoinGecko image URL (preferred for frontend)
+  logoUrl           String?
   status            AssetStatus @default(AUTO)
-  isComplete        Boolean     @default(false) // Admin-reviewed and ready for weekly refresh cycles
-  lastFailureReason String? // Track last failure reason (RATE_LIMIT, NOT_FOUND, etc.) for retry logic
-  notes             String?     @db.Text
+  notes             String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+  description       String?
+  isComplete        Boolean     @default(false)
+  lastFailureReason String?
+  logoImageUrl      String?
 
   @@map("assets")
 }
@@ -189,57 +159,50 @@ model Alert {
   id             String   @id @default(cuid())
   userId         String
   contractId     String
-  reason         String // "spike_3x", "volume_min", etc.
+  reason         String
   threshold      Float
   triggeredValue Float
   isDelivered    Boolean  @default(false)
   createdAt      DateTime @default(now())
-
-  user     User     @relation(fields: [userId], references: [id])
-  contract Contract @relation(fields: [contractId], references: [id])
+  contract       Contract @relation(fields: [contractId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
   @@map("alerts")
 }
 
-// Volume spike alerts from Digital Ocean monitoring
 model VolumeAlert {
   id              String    @id @default(cuid())
-  symbol          String // e.g., "BTCUSDT"
-  asset           String // e.g., "BTC"
-  currentVolume   Float // Current hour volume
-  previousVolume  Float // Previous hour volume
-  volumeRatio     Float // currentVolume / previousVolume
-  price           Float? // Current price
-  fundingRate     Float? // Current funding rate
-  candleDirection String? // "bullish" or "bearish" - indicates if volume spike on up or down candle
+  symbol          String
+  asset           String
+  currentVolume   Float
+  previousVolume  Float
+  volumeRatio     Float
+  price           Float?
+  fundingRate     Float?
   alertType       AlertType @default(SPIKE)
-  message         String // Human-readable alert message
-  timestamp       DateTime  @default(now()) // When alert arrived at backend
-  detectionTime   DateTime? // When alert was detected on Digital Ocean (5-min poll time) - used for tier-based broadcasting
-  hourTimestamp   DateTime // The hour this alert is for (rounded)
-  isUpdate        Boolean   @default(false) // true for HALF-UPDATE/UPDATE
+  message         String
+  timestamp       DateTime  @default(now())
+  hourTimestamp   DateTime
+  isUpdate        Boolean   @default(false)
+  candleDirection String?
+  detectionTime   DateTime?
+  priceChange     Float?    // % change from hour open to alert time (e.g., 0.05 for +5%)
+  oiChange        Float?    // % change in OI from hour start (e.g., -0.02 for -2%)
 
   @@index([symbol, timestamp])
   @@index([timestamp])
-  @@index([detectionTime])
   @@index([hourTimestamp])
+  @@index([detectionTime])
   @@map("volume_alerts")
 }
 
-enum AlertType {
-  SPIKE
-  HALF_UPDATE
-  FULL_UPDATE
-}
-
-// User alert subscriptions (Pro/Elite feature)
 model AlertSubscription {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  symbol    String // e.g., "BTCUSDT" or "*" for all
+  symbol    String
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, symbol])
   @@index([userId])
@@ -247,24 +210,22 @@ model AlertSubscription {
 }
 
 model Watchlist {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   userId    String
   name      String
-  createdAt DateTime @default(now())
-
-  items WatchlistItem[]
-  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime        @default(now())
+  items     WatchlistItem[]
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("watchlists")
 }
 
 model WatchlistItem {
-  id          String @id @default(cuid())
+  id          String    @id @default(cuid())
   watchlistId String
   contractId  String
-
-  watchlist Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
-  contract  Contract  @relation(fields: [contractId], references: [id])
+  contract    Contract  @relation(fields: [contractId], references: [id])
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
 
   @@unique([watchlistId, contractId])
   @@map("watchlist_items")
@@ -280,24 +241,22 @@ model Preference {
   volumeThreshold Float   @default(3.0)
   minQuoteVolume  Float   @default(1000000)
   refreshInterval Int     @default(900)
-
-  user User @relation(fields: [userId], references: [id])
+  user            User    @relation(fields: [userId], references: [id])
 
   @@map("preferences")
 }
 
-// Enhanced audit log for admin actions
 model AuditLog {
   id          String   @id @default(cuid())
+  action      String
   actorUserId String
-  actor       User     @relation("AuditActor", fields: [actorUserId], references: [id])
-  action      String // USER_CREATED, USER_UPDATED, etc.
-  targetType  String // USER, SUBSCRIPTION, etc.
-  targetId    String?
-  oldValues   Json?
-  newValues   Json?
-  metadata    Json? // IP, user agent, etc.
   createdAt   DateTime @default(now())
+  metadata    Json?
+  newValues   Json?
+  oldValues   Json?
+  targetId    String?
+  targetType  String
+  actor       User     @relation("AuditActor", fields: [actorUserId], references: [id])
 
   @@index([actorUserId, createdAt])
   @@index([targetType, targetId])
@@ -305,32 +264,30 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Admin session tracking
 model AdminSession {
   id           String   @id @default(cuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token        String   @unique
   ipAddress    String
   userAgent    String
   expiresAt    DateTime
   lastActivity DateTime @default(now())
   createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
   @@index([token])
   @@map("admin_sessions")
 }
 
-// Admin-managed wallets for tracking balances
 model AdminWallet {
   id               String    @id @default(cuid())
-  address          String // Wallet address
-  currency         String // BTC, ETH, SOL, etc.
-  network          String? // Optional network identifier
-  label            String? // Optional label/name for the wallet
-  balance          Float? // Cached balance (updated periodically)
-  balanceUpdatedAt DateTime? // Last time balance was fetched
+  address          String
+  currency         String
+  network          String?
+  label            String?
+  balance          Float?
+  balanceUpdatedAt DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -339,65 +296,62 @@ model AdminWallet {
   @@map("admin_wallets")
 }
 
-// Crypto payments via NowPayments
 model CryptoPayment {
   id                   String    @id @default(cuid())
   userId               String
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymentId            String?   @unique // NowPayments payment_id (null until IPN/webhook)
-  paymentStatus        String? // waiting, confirming, confirmed, sending, partially_paid, finished, failed, refunded, expired
-  payAmount            Float? // Amount in USD (null until payment details available)
-  payCurrency          String?   @default("usd") // USD
-  actuallyPaid         Float? // Amount actually paid in crypto
-  actuallyPaidCurrency String? // Crypto currency (BTC, ETH, etc.)
-  purchaseId           String? // Order ID for tracking
-  tier                 String // pro, elite
-  invoiceId            String    @unique // NowPayments invoice_id (required - used for hosted checkout)
-  orderId              String // NowPayments order_id (required for tracking)
-  paymentUrl           String    @db.Text // Payment page URL (required - invoice_url from API)
-  payAddress           String? // Crypto address to send payment to (null until payment created)
-  expiresAt            DateTime? // Subscription expiration date (30 days from payment, null for one-time)
-  renewalReminderSent  DateTime? // Last time renewal reminder was sent
+  paymentId            String?   @unique
+  paymentStatus        String?
+  payAmount            Float?
+  payCurrency          String?   @default("usd")
+  actuallyPaid         Float?
+  actuallyPaidCurrency String?
+  purchaseId           String?
+  tier                 String
+  invoiceId            String    @unique
+  orderId              String
+  paymentUrl           String
+  payAddress           String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   paidAt               DateTime?
+  expiresAt            DateTime?
+  renewalReminderSent  DateTime?
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([paymentId])
   @@index([invoiceId])
   @@index([orderId])
   @@index([paymentStatus])
-  @@index([expiresAt]) // Index for expiration queries
+  @@index([expiresAt])
   @@map("crypto_payments")
 }
 
-// Admin notifications for system events
 model AdminNotification {
   id        String    @id @default(cuid())
-  userId    String // Admin user ID
-  user      User      @relation("AdminNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  type      String // e.g., "NEW_ASSET_DETECTED", "ASSET_ENRICHMENT_FAILED", etc.
-  title     String // Notification title
-  message   String    @db.Text // Notification message
-  metadata  Json? // Additional data (e.g., { assetSymbol: "BTC", assetId: "..." })
+  userId    String
+  type      String
+  title     String
+  message   String
+  metadata  Json?
   isRead    Boolean   @default(false)
   createdAt DateTime  @default(now())
   readAt    DateTime?
+  user      User      @relation("AdminNotifications", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
   @@map("admin_notifications")
 }
 
-// Open Interest snapshots (from Python script or realtime poller)
 model OpenInterestSnapshot {
   id              String   @id @default(cuid())
-  symbol          String // Normalized symbol (e.g., "BTCUSDT")
-  ts              DateTime // Timestamp of the OI measurement
-  openInterest    Decimal  @db.Decimal(30, 8) // OI in contracts
-  openInterestUsd Decimal? @db.Decimal(30, 2) // OI in USD (optional, can be computed)
-  markPrice       Decimal? @db.Decimal(20, 8) // Mark price at time of measurement
-  source          String   @default("snapshot") // "snapshot", "realtime", or "snapshot_legacy"
+  symbol          String
+  ts              DateTime
+  openInterest    Decimal  @db.Decimal(30, 8)
+  openInterestUsd Decimal? @db.Decimal(30, 2)
+  markPrice       Decimal? @db.Decimal(20, 8)
+  source          String   @default("snapshot")
   createdAt       DateTime @default(now())
 
   @@index([symbol, ts])
@@ -406,17 +360,16 @@ model OpenInterestSnapshot {
   @@map("open_interest_snapshots")
 }
 
-// Open Interest spike/dump alerts
 model OpenInterestAlert {
   id        String   @id @default(cuid())
-  symbol    String // Normalized symbol (e.g., "BTCUSDT")
-  direction String // "UP" or "DOWN"
-  baseline  Decimal  @db.Decimal(30, 8) // Baseline OI (contracts)
-  current   Decimal  @db.Decimal(30, 8) // Current OI (contracts)
-  pctChange Decimal  @db.Decimal(10, 6) // Percentage change (e.g., 0.1 for 10%)
-  absChange Decimal  @db.Decimal(30, 8) // Absolute change in contracts
-  source    String // Source of the alert (e.g., "oi_realtime_poller")
-  ts        DateTime // Timestamp of the alert
+  symbol    String
+  direction String
+  baseline  Decimal  @db.Decimal(30, 8)
+  current   Decimal  @db.Decimal(30, 8)
+  pctChange Decimal  @db.Decimal(10, 6)
+  absChange Decimal  @db.Decimal(30, 8)
+  source    String
+  ts        DateTime
   createdAt DateTime @default(now())
 
   @@index([symbol, ts])
@@ -425,12 +378,34 @@ model OpenInterestAlert {
   @@map("open_interest_alerts")
 }
 
-// Liquid Open Interest universe tracking
 model OpenInterestLiquidSymbol {
-  symbol         String   @id // Normalized symbol (e.g., "BTCUSDT")
-  quoteVolume24h Decimal  @db.Decimal(30, 2) // 24h quote volume in USDT
-  enteredAt      DateTime // When symbol entered liquid universe
-  lastSeenAt     DateTime // Last time symbol was seen in liquid universe
+  symbol         String   @id
+  quoteVolume24h Decimal  @db.Decimal(30, 2)
+  enteredAt      DateTime
+  lastSeenAt     DateTime
 
   @@map("open_interest_liquid_symbols")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum AssetStatus {
+  AUTO
+  VERIFIED
+  HIDDEN
+}
+
+enum AlertType {
+  SPIKE
+  HALF_UPDATE
+  FULL_UPDATE
 }

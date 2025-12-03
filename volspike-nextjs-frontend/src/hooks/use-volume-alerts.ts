@@ -20,6 +20,9 @@ export interface VolumeAlert {
   hourTimestamp: string
   isUpdate: boolean
   alertType: 'SPIKE' | 'HALF_UPDATE' | 'FULL_UPDATE'
+  // Enhanced metrics for Elite tier
+  priceChange?: number  // % change from hour open to alert time (e.g., 0.05 for +5%)
+  oiChange?: number     // % change in OI from hour start (e.g., -0.02 for -2%)
 }
 
 interface UseVolumeAlertsOptions {

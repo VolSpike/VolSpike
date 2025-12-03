@@ -151,6 +151,22 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     }
     return `$${price.toFixed(4)}`
   }
+
+  // Format percentage change with sign and color
+  const formatPercentChange = (value: number | undefined | null) => {
+    if (value === undefined || value === null) return null
+    const pct = value * 100
+    const sign = pct >= 0 ? '+' : ''
+    return `${sign}${pct.toFixed(2)}%`
+  }
+
+  // Get color class for percentage change
+  const getPercentChangeColor = (value: number | undefined | null) => {
+    if (value === undefined || value === null) return ''
+    return value >= 0
+      ? 'text-brand-600 dark:text-brand-400'
+      : 'text-danger-600 dark:text-danger-400'
+  }
   
   const formatExactTime = (timestamp: string) => {
     return format(new Date(timestamp), 'h:mm a') // e.g., "3:12 PM"
@@ -571,10 +587,11 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Price and funding on one line with action icons */}
+                      {/* Price/PriceChange, Funding, OI on one line with action icons */}
+                      {/* Guest mode: Always show standard format (Price: $x.xx) */}
                       <div className="flex items-end justify-between gap-2">
                         {(alert.price || alert.fundingRate) ? (
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                             {alert.price && (
                               <span>Price: {formatPrice(alert.price)}</span>
                             )}
@@ -781,30 +798,42 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
                         <div className="text-xs opacity-70">Last hour: {formatVolume(alert.previousVolume)}</div>
                       </div>
 
-                      {/* Price and funding on one line with action icons */}
+                      {/* Price/PriceChange, Funding, OI on one line with action icons */}
+                      {/* Pro tier: Show priceChange % and oiChange % instead of absolute price */}
+                      {/* Free/Elite tiers: Show standard format (Price: $x.xx) */}
                       <div className="flex items-end justify-between gap-2">
-                        {(alert.price || alert.fundingRate) ? (
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            {alert.price && (
-                              <span>Price: {formatPrice(alert.price)}</span>
-                            )}
-                            {alert.fundingRate !== undefined && alert.fundingRate !== null && (
-                              <span
-                                className={
-                                  alert.fundingRate > 0.03
-                                    ? 'text-brand-600 dark:text-brand-400'
-                                    : alert.fundingRate < -0.03
-                                      ? 'text-danger-600 dark:text-danger-400'
-                                      : ''
-                                }
-                              >
-                                Funding: {(alert.fundingRate * 100).toFixed(3)}%
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div></div>
-                        )}
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                          {/* Price display: Pro sees % change, others see absolute */}
+                          {tier === 'pro' && formatPercentChange(alert.priceChange) ? (
+                            <span className={getPercentChangeColor(alert.priceChange)}>
+                              Price: {formatPercentChange(alert.priceChange)}
+                            </span>
+                          ) : alert.price ? (
+                            <span>Price: {formatPrice(alert.price)}</span>
+                          ) : null}
+
+                          {/* Funding rate - same for all tiers */}
+                          {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                            <span
+                              className={
+                                alert.fundingRate > 0.03
+                                  ? 'text-brand-600 dark:text-brand-400'
+                                  : alert.fundingRate < -0.03
+                                    ? 'text-danger-600 dark:text-danger-400'
+                                    : ''
+                              }
+                            >
+                              Funding: {(alert.fundingRate * 100).toFixed(3)}%
+                            </span>
+                          )}
+
+                          {/* OI change - Pro only */}
+                          {tier === 'pro' && formatPercentChange(alert.oiChange) && (
+                            <span className={getPercentChangeColor(alert.oiChange)}>
+                              OI: {formatPercentChange(alert.oiChange)}
+                            </span>
+                          )}
+                        </div>
 
                         {/* Action icon buttons */}
                         <div className="flex items-center gap-1">

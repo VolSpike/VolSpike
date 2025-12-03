@@ -25,6 +25,8 @@ const ingestAlertSchema = z.object({
   hourTimestamp: z.string().datetime(),
   isUpdate: z.boolean().optional(),
   alertType: z.enum(['SPIKE', 'HALF_UPDATE', 'FULL_UPDATE']).optional(),
+  priceChange: z.number().optional(), // % change from hour open to alert time (e.g., 0.05 for +5%)
+  oiChange: z.number().optional(),    // % change in OI from hour start (e.g., -0.02 for -2%)
 })
 
 // Middleware: Verify API key from Digital Ocean
@@ -68,6 +70,8 @@ volumeAlertsRouter.post('/ingest', verifyIngestAuth, async (c) => {
         hourTimestamp: new Date(data.hourTimestamp),
         isUpdate: data.isUpdate || false,
         alertType: data.alertType || 'SPIKE',
+        priceChange: data.priceChange,
+        oiChange: data.oiChange,
       }
     })
     

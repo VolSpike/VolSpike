@@ -273,6 +273,83 @@ app.get('/liquid-universe', async (c) => {
   }
 })
 
+/**
+ * GET /api/market/open-interest/snapshot
+ *
+ * Get OI snapshot for a symbol at a specific timestamp (nearest before)
+ * Used by Digital Ocean script to calculate OI change %
+ * Requires API key authentication
+ */
+app.get('/snapshot', async (c) => {
+  try {
+    // Validate API key (same as ingest)
+    const ALERT_INGEST_API_KEY = process.env.ALERT_INGEST_API_KEY
+    if (!ALERT_INGEST_API_KEY) {
+      logger.error('OI snapshot query: ALERT_INGEST_API_KEY not configured')
+      return c.json({ error: 'Server configuration error' }, 500)
+    }
+
+    const providedKey = c.req.header('X-API-Key')
+    if (!providedKey || providedKey !== ALERT_INGEST_API_KEY) {
+      logger.warn('OI snapshot query: Invalid API key')
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+
+    // Get query parameters
+    const symbol = c.req.query('symbol')
+    const tsParam = c.req.query('ts')
+
+    if (!symbol) {
+      return c.json({ error: 'symbol parameter required' }, 400)
+    }
+
+    if (!tsParam) {
+      return c.json({ error: 'ts parameter required (ISO 8601 timestamp)' }, 400)
+    }
+
+    const ts = new Date(tsParam)
+    if (isNaN(ts.getTime())) {
+      return c.json({ error: 'Invalid timestamp format' }, 400)
+    }
+
+    const normalizedSymbol = normalizeSym(symbol)
+
+    // Find the nearest OI snapshot before or at the requested timestamp
+    const snapshot = await prisma.openInterestSnapshot.findFirst({
+      where: {
+        symbol: normalizedSymbol,
+        ts: {
+          lte: ts,
+        },
+      },
+      orderBy: {
+        ts: 'desc',
+      },
+    })
+
+    if (!snapshot) {
+      return c.json({
+        found: false,
+        symbol: normalizedSymbol,
+        requestedTs: ts.toISOString(),
+      })
+    }
+
+    return c.json({
+      found: true,
+      symbol: snapshot.symbol,
+      openInterest: Number(snapshot.openInterest),
+      openInterestUsd: snapshot.openInterestUsd ? Number(snapshot.openInterestUsd) : null,
+      markPrice: snapshot.markPrice ? Number(snapshot.markPrice) : null,
+      ts: snapshot.ts.toISOString(),
+      source: snapshot.source,
+    })
+  } catch (error) {
+    logger.error('OI snapshot query error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
 // GET endpoint - serves cached OI data with stale-while-revalidate semantics
 app.get('/', async (c) => {
   try {
