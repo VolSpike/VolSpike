@@ -45,6 +45,13 @@ export function Dashboard() {
     // Determine user tier
     const userTier = session?.user?.tier || 'free'
 
+    // Clear unread badge when viewing alerts tab
+    useEffect(() => {
+        if (currentTab === 'alerts') {
+            setUnreadAlertsCount(0)
+        }
+    }, [currentTab])
+
     // Alert builder handlers (defined early to avoid hoisting issues)
     const handleCreateAlert = (symbol: string) => {
         setAlertBuilderSymbol(symbol.replace(/USDT$/i, ''))
@@ -203,12 +210,17 @@ export function Dashboard() {
 
     const alertsCard = <AlertPanel alerts={alerts} userTier={userTier as 'free' | 'pro' | 'elite'} />
     const volumeAlertsCard = (
-        <VolumeAlertsPanel 
+        <VolumeAlertsPanel
             onNewAlert={() => {
-                // Only increment if user is on Market Data tab (mobile only)
-                if (currentTab === 'market') {
-                    setUnreadAlertsCount(prev => prev + 1)
+                // Only increment badge on mobile when user is viewing Market Data tab
+                // On desktop (xl+), both panels are visible so no badge needed
+                if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+                    // Mobile/tablet: only show badge when on Market Data tab
+                    if (currentTab === 'market') {
+                        setUnreadAlertsCount(prev => prev + 1)
+                    }
                 }
+                // On desktop, do nothing - both panels always visible
             }}
             guestMode={isGuest}
             guestVisibleCount={2}
