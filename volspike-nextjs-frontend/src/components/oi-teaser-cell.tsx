@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Lock } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -9,6 +9,12 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
 interface OITeaserCellProps {
@@ -84,49 +90,85 @@ function generatePlaceholderOI(symbol: string): string {
 /**
  * OI Teaser Header - Shows header with lock icon and tooltip for Free tier users.
  * Uses Button component to match exact styling of other column headers.
+ * Desktop: Hover shows tooltip
+ * Mobile: Tap opens dialog
  */
 export function OITeaserHeader() {
+    const [dialogOpen, setDialogOpen] = useState(false)
+
+    const handleClick = () => {
+        // On touch devices, open dialog instead of relying on hover tooltip
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            setDialogOpen(true)
+        }
+    }
+
+    const content = (
+        <>
+            <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sec-500/15">
+                    <Lock className="h-3 w-3 text-sec-500" />
+                </div>
+                <span className="font-semibold text-sm">Pro Feature</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                Open Interest data shows total outstanding contracts, helping identify accumulation and distribution phases.
+            </p>
+            <Link
+                href="/pricing"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+                onClick={() => setDialogOpen(false)}
+            >
+                Unlock with Pro
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+            </Link>
+        </>
+    )
+
     return (
-        <TooltipProvider delayDuration={200}>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-auto p-0 font-semibold cursor-help"
-                    >
-                        <span className="mr-1.5">Open Interest</span>
-                        <Lock className="h-3 w-3 text-sec-500" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent
-                    side="bottom"
-                    className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden"
-                    sideOffset={8}
-                >
-                    <div className="oi-teaser-tooltip-gradient h-1 w-full" />
-                    <div className="px-3 py-2.5 space-y-2">
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sec-500/15">
-                                <Lock className="h-3 w-3 text-sec-500" />
-                            </div>
-                            <span className="font-semibold text-sm">Pro Feature</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                            Open Interest data shows total outstanding contracts, helping identify accumulation and distribution phases.
-                        </p>
-                        <Link
-                            href="/pricing"
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+        <>
+            <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-0 font-semibold cursor-help"
+                            onClick={handleClick}
                         >
-                            Unlock with Pro
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </Link>
+                            <span className="mr-1.5">Open Interest</span>
+                            <Lock className="h-3 w-3 text-sec-500" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                        side="bottom"
+                        className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden hidden md:block"
+                        sideOffset={8}
+                    >
+                        <div className="oi-teaser-tooltip-gradient h-1 w-full" />
+                        <div className="px-3 py-2.5">
+                            {content}
+                        </div>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
+            {/* Mobile dialog - shown on tap */}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="max-w-[280px] rounded-xl">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Lock className="h-4 w-4 text-sec-500" />
+                            Open Interest
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="pt-2">
+                        {content}
                     </div>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }
