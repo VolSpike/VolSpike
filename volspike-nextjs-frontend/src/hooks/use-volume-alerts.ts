@@ -180,11 +180,17 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
         })
 
         socket.on('volume-alert', (newAlert: VolumeAlert) => {
+          console.log('📨 Guest: Received volume alert via socket:', newAlert.asset, { hasCallback: !!onNewAlert })
           setAlerts(prev => {
             const filtered = prev.filter(a => a.id !== newAlert.id)
             return [newAlert, ...filtered].slice(0, getTierLimit('free'))
           })
-          if (onNewAlert) onNewAlert()
+          if (onNewAlert) {
+            console.log('📞 Guest: Calling onNewAlert callback')
+            onNewAlert()
+          } else {
+            console.warn('⚠️ Guest: onNewAlert callback is undefined!')
+          }
         })
 
         socket.on('disconnect', () => {
@@ -231,11 +237,17 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       })
       socket.on('connect_error', (err) => { console.warn('Socket error:', err); setIsConnected(false) })
       socket.on('volume-alert', (a: VolumeAlert) => {
+        console.log('📨 Wallet user: Received volume alert via socket:', a.asset, { hasCallback: !!onNewAlert })
         setAlerts(prev => {
           const filtered = prev.filter(x => x.id !== a.id)
           return [a, ...filtered].slice(0, getTierLimit(tier))
         })
-        if (onNewAlert) onNewAlert()
+        if (onNewAlert) {
+          console.log('📞 Wallet user: Calling onNewAlert callback')
+          onNewAlert()
+        } else {
+          console.warn('⚠️ Wallet user: onNewAlert callback is undefined!')
+        }
       })
       return () => socket.disconnect()
     }
@@ -272,16 +284,19 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     
     // Listen for new volume alerts
     socket.on('volume-alert', (newAlert: VolumeAlert) => {
-      console.log('📢 Received real-time volume alert:', newAlert.asset)
+      console.log('📨 Email user: Received volume alert via socket:', newAlert.asset, { hasCallback: !!onNewAlert })
       setAlerts(prev => {
         // Add new alert at the beginning, remove duplicates
         const filtered = prev.filter(a => a.id !== newAlert.id)
         return [newAlert, ...filtered].slice(0, getTierLimit(tier))
       })
-      
+
       // Notify parent component (for unread badge on mobile)
       if (onNewAlert) {
+        console.log('📞 Email user: Calling onNewAlert callback')
         onNewAlert()
+      } else {
+        console.warn('⚠️ Email user: onNewAlert callback is undefined!')
       }
     })
     
