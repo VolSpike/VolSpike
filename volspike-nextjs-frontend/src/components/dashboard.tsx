@@ -45,11 +45,38 @@ export function Dashboard() {
     // Determine user tier
     const userTier = session?.user?.tier || 'free'
 
-    // Clear unread badge when viewing alerts tab
+    // Clear unread badge when viewing alerts tab or on desktop where both panels are visible
     useEffect(() => {
-        if (currentTab === 'alerts') {
-            setUnreadAlertsCount(0)
+        if (typeof window !== 'undefined') {
+            const isDesktop = window.innerWidth >= 1280
+            if (currentTab === 'alerts' || isDesktop) {
+                setUnreadAlertsCount(0)
+            }
         }
+    }, [currentTab])
+
+    // Also clear badge on window resize to desktop
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1280) {
+                setUnreadAlertsCount(0)
+            }
+        }
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    // Handle new volume alerts for badge notification
+    const handleNewVolumeAlert = useCallback(() => {
+        // Only increment badge on mobile/tablet when user is viewing Market Data tab
+        // On desktop (xl+), both panels are visible so no badge needed
+        if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+            // Mobile/tablet: only show badge when on Market Data tab
+            if (currentTab === 'market') {
+                setUnreadAlertsCount(prev => prev + 1)
+            }
+        }
+        // On desktop, do nothing - both panels always visible
     }, [currentTab])
 
     // Alert builder handlers (defined early to avoid hoisting issues)
@@ -211,17 +238,7 @@ export function Dashboard() {
     const alertsCard = <AlertPanel alerts={alerts} userTier={userTier as 'free' | 'pro' | 'elite'} />
     const volumeAlertsCard = (
         <VolumeAlertsPanel
-            onNewAlert={() => {
-                // Only increment badge on mobile when user is viewing Market Data tab
-                // On desktop (xl+), both panels are visible so no badge needed
-                if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-                    // Mobile/tablet: only show badge when on Market Data tab
-                    if (currentTab === 'market') {
-                        setUnreadAlertsCount(prev => prev + 1)
-                    }
-                }
-                // On desktop, do nothing - both panels always visible
-            }}
+            onNewAlert={handleNewVolumeAlert}
             guestMode={isGuest}
             guestVisibleCount={2}
         />
