@@ -32,20 +32,33 @@ export function AssetProjectOverview({ baseSymbol }: AssetProjectOverviewProps) 
 
     const handleTradingViewClick = (e: React.MouseEvent) => {
         e.preventDefault()
-        
+
         // Detect platform
         const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
         const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(ua)
         const isWindows = /Windows|Win32|Win64/.test(ua)
-        
-        if (isMac) {
+        const isIOS = /iPhone|iPad|iPod/.test(ua)
+        const isAndroid = /Android/.test(ua)
+        const isMobile = isIOS || isAndroid
+
+        if (isMobile) {
+            // Mobile: Try to open in TradingView app first, fallback to browser
+            window.location.href = tradingViewDesktopUrl
+
+            // Fallback to browser if app doesn't open within 1.5s
+            setTimeout(() => {
+                if (!document.hidden) {
+                    window.location.href = tradingViewUrl
+                }
+            }, 1500)
+        } else if (isMac) {
             // macOS: TradingView Desktop doesn't support symbol deep links
             // Just open in browser - user can manually use "Open link from clipboard" if they want Desktop
             window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
         } else if (isWindows) {
             // Windows: Try desktop app first, fallback to browser
             const wasFocused = document.hasFocus()
-            
+
             // Try to open desktop app using window.location
             try {
                 window.location.href = tradingViewDesktopUrl

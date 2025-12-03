@@ -161,7 +161,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     return relative.replace('about ', '') // Remove "about" prefix
   }
 
-  // TradingView link handler (same logic as asset-project-overview)
+  // TradingView link handler with mobile deep link support
   const handleTradingViewClick = (asset: string, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent alert card click animation
     e.preventDefault()
@@ -173,8 +173,23 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
     const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/.test(ua)
     const isWindows = /Win/.test(ua)
+    const isIOS = /iPhone|iPad|iPod/.test(ua)
+    const isAndroid = /Android/.test(ua)
+    const isMobile = isIOS || isAndroid
 
-    if (isMac) {
+    if (isMobile) {
+      // Mobile: Try to open in TradingView app first, fallback to browser
+      // Use the deep link URL scheme
+      window.location.href = tradingViewDesktopUrl
+
+      // Fallback to browser if app doesn't open within 1.5s
+      setTimeout(() => {
+        // If still on the same page (app didn't open), open browser
+        if (!document.hidden) {
+          window.location.href = tradingViewUrl
+        }
+      }, 1500)
+    } else if (isMac) {
       // macOS: TradingView Desktop doesn't support symbol deep links
       window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
     } else if (isWindows) {
@@ -191,7 +206,7 @@ export function VolumeAlertsPanel({ onNewAlert, guestMode = false, guestVisibleC
         }
       }, 2000)
     } else {
-      // Mobile/other: open in browser
+      // Other: open in browser
       window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
     }
   }
