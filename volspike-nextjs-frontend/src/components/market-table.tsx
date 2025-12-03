@@ -33,6 +33,7 @@ import { WatchlistSelector } from '@/components/watchlist-selector'
 import { WatchlistFilter } from '@/components/watchlist-filter'
 import { useWatchlists } from '@/hooks/use-watchlists'
 import { RemoveFromWatchlistDialog } from '@/components/remove-from-watchlist-dialog'
+import { OITeaserCell, OITeaserHeader } from '@/components/oi-teaser-cell'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
@@ -928,8 +929,14 @@ export function MarketTable({
                                         <SortIcon column="volume" />
                                     </Button>
                                 </th>
-                                {userTier !== 'free' && (
-                                    <th className="text-right p-3">
+                                <th className="text-right p-3">
+                                    {userTier === 'free' ? (
+                                        /* Free tier: Show teaser header with lock icon and tooltip */
+                                        <div className="h-auto p-0 font-semibold text-right">
+                                            <OITeaserHeader />
+                                        </div>
+                                    ) : (
+                                        /* Pro/Elite: Normal sortable header */
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -942,8 +949,8 @@ export function MarketTable({
                                             {guestMode && <Lock className="h-3 w-3 opacity-60 ml-1" />}
                                             <SortIcon column="openInterest" />
                                         </Button>
-                                    </th>
-                                )}
+                                    )}
+                                </th>
                                 <th className="w-24 p-3 align-middle">
                                     <div className="flex items-center justify-end gap-1">
                                         <Button
@@ -1140,11 +1147,17 @@ export function MarketTable({
                                         <td className={`p-3 text-right font-mono-tabular text-sm font-medium transition-colors duration-150${cellHoverBg}`}>
                                             {formatVolume(item.volume24h)}
                                         </td>
-                                        {userTier !== 'free' && (
-                                            <td className={`p-3 text-right font-mono-tabular text-sm text-muted-foreground transition-colors duration-150${cellHoverBg}`}>
-                                                {formatVolume(item.openInterest ?? 0)}
-                                            </td>
-                                        )}
+                                        <td className={`p-3 text-right transition-colors duration-150${cellHoverBg}`}>
+                                            {userTier === 'free' ? (
+                                                /* Free tier: Show teaser cell with blurred placeholder */
+                                                <OITeaserCell volume24h={item.volume24h} />
+                                            ) : (
+                                                /* Pro/Elite: Show real OI data */
+                                                <span className="font-mono-tabular text-sm text-muted-foreground">
+                                                    {formatVolume(item.openInterest ?? 0)}
+                                                </span>
+                                            )}
+                                        </td>
                                         <td className={`p-3 transition-colors duration-150${cellHoverBg}`}>
                                             <div className="flex items-center justify-end gap-1">
                                                 {/* Star icon: Always visible if in watchlist, otherwise hover-only on desktop */}
@@ -1381,12 +1394,19 @@ export function MarketTable({
                                             {selectedSymbol.fundingRate > 0 ? '+' : ''}{(selectedSymbol.fundingRate * 100).toFixed(4)}%
                                         </div>
                                     </div>
-                                    {userTier !== 'free' && (
-                                        <div className="col-span-2">
-                                            <div className="text-xs text-muted-foreground mb-1">Open Interest</div>
-                                            <div className="font-mono-tabular font-semibold">{formatVolume(selectedSymbol.openInterest ?? 0)}</div>
+                                    <div className="col-span-2">
+                                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1.5">
+                                            Open Interest
+                                            {userTier === 'free' && (
+                                                <Lock className="h-3 w-3 text-sec-500" />
+                                            )}
                                         </div>
-                                    )}
+                                        {userTier === 'free' ? (
+                                            <OITeaserCell volume24h={selectedSymbol.volume24h} className="justify-start" />
+                                        ) : (
+                                            <div className="font-mono-tabular font-semibold">{formatVolume(selectedSymbol.openInterest ?? 0)}</div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Project Overview */}

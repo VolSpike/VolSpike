@@ -135,18 +135,30 @@ All tiers use **client-side Binance WebSocket connections** directly from the br
   - Change column shows percentage change
   - Color-coded (green for positive, red for negative)
 
-### ❌ Intentionally Excluded Features
+### ⚠️ Teaser Features (Upgrade Prompts)
 
-#### 1. **Open Interest Data**
-- **Status:** ❌ Not Available (By Design)
-- **Reason:** Premium feature reserved for Pro/Elite tiers
+#### 1. **Open Interest Column (Teaser)**
+- **Status:** ✅ Teaser Implemented
+- **Reason:** Premium feature reserved for Pro/Elite tiers, shown as teaser to encourage upgrades
 - **Implementation:**
-  - Open Interest column hidden in Market Data table
-  - Backend API returns Open Interest data but frontend filters it out
-  - Code: `userTier !== 'free'` check in `market-table.tsx` (line 607)
+  - Open Interest column always visible for all tiers
+  - Free tier sees blurred/faded placeholder values with lock icon overlay
+  - Beautiful tooltip explains the feature and prompts upgrade to Pro
+  - Component: `volspike-nextjs-frontend/src/components/oi-teaser-cell.tsx`
+  - CSS: `globals.css` (OI Teaser Effect section)
+  - Code in `market-table.tsx` uses `OITeaserCell` and `OITeaserHeader` for free tier
+- **Design:**
+  - Placeholder values generated from volume (30-60% of 24h volume)
+  - 4px blur with 50% opacity on placeholder values
+  - Hover reveals "Pro" badge with lock icon
+  - Tooltip with Pro-cyan gradient accent bar
+  - Tooltip explains OI benefits and links to pricing page
 - **User Experience:**
-  - No Open Interest column visible
-  - Detail drawer (when clicking symbol) doesn't show Open Interest
+  - Free users see the OI column structure with blurred values
+  - Hovering shows lock overlay with "Pro" badge
+  - Clicking/hovering shows elegant tooltip with upgrade prompt
+  - Detail drawer also shows OI teaser for free tier
+  - Pro/Elite users see real OI data without any restrictions
 
 #### 2. **Email/SMS Notifications**
 - **Status:** ❌ Not Available (By Design)
@@ -621,7 +633,7 @@ All tiers use **client-side Binance WebSocket connections** directly from the br
 | **Symbol Limit** | Top 50 | Top 100 | Unlimited |
 | **Volume Alerts** | 10 alerts | 50 alerts | 100 alerts |
 | **Alert Delivery** | 15-min batches | 5-min batches | Instant (0 delay) |
-| **Open Interest** | ❌ No | ✅ Yes | ✅ Yes |
+| **Open Interest** | ⚠️ Teaser | ✅ Yes | ✅ Yes |
 | **Email Notifications** | ❌ No | ⚠️ Partial | ⚠️ Partial |
 | **SMS Notifications** | ❌ No | ❌ No | ❌ Not Yet |
 | **Symbol Subscriptions** | ❌ No | ✅ Yes | ✅ Yes |
@@ -636,7 +648,7 @@ All tiers use **client-side Binance WebSocket connections** directly from the br
 
 **Legend:**
 - ✅ = Fully Implemented
-- ⚠️ = Partially Implemented
+- ⚠️ = Partially Implemented / Teaser (prompts upgrade)
 - ❌ = Not Implemented
 
 ---
@@ -826,7 +838,8 @@ Digital Ocean Script → /api/volume-alerts/ingest → Database → Alert Broadc
    - `useBinanceWebSocket` - Throttling intervals
    - `useVolumeAlerts` - Alert limits
    - `watchlist-export-button` - Export features
-   - `market-table` - Open Interest column
+   - `market-table` - Open Interest column (real data for Pro/Elite, teaser for Free)
+   - `oi-teaser-cell` - OI teaser component with blurred placeholder and upgrade tooltip
 
 2. **Backend:**
    - `rate-limit.ts` - API rate limiting
@@ -851,7 +864,9 @@ Digital Ocean Script → /api/volume-alerts/ingest → Database → Alert Broadc
 - [ ] Alerts delivered in 15-minute batches
 - [ ] TradingView export works (top 50)
 - [ ] CSV/JSON exports disabled
-- [ ] Open Interest column hidden
+- [ ] Open Interest column shows teaser (blurred placeholder with lock)
+- [ ] OI teaser tooltip shows upgrade prompt on hover
+- [ ] Detail drawer OI section shows teaser for free tier
 - [ ] Ad banners visible
 
 ### Pro Tier

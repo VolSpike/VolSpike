@@ -317,10 +317,48 @@ table.vs-market-table tr {
     .scrollbar-hide::-webkit-scrollbar {
         display: none;
     }
-    
+
     /* Hide scrollbar for IE, Edge and Firefox */
     .scrollbar-hide {
         -ms-overflow-style: none;  /* IE and Edge */
         scrollbar-width: none;  /* Firefox */
     }
+}
+
+/* ===== OI Teaser Effect (Free Tier) ===== */
+/* Elegant blur/fade effect for locked OI data */
+.oi-teaser-value {
+    filter: blur(4px);
+    opacity: 0.5;
+    user-select: none;
+    transition: all var(--motion-fast) var(--ease-smooth);
+}
+
+/* On hover, slightly increase visibility to hint at data */
+.group:hover .oi-teaser-value {
+    filter: blur(3px);
+    opacity: 0.6;
+}
+
+/* Tooltip styling with Pro tier accent */
+.oi-teaser-tooltip {
+    border-color: hsl(var(--secondary-500) / 0.3) !important;
+    background: hsl(var(--bg-elevated)) !important;
+}
+
+.oi-teaser-tooltip-gradient {
+    background: linear-gradient(
+        90deg,
+        hsl(var(--secondary-500)),
+        hsl(var(--secondary-400)),
+        hsl(var(--secondary-500))
+    );
+    background-size: 200% 100%;
+    animation: oi-gradient-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes oi-gradient-shimmer {
+    0% { background-position: 100% 0; }
+    50% { background-position: 0% 0; }
+    100% { background-position: 100% 0; }
 }
