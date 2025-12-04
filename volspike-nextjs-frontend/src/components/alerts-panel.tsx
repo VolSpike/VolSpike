@@ -207,7 +207,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
             <TabsTrigger
               value="oi"
               disabled={!canAccessOIAlerts}
-              className="flex items-center gap-1.5 relative data-[disabled]:opacity-100 data-[disabled]:pointer-events-auto data-[disabled]:cursor-not-allowed"
+              className="flex items-center gap-1.5 relative data-[disabled]:opacity-100 data-[disabled]:pointer-events-auto data-[disabled]:cursor-default"
             >
               <Activity className="h-3.5 w-3.5" />
               <span>Open Interest</span>
@@ -218,7 +218,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-4 w-4 p-0 min-w-0 cursor-help ml-1 relative z-10"
+                        className="h-4 w-4 p-0 min-w-0 cursor-pointer ml-1 relative z-10"
                         onClick={(e) => {
                           e.stopPropagation()
                           e.preventDefault()
@@ -229,8 +229,9 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent
-                      side="top"
-                      className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
+                      side="bottom"
+                      align="end"
+                      className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden hidden md:block"
                       sideOffset={4}
                     >
                       <div className="oi-teaser-tooltip-gradient h-1 w-full" />
