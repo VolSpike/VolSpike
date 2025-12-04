@@ -78,6 +78,9 @@ OI_MIN_DELTA_CONTRACTS = float(os.getenv("OI_MIN_DELTA_CONTRACTS", "5000"))
 # Lookback window for OI comparison (5 minutes)
 OI_LOOKBACK_WINDOW_SEC = int(os.getenv("OI_LOOKBACK_WINDOW_SEC", "300"))  # 5 minutes
 
+# Alert cooldown period (5 minutes) - prevents duplicate alerts for same symbol+direction
+OI_ALERT_COOLDOWN_SEC = int(os.getenv("OI_ALERT_COOLDOWN_SEC", "300"))  # 5 minutes
+
 # De-duplication state tracking (per symbol)
 # Tracks whether symbol is currently "outside" threshold to prevent spam
 oi_alert_state = {}  # symbol -> "INSIDE" or "OUTSIDE"
@@ -361,6 +364,15 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: floa
 
         if pct_change >= OI_SPIKE_THRESHOLD_PCT and abs_change >= OI_MIN_DELTA_CONTRACTS:
             direction = "UP"
+
+            # Check cooldown: don't alert if same (symbol, direction) within last 5 minutes
+            cooldown_key = (symbol, direction)
+            if cooldown_key in last_oi_alert_at:
+                time_since_last = timestamp - last_oi_alert_at[cooldown_key]
+                if time_since_last < OI_ALERT_COOLDOWN_SEC:
+                    print(f"  [COOLDOWN] {symbol} {direction} skipped - {int(time_since_last)}s since last alert (cooldown: {OI_ALERT_COOLDOWN_SEC}s)")
+                    return
+
             extras = []
             if price_change is not None:
                 extras.append(f"price {price_change*100:+.2f}%")
@@ -370,9 +382,19 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: floa
             print(f"🔺 OI SPIKE: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f}){extras_str}")
             emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate)
             alert_emitted = True
+            last_oi_alert_at[cooldown_key] = timestamp
 
         elif pct_change <= -OI_DUMP_THRESHOLD_PCT and abs_change <= -OI_MIN_DELTA_CONTRACTS:
             direction = "DOWN"
+
+            # Check cooldown: don't alert if same (symbol, direction) within last 5 minutes
+            cooldown_key = (symbol, direction)
+            if cooldown_key in last_oi_alert_at:
+                time_since_last = timestamp - last_oi_alert_at[cooldown_key]
+                if time_since_last < OI_ALERT_COOLDOWN_SEC:
+                    print(f"  [COOLDOWN] {symbol} {direction} skipped - {int(time_since_last)}s since last alert (cooldown: {OI_ALERT_COOLDOWN_SEC}s)")
+                    return
+
             extras = []
             if price_change is not None:
                 extras.append(f"price {price_change*100:+.2f}%")
@@ -382,6 +404,7 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: floa
             print(f"🔻 OI DUMP: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f}){extras_str}")
             emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate)
             alert_emitted = True
+            last_oi_alert_at[cooldown_key] = timestamp
 
         # Only mark as OUTSIDE if we actually emitted an alert
         if alert_emitted:
@@ -481,6 +504,7 @@ def main_loop():
     print(f"   Max req/min: {MAX_REQ_PER_MIN}")
     print(f"   Interval range: {MIN_INTERVAL_SEC}-{MAX_INTERVAL_SEC}s")
     print(f"   Alert thresholds: ±{OI_SPIKE_THRESHOLD_PCT*100:.0f}% over {OI_LOOKBACK_WINDOW_SEC/60:.0f} min / ±{OI_MIN_DELTA_CONTRACTS:.0f} contracts")
+    print(f"   Alert cooldown: {OI_ALERT_COOLDOWN_SEC/60:.0f} min per symbol+direction")
     
     # Load liquid universe from backend
     symbols = load_liquid_universe()
