@@ -214,7 +214,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                 <span>Open Interest</span>
               </TabsTrigger>
               {!canAccessOIAlerts && (
-                <TooltipProvider delayDuration={100} disableHoverableContent={false}>
+                <TooltipProvider delayDuration={100}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -231,10 +231,9 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent
-                      side="bottom"
-                      align="end"
+                      side="top"
+                      className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
                       sideOffset={4}
-                      className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden"
                     >
                       <div className="oi-teaser-tooltip-gradient h-1 w-full" />
                       <div className="px-2.5 py-2">
