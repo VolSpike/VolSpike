@@ -231,7 +231,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent
-                      side="bottom"
+                      side="top"
                       className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
                       sideOffset={4}
                     >
