@@ -204,13 +204,15 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
               <TrendingUp className="h-3.5 w-3.5" />
               Volume
             </TabsTrigger>
-            <TabsTrigger
-              value="oi"
-              disabled={!canAccessOIAlerts}
-              className="flex items-center gap-1.5 relative data-[disabled]:opacity-100 data-[disabled]:pointer-events-auto data-[disabled]:cursor-default"
-            >
-              <Activity className="h-3.5 w-3.5" />
-              <span>Open Interest</span>
+            <div className="flex items-center gap-1 flex-1">
+              <TabsTrigger
+                value="oi"
+                disabled={!canAccessOIAlerts}
+                className="flex items-center gap-1.5 relative flex-1"
+              >
+                <Activity className="h-3.5 w-3.5" />
+                <span>Open Interest</span>
+              </TabsTrigger>
               {!canAccessOIAlerts && (
                 <TooltipProvider delayDuration={100}>
                   <Tooltip>
@@ -218,7 +220,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-4 w-4 p-0 min-w-0 cursor-help ml-1 relative z-10"
+                        className="h-5 w-5 p-0 min-w-0 cursor-help relative z-10"
                         onClick={(e) => {
                           e.stopPropagation()
                           e.preventDefault()
@@ -229,8 +231,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent
-                      side="bottom"
-                      align="end"
+                      side="top"
                       className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
                       sideOffset={4}
                     >
@@ -260,7 +261,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                   </Tooltip>
                 </TooltipProvider>
               )}
-            </TabsTrigger>
+            </div>
           </TabsList>
 
           <TabsContent value="volume" className="flex-1 mt-0 overflow-hidden">
