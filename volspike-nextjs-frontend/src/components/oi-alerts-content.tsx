@@ -14,16 +14,36 @@ interface OIAlertsContentProps {
   compact?: boolean
   /** When true, hide connection status and controls (used when parent AlertsPanel handles them) */
   hideControls?: boolean
+  /** When hideControls is true, parent must provide these values */
+  externalAlerts?: any[]
+  externalIsLoading?: boolean
+  externalError?: string | null
+  externalRefetch?: () => void
+  externalIsConnected?: boolean
 }
 
-export function OIAlertsContent({ compact = false, hideControls = false }: OIAlertsContentProps) {
+export function OIAlertsContent({
+  compact = false,
+  hideControls = false,
+  externalAlerts,
+  externalIsLoading,
+  externalError,
+  externalRefetch,
+  externalIsConnected,
+}: OIAlertsContentProps) {
   const { data: session } = useSession()
   const userTier = (session?.user as any)?.tier || 'free'
 
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
   const prevAlertsRef = useRef<OIAlert[]>([])
 
-  const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
+  // Always call hooks (React rules), but only use them when not using external data
+  const soundHook = useAlertSounds()
+
+  const playSound = hideControls ? (() => {}) : soundHook.playSound
+  const soundsEnabled = hideControls ? false : soundHook.enabled
+  const setSoundsEnabled = hideControls ? (() => {}) : soundHook.setEnabled
+  const ensureUnlocked = hideControls ? (async () => {}) : soundHook.ensureUnlocked
 
   // Handle new alert callback (for sound and animation)
   const handleNewAlert = () => {
@@ -31,10 +51,17 @@ export function OIAlertsContent({ compact = false, hideControls = false }: OIAle
     playSound('spike') // Use 'spike' type for OI alerts
   }
 
-  const { alerts, isLoading, error, refetch, isConnected } = useOIAlerts({
-    autoFetch: true,
+  const hookResult = useOIAlerts({
+    autoFetch: !hideControls,
     onNewAlert: handleNewAlert,
   })
+
+  // Use external data if provided (hideControls=true), otherwise use hook data
+  const alerts = hideControls ? (externalAlerts || []) : hookResult.alerts
+  const isLoading = hideControls ? (externalIsLoading || false) : hookResult.isLoading
+  const error = hideControls ? (externalError || null) : hookResult.error
+  const refetch = hideControls ? (externalRefetch || (() => {})) : hookResult.refetch
+  const isConnected = hideControls ? (externalIsConnected || false) : hookResult.isConnected
 
   // Track new alerts for animation
   if (alerts.length > 0 && prevAlertsRef.current.length > 0) {

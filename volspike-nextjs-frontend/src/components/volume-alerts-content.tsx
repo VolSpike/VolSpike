@@ -125,18 +125,54 @@ interface VolumeAlertsContentProps {
   compact?: boolean
   /** When true, hide connection status and controls (used when parent AlertsPanel handles them) */
   hideControls?: boolean
+  /** When hideControls is true, parent must provide these values */
+  externalAlerts?: any[]
+  externalIsLoading?: boolean
+  externalError?: string | null
+  externalRefetch?: () => void
+  externalTier?: string
+  externalIsConnected?: boolean
+  externalNextUpdate?: number
 }
 
-export function VolumeAlertsContent({ onNewAlert, guestMode = false, guestVisibleCount = 2, compact = false, hideControls = false }: VolumeAlertsContentProps = {}) {
-  const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
-    pollInterval: 15000, // standard fallback
-    autoFetch: true,
+export function VolumeAlertsContent({
+  onNewAlert,
+  guestMode = false,
+  guestVisibleCount = 2,
+  compact = false,
+  hideControls = false,
+  externalAlerts,
+  externalIsLoading,
+  externalError,
+  externalRefetch,
+  externalTier,
+  externalIsConnected,
+  externalNextUpdate,
+}: VolumeAlertsContentProps = {}) {
+  // Always call hooks (React rules), but only use them when not using external data
+  const hookResult = useVolumeAlerts({
+    pollInterval: 15000,
+    autoFetch: !hideControls,
     onNewAlert,
-    guestLive: guestMode, // enable near-live guest preview with fast polling
+    guestLive: guestMode,
     guestVisibleCount,
   })
 
-  const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
+  const soundHook = useAlertSounds()
+
+  // Use external data if provided (hideControls=true), otherwise use hook data
+  const alerts = hideControls ? (externalAlerts || []) : hookResult.alerts
+  const isLoading = hideControls ? (externalIsLoading || false) : hookResult.isLoading
+  const error = hideControls ? (externalError || null) : hookResult.error
+  const refetch = hideControls ? (externalRefetch || (() => {})) : hookResult.refetch
+  const tier = hideControls ? (externalTier || 'free') : hookResult.tier
+  const isConnected = hideControls ? (externalIsConnected || false) : hookResult.isConnected
+  const nextUpdate = hideControls ? (externalNextUpdate || 0) : hookResult.nextUpdate
+
+  const playSound = hideControls ? (() => {}) : soundHook.playSound
+  const soundsEnabled = hideControls ? false : soundHook.enabled
+  const setSoundsEnabled = hideControls ? (() => {}) : soundHook.setEnabled
+  const ensureUnlocked = hideControls ? (async () => {}) : soundHook.ensureUnlocked
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
   const [testAlerts, setTestAlerts] = useState<typeof alerts>([])
   const prevAlertsRef = useRef<typeof alerts>([])

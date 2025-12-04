@@ -45,14 +45,15 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   const canAccessOIAlerts = userTier === 'pro' || userTier === 'elite'
 
   // Get connection state and controls for the active tab
-  const { isConnected: volumeConnected, isLoading: volumeLoading, refetch: volumeRefetch, nextUpdate: volumeNextUpdate } = useVolumeAlerts({
+  const { alerts: volumeAlerts, isConnected: volumeConnected, isLoading: volumeLoading, error: volumeError, refetch: volumeRefetch, tier: volumeTier, nextUpdate: volumeNextUpdate } = useVolumeAlerts({
     pollInterval: 15000,
     autoFetch: activeTab === 'volume',
     guestLive: guestMode,
     guestVisibleCount,
+    onNewAlert,
   })
 
-  const { isConnected: oiConnected, isLoading: oiLoading, refetch: oiRefetch } = useOIAlerts({
+  const { alerts: oiAlerts, isConnected: oiConnected, isLoading: oiLoading, error: oiError, refetch: oiRefetch } = useOIAlerts({
     autoFetch: activeTab === 'oi' && canAccessOIAlerts,
   })
 
@@ -66,17 +67,20 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
     setOiNextUpdate(Date.now() + 30000)
 
     const interval = setInterval(() => {
-      const now = Date.now()
-      const remaining = oiNextUpdate - now
+      setOiNextUpdate(prev => {
+        const now = Date.now()
+        const remaining = prev - now
 
-      if (remaining <= 0) {
-        // Reset to 30 seconds when countdown completes
-        setOiNextUpdate(Date.now() + 30000)
-      }
+        if (remaining <= 0) {
+          // Reset to 30 seconds when countdown completes
+          return Date.now() + 30000
+        }
+        return prev
+      })
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [activeTab, canAccessOIAlerts, oiNextUpdate])
+  }, [activeTab, canAccessOIAlerts])
 
   const getOICountdownDisplay = () => {
     const now = Date.now()
@@ -249,6 +253,13 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
               guestVisibleCount={guestVisibleCount}
               compact={compact}
               hideControls={true}
+              externalAlerts={volumeAlerts}
+              externalIsLoading={volumeLoading}
+              externalError={volumeError}
+              externalRefetch={volumeRefetch}
+              externalTier={volumeTier}
+              externalIsConnected={volumeConnected}
+              externalNextUpdate={volumeNextUpdate}
             />
           </TabsContent>
 
@@ -257,6 +268,11 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
               <OIAlertsContent
                 compact={compact}
                 hideControls={true}
+                externalAlerts={oiAlerts}
+                externalIsLoading={oiLoading}
+                externalError={oiError}
+                externalRefetch={oiRefetch}
+                externalIsConnected={oiConnected}
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center p-6 text-center">
