@@ -370,6 +370,7 @@ model OpenInterestAlert {
   absChange   Decimal  @db.Decimal(30, 8)
   priceChange Decimal? @db.Decimal(10, 6)
   fundingRate Decimal? @db.Decimal(10, 6)
+  timeframe   String   @default("5 min") // "5 min", "15 min", "1 hour"
   source      String
   ts          DateTime
   createdAt   DateTime @default(now())
@@ -377,6 +378,7 @@ model OpenInterestAlert {
   @@index([symbol, ts])
   @@index([ts])
   @@index([direction, ts])
+  @@index([timeframe, ts])
   @@map("open_interest_alerts")
 }
 

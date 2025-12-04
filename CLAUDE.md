@@ -1098,8 +1098,7 @@ Before considering any task complete:
   - Don't add `!bg-[...]` or `!border-[...]` Tailwind overrides - they compete with class-based CSS
   - Don't add `disableHoverableContent` prop unless the working example uses it (Radix default is hoverable since v1.x)
   - Don't experiment with alignment/positioning props until basic structure matches
-- **Time wasted by not following this**: 4 hours on tooltip that could have been fixed in 5 minutes by copying `OILockButton`
-- **The winning approach**:
+- **Recommended approach**:
   1. Find working implementation (e.g., `OILockButton` in `volume-alerts-content.tsx`)
   2. Copy it EXACTLY (same props, same structure, same CSS classes)
   3. Test that it works

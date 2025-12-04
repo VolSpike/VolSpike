@@ -106,15 +106,17 @@ export async function ingestOpenInterestAlert(
         absChange: alert.absChange,
         priceChange: alert.priceChange ?? null,
         fundingRate: alert.fundingRate ?? null,
+        timeframe: alert.timeframe || '5 min',
         source: alert.source,
         ts: new Date(alert.timestamp),
       },
     })
 
-    logger.info(`Open Interest alert ingested: ${normalizedSymbol} ${alert.direction}`, {
+    logger.info(`Open Interest alert ingested: ${normalizedSymbol} ${alert.direction} [${alert.timeframe || '5 min'}]`, {
       symbol: normalizedSymbol,
       direction: alert.direction,
       pctChange: alert.pctChange,
+      timeframe: alert.timeframe || '5 min',
     })
 
     return {

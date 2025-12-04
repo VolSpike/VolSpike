@@ -70,20 +70,36 @@ MAX_REQ_PER_MIN = int(os.getenv("OI_MAX_REQ_PER_MIN", "2000"))
 MIN_INTERVAL_SEC = int(os.getenv("OI_MIN_INTERVAL_SEC", "5"))
 MAX_INTERVAL_SEC = int(os.getenv("OI_MAX_INTERVAL_SEC", "20"))
 
-# OI Alert thresholds - NEW: 3% over 5 minutes
-OI_SPIKE_THRESHOLD_PCT = float(os.getenv("OI_SPIKE_THRESHOLD_PCT", "0.03"))  # 3%
-OI_DUMP_THRESHOLD_PCT = float(os.getenv("OI_DUMP_THRESHOLD_PCT", "0.03"))  # 3%
+# Multi-timeframe OI Alert thresholds
+# Each timeframe has: (threshold_pct, lookback_window_sec, cooldown_sec, label)
+OI_ALERT_TIMEFRAMES = [
+    {
+        "label": "5 min",
+        "threshold_pct": float(os.getenv("OI_SPIKE_THRESHOLD_PCT_5MIN", "0.03")),   # 3%
+        "lookback_sec": int(os.getenv("OI_LOOKBACK_WINDOW_5MIN", "300")),            # 5 minutes
+        "cooldown_sec": int(os.getenv("OI_ALERT_COOLDOWN_5MIN", "300")),             # 5 minutes
+    },
+    {
+        "label": "15 min",
+        "threshold_pct": float(os.getenv("OI_SPIKE_THRESHOLD_PCT_15MIN", "0.07")),  # 7%
+        "lookback_sec": int(os.getenv("OI_LOOKBACK_WINDOW_15MIN", "900")),           # 15 minutes
+        "cooldown_sec": int(os.getenv("OI_ALERT_COOLDOWN_15MIN", "900")),            # 15 minutes
+    },
+    {
+        "label": "1 hour",
+        "threshold_pct": float(os.getenv("OI_SPIKE_THRESHOLD_PCT_60MIN", "0.12")),  # 12%
+        "lookback_sec": int(os.getenv("OI_LOOKBACK_WINDOW_60MIN", "3600")),          # 60 minutes
+        "cooldown_sec": int(os.getenv("OI_ALERT_COOLDOWN_60MIN", "3600")),           # 60 minutes
+    },
+]
+
+# Minimum absolute change in contracts (shared across all timeframes)
 OI_MIN_DELTA_CONTRACTS = float(os.getenv("OI_MIN_DELTA_CONTRACTS", "5000"))
 
-# Lookback window for OI comparison (5 minutes)
-OI_LOOKBACK_WINDOW_SEC = int(os.getenv("OI_LOOKBACK_WINDOW_SEC", "300"))  # 5 minutes
-
-# Alert cooldown period (5 minutes) - prevents duplicate alerts for same symbol+direction
-OI_ALERT_COOLDOWN_SEC = int(os.getenv("OI_ALERT_COOLDOWN_SEC", "300"))  # 5 minutes
-
-# De-duplication state tracking (per symbol)
+# De-duplication state tracking (per symbol per timeframe)
 # Tracks whether symbol is currently "outside" threshold to prevent spam
-oi_alert_state = {}  # symbol -> "INSIDE" or "OUTSIDE"
+# Key: (symbol, timeframe_label) -> "INSIDE" or "OUTSIDE"
+oi_alert_state = {}  # (symbol, timeframe) -> "INSIDE" or "OUTSIDE"
 
 # ─────────────────────── requests session ───────────────────────
 session = requests.Session()
@@ -108,8 +124,8 @@ STATE_FILE = "/home/trader/volume-spike-bot/.funding_state.json"
 # Max length: enough to cover 3 hours at chosen interval (approx 1080 for 10s interval)
 oi_history: Dict[str, deque] = {}
 
-# Alert rate limiting: (symbol, direction) -> last_alert_timestamp
-last_oi_alert_at: Dict[Tuple[str, str], float] = {}
+# Alert rate limiting: (symbol, direction, timeframe_label) -> last_alert_timestamp
+last_oi_alert_at: Dict[Tuple[str, str, str], float] = {}
 
 
 def compute_polling_interval(universe_size: int) -> int:
@@ -242,16 +258,25 @@ def initialize_oi_history(symbols: list):
             oi_history[symbol] = deque(maxlen=maxlen)
 
 
-def get_oi_5min_ago(symbol: str, now: float) -> Optional[Tuple[float, float]]:
+def get_oi_at_lookback(symbol: str, now: float, lookback_sec: int) -> Optional[Tuple[float, float]]:
     """
-    Get OI value and mark price from 5 minutes ago (±30 seconds tolerance).
-    Returns (oi_contracts, mark_price) for the closest sample to (now - 5 minutes), or None if insufficient data.
+    Get OI value and mark price from a specific lookback time ago.
+
+    Args:
+        symbol: The trading symbol
+        now: Current timestamp (epoch seconds)
+        lookback_sec: How many seconds ago to look back (e.g., 300 for 5 min, 900 for 15 min)
+
+    Returns:
+        (oi_contracts, mark_price) for the closest sample to (now - lookback_sec), or None if insufficient data.
+        Tolerance is dynamically set based on lookback window (10% of lookback, min 30s, max 120s).
     """
     if symbol not in oi_history or len(oi_history[symbol]) < 2:
         return None
 
-    target_time = now - OI_LOOKBACK_WINDOW_SEC
-    tolerance = 30  # ±30 seconds tolerance
+    target_time = now - lookback_sec
+    # Dynamic tolerance: 10% of lookback window, clamped to [30s, 120s]
+    tolerance = min(120, max(30, lookback_sec // 10))
 
     # Find the closest sample to target_time within tolerance
     closest_sample = None
@@ -268,9 +293,23 @@ def get_oi_5min_ago(symbol: str, now: float) -> Optional[Tuple[float, float]]:
 
 def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
                   pct_change: float, abs_change: float, timestamp: float,
-                  price_change: Optional[float] = None, funding_rate: Optional[float] = None) -> bool:
+                  price_change: Optional[float] = None, funding_rate: Optional[float] = None,
+                  timeframe: str = "5 min") -> bool:
     """
     Post OI alert to VolSpike backend.
+
+    Args:
+        symbol: Trading symbol (e.g., BTCUSDT)
+        direction: Alert direction ('UP' or 'DOWN')
+        baseline: OI at lookback time
+        current: Current OI
+        pct_change: Percentage change (e.g., 0.03 for 3%)
+        abs_change: Absolute change in contracts
+        timestamp: Alert timestamp (epoch seconds)
+        price_change: Optional price change during period
+        funding_rate: Optional funding rate at alert time
+        timeframe: Time period label (e.g., "5 min", "15 min", "1 hour")
+
     Returns True on success, False on error.
     """
     try:
@@ -284,6 +323,7 @@ def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
             "absChange": abs_change,
             "timestamp": datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
             "source": "oi_realtime_poller",
+            "timeframe": timeframe,
         }
 
         # Add optional fields if available
@@ -310,7 +350,7 @@ def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
             if funding_rate is not None:
                 extras.append(f"funding {funding_rate*100:.3f}%")
             extras_str = f" ({', '.join(extras)})" if extras else ""
-            print(f"✅ Posted OI alert: {symbol} {direction} ({pct_change*100:.2f}%){extras_str}")
+            print(f"✅ Posted OI alert: {symbol} {direction} [{timeframe}] ({pct_change*100:.2f}%){extras_str}")
             return True
         else:
             print(f"⚠️  OI alert post failed: {response.status_code} - {response.text[:100]}")
@@ -323,101 +363,107 @@ def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
 def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: float, timestamp: float):
     """
     Check if OI change warrants an alert and emit if conditions are met.
+    Checks all configured timeframes (5min, 15min, 60min) independently.
     Uses de-duplication: only alert when crossing threshold from INSIDE -> OUTSIDE.
-    Compares current OI to OI from 5 minutes ago (±30s tolerance).
     Also calculates price change over the same period and retrieves current funding rate.
     """
-    baseline_data = get_oi_5min_ago(symbol, timestamp)
-    if baseline_data is None:
-        # Not enough history yet, mark as INSIDE
-        oi_alert_state[symbol] = "INSIDE"
-        return
-
-    oi_5min_ago, mark_price_5min_ago = baseline_data
-
-    if oi_5min_ago == 0:
-        # Invalid baseline, mark as INSIDE
-        oi_alert_state[symbol] = "INSIDE"
-        return
-
-    pct_change = (current_oi - oi_5min_ago) / oi_5min_ago
-    abs_change = current_oi - oi_5min_ago
-
-    # Calculate price change over the same 5-minute period
-    price_change = None
-    if mark_price_5min_ago > 0 and current_mark_price > 0:
-        price_change = (current_mark_price - mark_price_5min_ago) / mark_price_5min_ago
-
-    # Get current funding rate from WebSocket state file
+    # Get current funding rate from WebSocket state file (shared across all timeframes)
     funding_rate = get_funding_rate_from_state(symbol)
 
-    # Determine if currently OUTSIDE threshold (|change| >= 3%)
-    is_outside = abs(pct_change) >= OI_SPIKE_THRESHOLD_PCT
+    # Check each timeframe independently
+    for tf in OI_ALERT_TIMEFRAMES:
+        tf_label = tf["label"]
+        tf_threshold = tf["threshold_pct"]
+        tf_lookback = tf["lookback_sec"]
+        tf_cooldown = tf["cooldown_sec"]
 
-    # Get previous state (default to INSIDE)
-    previous_state = oi_alert_state.get(symbol, "INSIDE")
+        # Get baseline data for this timeframe
+        baseline_data = get_oi_at_lookback(symbol, timestamp, tf_lookback)
+        if baseline_data is None:
+            # Not enough history yet for this timeframe, mark as INSIDE
+            oi_alert_state[(symbol, tf_label)] = "INSIDE"
+            continue
 
-    # Only alert on INSIDE -> OUTSIDE transition (de-duplication)
-    if is_outside and previous_state == "INSIDE":
-        # Determine direction and emit alert
-        alert_emitted = False
+        oi_baseline, mark_price_baseline = baseline_data
 
-        if pct_change >= OI_SPIKE_THRESHOLD_PCT and abs_change >= OI_MIN_DELTA_CONTRACTS:
-            direction = "UP"
+        if oi_baseline == 0:
+            # Invalid baseline, mark as INSIDE
+            oi_alert_state[(symbol, tf_label)] = "INSIDE"
+            continue
 
-            # Check cooldown: don't alert if same (symbol, direction) within last 5 minutes
-            cooldown_key = (symbol, direction)
-            if cooldown_key in last_oi_alert_at:
-                time_since_last = timestamp - last_oi_alert_at[cooldown_key]
-                if time_since_last < OI_ALERT_COOLDOWN_SEC:
-                    print(f"  [COOLDOWN] {symbol} {direction} skipped - {int(time_since_last)}s since last alert (cooldown: {OI_ALERT_COOLDOWN_SEC}s)")
-                    return
+        pct_change = (current_oi - oi_baseline) / oi_baseline
+        abs_change = current_oi - oi_baseline
 
-            extras = []
-            if price_change is not None:
-                extras.append(f"price {price_change*100:+.2f}%")
-            if funding_rate is not None:
-                extras.append(f"funding {funding_rate*100:.3f}%")
-            extras_str = f" | {', '.join(extras)}" if extras else ""
-            print(f"🔺 OI SPIKE: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f}){extras_str}")
-            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate)
-            alert_emitted = True
-            last_oi_alert_at[cooldown_key] = timestamp
+        # Calculate price change over the lookback period
+        price_change = None
+        if mark_price_baseline > 0 and current_mark_price > 0:
+            price_change = (current_mark_price - mark_price_baseline) / mark_price_baseline
 
-        elif pct_change <= -OI_DUMP_THRESHOLD_PCT and abs_change <= -OI_MIN_DELTA_CONTRACTS:
-            direction = "DOWN"
+        # Determine if currently OUTSIDE threshold
+        is_outside = abs(pct_change) >= tf_threshold
 
-            # Check cooldown: don't alert if same (symbol, direction) within last 5 minutes
-            cooldown_key = (symbol, direction)
-            if cooldown_key in last_oi_alert_at:
-                time_since_last = timestamp - last_oi_alert_at[cooldown_key]
-                if time_since_last < OI_ALERT_COOLDOWN_SEC:
-                    print(f"  [COOLDOWN] {symbol} {direction} skipped - {int(time_since_last)}s since last alert (cooldown: {OI_ALERT_COOLDOWN_SEC}s)")
-                    return
+        # Get previous state (default to INSIDE) for this timeframe
+        state_key = (symbol, tf_label)
+        previous_state = oi_alert_state.get(state_key, "INSIDE")
 
-            extras = []
-            if price_change is not None:
-                extras.append(f"price {price_change*100:+.2f}%")
-            if funding_rate is not None:
-                extras.append(f"funding {funding_rate*100:.3f}%")
-            extras_str = f" | {', '.join(extras)}" if extras else ""
-            print(f"🔻 OI DUMP: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f}){extras_str}")
-            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate)
-            alert_emitted = True
-            last_oi_alert_at[cooldown_key] = timestamp
+        # Only alert on INSIDE -> OUTSIDE transition (de-duplication)
+        if is_outside and previous_state == "INSIDE":
+            # Determine direction and emit alert
+            alert_emitted = False
 
-        # Only mark as OUTSIDE if we actually emitted an alert
-        if alert_emitted:
-            oi_alert_state[symbol] = "OUTSIDE"
-            print(f"  [DEDUP] {symbol} marked as OUTSIDE")
+            if pct_change >= tf_threshold and abs_change >= OI_MIN_DELTA_CONTRACTS:
+                direction = "UP"
 
-    elif not is_outside:
-        # Back inside threshold, reset state
-        oi_alert_state[symbol] = "INSIDE"
+                # Check cooldown: don't alert if same (symbol, direction, timeframe) within cooldown period
+                cooldown_key = (symbol, direction, tf_label)
+                if cooldown_key in last_oi_alert_at:
+                    time_since_last = timestamp - last_oi_alert_at[cooldown_key]
+                    if time_since_last < tf_cooldown:
+                        # Silent skip during cooldown
+                        continue
 
-    elif is_outside and previous_state == "OUTSIDE":
-        # Already OUTSIDE and still OUTSIDE - skip (de-duplication)
-        print(f"  [DEDUP] {symbol} still OUTSIDE, skipping (was {pct_change*100:.2f}%)")
+                extras = []
+                if price_change is not None:
+                    extras.append(f"price {price_change*100:+.2f}%")
+                if funding_rate is not None:
+                    extras.append(f"funding {funding_rate*100:.3f}%")
+                extras_str = f" | {', '.join(extras)}" if extras else ""
+                print(f"🔺 OI SPIKE [{tf_label}]: {symbol} {direction} | {tf_label} ago: {oi_baseline:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f}){extras_str}")
+                emit_oi_alert(symbol, direction, oi_baseline, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate, tf_label)
+                alert_emitted = True
+                last_oi_alert_at[cooldown_key] = timestamp
+
+            elif pct_change <= -tf_threshold and abs_change <= -OI_MIN_DELTA_CONTRACTS:
+                direction = "DOWN"
+
+                # Check cooldown: don't alert if same (symbol, direction, timeframe) within cooldown period
+                cooldown_key = (symbol, direction, tf_label)
+                if cooldown_key in last_oi_alert_at:
+                    time_since_last = timestamp - last_oi_alert_at[cooldown_key]
+                    if time_since_last < tf_cooldown:
+                        # Silent skip during cooldown
+                        continue
+
+                extras = []
+                if price_change is not None:
+                    extras.append(f"price {price_change*100:+.2f}%")
+                if funding_rate is not None:
+                    extras.append(f"funding {funding_rate*100:.3f}%")
+                extras_str = f" | {', '.join(extras)}" if extras else ""
+                print(f"🔻 OI DUMP [{tf_label}]: {symbol} {direction} | {tf_label} ago: {oi_baseline:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f}){extras_str}")
+                emit_oi_alert(symbol, direction, oi_baseline, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate, tf_label)
+                alert_emitted = True
+                last_oi_alert_at[cooldown_key] = timestamp
+
+            # Only mark as OUTSIDE if we actually emitted an alert
+            if alert_emitted:
+                oi_alert_state[state_key] = "OUTSIDE"
+
+        elif not is_outside:
+            # Back inside threshold, reset state for this timeframe
+            oi_alert_state[state_key] = "INSIDE"
+
+        # If is_outside and previous_state == "OUTSIDE", silently skip (de-duplication)
 
 
 def post_oi_batch(samples: list) -> bool:
@@ -503,8 +549,10 @@ def main_loop():
     print(f"   API Key: {'*' * min(20, len(VOLSPIKE_API_KEY))}... (set)")
     print(f"   Max req/min: {MAX_REQ_PER_MIN}")
     print(f"   Interval range: {MIN_INTERVAL_SEC}-{MAX_INTERVAL_SEC}s")
-    print(f"   Alert thresholds: ±{OI_SPIKE_THRESHOLD_PCT*100:.0f}% over {OI_LOOKBACK_WINDOW_SEC/60:.0f} min / ±{OI_MIN_DELTA_CONTRACTS:.0f} contracts")
-    print(f"   Alert cooldown: {OI_ALERT_COOLDOWN_SEC/60:.0f} min per symbol+direction")
+    print(f"   Min delta contracts: ±{OI_MIN_DELTA_CONTRACTS:.0f}")
+    print(f"   Alert timeframes:")
+    for tf in OI_ALERT_TIMEFRAMES:
+        print(f"     - {tf['label']}: ±{tf['threshold_pct']*100:.0f}% over {tf['lookback_sec']//60} min, cooldown {tf['cooldown_sec']//60} min")
     
     # Load liquid universe from backend
     symbols = load_liquid_universe()

@@ -216,7 +216,7 @@ export function OIAlertsContent({
         <div className="flex h-[500px] flex-col items-center justify-center text-center text-muted-foreground">
           <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-20" />
           <p>No OI alerts yet</p>
-          <p className="mt-1 text-xs">Alerts will appear when OI changes ≥3% in 5 minutes</p>
+          <p className="mt-1 text-xs">Alerts: ≥3% (5m), ≥7% (15m), ≥12% (1h)</p>
         </div>
       ) : (
         <ScrollArea className="h-[500px]">
@@ -289,14 +289,14 @@ export function OIAlertsContent({
                         {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
-                        5 min
+                        {alert.timeframe || '5 min'}
                       </Badge>
                     </div>
 
                     {/* OI information */}
                     <div className="space-y-0.5 text-sm text-muted-foreground">
                       <div>Current OI: {formatOI(alert.current)}</div>
-                      <div className="text-xs opacity-70">5 mins ago: {formatOI(alert.baseline)}</div>
+                      <div className="text-xs opacity-70">{alert.timeframe || '5 min'} ago: {formatOI(alert.baseline)}</div>
                     </div>
 
                     {/* Metrics: Price, Funding with action icons - match volume alerts layout */}

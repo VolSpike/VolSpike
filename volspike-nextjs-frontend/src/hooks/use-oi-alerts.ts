@@ -14,6 +14,7 @@ export interface OIAlert {
   absChange: number
   priceChange?: number | null
   fundingRate?: number | null
+  timeframe?: string // "5 min", "15 min", "1 hour"
   source: string
   ts: string
   createdAt: string
