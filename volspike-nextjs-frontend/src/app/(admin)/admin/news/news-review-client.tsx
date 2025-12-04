@@ -375,7 +375,7 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
         <CardContent className="space-y-4">
           {feeds.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No feeds configured. Click "Seed RSS Feeds" to add the default sources.
+              No feeds configured. Click &quot;Seed RSS Feeds&quot; to add the default sources.
             </div>
           ) : (
             feeds.map((feed) => (
