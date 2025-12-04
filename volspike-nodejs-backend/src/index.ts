@@ -485,8 +485,8 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     // ============================================
     // RSS NEWS FEED - Refresh & Cleanup
     // ============================================
-    // Refresh RSS feeds every 15 minutes and cleanup to keep only last 200 articles
-    const RSS_REFRESH_INTERVAL = 15 * 60 * 1000 // 15 minutes
+    // Refresh RSS feeds every 5 minutes and cleanup to keep only last 200 articles
+    const RSS_REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
     const RSS_CLEANUP_INTERVAL = 60 * 60 * 1000 // 1 hour
     const RSS_MAX_ARTICLES = 200 // Keep last 200 articles
 
@@ -563,7 +563,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         }
     }, 3 * 60 * 1000) // 3 minutes
 
-    logger.info('✅ RSS feed scheduled tasks initialized (refresh every 15min, cleanup every hour, keep last 200 articles)')
+    logger.info('✅ RSS feed scheduled tasks initialized (refresh every 5min, cleanup every hour, keep last 200 articles)')
 
     logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
 } else {
