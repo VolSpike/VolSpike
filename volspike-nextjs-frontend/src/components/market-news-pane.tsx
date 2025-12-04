@@ -28,11 +28,17 @@ function getCategoryConfig(category: string) {
   return CATEGORY_CONFIG[category] || CATEGORY_CONFIG.general
 }
 
-// Clean message text - remove trailing "..." from marketfeed messages
+// Clean message text - remove channel-specific trailing content
 function cleanMessageText(text: string | null, channelUsername: string): string | null {
   if (!text) return null
-  if (channelUsername.toLowerCase() === 'marketfeed') {
+  const channel = channelUsername.toLowerCase()
+  if (channel === 'marketfeed') {
+    // Remove trailing "..." from marketfeed messages
     return text.replace(/\s*\.{3,}$/, '').trim()
+  }
+  if (channel === 'watcherguru') {
+    // Remove trailing "@WatcherGuru" from WatcherGuru messages
+    return text.replace(/\s*@WatcherGuru\s*$/i, '').trim()
   }
   return text
 }
