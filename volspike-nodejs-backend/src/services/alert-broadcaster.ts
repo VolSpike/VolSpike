@@ -132,6 +132,9 @@ function startTierBasedBroadcasting() {
  * Broadcast Open Interest alert to WebSocket clients
  * Available to Pro/Elite tiers and Admin users
  * Free tier users cannot access OI alerts
+ *
+ * IMPORTANT: We must serialize Prisma Decimal fields to numbers before broadcasting,
+ * as Prisma.Decimal doesn't JSON-serialize properly (becomes { d: [...], e: ..., s: ... })
  */
 export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
   if (!ioInstance) {
@@ -139,16 +142,32 @@ export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
     return
   }
 
-  const pctChangeNum = typeof alert.pctChange === 'number' ? alert.pctChange : Number(alert.pctChange)
+  // Serialize Prisma Decimal fields to numbers for proper JSON transmission
+  // This ensures frontend receives clean numbers instead of Decimal objects
+  const serializedAlert = {
+    id: alert.id,
+    symbol: alert.symbol,
+    direction: alert.direction,
+    baseline: Number(alert.baseline),
+    current: Number(alert.current),
+    pctChange: Number(alert.pctChange),
+    absChange: Number(alert.absChange),
+    priceChange: alert.priceChange !== null ? Number(alert.priceChange) : null,
+    fundingRate: alert.fundingRate !== null ? Number(alert.fundingRate) : null,
+    timeframe: alert.timeframe, // String field - no conversion needed
+    source: alert.source,
+    ts: alert.ts.toISOString(),
+    createdAt: alert.createdAt.toISOString(),
+  }
 
   // Broadcast to admin room (for admin panel)
-  ioInstance.to('role-admin').emit('open-interest-alert', alert)
+  ioInstance.to('role-admin').emit('open-interest-alert', serializedAlert)
 
   // Broadcast to Pro and Elite tiers (user dashboard feature)
-  ioInstance.to('tier-pro').emit('open-interest-alert', alert)
-  ioInstance.to('tier-elite').emit('open-interest-alert', alert)
+  ioInstance.to('tier-pro').emit('open-interest-alert', serializedAlert)
+  ioInstance.to('tier-elite').emit('open-interest-alert', serializedAlert)
 
-  console.log(`📢 Broadcasted OI alert: ${alert.symbol} ${alert.direction} (${(pctChangeNum * 100).toFixed(2)}%) to admin/pro/elite`)
+  console.log(`📢 Broadcasted OI alert: ${alert.symbol} ${alert.direction} [${alert.timeframe}] (${(Number(alert.pctChange) * 100).toFixed(2)}%) to admin/pro/elite`)
 }
 
 /**

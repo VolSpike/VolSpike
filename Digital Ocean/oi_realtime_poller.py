@@ -119,13 +119,77 @@ WS_FUNDING_ENABLED = os.getenv("WS_FUNDING_ENABLED", "true").lower() == "true"
 # WebSocket daemon state file (contains all mark prices)
 STATE_FILE = "/home/trader/volume-spike-bot/.funding_state.json"
 
+# Persistent cooldown state file (survives script restarts)
+COOLDOWN_STATE_FILE = "/home/trader/volume-spike-bot/.oi_alert_cooldowns.json"
+
 # ─────────────────────── OI History (Ring Buffers) ───────────────────────
 # symbol -> deque[(timestamp_epoch, oi_contracts, mark_price)]
 # Max length: enough to cover 3 hours at chosen interval (approx 1080 for 10s interval)
 oi_history: Dict[str, deque] = {}
 
 # Alert rate limiting: (symbol, direction, timeframe_label) -> last_alert_timestamp
+# This dictionary is now persisted to disk to survive script restarts
 last_oi_alert_at: Dict[Tuple[str, str, str], float] = {}
+
+
+def load_cooldown_state() -> Dict[Tuple[str, str, str], float]:
+    """
+    Load cooldown state from disk file.
+    Returns empty dict if file doesn't exist or is corrupted.
+    Cleans up entries older than max cooldown (1 hour).
+    """
+    try:
+        if not os.path.exists(COOLDOWN_STATE_FILE):
+            return {}
+
+        with open(COOLDOWN_STATE_FILE, 'r') as f:
+            raw_data = json.load(f)
+
+        # Convert string keys back to tuples and filter old entries
+        now = time.time()
+        max_cooldown = 3600  # 1 hour - max cooldown period
+        cooldowns = {}
+
+        for key_str, timestamp in raw_data.items():
+            # Skip entries older than max cooldown
+            if now - timestamp > max_cooldown:
+                continue
+
+            # Parse key format: "symbol|direction|timeframe"
+            parts = key_str.split('|')
+            if len(parts) == 3:
+                key = (parts[0], parts[1], parts[2])
+                cooldowns[key] = timestamp
+
+        print(f"✅ Loaded {len(cooldowns)} cooldown entries from disk (filtered {len(raw_data) - len(cooldowns)} expired)")
+        return cooldowns
+    except Exception as e:
+        print(f"⚠️  Failed to load cooldown state: {e}")
+        return {}
+
+
+def save_cooldown_state(cooldowns: Dict[Tuple[str, str, str], float]):
+    """
+    Save cooldown state to disk file.
+    Converts tuple keys to strings for JSON serialization.
+    """
+    try:
+        # Convert tuple keys to strings for JSON serialization
+        # Format: "symbol|direction|timeframe"
+        serializable = {}
+        now = time.time()
+        max_cooldown = 3600  # 1 hour - max cooldown period
+
+        for key, timestamp in cooldowns.items():
+            # Only save entries that are still relevant
+            if now - timestamp <= max_cooldown:
+                key_str = f"{key[0]}|{key[1]}|{key[2]}"
+                serializable[key_str] = timestamp
+
+        with open(COOLDOWN_STATE_FILE, 'w') as f:
+            json.dump(serializable, f)
+    except Exception as e:
+        print(f"⚠️  Failed to save cooldown state: {e}")
 
 
 def compute_polling_interval(universe_size: int) -> int:
@@ -432,6 +496,7 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: floa
                 emit_oi_alert(symbol, direction, oi_baseline, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate, tf_label)
                 alert_emitted = True
                 last_oi_alert_at[cooldown_key] = timestamp
+                save_cooldown_state(last_oi_alert_at)  # Persist to disk
 
             elif pct_change <= -tf_threshold and abs_change <= -OI_MIN_DELTA_CONTRACTS:
                 direction = "DOWN"
@@ -454,6 +519,7 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: floa
                 emit_oi_alert(symbol, direction, oi_baseline, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate, tf_label)
                 alert_emitted = True
                 last_oi_alert_at[cooldown_key] = timestamp
+                save_cooldown_state(last_oi_alert_at)  # Persist to disk
 
             # Only mark as OUTSIDE if we actually emitted an alert
             if alert_emitted:
@@ -569,6 +635,11 @@ def main_loop():
     # Initialize OI history
     initialize_oi_history(symbols)
     print(f"✅ Initialized OI history buffers")
+
+    # Load persistent cooldown state from disk (survives script restarts)
+    global last_oi_alert_at
+    last_oi_alert_at = load_cooldown_state()
+    print(f"✅ Loaded cooldown state: {len(last_oi_alert_at)} active cooldowns")
 
     # Main loop with concurrent fetching
     loop_count = 0
