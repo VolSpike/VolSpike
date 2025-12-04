@@ -101,7 +101,7 @@ WS_FUNDING_ENABLED = os.getenv("WS_FUNDING_ENABLED", "true").lower() == "true"
 STATE_FILE = "/home/trader/volume-spike-bot/.funding_state.json"
 
 # ─────────────────────── OI History (Ring Buffers) ───────────────────────
-# symbol -> deque[(timestamp_epoch, oi_contracts)]
+# symbol -> deque[(timestamp_epoch, oi_contracts, mark_price)]
 # Max length: enough to cover 3 hours at chosen interval (approx 1080 for 10s interval)
 oi_history: Dict[str, deque] = {}
 
@@ -190,6 +190,24 @@ def load_mark_prices_from_state() -> Dict[str, float]:
         return {}
 
 
+def get_funding_rate_from_state(symbol: str) -> Optional[float]:
+    """
+    Get current funding rate for a symbol from WebSocket daemon state file.
+    Returns funding rate or None if not available.
+    """
+    try:
+        with open(STATE_FILE, 'r') as f:
+            state_data = json.load(f)
+            funding_state = state_data.get('funding_state', {})
+            if symbol in funding_state:
+                funding_rate = funding_state[symbol].get('fundingRate')
+                if funding_rate is not None:
+                    return float(funding_rate)
+            return None
+    except Exception as e:
+        return None
+
+
 def fetch_oi_for_symbol(symbol: str, mark_price: float) -> Optional[Tuple[float, float]]:
     """
     Fetch Open Interest for a symbol from Binance.
@@ -221,10 +239,10 @@ def initialize_oi_history(symbols: list):
             oi_history[symbol] = deque(maxlen=maxlen)
 
 
-def get_oi_5min_ago(symbol: str, now: float) -> Optional[float]:
+def get_oi_5min_ago(symbol: str, now: float) -> Optional[Tuple[float, float]]:
     """
-    Get OI value from 5 minutes ago (±30 seconds tolerance).
-    Returns the closest OI sample to (now - 5 minutes), or None if insufficient data.
+    Get OI value and mark price from 5 minutes ago (±30 seconds tolerance).
+    Returns (oi_contracts, mark_price) for the closest sample to (now - 5 minutes), or None if insufficient data.
     """
     if symbol not in oi_history or len(oi_history[symbol]) < 2:
         return None
@@ -236,17 +254,18 @@ def get_oi_5min_ago(symbol: str, now: float) -> Optional[float]:
     closest_sample = None
     min_diff = float('inf')
 
-    for ts, oi in oi_history[symbol]:
+    for ts, oi, mark_price in oi_history[symbol]:
         diff = abs(ts - target_time)
         if diff < min_diff and diff <= tolerance:
             min_diff = diff
-            closest_sample = oi
+            closest_sample = (oi, mark_price)
 
     return closest_sample
 
 
-def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float, 
-                  pct_change: float, abs_change: float, timestamp: float) -> bool:
+def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
+                  pct_change: float, abs_change: float, timestamp: float,
+                  price_change: Optional[float] = None, funding_rate: Optional[float] = None) -> bool:
     """
     Post OI alert to VolSpike backend.
     Returns True on success, False on error.
@@ -263,7 +282,13 @@ def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
             "timestamp": datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
             "source": "oi_realtime_poller",
         }
-        
+
+        # Add optional fields if available
+        if price_change is not None:
+            payload["priceChange"] = price_change
+        if funding_rate is not None:
+            payload["fundingRate"] = funding_rate
+
         response = session.post(
             url,
             json=payload,
@@ -273,10 +298,16 @@ def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
             },
             timeout=10
         )
-        
+
         if response.ok:
             result = response.json()
-            print(f"✅ Posted OI alert: {symbol} {direction} ({pct_change*100:.2f}%)")
+            extras = []
+            if price_change is not None:
+                extras.append(f"price {price_change*100:+.2f}%")
+            if funding_rate is not None:
+                extras.append(f"funding {funding_rate*100:.3f}%")
+            extras_str = f" ({', '.join(extras)})" if extras else ""
+            print(f"✅ Posted OI alert: {symbol} {direction} ({pct_change*100:.2f}%){extras_str}")
             return True
         else:
             print(f"⚠️  OI alert post failed: {response.status_code} - {response.text[:100]}")
@@ -286,20 +317,36 @@ def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
         return False
 
 
-def maybe_emit_oi_alert(symbol: str, current_oi: float, timestamp: float):
+def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: float, timestamp: float):
     """
     Check if OI change warrants an alert and emit if conditions are met.
     Uses de-duplication: only alert when crossing threshold from INSIDE -> OUTSIDE.
     Compares current OI to OI from 5 minutes ago (±30s tolerance).
+    Also calculates price change over the same period and retrieves current funding rate.
     """
-    oi_5min_ago = get_oi_5min_ago(symbol, timestamp)
-    if oi_5min_ago is None or oi_5min_ago == 0:
+    baseline_data = get_oi_5min_ago(symbol, timestamp)
+    if baseline_data is None:
         # Not enough history yet, mark as INSIDE
+        oi_alert_state[symbol] = "INSIDE"
+        return
+
+    oi_5min_ago, mark_price_5min_ago = baseline_data
+
+    if oi_5min_ago == 0:
+        # Invalid baseline, mark as INSIDE
         oi_alert_state[symbol] = "INSIDE"
         return
 
     pct_change = (current_oi - oi_5min_ago) / oi_5min_ago
     abs_change = current_oi - oi_5min_ago
+
+    # Calculate price change over the same 5-minute period
+    price_change = None
+    if mark_price_5min_ago > 0 and current_mark_price > 0:
+        price_change = (current_mark_price - mark_price_5min_ago) / mark_price_5min_ago
+
+    # Get current funding rate from WebSocket state file
+    funding_rate = get_funding_rate_from_state(symbol)
 
     # Determine if currently OUTSIDE threshold (|change| >= 3%)
     is_outside = abs(pct_change) >= OI_SPIKE_THRESHOLD_PCT
@@ -314,14 +361,26 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, timestamp: float):
 
         if pct_change >= OI_SPIKE_THRESHOLD_PCT and abs_change >= OI_MIN_DELTA_CONTRACTS:
             direction = "UP"
-            print(f"🔺 OI SPIKE: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f})")
-            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp)
+            extras = []
+            if price_change is not None:
+                extras.append(f"price {price_change*100:+.2f}%")
+            if funding_rate is not None:
+                extras.append(f"funding {funding_rate*100:.3f}%")
+            extras_str = f" | {', '.join(extras)}" if extras else ""
+            print(f"🔺 OI SPIKE: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f}){extras_str}")
+            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate)
             alert_emitted = True
 
         elif pct_change <= -OI_DUMP_THRESHOLD_PCT and abs_change <= -OI_MIN_DELTA_CONTRACTS:
             direction = "DOWN"
-            print(f"🔻 OI DUMP: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f})")
-            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp)
+            extras = []
+            if price_change is not None:
+                extras.append(f"price {price_change*100:+.2f}%")
+            if funding_rate is not None:
+                extras.append(f"funding {funding_rate*100:.3f}%")
+            extras_str = f" | {', '.join(extras)}" if extras else ""
+            print(f"🔻 OI DUMP: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f}){extras_str}")
+            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp, price_change, funding_rate)
             alert_emitted = True
 
         # Only mark as OUTSIDE if we actually emitted an alert
@@ -479,11 +538,11 @@ def main_loop():
 
                         timestamp = time.time()
 
-                        # Store in history
-                        oi_history[symbol].append((timestamp, oi))
+                        # Store in history with mark price (for price change calculation)
+                        oi_history[symbol].append((timestamp, oi, mark_price))
 
-                        # Check for alerts
-                        maybe_emit_oi_alert(symbol, oi, timestamp)
+                        # Check for alerts (now includes price change and funding rate)
+                        maybe_emit_oi_alert(symbol, oi, mark_price, timestamp)
 
                         # Collect for batch
                         sample = {
