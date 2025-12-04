@@ -14,7 +14,6 @@ import {
     BarChart3,
     Settings,
     Menu,
-    X,
     Shield,
     User,
     TrendingUp,
@@ -91,17 +90,19 @@ export function AdminSidebar() {
 
     return (
         <>
-            {/* Mobile menu button */}
-            <div className="fixed top-4 left-4 z-50 lg:hidden">
-                <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setIsOpen(!isOpen)}
-                    aria-label="Toggle admin navigation"
-                >
-                    {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-                </Button>
-            </div>
+            {/* Mobile menu button - only show when sidebar is closed */}
+            {!isOpen && (
+                <div className="fixed top-4 left-4 z-50 lg:hidden">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setIsOpen(true)}
+                        aria-label="Open admin navigation"
+                    >
+                        <Menu className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
 
             {/* Sidebar */}
             <div className={cn(
