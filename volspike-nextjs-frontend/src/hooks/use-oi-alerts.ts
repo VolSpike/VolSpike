@@ -43,12 +43,25 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       return // Non-admin users don't fetch
     }
 
+    // Get access token from session (required for admin API)
+    const accessToken = (session as any)?.accessToken as string | undefined
+    if (!accessToken) {
+      console.debug('[useOIAlerts] No access token in session')
+      setError('No access token available')
+      setIsLoading(false)
+      return
+    }
+
     try {
       setError(null)
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       const response = await fetch(`${apiUrl}/api/open-interest-alerts`, {
-        credentials: 'include', // Send cookies for auth
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
       })
 
       if (response.status === 403) {
@@ -73,7 +86,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [isAdmin])
+  }, [isAdmin, session])
 
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {
