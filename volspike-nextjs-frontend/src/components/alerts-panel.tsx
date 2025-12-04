@@ -167,7 +167,7 @@ export function AlertsPanel({
           </span>
         </CardTitle>
         <CardDescription className="text-xs text-muted-foreground">
-          Volume spikes and Open Interest changes
+          Volume and Open Interest spikes
         </CardDescription>
       </CardHeader>
 
