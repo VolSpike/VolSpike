@@ -1091,6 +1091,25 @@ Before considering any task complete:
 - **Tooltip max-width must accommodate content** - Test with actual content, not just estimated widths
 - **Event propagation in nested clickable elements** - Always use `e.stopPropagation()` and `e.preventDefault()`
 
+### Debugging Strategy: Copy Working Code First
+- **CRITICAL**: When a UI component doesn't work, find a working example and copy it EXACTLY first
+- **DON'T overthink or experiment** - No special props, no CSS overrides, no "fixes" until you've copied what works
+- **Radix Tooltip lessons learned**:
+  - Don't add `!bg-[...]` or `!border-[...]` Tailwind overrides - they compete with class-based CSS
+  - Don't add `disableHoverableContent` prop unless the working example uses it (Radix default is hoverable since v1.x)
+  - Don't experiment with alignment/positioning props until basic structure matches
+- **Time wasted by not following this**: 4 hours on tooltip that could have been fixed in 5 minutes by copying `OILockButton`
+- **The winning approach**:
+  1. Find working implementation (e.g., `OILockButton` in `volume-alerts-content.tsx`)
+  2. Copy it EXACTLY (same props, same structure, same CSS classes)
+  3. Test that it works
+  4. THEN make minimal adjustments for your specific use case (positioning, content)
+- **Real-world example**: Tooltip transparency + disappearing issue was solved by:
+  - Removing unnecessary `!bg-[...]` overrides (let `.oi-teaser-tooltip` CSS handle it)
+  - Removing unnecessary `disableHoverableContent={false}` prop (Radix default is correct)
+  - Using exact same structure as working `OILockButton` component
+  - Only AFTER confirming it works, adjusting `side` and `align` for positioning
+
 ---
 
 **Last Updated**: December 2025
