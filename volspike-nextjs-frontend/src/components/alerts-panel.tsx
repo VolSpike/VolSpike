@@ -43,6 +43,12 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   const [, setTick] = useState(0) // Force re-render every second for countdown display
   const oiNextUpdateRef = useRef(0) // Ref to avoid stale closure in interval
 
+  // Unread alert counts for badge display on inactive tab
+  const [unreadVolumeCount, setUnreadVolumeCount] = useState(0)
+  const [unreadOICount, setUnreadOICount] = useState(0)
+  const prevVolumeAlertsRef = useRef<string[]>([])
+  const prevOIAlertsRef = useRef<string[]>([])
+
   // Free tier users cannot access OI alerts
   const canAccessOIAlerts = userTier === 'pro' || userTier === 'elite'
 
@@ -65,6 +71,55 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   })
 
   const { enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
+
+  // Track new volume alerts when on OI tab (for badge on Volume tab)
+  useEffect(() => {
+    if (activeTab !== 'oi' || volumeAlerts.length === 0) return
+
+    const currentIds = volumeAlerts.map(a => a.id)
+    const prevIds = prevVolumeAlertsRef.current
+
+    // Only count new alerts if we have previous data (not initial load)
+    if (prevIds.length > 0) {
+      const newCount = currentIds.filter(id => !prevIds.includes(id)).length
+      if (newCount > 0) {
+        setUnreadVolumeCount(prev => prev + newCount)
+      }
+    }
+
+    prevVolumeAlertsRef.current = currentIds
+  }, [volumeAlerts, activeTab])
+
+  // Track new OI alerts when on Volume tab (for badge on OI tab)
+  useEffect(() => {
+    if (activeTab !== 'volume' || !canAccessOIAlerts || oiAlerts.length === 0) return
+
+    const currentIds = oiAlerts.map(a => a.id)
+    const prevIds = prevOIAlertsRef.current
+
+    // Only count new alerts if we have previous data (not initial load)
+    if (prevIds.length > 0) {
+      const newCount = currentIds.filter(id => !prevIds.includes(id)).length
+      if (newCount > 0) {
+        setUnreadOICount(prev => prev + newCount)
+      }
+    }
+
+    prevOIAlertsRef.current = currentIds
+  }, [oiAlerts, activeTab, canAccessOIAlerts])
+
+  // Clear unread count when switching to a tab
+  useEffect(() => {
+    if (activeTab === 'volume') {
+      setUnreadVolumeCount(0)
+      // Update the ref to current state so we don't re-count existing alerts
+      prevVolumeAlertsRef.current = volumeAlerts.map(a => a.id)
+    } else if (activeTab === 'oi') {
+      setUnreadOICount(0)
+      // Update the ref to current state so we don't re-count existing alerts
+      prevOIAlertsRef.current = oiAlerts.map(a => a.id)
+    }
+  }, [activeTab, volumeAlerts, oiAlerts])
 
   // 30-second countdown for OI alerts (matches Digital Ocean polling interval)
   useEffect(() => {
@@ -200,9 +255,15 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'volume' | 'oi')} className="flex-1 flex flex-col">
           <TabsList className="grid grid-cols-2 w-full mb-4 mr-4">
-            <TabsTrigger value="volume" className="flex items-center gap-1.5">
+            <TabsTrigger value="volume" className="flex items-center gap-1.5 relative">
               <TrendingUp className="h-3.5 w-3.5" />
               Volume
+              {/* Red badge for unread volume alerts when viewing OI tab */}
+              {unreadVolumeCount > 0 && activeTab === 'oi' && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-[10px] font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-md">
+                  {unreadVolumeCount > 9 ? '9+' : unreadVolumeCount}
+                </span>
+              )}
             </TabsTrigger>
             <div className="flex items-center gap-1 flex-1">
               <TabsTrigger
@@ -212,6 +273,12 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
               >
                 <Activity className="h-3.5 w-3.5" />
                 <span>Open Interest</span>
+                {/* Red badge for unread OI alerts when viewing Volume tab */}
+                {unreadOICount > 0 && activeTab === 'volume' && canAccessOIAlerts && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-[10px] font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-md">
+                    {unreadOICount > 9 ? '9+' : unreadOICount}
+                  </span>
+                )}
               </TabsTrigger>
               {!canAccessOIAlerts && (
                 <TooltipProvider delayDuration={100}>
