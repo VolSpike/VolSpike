@@ -229,8 +229,8 @@ export function AlertsPanel({
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'volume' | 'oi')} className="flex-1 flex flex-col">
-          <TabsList className="grid grid-cols-2 w-full mb-4 mr-4">
-            <TabsTrigger value="volume" className="flex items-center gap-1.5 relative">
+          <TabsList className="grid grid-cols-2 w-full mb-4 mr-4 overflow-visible">
+            <TabsTrigger value="volume" className="flex items-center gap-1.5 relative overflow-visible">
               <TrendingUp className="h-3.5 w-3.5" />
               Volume
               {/* Red badge for unread volume alerts when viewing OI tab */}
@@ -240,11 +240,11 @@ export function AlertsPanel({
                 </span>
               )}
             </TabsTrigger>
-            <div className="flex items-center gap-1 flex-1">
+            <div className="flex items-center gap-1 flex-1 overflow-visible">
               <TabsTrigger
                 value="oi"
                 disabled={!canAccessOIAlerts}
-                className="flex items-center gap-1.5 relative flex-1"
+                className="flex items-center gap-1.5 relative flex-1 overflow-visible"
               >
                 <Activity className="h-3.5 w-3.5" />
                 <span>Open Interest</span>
