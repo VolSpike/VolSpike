@@ -235,7 +235,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                         side="bottom"
                         align="end"
                         className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden !bg-[hsl(var(--bg-elevated))] !border-[hsl(var(--secondary-500)_/_0.3)]"
-                        sideOffset={4}
+                        sideOffset={2}
                         collisionPadding={8}
                       >
                         <div className="oi-teaser-tooltip-gradient h-1 w-full" />
