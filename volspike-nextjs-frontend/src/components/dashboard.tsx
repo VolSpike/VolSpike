@@ -21,6 +21,7 @@ import { BackgroundPattern } from '@/components/ui/background-pattern'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { MarketNewsPane } from '@/components/market-news-pane'
 
 export function Dashboard() {
     const { data: session, status } = useSession()
@@ -327,7 +328,10 @@ export function Dashboard() {
                         </div>
                     )}
 
-                    <div className="xl:hidden animate-fade-in">
+                    <div className="xl:hidden animate-fade-in space-y-4">
+                        {/* Market News Pane - Mobile */}
+                        <MarketNewsPane maxMessages={20} pollInterval={30000} />
+
                         <Tabs
                             defaultValue="market"
                             className="w-full"
@@ -358,22 +362,28 @@ export function Dashboard() {
                         </Tabs>
                     </div>
 
-                    <div className="hidden xl:flex gap-2 animate-fade-in items-stretch">
-                        <div className="flex-[3]">
-                            {marketDataCard}
-                        </div>
-                        <div className="flex-1">
-                            {/* Side-by-side pane mode: compact layout (Price+OI line 1, Funding line 2) */}
-                            <AlertsPanel
-                                onNewAlert={handleNewVolumeAlert}
-                                guestMode={isGuest}
-                                guestVisibleCount={2}
-                                compact={true}
-                                unreadVolumeCount={unreadVolumeCount}
-                                unreadOICount={unreadOICount}
-                                activeAlertsTab={activeAlertsTab}
-                                onActiveTabChange={handleActiveAlertsTabChange}
-                            />
+                    <div className="hidden xl:flex flex-col gap-4 animate-fade-in">
+                        {/* Market News Pane - Full width above Market Data/Alerts */}
+                        <MarketNewsPane maxMessages={30} pollInterval={30000} />
+
+                        {/* Market Data and Alerts side by side */}
+                        <div className="flex gap-2 items-stretch">
+                            <div className="flex-[3]">
+                                {marketDataCard}
+                            </div>
+                            <div className="flex-1">
+                                {/* Side-by-side pane mode: compact layout (Price+OI line 1, Funding line 2) */}
+                                <AlertsPanel
+                                    onNewAlert={handleNewVolumeAlert}
+                                    guestMode={isGuest}
+                                    guestVisibleCount={2}
+                                    compact={true}
+                                    unreadVolumeCount={unreadVolumeCount}
+                                    unreadOICount={unreadOICount}
+                                    activeAlertsTab={activeAlertsTab}
+                                    onActiveTabChange={handleActiveAlertsTabChange}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

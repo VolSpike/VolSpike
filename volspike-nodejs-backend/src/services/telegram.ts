@@ -373,4 +373,47 @@ export class TelegramService {
       messagesDeleted: deleteResult.count,
     }
   }
+
+  /**
+   * Get recent messages for public dashboard (simplified response)
+   * Only returns messages from enabled channels
+   */
+  async getRecentMessages(
+    limit: number = 20
+  ): Promise<
+    {
+      id: string
+      text: string | null
+      date: Date
+      category: string
+      channelUsername: string
+    }[]
+  > {
+    const messages = await this.db.telegramMessage.findMany({
+      where: {
+        channel: {
+          enabled: true,
+        },
+      },
+      include: {
+        channel: {
+          select: {
+            category: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+      take: limit,
+    })
+
+    // Return simplified structure for public consumption
+    return messages.map((msg: any) => ({
+      id: msg.id,
+      text: msg.text,
+      date: msg.date,
+      category: msg.channel.category,
+      channelUsername: msg.channel.username,
+    }))
+  }
 }

@@ -105,4 +105,23 @@ telegramRouter.get('/health', async (c) => {
   })
 })
 
+// GET /api/telegram/messages - Public endpoint for fetching messages (for dashboard)
+// No auth required - messages are public content from public Telegram channels
+telegramRouter.get('/messages', async (c) => {
+  try {
+    const query = c.req.query()
+    const limit = Math.min(Math.max(parseInt(query.limit || '20', 10), 1), 50)
+
+    const messages = await getTelegramService().getRecentMessages(limit)
+
+    return c.json({
+      messages,
+      count: messages.length,
+    })
+  } catch (error) {
+    logger.error('Failed to get public telegram messages:', error)
+    return c.json({ error: 'Failed to fetch messages', messages: [] }, 500)
+  }
+})
+
 export { telegramRouter }
