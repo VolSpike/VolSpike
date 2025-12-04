@@ -121,7 +121,7 @@ export function OIAlertsContent({
   }
 
   const formatExactTime = (timestamp: string) => {
-    return format(new Date(timestamp), 'h:mm:ss a')
+    return format(new Date(timestamp), 'h:mm a') // Match volume alerts format (no seconds)
   }
 
   const formatRelativeTime = (timestamp: string) => {
@@ -299,11 +299,11 @@ export function OIAlertsContent({
                       <div className="text-xs opacity-70">5 mins ago: {formatOI(alert.baseline)}</div>
                     </div>
 
-                    {/* Metrics: Price %, Funding with action icons */}
-                    <div className="space-y-1.5">
-                      {/* Price % and action icons */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-xs text-muted-foreground">
+                    {/* Metrics: Price, Funding with action icons - match volume alerts layout */}
+                    <div className="flex items-end justify-between gap-2">
+                      <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
+                        {/* Price and Funding (always together on same line for tabs, separate lines for panes) */}
+                        <div className="flex items-center gap-3 whitespace-nowrap">
                           {/* Price % change during OI measurement period */}
                           {alert.priceChange !== undefined && alert.priceChange !== null ? (
                             <span>
@@ -327,9 +327,27 @@ export function OIAlertsContent({
                           )}
                         </div>
 
+                        {/* Funding - same line (tab) or new line (pane) */}
+                        {alert.fundingRate !== undefined && alert.fundingRate !== null && (
+                          <span>
+                            Funding:{' '}
+                            <span
+                              className={
+                                alert.fundingRate > 0.0003
+                                  ? 'text-brand-600 dark:text-brand-400'
+                                  : alert.fundingRate < -0.0003
+                                    ? 'text-danger-600 dark:text-danger-400'
+                                    : ''
+                              }
+                            >
+                              {(alert.fundingRate * 100).toFixed(3)}%
+                            </span>
+                          </span>
+                        )}
+                      </div>
+
                       {/* Action icon buttons */}
                       <div className="flex items-center gap-0">
-                        {/* Binance icon button */}
                         <button
                           onClick={(e) => handleBinanceClick(alert.symbol, e)}
                           className="group/bn flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
@@ -339,7 +357,6 @@ export function OIAlertsContent({
                           <Coins className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/bn:text-warning-500 transition-colors" />
                         </button>
 
-                        {/* TradingView icon button */}
                         <button
                           onClick={(e) => handleTradingViewClick(alert.symbol, e)}
                           className="group/tv flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
@@ -352,30 +369,6 @@ export function OIAlertsContent({
                           </div>
                         </button>
                       </div>
-                    </div>
-
-                    {/* Funding rate on separate line */}
-                    <div className="text-xs text-muted-foreground">
-                      {alert.fundingRate !== undefined && alert.fundingRate !== null ? (
-                        <span>
-                          Funding:{' '}
-                          <span
-                            className={
-                              alert.fundingRate > 0.0003
-                                ? 'text-brand-600 dark:text-brand-400'
-                                : alert.fundingRate < -0.0003
-                                  ? 'text-danger-600 dark:text-danger-400'
-                                  : ''
-                            }
-                          >
-                            {(alert.fundingRate * 100).toFixed(3)}%
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50">
-                          Funding: <span>—</span>
-                        </span>
-                      )}
                     </div>
                     </div>
                   </div>
