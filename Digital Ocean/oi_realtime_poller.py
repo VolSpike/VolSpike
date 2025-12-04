@@ -335,8 +335,7 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, timestamp: float):
 
     elif is_outside and previous_state == "OUTSIDE":
         # Already OUTSIDE and still OUTSIDE - skip (de-duplication)
-        # Uncomment for debugging:
-        # print(f"  [DEDUP] {symbol} still OUTSIDE, skipping (was {pct_change*100:.2f}%)")
+        print(f"  [DEDUP] {symbol} still OUTSIDE, skipping (was {pct_change*100:.2f}%)")
 
 
 def post_oi_batch(samples: list) -> bool:

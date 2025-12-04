@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX } from 'lucide-react'
+import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Coins, BarChart3, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 
 export default function OIAlertsPage() {
@@ -91,6 +91,27 @@ export default function OIAlertsPage() {
   const formatRelativeTime = (timestamp: string) => {
     const relative = formatDistanceToNow(new Date(timestamp), { addSuffix: true })
     return relative.replace('about ', '')
+  }
+
+  // TradingView link handler - opens chart in new browser tab with referral
+  const handleTradingViewClick = (symbol: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent alert card click animation
+    e.preventDefault()
+
+    // Remove USDT suffix for TradingView symbol format
+    const asset = symbol.replace('USDT', '')
+    const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${asset}USDT.P&share_your_love=moneygarden`
+    window.open(tradingViewUrl, '_blank', 'noopener,noreferrer')
+  }
+
+  // Binance link handler - opens futures via referral link in new browser tab
+  const handleBinanceClick = (symbol: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent alert card click animation
+    e.preventDefault()
+
+    // Referral link with symbol parameter for tracking
+    const binanceReferralUrl = `https://www.binance.com/activity/referral-entry/CPA?ref=CPA_0090FDRWPL&utm_source=volspike&symbol=${symbol}`
+    window.open(binanceReferralUrl, '_blank', 'noopener,noreferrer')
   }
 
   // Non-admin users
@@ -244,8 +265,8 @@ export default function OIAlertsPage() {
                           </div>
                         </div>
 
-                        {/* Percentage badge */}
-                        <div>
+                        {/* Percentage badge and time period badge */}
+                        <div className="flex items-center gap-2">
                           <Badge
                             variant="outline"
                             className={`text-xs font-mono-tabular ${
@@ -256,13 +277,56 @@ export default function OIAlertsPage() {
                           >
                             {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
                           </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            5 min
+                          </Badge>
                         </div>
 
                         {/* OI information */}
                         <div className="space-y-0.5 text-sm text-muted-foreground">
                           <div>Current OI: {formatOI(alert.current)}</div>
-                          <div className="text-xs opacity-70">5 min ago: {formatOI(alert.baseline)}</div>
-                          <div className="text-xs opacity-70">Change: {formatOI(alert.absChange)}</div>
+                          <div className="text-xs opacity-70">5 mins ago: {formatOI(alert.baseline)}</div>
+                        </div>
+
+                        {/* Metrics: Price %, Funding with action icons */}
+                        <div className="flex items-end justify-between gap-2">
+                          <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                            {/* Price % - Placeholder until backend provides this data */}
+                            <span className="text-muted-foreground/50">
+                              Price: <span>—</span>
+                            </span>
+
+                            {/* Funding rate - Placeholder until backend provides this data */}
+                            <span className="text-muted-foreground/50">
+                              Funding: <span>—</span>
+                            </span>
+                          </div>
+
+                          {/* Action icon buttons */}
+                          <div className="flex items-center gap-0">
+                            {/* Binance icon button */}
+                            <button
+                              onClick={(e) => handleBinanceClick(alert.symbol, e)}
+                              className="group/bn flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
+                              title="Open in Binance"
+                              aria-label="Open in Binance"
+                            >
+                              <Coins className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/bn:text-warning-500 transition-colors" />
+                            </button>
+
+                            {/* TradingView icon button */}
+                            <button
+                              onClick={(e) => handleTradingViewClick(alert.symbol, e)}
+                              className="group/tv flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                              title="Open in TradingView"
+                              aria-label="Open in TradingView"
+                            >
+                              <div className="relative">
+                                <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
+                                <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
+                              </div>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
