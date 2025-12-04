@@ -14,6 +14,7 @@
 
 import { Hono } from 'hono'
 import { authMiddleware } from '../middleware/auth'
+import { prisma } from '../index'
 import { ingestOpenInterest, ingestOpenInterestAlert, getOpenInterestSamples, getOpenInterestAlerts } from './openInterest.service'
 import type { OpenInterestIngestRequest, OpenInterestAlertInput, OISampleQueryParams, OIAlertQueryParams } from './openInterest.types'
 import { createLogger } from '../lib/logger'
@@ -158,8 +159,19 @@ app.get('/alerts', authMiddleware, async (c) => {
   try {
     const user = c.get('user')
 
+    if (!user) {
+      return c.json({ error: 'Authentication required' }, 401)
+    }
+
     // Check if user has access to OI alerts (Pro/Elite/Admin)
-    const canAccessOI = user.role === 'ADMIN' || user.tier === 'pro' || user.tier === 'elite'
+    // User object from middleware includes: id, email, tier, refreshInterval, theme, status
+    // Need to check role separately from database
+    const userRecord = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { role: true, tier: true }
+    })
+
+    const canAccessOI = userRecord?.role === 'ADMIN' || user.tier === 'pro' || user.tier === 'elite'
 
     if (!canAccessOI) {
       return c.json({ error: 'OI alerts require Pro/Elite tier or Admin access' }, 403)
