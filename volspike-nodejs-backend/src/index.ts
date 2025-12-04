@@ -485,10 +485,10 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     // ============================================
     // RSS NEWS FEED - Refresh & Cleanup
     // ============================================
-    // Refresh RSS feeds every 15 minutes and cleanup old articles (6 hour retention)
-    const RSS_REFRESH_INTERVAL = 15 * 60 * 1000 // 15 minutes
+    // Refresh RSS feeds every 5 minutes and cleanup to keep only last 200 articles
+    const RSS_REFRESH_INTERVAL = 5 * 60 * 1000 // 5 minutes
     const RSS_CLEANUP_INTERVAL = 60 * 60 * 1000 // 1 hour
-    const RSS_RETENTION_HOURS = 6 // Keep articles for 6 hours
+    const RSS_MAX_ARTICLES = 200 // Keep last 200 articles
 
     const newsService = new NewsService(prisma)
 
@@ -521,13 +521,13 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         }
     }, RSS_REFRESH_INTERVAL)
 
-    // RSS article cleanup: Every hour (delete articles older than 6 hours)
+    // RSS article cleanup: Every hour (keep only last 200 articles)
     setInterval(async () => {
         try {
             logger.info('🔄 Running scheduled RSS article cleanup')
-            const deleted = await newsService.cleanupOldArticles(RSS_RETENTION_HOURS)
+            const deleted = await newsService.cleanupOldArticles(RSS_MAX_ARTICLES)
             if (deleted > 0) {
-                logger.info(`✅ RSS cleanup completed: deleted ${deleted} articles older than ${RSS_RETENTION_HOURS} hours`)
+                logger.info(`✅ RSS cleanup completed: deleted ${deleted} articles (keeping last ${RSS_MAX_ARTICLES})`)
             }
         } catch (error) {
             logger.error('❌ Scheduled RSS article cleanup failed:', error)
@@ -563,7 +563,7 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
         }
     }, 3 * 60 * 1000) // 3 minutes
 
-    logger.info('✅ RSS feed scheduled tasks initialized (refresh every 15min, cleanup every hour, 6h retention)')
+    logger.info('✅ RSS feed scheduled tasks initialized (refresh every 5min, cleanup every hour, keep last 200 articles)')
 
     logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
 } else {
