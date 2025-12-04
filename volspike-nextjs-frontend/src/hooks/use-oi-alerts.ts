@@ -70,7 +70,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       })
 
       if (response.status === 403) {
-        setError('Admin access required')
+        setError('Pro or Elite subscription required')
         setIsLoading(false)
         return
       }

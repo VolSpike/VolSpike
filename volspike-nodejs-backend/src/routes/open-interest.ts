@@ -441,7 +441,8 @@ export const handleAlertIngest = async (c: any) => {
 /**
  * GET /api/open-interest-alerts
  *
- * Get recent Open Interest alerts (admin only)
+ * Get recent Open Interest alerts (Pro/Elite/Admin)
+ * Free tier users cannot access OI alerts
  */
 export const handleGetAlerts = async (c: any) => {
   try {
@@ -452,10 +453,14 @@ export const handleGetAlerts = async (c: any) => {
       return c.json({ error: 'Authentication required' }, 401)
     }
 
-    // Check if user is admin
-    if (user.role !== 'ADMIN') {
-      logger.warn(`Non-admin user ${user.id} attempted to access OI alerts`)
-      return c.json({ error: 'Admin access required' }, 403)
+    // Check if user has access (Pro, Elite, or Admin)
+    const userTier = user.tier || 'free'
+    const isAdmin = user.role === 'ADMIN'
+    const canAccessOI = isAdmin || userTier === 'pro' || userTier === 'elite'
+
+    if (!canAccessOI) {
+      logger.warn(`Free tier user ${user.id} attempted to access OI alerts`)
+      return c.json({ error: 'Pro or Elite subscription required' }, 403)
     }
 
     const symbol = c.req.query('symbol')
