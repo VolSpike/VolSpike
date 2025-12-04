@@ -154,6 +154,9 @@ export class TelegramService {
         `[TelegramService] Ingested ${inserted} messages for @${channelData.username} (${duplicates} duplicates, ${errors} errors)`
       )
 
+      // Auto-cleanup: keep only last 1000 messages per channel
+      await this.cleanupOldMessages(1000)
+
       return { success: true, inserted, duplicates, errors }
     } catch (error) {
       logger.error('[TelegramService] Ingest failed:', error)

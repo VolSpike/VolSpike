@@ -67,7 +67,6 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
   const [stats, setStats] = useState<TelegramStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<Record<string, boolean>>({})
-  const [cleaningUp, setCleaningUp] = useState(false)
   const [totalMessages, setTotalMessages] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const messagesPerPage = 50
@@ -184,30 +183,6 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
     }
   }
 
-  const cleanupOldMessages = async () => {
-    setCleaningUp(true)
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/telegram/cleanup`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ maxMessages: 1000 }),
-      })
-      if (response.ok) {
-        const data = await response.json()
-        alert(data.message)
-        await fetchStats()
-        await fetchMessages(currentPage)
-      }
-    } catch (error) {
-      console.error('Failed to cleanup messages:', error)
-    } finally {
-      setCleaningUp(false)
-    }
-  }
-
   const refreshData = async () => {
     setLoading(true)
     await Promise.all([fetchChannels(), fetchStats(), fetchMessages(currentPage)])
@@ -297,18 +272,10 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <Button onClick={refreshData} variant="outline">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh Now
-        </Button>
-        <Button onClick={cleanupOldMessages} disabled={cleaningUp} variant="outline">
-          {cleaningUp ? (
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Trash2 className="w-4 h-4 mr-2" />
-          )}
-          Cleanup (Keep 1000)
         </Button>
         {stats?.lastUpdate && (
           <div className="flex items-center text-sm text-muted-foreground">
@@ -316,6 +283,9 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
             Last update: {formatDistanceToNow(new Date(stats.lastUpdate), { addSuffix: true })}
           </div>
         )}
+        <div className="text-xs text-muted-foreground">
+          Auto-cleanup keeps last 1000 messages per channel
+        </div>
       </div>
 
       {/* Channels Section */}
