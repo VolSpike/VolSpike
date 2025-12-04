@@ -212,13 +212,13 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
               <Activity className="h-3.5 w-3.5" />
               <span>Open Interest</span>
               {!canAccessOIAlerts && (
-                <TooltipProvider delayDuration={200}>
+                <TooltipProvider delayDuration={100}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-4 w-4 p-0 min-w-0 cursor-pointer ml-1 relative z-10"
+                        className="h-4 w-4 p-0 min-w-0 cursor-help ml-1 relative z-10"
                         onClick={(e) => {
                           e.stopPropagation()
                           e.preventDefault()
@@ -230,12 +230,31 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                     </TooltipTrigger>
                     <TooltipContent
                       side="top"
-                      className="max-w-[180px] p-2"
+                      className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
                       sideOffset={4}
                     >
-                      <p className="text-xs text-center">
-                        Open Interest alerts are a Pro feature
-                      </p>
+                      <div className="oi-teaser-tooltip-gradient h-1 w-full" />
+                      <div className="px-2.5 py-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sec-500/15">
+                            <Lock className="h-2.5 w-2.5 text-sec-500" />
+                          </div>
+                          <span className="font-semibold text-xs">Pro Feature</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+                          Track OI changes ≥3% in 5 minutes.
+                        </p>
+                        <Link
+                          href="/pricing"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Upgrade to Pro
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -315,18 +334,12 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
             </DialogTitle>
           </DialogHeader>
           <div className="pt-2">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sec-500/15">
-                <Lock className="h-3 w-3 text-sec-500" />
-              </div>
-              <span className="font-semibold text-sm">Pro Feature</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+            <p className="text-sm text-muted-foreground mb-3">
               Track real-time Open Interest changes when OI spikes or dumps ≥3% in 5 minutes.
             </p>
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sec-500 hover:text-sec-400 transition-colors"
               onClick={() => setLockDialogOpen(false)}
             >
               Unlock with Pro
