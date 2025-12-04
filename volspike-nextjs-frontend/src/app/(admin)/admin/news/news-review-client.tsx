@@ -75,7 +75,6 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
   const [selectedFeed, setSelectedFeed] = useState<string>('all')
   const [seeding, setSeeding] = useState(false)
   const [refreshingAll, setRefreshingAll] = useState(false)
-  const [cleaningUp, setCleaningUp] = useState(false)
   const [deleting, setDeleting] = useState<Record<string, boolean>>({})
 
   const fetchFeeds = useCallback(async () => {
@@ -221,30 +220,6 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
       console.error('Failed to refresh all feeds:', error)
     } finally {
       setRefreshingAll(false)
-    }
-  }
-
-  const cleanupOldArticles = async () => {
-    setCleaningUp(true)
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/news/cleanup`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ maxArticles: 200 }),
-      })
-      if (response.ok) {
-        const data = await response.json()
-        alert(data.message)
-        await fetchStats()
-        await fetchArticles(selectedFeed)
-      }
-    } catch (error) {
-      console.error('Failed to cleanup articles:', error)
-    } finally {
-      setCleaningUp(false)
     }
   }
 
@@ -402,14 +377,9 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
           )}
           Refresh All Feeds
         </Button>
-        <Button onClick={cleanupOldArticles} disabled={cleaningUp} variant="outline">
-          {cleaningUp ? (
-            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Trash2 className="w-4 h-4 mr-2" />
-          )}
-          Cleanup (Keep 200)
-        </Button>
+        <div className="text-xs text-muted-foreground">
+          Auto-cleanup keeps last 200 articles
+        </div>
       </div>
 
       {/* Feeds Section */}

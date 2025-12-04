@@ -422,6 +422,9 @@ export class NewsService {
         `[NewsService] Refreshed ${feed.name}: +${articlesAdded} new, ~${articlesUpdated} updated`
       )
 
+      // Auto-cleanup: keep only last 200 articles
+      await this.cleanupOldArticles(200)
+
       return {
         success: true,
         feedName: feed.name,
