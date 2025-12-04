@@ -1,0 +1,51 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": [
+            "ES2022"
+        ],
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "allowJs": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "noEmit": false,
+        "declaration": true,
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "resolveJsonModule": true,
+        "downlevelIteration": true,
+        "incremental": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "@/lib/*": [
+                "./src/lib/*"
+            ],
+            "@/types/*": [
+                "./src/types/*"
+            ],
+            "@/services/*": [
+                "./src/services/*"
+            ],
+            "@/routes/*": [
+                "./src/routes/*"
+            ],
+            "@/middleware/*": [
+                "./src/middleware/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "src/__tests__"
+    ]
+}

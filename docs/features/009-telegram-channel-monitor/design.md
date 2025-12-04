@@ -12,7 +12,7 @@
         |                        |                        |
         v                        v                        |
    @marketfeed             PostgreSQL                Admin Panel
-   @WatcherGuruChat        (Neon DB)                /admin/telegram
+   @WatcherGuru            (Neon DB)                /admin/telegram
    (Telegram)
 ```
 
@@ -22,7 +22,7 @@
    - Connects to Telegram using user session (not bot)
    - Polls multiple channels every 30 seconds:
      - `@marketfeed` (category: macro) - macro market news
-     - `@WatcherGuruChat` (category: crypto) - crypto-specific news
+     - `@WatcherGuru` (category: crypto) - crypto-specific news
    - Posts new messages to backend `/api/telegram/ingest` with category
    - Tracks last seen message ID per channel to fetch only new messages
 
@@ -90,7 +90,7 @@ model TelegramChannel {
 | Category | Color | Description |
 |----------|-------|-------------|
 | `macro` | Amber | Macro market news (e.g., @marketfeed) |
-| `crypto` | Purple | Crypto-specific news (e.g., @WatcherGuruChat) |
+| `crypto` | Purple | Crypto-specific news (e.g., @WatcherGuru) |
 | `general` | Slate | Default/other channels |
 
 ### TelegramMessage Table
@@ -303,7 +303,7 @@ BATCH_SIZE = 50  # Messages per API request
 # Channel category mapping
 CHANNEL_CATEGORIES = {
     'marketfeed': 'macro',
-    'watcherguruchat': 'crypto',
+    'watcherguru': 'crypto',
 }
 ```
 
@@ -313,7 +313,7 @@ The script maintains state in `.telegram_poller_state.json`:
 {
   "last_message_ids": {
     "marketfeed": 842576,
-    "WatcherGuruChat": 123456
+    "WatcherGuru": 123456
   },
   "last_fetch": "2025-12-04T10:30:00+00:00"
 }

@@ -1,0 +1,12 @@
+[Unit]
+Description=Funding Data Health Check
+After=binance-funding-ws.service binance-funding-api.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/trader/volume-spike-bot
+ExecStart=/usr/bin/python3 /home/trader/volume-spike-bot/funding_health_monitor.py
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=funding-health-check

@@ -436,9 +436,6 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
                           >
                             {getCategoryConfig(message.channel.category).label}
                           </Badge>
-                          <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30">
-                            @{message.channel.username}
-                          </Badge>
                           <span className="text-xs text-muted-foreground">
                             {format(new Date(message.date), 'MMM d, yyyy h:mm a')}
                           </span>

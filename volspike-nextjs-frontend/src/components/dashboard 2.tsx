@@ -1,0 +1,371 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
+import { useSocket } from '@/hooks/use-socket'
+import { useTierChangeListener } from '@/hooks/use-tier-change-listener'
+import { useClientOnlyMarketData } from '@/hooks/use-client-only-market-data'
+import { useAssetDetection } from '@/hooks/use-asset-detection'
+import { loadAssetManifest } from '@/lib/asset-manifest'
+import { HeaderWithBanner } from '@/components/header-with-banner'
+import { MarketTable } from '@/components/market-table'
+import { AlertPanel } from '@/components/alert-panel'
+import { AlertsPanel } from '@/components/alerts-panel'
+import { TierUpgrade } from '@/components/tier-upgrade'
+import { SubscriptionStatus } from '@/components/subscription-status'
+import { AlertBuilder } from '@/components/alert-builder'
+import { CommandPalette } from '@/components/command-palette'
+import { BackgroundPattern } from '@/components/ui/background-pattern'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+export function Dashboard() {
+    const { data: session, status } = useSession()
+    const { socket } = useSocket()
+    
+    // Listen for tier changes via WebSocket and auto-refresh session
+    useTierChangeListener()
+    
+    const [alerts, setAlerts] = useState<any[]>([])
+    const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
+    const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')
+    const [unreadAlertsCount, setUnreadAlertsCount] = useState(0)
+    const [currentTab, setCurrentTab] = useState<'market' | 'alerts'>(() => {
+        if (typeof window === 'undefined') {
+            return 'market'
+        }
+        // On mobile/tablet, surface Volume Alerts first;
+        // on desktop, keep Market Data as the primary focus.
+        return window.innerWidth < 1280 ? 'alerts' : 'market'
+    })
+
+    // Session status tracking
+
+    // Determine user tier
+    const userTier = session?.user?.tier || 'free'
+
+    // Clear unread badge when viewing alerts tab
+    useEffect(() => {
+        if (currentTab === 'alerts') {
+            setUnreadAlertsCount(0)
+        }
+    }, [currentTab])
+
+    // Clear badge on window resize to desktop (where both panels visible)
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1280) {
+                setUnreadAlertsCount(0)
+            }
+        }
+        window.addEventListener('resize', handleResize)
+
+        // Also clear immediately if already on desktop
+        if (typeof window !== 'undefined' && window.innerWidth >= 1280) {
+            setUnreadAlertsCount(0)
+        }
+
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    // Handle new volume alerts for badge notification
+    const handleNewVolumeAlert = useCallback(() => {
+        const width = typeof window !== 'undefined' ? window.innerWidth : 0
+        console.log('🔔 handleNewVolumeAlert called', { width, currentTab, shouldShow: width < 1280 && currentTab === 'market' })
+
+        // Only increment badge on mobile/tablet when user is viewing Market Data tab
+        // On desktop (xl+), both panels are visible so no badge needed
+        if (typeof window !== 'undefined' && window.innerWidth < 1280) {
+            // Mobile/tablet: only show badge when on Market Data tab
+            if (currentTab === 'market') {
+                console.log('✅ Incrementing badge count')
+                setUnreadAlertsCount(prev => {
+                    const newCount = prev + 1
+                    console.log('Badge count:', prev, '→', newCount)
+                    return newCount
+                })
+            } else {
+                console.log('❌ Not incrementing - on alerts tab')
+            }
+        } else {
+            console.log('❌ Not incrementing - desktop view or window undefined')
+        }
+    }, [currentTab])
+
+    // Alert builder handlers (defined early to avoid hoisting issues)
+    const handleCreateAlert = (symbol: string) => {
+        setAlertBuilderSymbol(symbol.replace(/USDT$/i, ''))
+        setAlertBuilderOpen(true)
+    }
+
+    // Stable callback to avoid reconnect loops
+    const handleDataUpdate = useCallback((data: any[]) => {
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`📊 Market data updated: ${data.length} symbols`)
+        }
+    }, [])
+
+    // Track selected watchlist to pass symbols to hook
+    const [selectedWatchlistId, setSelectedWatchlistId] = useState<string | null>(null)
+    const [watchlistSymbols, setWatchlistSymbols] = useState<string[]>([])
+
+    // Use client-only market data (no API calls, no Redis)
+    // Pass watchlist symbols so they're included even if outside tier limits
+    const {
+        data: marketData,
+        lastUpdate,
+        nextUpdate,
+        isLive,
+        isConnecting,
+        isReconnecting,
+        hasError,
+        openInterestAsOf
+    } = useClientOnlyMarketData({
+        tier: userTier as 'elite' | 'pro' | 'free',
+        onDataUpdate: handleDataUpdate,
+        watchlistSymbols: watchlistSymbols
+    })
+    
+    // Handle watchlist filter change from MarketTable
+    const handleWatchlistFilterChange = useCallback((watchlistId: string | null, symbols?: string[]) => {
+        setSelectedWatchlistId(watchlistId)
+        setWatchlistSymbols(symbols || [])
+    }, [])
+
+    // Automatically detect new assets from Market Data (runs in background)
+    useAssetDetection(marketData)
+
+    // Preload asset manifest on dashboard mount
+    // Manifest is already preloaded from localStorage on module load, so this just ensures
+    // fresh data is fetched from backend if cache is stale
+    useEffect(() => {
+        loadAssetManifest().catch(() => {
+            // Silently handle errors - manifest will retry on next access
+        })
+    }, [])
+
+    useEffect(() => {
+        if (!socket) return
+
+        // Subscribe to market updates
+        const handleMarketUpdate = (data: any) => {
+            // Market update handler (debug logs removed)
+            // Handle both old and new data formats
+            const market = data?.data || data
+            if (market) {
+                // Currently, client-only WebSocket market data is handled elsewhere.
+                // This listener stays in place for future enhancements / server pushes.
+            }
+        }
+
+        const handleAlertTriggered = (alert: any) => {
+            setAlerts(prev => [alert, ...prev.slice(0, 9)]) // Keep last 10 alerts
+        }
+
+        socket.on('market-update', handleMarketUpdate)
+        socket.on('alert-triggered', handleAlertTriggered)
+
+        return () => {
+            socket.off('market-update', handleMarketUpdate)
+            socket.off('alert-triggered', handleAlertTriggered)
+        }
+    }, [socket])
+
+    if (status === 'loading') {
+        return <LoadingSpinner />
+    }
+
+    // Guest preview if user is not authenticated
+    const isGuest = !session?.user
+
+    const marketDataCard = (
+        <Card className="group h-full flex flex-col border border-border/60 shadow-md">
+            <CardHeader className="flex-shrink-0">
+                <CardTitle className="flex items-center gap-2">
+                    <span className="text-foreground">
+                        Market Data
+                    </span>
+                    <span
+                        className={`
+                            text-sm font-normal px-2 py-0.5 rounded-md border
+                            ${
+                                isGuest
+                                    ? 'bg-muted/70 text-muted-foreground border-border'
+                                    : (userTier as string) === 'free'
+                                    ? 'bg-muted/70 text-muted-foreground border-border'
+                                    : (userTier as string) === 'pro'
+                                    ? 'bg-sec-500/20 text-sec-700 dark:text-sec-400 border-sec-500/40'
+                                    : 'bg-elite-500/20 text-elite-700 dark:text-elite-400 border-elite-500/40'
+                            }
+                        `}
+                    >
+                        {isGuest ? 'PREVIEW' : `${userTier.toUpperCase()} Tier`}
+                    </span>
+                </CardTitle>
+                <CardDescription>
+                    {isGuest ? (
+                        <span className="text-muted-foreground">Guest Preview • Top 5 symbols visible • Sorting disabled</span>
+                    ) : isLive ? (
+                        <span className="text-green-500">● Live Data (Binance WebSocket) • Real-time Updates</span>
+                    ) : isConnecting ? (
+                        <span className="text-yellow-500">● Connecting to Binance...</span>
+                    ) : isReconnecting ? (
+                        <span className="text-yellow-500">● Reconnecting...</span>
+                    ) : hasError ? (
+                        <span className="text-red-500">● Connection Failed</span>
+                    ) : (
+                        <span className="text-blue-500">● Loading...</span>
+                    )}
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 min-h-0">
+                {isConnecting ? (
+                    <LoadingSpinner variant="brand" text="Connecting to Binance WebSocket..." />
+                ) : hasError ? (
+                    <div className="text-red-500">
+                        Connection failed. Please refresh the page.
+                    </div>
+                ) : marketData.length === 0 ? (
+                    <div className="text-yellow-500">
+                        No market data available. {isConnecting ? 'Connecting to Binance...' : 'Please check your connection.'}
+                    </div>
+                ) : (
+                    <MarketTable
+                        data={marketData}
+                        userTier={userTier as 'free' | 'pro' | 'elite'}
+                        withContainer={false}
+                        lastUpdate={lastUpdate}
+                        isConnected={!hasError && !isConnecting}
+                        openInterestAsOf={openInterestAsOf}
+                        onCreateAlert={handleCreateAlert}
+                        guestMode={isGuest}
+                        guestVisibleRows={5}
+                        watchlistFilterId={selectedWatchlistId}
+                        onWatchlistFilterChange={handleWatchlistFilterChange}
+                    />
+                )}
+            </CardContent>
+        </Card>
+    )
+
+    const alertsCard = <AlertPanel alerts={alerts} userTier={userTier as 'free' | 'pro' | 'elite'} />
+    const alertsPanelCard = (
+        <AlertsPanel
+            onNewAlert={handleNewVolumeAlert}
+            guestMode={isGuest}
+            guestVisibleCount={2}
+        />
+    )
+
+    return (
+        <div className="flex-1 bg-background relative">
+            <BackgroundPattern />
+            
+            {/* Vibrant multi-layered gradient overlays for depth and color */}
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-500/8 via-secondary-500/5 to-tertiary-500/6 dark:from-brand-500/12 dark:via-secondary-500/8 dark:to-tertiary-500/10 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-brand-500/3 to-transparent dark:via-brand-500/6 pointer-events-none animate-pulse-glow" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-secondary-500/30 to-transparent" />
+            
+            <HeaderWithBanner hideWalletConnect={isGuest} />
+
+            <main className="container mx-auto px-4 py-8 relative z-10">
+                <div className="space-y-6">
+                    {isGuest && (
+                        <div className="hidden md:block rounded-lg border border-brand-200/70 bg-brand-50/80 dark:border-border/60 dark:bg-muted/40 p-3 md:p-4 animate-fade-in">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <div className="text-sm text-brand-900/80 dark:text-muted-foreground">
+                                    You’re viewing a guest preview. Top 5 symbols and top 2 alerts are visible. Start Free to unlock full Free features, or upgrade to Pro for 5‑minute updates and Open Interest.
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <a href="/auth?tab=signup" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-md shadow-brand-500/20 ring-1 ring-brand-500/20">Start Free</a>
+                                    <a href="/pricing" className="inline-flex items-center px-3 py-2 text-sm rounded-md bg-sec-600 text-white hover:bg-sec-700 shadow-md shadow-sec-500/20">Get Pro</a>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Subscription Status - Show for authenticated Pro/Elite users */}
+                    {!isGuest && (userTier === 'pro' || userTier === 'elite') && (
+                        <div className="mb-6 animate-fade-in">
+                            <SubscriptionStatus />
+                        </div>
+                    )}
+
+                    <div className="xl:hidden animate-fade-in">
+                        <Tabs 
+                            defaultValue="market" 
+                            className="w-full"
+                            value={currentTab}
+                            onValueChange={(value) => {
+                                const nextValue = value as 'market' | 'alerts'
+                                console.log('Tab changed:', currentTab, '→', nextValue)
+                                setCurrentTab(nextValue)
+                                // Clear unread count when user switches to alerts tab
+                                if (nextValue === 'alerts') {
+                                    console.log('Clearing badge count')
+                                    setUnreadAlertsCount(0)
+                                }
+                            }}
+                        >
+                            <TabsList className="grid grid-cols-2 w-full">
+                                <TabsTrigger value="market" className="flex-1">Market Data</TabsTrigger>
+                                <TabsTrigger value="alerts" className="relative flex-1">
+                                    Alerts
+                                    {(() => {
+                                        const shouldShow = unreadAlertsCount > 0 && currentTab !== 'alerts'
+                                        console.log('Badge render check:', { unreadAlertsCount, currentTab, shouldShow })
+                                        return shouldShow ? (
+                                            <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-lg">
+                                                {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
+                                            </span>
+                                        ) : null
+                                    })()}
+                                </TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="market" className="mt-4 animate-fade-in">
+                                {marketDataCard}
+                            </TabsContent>
+                            <TabsContent value="alerts" className="mt-4 animate-fade-in">
+                                {alertsPanelCard}
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+
+                    <div className="hidden xl:flex gap-2 animate-fade-in items-stretch">
+                        <div className="flex-[3]">
+                            {marketDataCard}
+                        </div>
+                        <div className="flex-1">
+                            {/* Side-by-side pane mode: compact layout (Price+OI line 1, Funding line 2) */}
+                            <AlertsPanel
+                                onNewAlert={handleNewVolumeAlert}
+                                guestMode={isGuest}
+                                guestVisibleCount={2}
+                                compact={true}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            {/* Command Palette */}
+            <CommandPalette 
+                userTier={userTier as 'free' | 'pro' | 'elite'}
+                onCreateAlert={() => {
+                    setAlertBuilderSymbol('')
+                    setAlertBuilderOpen(true)
+                }}
+            />
+
+            {/* Global Alert Builder (triggered from table) */}
+            <AlertBuilder
+                open={alertBuilderOpen}
+                onOpenChange={setAlertBuilderOpen}
+                symbol={alertBuilderSymbol}
+                userTier={userTier as 'free' | 'pro' | 'elite'}
+            />
+        </div>
+    )
+}

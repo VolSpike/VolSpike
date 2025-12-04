@@ -80,14 +80,14 @@ load_env()
 # Configuration from environment
 API_ID = os.environ.get('TELEGRAM_API_ID')
 API_HASH = os.environ.get('TELEGRAM_API_HASH')
-CHANNELS = [c.strip() for c in os.environ.get('TELEGRAM_CHANNELS', 'marketfeed,WatcherGuruChat').split(',') if c.strip()]
+CHANNELS = [c.strip() for c in os.environ.get('TELEGRAM_CHANNELS', 'marketfeed,WatcherGuru').split(',') if c.strip()]
 BACKEND_URL = os.environ.get('VOLSPIKE_API_URL', 'http://localhost:3001')
 API_KEY = os.environ.get('VOLSPIKE_API_KEY', '')
 
 # Channel category mapping
 CHANNEL_CATEGORIES = {
     'marketfeed': 'macro',
-    'watcherguruchat': 'crypto',
+    'watcherguru': 'crypto',
 }
 
 def get_channel_category(username: str) -> str:

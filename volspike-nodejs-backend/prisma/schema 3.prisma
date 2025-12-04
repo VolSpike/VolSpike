@@ -1,0 +1,453 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String              @id @default(cuid())
+  email                String              @unique
+  walletAddress        String?             @unique
+  tier                 String              @default("free")
+  refreshInterval      Int                 @default(900)
+  theme                String              @default("light")
+  stripeCustomerId     String?             @unique
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  emailVerified        DateTime?
+  lastVerificationSent DateTime?
+  verificationAttempts Int                 @default(0)
+  ipAddress            String?
+  lastLoginAt          DateTime?
+  lockedUntil          DateTime?
+  loginAttempts        Int                 @default(0)
+  notes                String?
+  passwordHash         String?
+  role                 Role                @default(USER)
+  status               UserStatus          @default(ACTIVE)
+  twoFactorEnabled     Boolean             @default(false)
+  twoFactorSecret      String?
+  userAgent            String?
+  passwordChangedAt    DateTime?
+  accounts             Account[]
+  adminNotifications   AdminNotification[] @relation("AdminNotifications")
+  adminSessions        AdminSession[]
+  alertSubscriptions   AlertSubscription[]
+  alerts               Alert[]
+  auditLogs            AuditLog[]          @relation("AuditActor")
+  cryptoPayments       CryptoPayment[]
+  preferences          Preference?
+  sessions             Session[]
+  verificationTokens   VerificationToken[]
+  walletAccounts       WalletAccount[]
+  watchlists           Watchlist[]
+
+  @@map("users")
+}
+
+model WalletAccount {
+  id          String   @id @default(cuid())
+  userId      String
+  provider    String
+  caip10      String
+  address     String
+  chainId     String?
+  lastLoginAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, caip10])
+  @@index([userId])
+  @@map("wallet_accounts")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  userId     String?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Contract {
+  id              String           @id @default(cuid())
+  symbol          String           @unique
+  isActive        Boolean          @default(true)
+  precision       Int
+  createdAt       DateTime         @default(now())
+  alerts          Alert[]
+  marketSnapshots MarketSnapshot[]
+  watchlistItems  WatchlistItem[]
+
+  @@map("contracts")
+}
+
+model MarketSnapshot {
+  id           String   @id @default(cuid())
+  contractId   String
+  price        Float
+  volume24h    Float
+  fundingRate  Float?
+  openInterest Float?
+  timestamp    DateTime @default(now())
+  contract     Contract @relation(fields: [contractId], references: [id])
+
+  @@index([contractId, timestamp])
+  @@map("market_snapshots")
+}
+
+model Asset {
+  id                String      @id @default(cuid())
+  baseSymbol        String      @unique
+  binanceSymbol     String?
+  extraSymbols      String?
+  coingeckoId       String?
+  displayName       String?
+  websiteUrl        String?
+  twitterUrl        String?
+  logoUrl           String?
+  status            AssetStatus @default(AUTO)
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  description       String?
+  isComplete        Boolean     @default(false)
+  lastFailureReason String?
+  logoImageUrl      String?
+
+  @@map("assets")
+}
+
+model Alert {
+  id             String   @id @default(cuid())
+  userId         String
+  contractId     String
+  reason         String
+  threshold      Float
+  triggeredValue Float
+  isDelivered    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  contract       Contract @relation(fields: [contractId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("alerts")
+}
+
+model VolumeAlert {
+  id              String    @id @default(cuid())
+  symbol          String
+  asset           String
+  currentVolume   Float
+  previousVolume  Float
+  volumeRatio     Float
+  price           Float?
+  fundingRate     Float?
+  alertType       AlertType @default(SPIKE)
+  message         String
+  timestamp       DateTime  @default(now())
+  hourTimestamp   DateTime
+  isUpdate        Boolean   @default(false)
+  candleDirection String?
+  detectionTime   DateTime?
+  oiChange        Float?
+  priceChange     Float?
+
+  @@index([symbol, timestamp])
+  @@index([timestamp])
+  @@index([hourTimestamp])
+  @@index([detectionTime])
+  @@map("volume_alerts")
+}
+
+model AlertSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@index([userId])
+  @@map("alert_subscriptions")
+}
+
+model Watchlist {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime        @default(now())
+  items     WatchlistItem[]
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("watchlists")
+}
+
+model WatchlistItem {
+  id          String    @id @default(cuid())
+  watchlistId String
+  contractId  String
+  contract    Contract  @relation(fields: [contractId], references: [id])
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, contractId])
+  @@map("watchlist_items")
+}
+
+model Preference {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  emailAlerts     Boolean @default(true)
+  smsAlerts       Boolean @default(false)
+  telegramAlerts  Boolean @default(false)
+  discordAlerts   Boolean @default(false)
+  volumeThreshold Float   @default(3.0)
+  minQuoteVolume  Float   @default(1000000)
+  refreshInterval Int     @default(900)
+  user            User    @relation(fields: [userId], references: [id])
+
+  @@map("preferences")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  actorUserId String
+  createdAt   DateTime @default(now())
+  metadata    Json?
+  newValues   Json?
+  oldValues   Json?
+  targetId    String?
+  targetType  String
+  actor       User     @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model AdminSession {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  ipAddress    String
+  userAgent    String
+  expiresAt    DateTime
+  lastActivity DateTime @default(now())
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([token])
+  @@map("admin_sessions")
+}
+
+model AdminWallet {
+  id               String    @id @default(cuid())
+  address          String
+  currency         String
+  network          String?
+  label            String?
+  balance          Float?
+  balanceUpdatedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([address, currency])
+  @@index([currency])
+  @@map("admin_wallets")
+}
+
+model CryptoPayment {
+  id                   String    @id @default(cuid())
+  userId               String
+  paymentId            String?   @unique
+  paymentStatus        String?
+  payAmount            Float?
+  payCurrency          String?   @default("usd")
+  actuallyPaid         Float?
+  actuallyPaidCurrency String?
+  purchaseId           String?
+  tier                 String
+  invoiceId            String    @unique
+  orderId              String
+  paymentUrl           String
+  payAddress           String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  paidAt               DateTime?
+  expiresAt            DateTime?
+  renewalReminderSent  DateTime?
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([orderId])
+  @@index([paymentStatus])
+  @@index([expiresAt])
+  @@map("crypto_payments")
+}
+
+model AdminNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  metadata  Json?
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+  user      User      @relation("AdminNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+  @@map("admin_notifications")
+}
+
+model OpenInterestSnapshot {
+  id              String   @id @default(cuid())
+  symbol          String
+  ts              DateTime
+  openInterest    Decimal  @db.Decimal(30, 8)
+  openInterestUsd Decimal? @db.Decimal(30, 2)
+  markPrice       Decimal? @db.Decimal(20, 8)
+  source          String   @default("snapshot")
+  createdAt       DateTime @default(now())
+
+  @@index([symbol, ts])
+  @@index([ts])
+  @@index([source, ts])
+  @@map("open_interest_snapshots")
+}
+
+model OpenInterestAlert {
+  id          String   @id @default(cuid())
+  symbol      String
+  direction   String
+  baseline    Decimal  @db.Decimal(30, 8)
+  current     Decimal  @db.Decimal(30, 8)
+  pctChange   Decimal  @db.Decimal(10, 6)
+  absChange   Decimal  @db.Decimal(30, 8)
+  priceChange Decimal? @db.Decimal(10, 6)
+  fundingRate Decimal? @db.Decimal(10, 6)
+  source      String
+  ts          DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([symbol, ts])
+  @@index([ts])
+  @@index([direction, ts])
+  @@map("open_interest_alerts")
+}
+
+model OpenInterestLiquidSymbol {
+  symbol         String   @id
+  quoteVolume24h Decimal  @db.Decimal(30, 2)
+  enteredAt      DateTime
+  lastSeenAt     DateTime
+
+  @@map("open_interest_liquid_symbols")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum AssetStatus {
+  AUTO
+  VERIFIED
+  HIDDEN
+}
+
+enum AlertType {
+  SPIKE
+  HALF_UPDATE
+  FULL_UPDATE
+}
+
+// RSS News Feed Models
+model RssFeed {
+  id          String       @id @default(cuid())
+  name        String
+  url         String       @unique
+  category    String
+  enabled     Boolean      @default(true)
+  priority    Int          @default(0)
+  lastFetchAt DateTime?
+  errorCount  Int          @default(0)
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  articles    RssArticle[]
+
+  @@index([enabled])
+  @@index([priority])
+  @@map("rss_feeds")
+}
+
+model RssArticle {
+  id          String   @id @default(cuid())
+  feedId      String
+  title       String
+  link        String   @unique
+  pubDate     DateTime
+  description String?  @db.Text
+  author      String?
+  categories  String[]
+  enclosure   String?
+  guid        String?
+  createdAt   DateTime @default(now())
+  feed        RssFeed  @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@index([pubDate(sort: Desc)])
+  @@index([feedId])
+  @@index([createdAt(sort: Desc)])
+  @@map("rss_articles")
+}
