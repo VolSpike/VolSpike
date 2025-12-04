@@ -264,7 +264,7 @@ export function OIAlertsContent({
                         ) : (
                           <TrendingUp className="h-4 w-4 flex-shrink-0 text-brand-500" />
                         )}
-                        <span className="text-base font-semibold">{alert.symbol}</span>
+                        <span className="text-base font-semibold">{alert.symbol.replace('USDT', '')}</span>
                       </div>
                       <div className="flex-shrink-0 text-right">
                         <div className="text-xs text-muted-foreground whitespace-nowrap">
