@@ -607,3 +607,4 @@ process.on('SIGINT', () => shutdown('SIGINT'))
 // Export io instance for broadcasting from routes
 export { io }
 export default app
+// Trigger rebuild Wed Dec  3 22:04:47 EST 2025
