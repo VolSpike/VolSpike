@@ -300,10 +300,10 @@ export function OIAlertsContent({
                     </div>
 
                     {/* Metrics: Price %, Funding with action icons */}
-                    <div className="flex items-end justify-between gap-2">
-                      <div className={`text-xs text-muted-foreground ${compact ? 'space-y-0.5' : 'flex items-center gap-3 flex-wrap'}`}>
-                        {/* Price and Funding (together or stacked based on compact) */}
-                        <div className={compact ? 'space-y-0.5' : 'flex items-center gap-3'}>
+                    <div className="space-y-1.5">
+                      {/* Price % and action icons */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs text-muted-foreground">
                           {/* Price % change during OI measurement period */}
                           {alert.priceChange !== undefined && alert.priceChange !== null ? (
                             <span>
@@ -325,30 +325,7 @@ export function OIAlertsContent({
                               Price: <span>—</span>
                             </span>
                           )}
-
-                          {/* Funding rate at time of alert */}
-                          {alert.fundingRate !== undefined && alert.fundingRate !== null ? (
-                            <span>
-                              Funding:{' '}
-                              <span
-                                className={
-                                  alert.fundingRate > 0.0003
-                                    ? 'text-brand-600 dark:text-brand-400'
-                                    : alert.fundingRate < -0.0003
-                                      ? 'text-danger-600 dark:text-danger-400'
-                                      : ''
-                                }
-                              >
-                                {(alert.fundingRate * 100).toFixed(3)}%
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/50">
-                              Funding: <span>—</span>
-                            </span>
-                          )}
                         </div>
-                      </div>
 
                       {/* Action icon buttons */}
                       <div className="flex items-center gap-0">
@@ -375,6 +352,31 @@ export function OIAlertsContent({
                           </div>
                         </button>
                       </div>
+                    </div>
+
+                    {/* Funding rate on separate line */}
+                    <div className="text-xs text-muted-foreground">
+                      {alert.fundingRate !== undefined && alert.fundingRate !== null ? (
+                        <span>
+                          Funding:{' '}
+                          <span
+                            className={
+                              alert.fundingRate > 0.0003
+                                ? 'text-brand-600 dark:text-brand-400'
+                                : alert.fundingRate < -0.0003
+                                  ? 'text-danger-600 dark:text-danger-400'
+                                  : ''
+                            }
+                          >
+                            {(alert.fundingRate * 100).toFixed(3)}%
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50">
+                          Funding: <span>—</span>
+                        </span>
+                      )}
+                    </div>
                     </div>
                   </div>
                 </div>

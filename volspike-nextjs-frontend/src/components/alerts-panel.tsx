@@ -89,7 +89,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
     if (remaining === 0) return ''
 
     const seconds = Math.floor(remaining / 1000)
-    return `${seconds}s`
+    return `0:${seconds.toString().padStart(2, '0')}`
   }
 
   const getVolumeCountdownDisplay = () => {
@@ -187,7 +187,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'volume' | 'oi')} className="flex-1 flex flex-col">
-          <TabsList className="grid grid-cols-2 w-full mb-4">
+          <TabsList className="grid grid-cols-2 w-full mb-4 mr-4">
             <TabsTrigger value="volume" className="flex items-center gap-1.5">
               <TrendingUp className="h-3.5 w-3.5" />
               Volume
