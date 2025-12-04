@@ -22,7 +22,7 @@ export function AdminNotificationBell() {
     const router = useRouter()
     const [open, setOpen] = useState(false)
     const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
-    const { notifications, unreadCount, loading, markAsRead, markAllAsRead, pausePolling, resumePolling } = useAdminNotifications(10)
+    const { notifications, unreadCount, loading, markAsRead, markAllAsRead, pausePolling, resumePolling } = useAdminNotifications(10, true)
     const isFirstLoad = useRef(true)
 
     // Pause polling while dropdown is open

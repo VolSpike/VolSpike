@@ -28,7 +28,7 @@ interface UseAdminNotificationsReturn {
  * Hook to manage admin notifications
  * Fetches notifications and provides methods to mark them as read
  */
-export function useAdminNotifications(limit: number = 10): UseAdminNotificationsReturn {
+export function useAdminNotifications(limit: number = 10, unreadOnly: boolean = false): UseAdminNotificationsReturn {
     const { data: session } = useSession()
     const [notifications, setNotifications] = useState<AdminNotification[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
@@ -70,8 +70,9 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
             setError(null)
 
             // Fetch notifications and unread count in parallel
+            const notificationsUrl = `${apiBase}/api/admin/notifications?limit=${limit}${unreadOnly ? '&unreadOnly=true' : ''}`
             const [notificationsRes, countRes] = await Promise.all([
-                fetch(`${apiBase}/api/admin/notifications?limit=${limit}`, {
+                fetch(notificationsUrl, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json',
@@ -108,7 +109,7 @@ export function useAdminNotifications(limit: number = 10): UseAdminNotifications
         } finally {
             setLoading(false)
         }
-    }, [session, limit, apiBase])
+    }, [session, limit, apiBase, unreadOnly])
 
     // Mark notifications as read
     const markAsRead = useCallback(

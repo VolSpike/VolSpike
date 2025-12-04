@@ -13,6 +13,11 @@ import { Bell, Zap, Star, Sparkles, Menu, X, Home, LayoutDashboard, Tag, Setting
 import { UserMenu } from '@/components/user-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { signOut } from 'next-auth/react'
 import { useEnforceSingleIdentity } from '@/hooks/use-enforce-single-identity'
 import { SafeNavLink } from '@/components/safe-nav-link'
@@ -284,17 +289,33 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 </span>
                             </Button>
 
-                            {/* Notification Bell - Shell for future implementation */}
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="hidden md:flex h-9 w-9 rounded-full relative hover:bg-accent transition-all duration-150"
-                                aria-label="Notifications"
-                            >
-                                <Bell className="h-4 w-4" />
-                                {/* Badge for unread count - hidden by default */}
-                                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-danger-500 opacity-0" />
-                            </Button>
+                            {/* Notification Bell - Empty state for future implementation */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="hidden md:flex h-9 w-9 rounded-full relative hover:bg-accent transition-all duration-150"
+                                        aria-label="Notifications"
+                                    >
+                                        <Bell className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="w-[320px] p-0 backdrop-blur-lg bg-popover/95 border-border/50 shadow-lg-dark dark:shadow-lg-dark animate-scale-in rounded-xl"
+                                >
+                                    {/* Header */}
+                                    <div className="p-4 border-b border-border/50 bg-gradient-to-br from-brand-500/5 to-sec-500/5">
+                                        <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
+                                    </div>
+                                    {/* Empty state */}
+                                    <div className="p-8 text-center">
+                                        <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                                        <p className="text-sm text-muted-foreground">No new notifications</p>
+                                    </div>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
                             {/* Wallet connect belongs in auth/Linked Accounts surfaces, not the top header */}
 
