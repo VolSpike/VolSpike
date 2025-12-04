@@ -123,9 +123,11 @@ interface VolumeAlertsContentProps {
   guestVisibleCount?: number
   /** When true (side-by-side pane), Price+OI on line 1, Funding on line 2. When false (tab), all on one line. */
   compact?: boolean
+  /** When true, hide connection status and controls (used when parent AlertsPanel handles them) */
+  hideControls?: boolean
 }
 
-export function VolumeAlertsContent({ onNewAlert, guestMode = false, guestVisibleCount = 2, compact = false }: VolumeAlertsContentProps = {}) {
+export function VolumeAlertsContent({ onNewAlert, guestMode = false, guestVisibleCount = 2, compact = false, hideControls = false }: VolumeAlertsContentProps = {}) {
   const { alerts, isLoading, error, refetch, tier, isConnected, nextUpdate } = useVolumeAlerts({
     pollInterval: 15000, // standard fallback
     autoFetch: true,
@@ -530,60 +532,62 @@ export function VolumeAlertsContent({ onNewAlert, guestMode = false, guestVisibl
   return (
     <div className="flex flex-col h-full">
       {/* Header with connection status and controls */}
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge
-            variant="outline"
-            className={`text-xs transition-all duration-300 ${
-              guestMode
-                ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
-                : isConnected
+      {!hideControls && (
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge
+              variant="outline"
+              className={`text-xs transition-all duration-300 ${
+                guestMode
                   ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
-                  : 'border-warning-500/30 text-warning-600 dark:text-warning-400'
-            }`}
-          >
-            <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-              guestMode ? 'bg-brand-500' : isConnected ? 'bg-brand-500' : 'bg-warning-500'
-            } ${guestMode ? 'animate-pulse-glow' : isConnected ? 'animate-pulse-glow' : ''}`} />
-            {guestMode ? 'Live' : isConnected ? 'Live' : 'Connecting'}
-          </Badge>
-          {/* Sound toggle */}
-          <button
-            onClick={async () => {
-              const next = !soundsEnabled
-              setSoundsEnabled(next)
-              if (next) {
-                await ensureUnlocked()
-              }
-            }}
-            title={soundsEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
-            className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted transition-colors"
-          >
-            {soundsEnabled ? (
-              <Volume2 className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
-            ) : (
-              <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+                  : isConnected
+                    ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
+                    : 'border-warning-500/30 text-warning-600 dark:text-warning-400'
+              }`}
+            >
+              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                guestMode ? 'bg-brand-500' : isConnected ? 'bg-brand-500' : 'bg-warning-500'
+              } ${guestMode ? 'animate-pulse-glow' : isConnected ? 'animate-pulse-glow' : ''}`} />
+              {guestMode ? 'Live' : isConnected ? 'Live' : 'Connecting'}
+            </Badge>
+            {/* Sound toggle */}
+            <button
+              onClick={async () => {
+                const next = !soundsEnabled
+                setSoundsEnabled(next)
+                if (next) {
+                  await ensureUnlocked()
+                }
+              }}
+              title={soundsEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
+              className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted transition-colors"
+            >
+              {soundsEnabled ? (
+                <Volume2 className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
+              ) : (
+                <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+            </button>
+            {tier !== 'elite' && nextUpdate > 0 && (
+              <span className="text-blue-500 text-xs">
+                • Next update in {getCountdownDisplay()}
+              </span>
             )}
-          </button>
-          {tier !== 'elite' && nextUpdate > 0 && (
-            <span className="text-blue-500 text-xs">
-              • Next update in {getCountdownDisplay()}
-            </span>
+          </div>
+          {tier !== 'free' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetch()}
+              disabled={isLoading}
+              title="Refresh alerts"
+              className="h-7 w-7"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
           )}
         </div>
-        {tier !== 'free' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => refetch()}
-            disabled={isLoading}
-            title="Refresh alerts"
-            className="h-7 w-7"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
-        )}
-      </div>
+      )}
 
       {error && (
         <div className="flex items-center gap-2 p-3 mb-3 rounded-lg bg-danger-500/10 border border-danger-500/30">

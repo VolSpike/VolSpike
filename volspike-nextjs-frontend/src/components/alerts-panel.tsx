@@ -1,14 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Bell, Lock, TrendingUp } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Bell, Lock, TrendingUp, Activity, RefreshCw, Volume2, VolumeX } from 'lucide-react'
 import Link from 'next/link'
 import { VolumeAlertsContent } from '@/components/volume-alerts-content'
 import { OIAlertsContent } from '@/components/oi-alerts-content'
+import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
+import { useOIAlerts } from '@/hooks/use-oi-alerts'
+import { useAlertSounds } from '@/hooks/use-alert-sounds'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface AlertsPanelProps {
   onNewAlert?: () => void
@@ -22,9 +38,78 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   const { data: session } = useSession()
   const userTier = (session?.user as any)?.tier || 'free'
   const [activeTab, setActiveTab] = useState<'volume' | 'oi'>('volume')
+  const [lockDialogOpen, setLockDialogOpen] = useState(false)
+  const [oiNextUpdate, setOiNextUpdate] = useState(0)
 
   // Free tier users cannot access OI alerts
   const canAccessOIAlerts = userTier === 'pro' || userTier === 'elite'
+
+  // Get connection state and controls for the active tab
+  const { isConnected: volumeConnected, isLoading: volumeLoading, refetch: volumeRefetch, nextUpdate: volumeNextUpdate } = useVolumeAlerts({
+    pollInterval: 15000,
+    autoFetch: activeTab === 'volume',
+    guestLive: guestMode,
+    guestVisibleCount,
+  })
+
+  const { isConnected: oiConnected, isLoading: oiLoading, refetch: oiRefetch } = useOIAlerts({
+    autoFetch: activeTab === 'oi' && canAccessOIAlerts,
+  })
+
+  const { enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
+
+  // 30-second countdown for OI alerts (matches Digital Ocean polling interval)
+  useEffect(() => {
+    if (activeTab !== 'oi' || !canAccessOIAlerts) return
+
+    // Start at 30 seconds
+    setOiNextUpdate(Date.now() + 30000)
+
+    const interval = setInterval(() => {
+      const now = Date.now()
+      const remaining = oiNextUpdate - now
+
+      if (remaining <= 0) {
+        // Reset to 30 seconds when countdown completes
+        setOiNextUpdate(Date.now() + 30000)
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [activeTab, canAccessOIAlerts, oiNextUpdate])
+
+  const getOICountdownDisplay = () => {
+    const now = Date.now()
+    const remaining = Math.max(0, oiNextUpdate - now)
+
+    if (remaining === 0) return ''
+
+    const seconds = Math.floor(remaining / 1000)
+    return `${seconds}s`
+  }
+
+  const getVolumeCountdownDisplay = () => {
+    const now = Date.now()
+    const remaining = Math.max(0, volumeNextUpdate - now)
+
+    if (remaining === 0) return ''
+
+    const minutes = Math.floor(remaining / 60000)
+    const seconds = Math.floor((remaining % 60000) / 1000)
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  const isConnected = activeTab === 'volume' ? volumeConnected : oiConnected
+  const isLoading = activeTab === 'volume' ? volumeLoading : oiLoading
+  const refetch = activeTab === 'volume' ? volumeRefetch : oiRefetch
+  const showNextUpdate = activeTab === 'volume' ? (userTier !== 'elite' && volumeNextUpdate > 0) : canAccessOIAlerts
+  const nextUpdateDisplay = activeTab === 'volume' ? getVolumeCountdownDisplay() : getOICountdownDisplay()
+
+  const handleLockClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setLockDialogOpen(true)
+  }
 
   return (
     <Card className="group h-full flex flex-col border border-border/60 shadow-md">
@@ -41,6 +126,62 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
       </CardHeader>
 
       <CardContent className="flex-1 min-h-0 flex flex-col">
+        {/* Connection status and controls - ABOVE tabs */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge
+              variant="outline"
+              className={`text-xs transition-all duration-300 ${
+                guestMode
+                  ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
+                  : isConnected
+                    ? 'border-brand-500/30 text-brand-600 dark:text-brand-400'
+                    : 'border-warning-500/30 text-warning-600 dark:text-warning-400'
+              }`}
+            >
+              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                guestMode ? 'bg-brand-500' : isConnected ? 'bg-brand-500' : 'bg-warning-500'
+              } ${guestMode ? 'animate-pulse-glow' : isConnected ? 'animate-pulse-glow' : ''}`} />
+              {guestMode ? 'Live' : isConnected ? 'Live' : 'Connecting'}
+            </Badge>
+            {/* Sound toggle */}
+            <button
+              onClick={async () => {
+                const next = !soundsEnabled
+                setSoundsEnabled(next)
+                if (next) {
+                  await ensureUnlocked()
+                }
+              }}
+              title={soundsEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
+              className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted transition-colors"
+            >
+              {soundsEnabled ? (
+                <Volume2 className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
+              ) : (
+                <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+              )}
+            </button>
+            {showNextUpdate && nextUpdateDisplay && (
+              <span className="text-blue-500 text-xs">
+                • Next update in {nextUpdateDisplay}
+              </span>
+            )}
+          </div>
+          {userTier !== 'free' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => refetch()}
+              disabled={isLoading}
+              title="Refresh alerts"
+              className="h-7 w-7"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+        </div>
+
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'volume' | 'oi')} className="flex-1 flex flex-col">
           <TabsList className="grid grid-cols-2 w-full mb-4">
             <TabsTrigger value="volume" className="flex items-center gap-1.5">
@@ -52,10 +193,51 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
               disabled={!canAccessOIAlerts}
               className="flex items-center gap-1.5 relative"
             >
-              <Bell className="h-3.5 w-3.5" />
-              OI Alerts
+              <Activity className="h-3.5 w-3.5" />
+              Open Interest
               {!canAccessOIAlerts && (
-                <Lock className="h-3 w-3 text-sec-500 ml-1" />
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 min-w-0 cursor-help ml-1"
+                        onClick={handleLockClick}
+                      >
+                        <Lock className="h-3 w-3 text-sec-500 hover:text-sec-400 transition-colors" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-[240px] p-0 overflow-hidden"
+                      sideOffset={4}
+                    >
+                      <div className="oi-teaser-tooltip-gradient h-1 w-full" />
+                      <div className="px-2.5 py-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sec-500/15">
+                            <Lock className="h-2.5 w-2.5 text-sec-500" />
+                          </div>
+                          <span className="font-semibold text-xs">Pro Feature</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+                          Track OI changes ≥3% in 5 minutes.
+                        </p>
+                        <Link
+                          href="/pricing"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Upgrade to Pro
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </TabsTrigger>
           </TabsList>
@@ -66,6 +248,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
               guestMode={guestMode}
               guestVisibleCount={guestVisibleCount}
               compact={compact}
+              hideControls={true}
             />
           </TabsContent>
 
@@ -73,6 +256,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
             {canAccessOIAlerts ? (
               <OIAlertsContent
                 compact={compact}
+                hideControls={true}
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center p-6 text-center">
@@ -80,7 +264,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                   <Lock className="h-8 w-8 text-sec-500" />
                 </div>
                 <h3 className="text-lg font-semibold mb-2 bg-gradient-to-br from-sec-600 to-elite-600 dark:from-sec-400 dark:to-elite-400 bg-clip-text text-transparent">
-                  OI Alerts - Pro Feature
+                  Open Interest Alerts - Pro Feature
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4 max-w-sm">
                   Get real-time alerts when Open Interest changes ≥3% in 5 minutes. Track smart money movements and spot major position changes before the crowd.
@@ -107,6 +291,33 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      {/* Lock dialog for Free tier users */}
+      <Dialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
+        <DialogContent className="max-w-[280px] rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-sec-500" />
+              Open Interest Alerts
+            </DialogTitle>
+          </DialogHeader>
+          <div className="pt-2">
+            <p className="text-sm text-muted-foreground mb-3">
+              Track real-time Open Interest changes when OI spikes or dumps ≥3% in 5 minutes.
+            </p>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-sec-500 hover:text-sec-400 transition-colors"
+              onClick={() => setLockDialogOpen(false)}
+            >
+              Unlock with Pro
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
