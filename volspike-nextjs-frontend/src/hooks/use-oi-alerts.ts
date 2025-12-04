@@ -41,6 +41,9 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
   const isAdmin = userRole === 'ADMIN'
   const canAccessOI = isAdmin || userTier === 'pro' || userTier === 'elite'
 
+  // Tier-based alert limits (OI alerts are Pro+ only, so no free tier limit needed)
+  const maxAlerts = isAdmin ? 100 : userTier === 'elite' ? 100 : 50 // Pro: 50, Elite/Admin: 100
+
   // Fetch alerts from API
   const fetchAlerts = useCallback(async () => {
     if (!canAccessOI) {
@@ -82,7 +85,8 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       const data = await response.json()
 
       if (data.alerts && Array.isArray(data.alerts)) {
-        setAlerts(data.alerts)
+        // Apply tier-based limit
+        setAlerts(data.alerts.slice(0, maxAlerts))
       }
 
       setIsLoading(false)
@@ -91,7 +95,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [canAccessOI, session])
+  }, [canAccessOI, session, maxAlerts])
 
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {
@@ -151,13 +155,13 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       setIsConnected(false)
     })
 
-    // Listen for new OI alerts (admin room only)
+    // Listen for new OI alerts (Pro/Elite/Admin)
     socket.on('open-interest-alert', (newAlert: OIAlert) => {
       console.log('📨 Received OI alert via socket:', newAlert.symbol, newAlert.direction)
       setAlerts(prev => {
-        // Add new alert at the beginning, remove duplicates
+        // Add new alert at the beginning, remove duplicates, apply tier limit
         const filtered = prev.filter(a => a.id !== newAlert.id)
-        return [newAlert, ...filtered].slice(0, 100) // Keep last 100 alerts
+        return [newAlert, ...filtered].slice(0, maxAlerts)
       })
 
       // Notify parent component (for sound/animation)
@@ -171,7 +175,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
     return () => {
       socket.disconnect()
     }
-  }, [session, canAccessOI, onNewAlert])
+  }, [session, canAccessOI, onNewAlert, maxAlerts])
 
   return {
     alerts,
@@ -181,5 +185,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
     isConnected,
     isAdmin,
     canAccessOI,
+    userTier,
+    maxAlerts,
   }
 }

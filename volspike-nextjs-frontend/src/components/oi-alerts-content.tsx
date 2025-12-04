@@ -62,6 +62,8 @@ export function OIAlertsContent({
   const error = hideControls ? (externalError || null) : hookResult.error
   const refetch = hideControls ? (externalRefetch || (() => {})) : hookResult.refetch
   const isConnected = hideControls ? (externalIsConnected || false) : hookResult.isConnected
+  const tier = hookResult.userTier || userTier
+  const maxAlerts = hookResult.maxAlerts || 50
 
   // Track new alerts for animation
   if (alerts.length > 0 && prevAlertsRef.current.length > 0) {
@@ -380,7 +382,10 @@ export function OIAlertsContent({
 
       {alerts.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground text-center">
-          Showing last {alerts.length} alert{alerts.length !== 1 ? 's' : ''} (Pro tier: 50 max)
+          Showing last {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
+          {tier === 'pro' && ` (Pro tier: ${maxAlerts} max)`}
+          {tier === 'elite' && ` (Elite tier: ${maxAlerts} max)`}
+          {hookResult.isAdmin && ` (Admin: ${maxAlerts} max)`}
         </div>
       )}
     </div>
