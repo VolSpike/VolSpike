@@ -214,56 +214,53 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                 <span>Open Interest</span>
               </TabsTrigger>
               {!canAccessOIAlerts && (
-                <>
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-5 w-5 p-0 min-w-0 cursor-help"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                            setLockDialogOpen(true)
-                          }}
-                        >
-                          <Lock className="h-3 w-3 text-sec-500 hover:text-sec-400 transition-colors" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="bottom"
-                        align="end"
-                        className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden !bg-[hsl(var(--bg-elevated))] !border-[hsl(var(--secondary-500)_/_0.3)]"
-                        sideOffset={2}
-                        collisionPadding={8}
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip disableHoverableContent={false}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 w-5 p-0 min-w-0 cursor-help"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                          setLockDialogOpen(true)
+                        }}
                       >
-                        <div className="oi-teaser-tooltip-gradient h-1 w-full" />
-                        <div className="px-2.5 py-2">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sec-500/15">
-                              <Lock className="h-2.5 w-2.5 text-sec-500" />
-                            </div>
-                            <span className="font-semibold text-xs">Pro Feature</span>
+                        <Lock className="h-3 w-3 text-sec-500 hover:text-sec-400 transition-colors" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      align="end"
+                      sideOffset={4}
+                      className="oi-teaser-tooltip max-w-[220px] p-0 overflow-hidden"
+                    >
+                      <div className="oi-teaser-tooltip-gradient h-1 w-full" />
+                      <div className="px-2.5 py-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-sec-500/15">
+                            <Lock className="h-2.5 w-2.5 text-sec-500" />
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-                            Get alerts on significant OI changes.
-                          </p>
-                          <Link
-                            href="/pricing"
-                            className="inline-flex items-center gap-1 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Upgrade to Pro
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </Link>
+                          <span className="font-semibold text-xs">Pro Feature</span>
                         </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </>
+                        <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+                          Get alerts on significant OI changes.
+                        </p>
+                        <Link
+                          href="/pricing"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-sec-500 hover:text-sec-400 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Upgrade to Pro
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </Link>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           </TabsList>
