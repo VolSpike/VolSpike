@@ -128,7 +128,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   }
 
   return (
-    <Card className="group h-full flex flex-col border border-border/60 shadow-md min-w-[420px]">
+    <Card className="group h-full flex flex-col border border-border/60 shadow-md min-w-[420px] !overflow-visible">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center gap-2 whitespace-nowrap mb-1.5">
           <Bell className="h-5 w-5 text-warning-600 dark:text-warning-400" />
