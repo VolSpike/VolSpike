@@ -363,8 +363,8 @@ export function Dashboard() {
                     </div>
 
                     <div className="hidden xl:flex flex-col gap-4 animate-fade-in">
-                        {/* Market Data and Alerts side by side - constrained height to fit news below */}
-                        <div className="flex gap-2 items-stretch max-h-[calc(100vh-380px)]">
+                        {/* Market Data and Alerts side by side - fixed height to fit news below */}
+                        <div className="flex gap-2 items-stretch h-[calc(100vh-380px)]">
                             <div className="flex-[3] min-h-0">
                                 {marketDataCard}
                             </div>
