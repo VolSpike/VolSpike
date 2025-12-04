@@ -1,0 +1,25 @@
+[Unit]
+Description=VolSpike Telegram Channel Poller
+After=network.target
+
+[Service]
+Type=simple
+User=trader
+WorkingDirectory=/home/trader/volume-spike-bot
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/home/trader/.volspike.env
+ExecStart=/home/trader/volume-spike-bot/.venv/bin/python telegram_channel_poller.py
+Restart=always
+RestartSec=10
+
+# Graceful shutdown
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=telegram-poller
+
+[Install]
+WantedBy=multi-user.target

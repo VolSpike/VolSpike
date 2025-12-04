@@ -20,6 +20,7 @@ import {
     Coins,
     Bell,
     Newspaper,
+    Send,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -75,6 +76,11 @@ const navigation = [
         name: 'News Feeds',
         href: '/admin/news',
         icon: Newspaper,
+    },
+    {
+        name: 'Telegram',
+        href: '/admin/telegram',
+        icon: Send,
     },
     {
         name: 'Settings',

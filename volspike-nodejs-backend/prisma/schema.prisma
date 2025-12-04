@@ -451,3 +451,42 @@ model RssArticle {
   @@index([createdAt(sort: Desc)])
   @@map("rss_articles")
 }
+
+// Telegram Channel Monitor Models
+model TelegramChannel {
+  id          String            @id @default(cuid())
+  channelId   BigInt            @unique
+  username    String            @unique
+  title       String
+  enabled     Boolean           @default(true)
+  lastFetchAt DateTime?
+  errorCount  Int               @default(0)
+  lastError   String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  messages    TelegramMessage[]
+
+  @@index([enabled])
+  @@map("telegram_channels")
+}
+
+model TelegramMessage {
+  id         String          @id @default(cuid())
+  channelId  String
+  messageId  BigInt
+  text       String?         @db.Text
+  date       DateTime
+  senderName String?
+  views      Int?
+  forwards   Int?
+  hasMedia   Boolean         @default(false)
+  mediaType  String?
+  createdAt  DateTime        @default(now())
+  channel    TelegramChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, messageId])
+  @@index([date(sort: Desc)])
+  @@index([channelId])
+  @@index([createdAt(sort: Desc)])
+  @@map("telegram_messages")
+}

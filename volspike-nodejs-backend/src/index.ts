@@ -17,6 +17,7 @@ import openInterestRouter from './routes/open-interest'
 import { paymentRoutes } from './routes/payments'
 import { adminRoutes } from './routes/admin'
 import renewalRoutes from './routes/renewal'
+import { telegramRouter } from './routes/telegram'
 import { runAssetRefreshCycle, retryRateLimitedAssets } from './services/asset-metadata'
 import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
@@ -220,6 +221,9 @@ app.route('/api/admin', adminRoutes)
 
 // Renewal routes (for cron jobs - API key protected)
 app.route('/api/renewal', renewalRoutes)
+
+// Telegram routes (ingest API key protected, GET health is public)
+app.route('/api/telegram', telegramRouter)
 
 // Protected routes (require authentication)
 app.use('/api/protected/*', authMiddleware)
