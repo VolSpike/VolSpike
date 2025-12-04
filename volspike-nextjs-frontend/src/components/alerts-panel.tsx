@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -40,9 +40,16 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   const [activeTab, setActiveTab] = useState<'volume' | 'oi'>('volume')
   const [lockDialogOpen, setLockDialogOpen] = useState(false)
   const [oiNextUpdate, setOiNextUpdate] = useState(0)
+  const [, setTick] = useState(0) // Force re-render every second for countdown display
+  const oiNextUpdateRef = useRef(0) // Ref to avoid stale closure in interval
 
   // Free tier users cannot access OI alerts
   const canAccessOIAlerts = userTier === 'pro' || userTier === 'elite'
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    oiNextUpdateRef.current = oiNextUpdate
+  }, [oiNextUpdate])
 
   // Get connection state and controls for the active tab
   const { alerts: volumeAlerts, isConnected: volumeConnected, isLoading: volumeLoading, error: volumeError, refetch: volumeRefetch, tier: volumeTier, nextUpdate: volumeNextUpdate } = useVolumeAlerts({
@@ -64,19 +71,24 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
     if (activeTab !== 'oi' || !canAccessOIAlerts) return
 
     // Start at 30 seconds
-    setOiNextUpdate(Date.now() + 30000)
+    const initialTime = Date.now() + 30000
+    setOiNextUpdate(initialTime)
+    oiNextUpdateRef.current = initialTime
 
+    // Update every second to refresh the countdown display and reset when needed
     const interval = setInterval(() => {
-      setOiNextUpdate(prev => {
-        const now = Date.now()
-        const remaining = prev - now
+      const now = Date.now()
+      const remaining = oiNextUpdateRef.current - now
 
-        if (remaining <= 0) {
-          // Reset to 30 seconds when countdown completes
-          return Date.now() + 30000
-        }
-        return prev
-      })
+      if (remaining <= 0) {
+        // Reset to 30 seconds when countdown completes
+        const newTime = Date.now() + 30000
+        setOiNextUpdate(newTime)
+        oiNextUpdateRef.current = newTime
+      }
+
+      // Force re-render to update countdown display
+      setTick(t => t + 1)
     }, 1000)
 
     return () => clearInterval(interval)
@@ -116,7 +128,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   }
 
   return (
-    <Card className="group h-full flex flex-col border border-border/60 shadow-md">
+    <Card className="group h-full flex flex-col border border-border/60 shadow-md min-w-[420px]">
       <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center gap-2 whitespace-nowrap mb-1.5">
           <Bell className="h-5 w-5 text-warning-600 dark:text-warning-400" />
