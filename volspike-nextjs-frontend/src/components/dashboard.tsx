@@ -211,7 +211,7 @@ export function Dashboard() {
     const isGuest = !session?.user
 
     const marketDataCard = (
-        <Card className="group h-full flex flex-col border border-border/60 shadow-md !overflow-visible">
+        <Card className="group h-full flex flex-col border border-border/60 shadow-md">
             <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">
                     <span className="text-foreground">
@@ -363,12 +363,12 @@ export function Dashboard() {
                     </div>
 
                     <div className="hidden xl:flex flex-col gap-4 animate-fade-in">
-                        {/* Market Data and Alerts side by side - fixed height to fit news below */}
-                        <div className="flex gap-2 items-stretch h-[calc(100vh-380px)]">
-                            <div className="flex-[3] h-full overflow-hidden">
+                        {/* Market Data and Alerts side by side */}
+                        <div className="flex gap-2 items-stretch">
+                            <div className="flex-[3]">
                                 {marketDataCard}
                             </div>
-                            <div className="flex-1 h-full overflow-hidden">
+                            <div className="flex-1">
                                 {/* Side-by-side pane mode: compact layout (Price+OI line 1, Funding line 2) */}
                                 <AlertsPanel
                                     onNewAlert={handleNewVolumeAlert}
