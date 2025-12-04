@@ -87,6 +87,9 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
       if (response.ok) {
         const data = await response.json()
         setFeeds(data.feeds || [])
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Fetch feeds failed:', response.status, errorData)
       }
     } catch (error) {
       console.error('Failed to fetch feeds:', error)
@@ -182,11 +185,18 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
         },
       })
       if (response.ok) {
+        const data = await response.json()
+        alert(`Seeded ${data.count} RSS feeds successfully!`)
         await fetchFeeds()
         await fetchStats()
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Seed feeds failed:', response.status, errorData)
+        alert(`Failed to seed feeds: ${errorData.error || errorData.details || response.statusText}`)
       }
     } catch (error) {
       console.error('Failed to seed feeds:', error)
+      alert(`Failed to seed feeds: ${error instanceof Error ? error.message : 'Network error'}`)
     } finally {
       setSeeding(false)
     }

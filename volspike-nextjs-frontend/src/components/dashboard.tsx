@@ -10,7 +10,7 @@ import { loadAssetManifest } from '@/lib/asset-manifest'
 import { HeaderWithBanner } from '@/components/header-with-banner'
 import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
-import { VolumeAlertsPanel } from '@/components/volume-alerts-panel'
+import { AlertsPanel } from '@/components/alerts-panel'
 import { TierUpgrade } from '@/components/tier-upgrade'
 import { SubscriptionStatus } from '@/components/subscription-status'
 import { AlertBuilder } from '@/components/alert-builder'
@@ -250,8 +250,8 @@ export function Dashboard() {
     )
 
     const alertsCard = <AlertPanel alerts={alerts} userTier={userTier as 'free' | 'pro' | 'elite'} />
-    const volumeAlertsCard = (
-        <VolumeAlertsPanel
+    const alertsPanelCard = (
+        <AlertsPanel
             onNewAlert={handleNewVolumeAlert}
             guestMode={isGuest}
             guestVisibleCount={2}
@@ -312,7 +312,7 @@ export function Dashboard() {
                             <TabsList className="grid grid-cols-2 w-full">
                                 <TabsTrigger value="market" className="flex-1">Market Data</TabsTrigger>
                                 <TabsTrigger value="alerts" className="relative flex-1">
-                                    Volume Alerts
+                                    Alerts
                                     {(() => {
                                         const shouldShow = unreadAlertsCount > 0 && currentTab !== 'alerts'
                                         console.log('Badge render check:', { unreadAlertsCount, currentTab, shouldShow })
@@ -328,7 +328,7 @@ export function Dashboard() {
                                 {marketDataCard}
                             </TabsContent>
                             <TabsContent value="alerts" className="mt-4 animate-fade-in">
-                                {volumeAlertsCard}
+                                {alertsPanelCard}
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -339,7 +339,7 @@ export function Dashboard() {
                         </div>
                         <div className="flex-1">
                             {/* Side-by-side pane mode: compact layout (Price+OI line 1, Funding line 2) */}
-                            <VolumeAlertsPanel
+                            <AlertsPanel
                                 onNewAlert={handleNewVolumeAlert}
                                 guestMode={isGuest}
                                 guestVisibleCount={2}
