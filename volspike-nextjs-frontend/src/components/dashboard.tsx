@@ -211,8 +211,8 @@ export function Dashboard() {
     const isGuest = !session?.user
 
     const marketDataCard = (
-        <Card className="group h-full flex flex-col border border-border/60 shadow-md overflow-hidden">
-            <CardHeader className="flex-shrink-0 py-3">
+        <Card className="group h-full flex flex-col border border-border/60 shadow-md">
+            <CardHeader className="flex-shrink-0">
                 <CardTitle className="flex items-center gap-2">
                     <span className="text-foreground">
                         Market Data
@@ -250,7 +250,7 @@ export function Dashboard() {
                     )}
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 min-h-0 overflow-auto">
+            <CardContent className="flex-1 min-h-0">
                 {isConnecting ? (
                     <LoadingSpinner variant="brand" text="Connecting to Binance WebSocket..." />
                 ) : hasError ? (
@@ -364,7 +364,7 @@ export function Dashboard() {
 
                     <div className="hidden xl:flex flex-col gap-4 animate-fade-in">
                         {/* Market Data and Alerts side by side - constrained height to fit news below */}
-                        <div className="flex gap-2 items-stretch max-h-[calc(100vh-320px)]">
+                        <div className="flex gap-2 items-stretch max-h-[calc(100vh-380px)]">
                             <div className="flex-[3] min-h-0">
                                 {marketDataCard}
                             </div>
