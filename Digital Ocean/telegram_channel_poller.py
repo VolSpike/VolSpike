@@ -80,9 +80,19 @@ load_env()
 # Configuration from environment
 API_ID = os.environ.get('TELEGRAM_API_ID')
 API_HASH = os.environ.get('TELEGRAM_API_HASH')
-CHANNELS = [c.strip() for c in os.environ.get('TELEGRAM_CHANNELS', 'marketfeed').split(',') if c.strip()]
+CHANNELS = [c.strip() for c in os.environ.get('TELEGRAM_CHANNELS', 'marketfeed,WatcherGuruChat').split(',') if c.strip()]
 BACKEND_URL = os.environ.get('VOLSPIKE_API_URL', 'http://localhost:3001')
 API_KEY = os.environ.get('VOLSPIKE_API_KEY', '')
+
+# Channel category mapping
+CHANNEL_CATEGORIES = {
+    'marketfeed': 'macro',
+    'watcherguruchat': 'crypto',
+}
+
+def get_channel_category(username: str) -> str:
+    """Get the category for a channel based on its username"""
+    return CHANNEL_CATEGORIES.get(username.lower(), 'general')
 
 # Graceful shutdown
 shutdown_event = asyncio.Event()
@@ -155,6 +165,7 @@ class TelegramPoller:
                 'id': chat.id,
                 'username': channel_username,
                 'title': chat.title or channel_username,
+                'category': get_channel_category(channel_username),
             }
 
             # Get last known message ID for this channel

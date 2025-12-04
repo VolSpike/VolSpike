@@ -9,6 +9,7 @@ export interface TelegramChannel {
   channelId: bigint
   username: string
   title: string
+  category: string
   enabled: boolean
   lastFetchAt: Date | null
   errorCount: number
@@ -35,6 +36,7 @@ export interface IngestChannelData {
   id: number | bigint
   username: string
   title: string
+  category?: string
 }
 
 export interface IngestMessageData {
@@ -97,6 +99,7 @@ export class TelegramService {
         update: {
           username: channelData.username,
           title: channelData.title,
+          category: channelData.category || 'general',
           lastFetchAt: new Date(),
           errorCount: 0,
           lastError: null,
@@ -105,6 +108,7 @@ export class TelegramService {
           channelId: BigInt(channelData.id),
           username: channelData.username,
           title: channelData.title,
+          category: channelData.category || 'general',
           enabled: true,
           lastFetchAt: new Date(),
         },

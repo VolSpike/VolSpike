@@ -458,6 +458,7 @@ model TelegramChannel {
   channelId   BigInt            @unique
   username    String            @unique
   title       String
+  category    String            @default("general") // macro, crypto, general
   enabled     Boolean           @default(true)
   lastFetchAt DateTime?
   errorCount  Int               @default(0)
@@ -467,6 +468,7 @@ model TelegramChannel {
   messages    TelegramMessage[]
 
   @@index([enabled])
+  @@index([category])
   @@map("telegram_channels")
 }
 

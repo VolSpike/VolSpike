@@ -24,6 +24,7 @@ const ingestSchema = z.object({
     id: z.number().or(z.bigint()),
     username: z.string(),
     title: z.string(),
+    category: z.string().optional(),
   }),
   messages: z.array(
     z.object({

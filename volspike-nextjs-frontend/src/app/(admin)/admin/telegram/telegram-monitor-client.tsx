@@ -27,6 +27,7 @@ interface TelegramChannel {
   channelId: string
   username: string
   title: string
+  category: string
   enabled: boolean
   lastFetchAt: string | null
   errorCount: number
@@ -34,6 +35,37 @@ interface TelegramChannel {
   _count?: {
     messages: number
   }
+}
+
+// Category configuration with colors
+const CATEGORY_CONFIG: Record<string, { label: string; className: string }> = {
+  macro: {
+    label: 'Macro',
+    className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  },
+  crypto: {
+    label: 'Crypto',
+    className: 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30',
+  },
+  general: {
+    label: 'General',
+    className: 'bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-500/30',
+  },
+}
+
+// Get category badge config
+function getCategoryConfig(category: string) {
+  return CATEGORY_CONFIG[category] || CATEGORY_CONFIG.general
+}
+
+// Clean message text - remove trailing "..." from marketfeed messages
+function cleanMessageText(text: string | null, channelUsername: string): string | null {
+  if (!text) return null
+  // Remove trailing "..." or " ..." from marketfeed messages
+  if (channelUsername.toLowerCase() === 'marketfeed') {
+    return text.replace(/\s*\.{3,}$/, '').trim()
+  }
+  return text
 }
 
 interface TelegramMessage {
@@ -46,7 +78,7 @@ interface TelegramMessage {
   forwards: number | null
   hasMedia: boolean
   mediaType: string | null
-  channel: TelegramChannel
+  channel: Pick<TelegramChannel, 'id' | 'channelId' | 'username' | 'title' | 'category'>
 }
 
 interface TelegramStats {
@@ -197,8 +229,9 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
     }
     loadData()
 
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 30 seconds (including channels for message count)
     const interval = setInterval(() => {
+      fetchChannels()
       fetchMessages(currentPage)
       fetchStats()
     }, 30000)
@@ -309,8 +342,14 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
                 <div className="flex items-center gap-3">
                   {getChannelStatusIcon(channel)}
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold">@{channel.username}</span>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${getCategoryConfig(channel.category).className}`}
+                      >
+                        {getCategoryConfig(channel.category).label}
+                      </Badge>
                       <Badge variant="secondary" className="text-xs">
                         {channel._count?.messages || 0} messages
                       </Badge>
@@ -391,7 +430,13 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${getCategoryConfig(message.channel.category).className}`}
+                          >
+                            {getCategoryConfig(message.channel.category).label}
+                          </Badge>
+                          <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30">
                             @{message.channel.username}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
@@ -405,7 +450,7 @@ export function TelegramMonitorClient({ accessToken }: TelegramMonitorClientProp
                           )}
                         </div>
                         <div className="text-sm whitespace-pre-wrap break-words">
-                          {message.text || (
+                          {cleanMessageText(message.text, message.channel.username) || (
                             <span className="text-muted-foreground italic">
                               [No text content - media only]
                             </span>
