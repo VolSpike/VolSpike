@@ -214,8 +214,8 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                 <span>Open Interest</span>
               </TabsTrigger>
               {!canAccessOIAlerts && (
-                <TooltipProvider delayDuration={100}>
-                  <Tooltip disableHoverableContent={false}>
+                <TooltipProvider delayDuration={100} disableHoverableContent={false}>
+                  <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
