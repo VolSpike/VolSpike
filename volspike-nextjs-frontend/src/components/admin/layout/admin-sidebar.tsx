@@ -19,6 +19,7 @@ import {
     TrendingUp,
     Coins,
     Bell,
+    Activity,
     Newspaper,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
@@ -60,6 +61,11 @@ const navigation = [
         name: 'Metrics',
         href: '/admin/metrics',
         icon: BarChart3,
+    },
+    {
+        name: 'OI Alerts',
+        href: '/admin/oi-alerts',
+        icon: Activity,
     },
     {
         name: 'Assets',

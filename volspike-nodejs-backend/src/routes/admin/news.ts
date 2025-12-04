@@ -9,19 +9,13 @@ const logger = createLogger()
 
 const adminNewsRoutes = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
 
-// Lazy initialization to avoid circular import issues
-let newsService: NewsService | null = null
-function getNewsService(): NewsService {
-  if (!newsService) {
-    newsService = new NewsService(prisma)
-  }
-  return newsService
-}
+// Create singleton NewsService instance
+const newsService = new NewsService(prisma)
 
 // GET /api/admin/news/feeds - Get all feeds with stats
 adminNewsRoutes.get('/feeds', async (c) => {
   try {
-    const feeds = await getNewsService().getFeeds(true) // Include disabled feeds
+    const feeds = await newsService.getFeeds(true) // Include disabled feeds
     return c.json({ feeds })
   } catch (error) {
     logger.error('[AdminNews] Failed to get feeds:', error)
@@ -38,7 +32,7 @@ adminNewsRoutes.get('/feeds', async (c) => {
 // GET /api/admin/news/stats - Get overall stats
 adminNewsRoutes.get('/stats', async (c) => {
   try {
-    const stats = await getNewsService().getStats()
+    const stats = await newsService.getStats()
     return c.json({ stats })
   } catch (error) {
     logger.error('[AdminNews] Failed to get stats:', error)
@@ -65,7 +59,7 @@ adminNewsRoutes.get('/articles', async (c) => {
     const query = c.req.query()
     const params = articlesSchema.parse(query)
 
-    const articles = await getNewsService().getArticles({
+    const articles = await newsService.getArticles({
       feedIds: params.feedId ? [params.feedId] : undefined,
       feedNames: params.feedName ? [params.feedName] : undefined,
       limit: params.limit,
@@ -101,7 +95,7 @@ adminNewsRoutes.patch('/feeds/:id', async (c) => {
     const body = await c.req.json()
     const data = updateFeedSchema.parse(body)
 
-    const feed = await getNewsService().updateFeed(id, data)
+    const feed = await newsService.updateFeed(id, data)
 
     logger.info(`[AdminNews] Updated feed ${feed.name}:`, data)
 
@@ -122,7 +116,7 @@ adminNewsRoutes.patch('/feeds/:id', async (c) => {
 adminNewsRoutes.post('/feeds/:id/test', async (c) => {
   try {
     const id = c.req.param('id')
-    const result = await getNewsService().refreshFeed(id)
+    const result = await newsService.refreshFeed(id)
 
     return c.json({ result })
   } catch (error) {
@@ -141,7 +135,7 @@ adminNewsRoutes.post('/feeds/:id/test', async (c) => {
 adminNewsRoutes.post('/feeds/:id/refresh', async (c) => {
   try {
     const id = c.req.param('id')
-    const result = await getNewsService().refreshFeed(id)
+    const result = await newsService.refreshFeed(id)
 
     return c.json({ result })
   } catch (error) {
@@ -161,7 +155,7 @@ adminNewsRoutes.post('/refresh-all', async (c) => {
   try {
     logger.info('[AdminNews] Refreshing all enabled feeds...')
 
-    const results = await getNewsService().refreshAllFeeds(true)
+    const results = await newsService.refreshAllFeeds(true)
 
     const summary = {
       total: results.size,
@@ -204,7 +198,7 @@ adminNewsRoutes.post('/refresh-all', async (c) => {
 adminNewsRoutes.post('/seed', async (c) => {
   try {
     logger.info('[AdminNews] Seeding RSS feeds...')
-    const count = await getNewsService().seedFeeds()
+    const count = await newsService.seedFeeds()
 
     return c.json({
       success: true,
@@ -223,23 +217,23 @@ adminNewsRoutes.post('/seed', async (c) => {
   }
 })
 
-// POST /api/admin/news/cleanup - Delete old articles (keep only last N articles)
+// POST /api/admin/news/cleanup - Delete old articles
 const cleanupSchema = z.object({
-  maxArticles: z.coerce.number().min(50).max(1000).default(200), // Default 200 articles
+  hoursToKeep: z.coerce.number().min(1).max(168).default(6), // Default 6 hours, max 7 days
 })
 
 adminNewsRoutes.post('/cleanup', async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}))
-    const { maxArticles } = cleanupSchema.parse(body)
+    const { hoursToKeep } = cleanupSchema.parse(body)
 
-    logger.info(`[AdminNews] Cleaning up articles (keeping last ${maxArticles})...`)
-    const deleted = await getNewsService().cleanupOldArticles(maxArticles)
+    logger.info(`[AdminNews] Cleaning up articles older than ${hoursToKeep} hours...`)
+    const deleted = await newsService.cleanupOldArticles(hoursToKeep)
 
     return c.json({
       success: true,
       deleted,
-      message: `Deleted ${deleted} articles (keeping last ${maxArticles})`,
+      message: `Deleted ${deleted} articles older than ${hoursToKeep} hours`,
     })
   } catch (error) {
     logger.error('[AdminNews] Failed to cleanup old articles:', error)

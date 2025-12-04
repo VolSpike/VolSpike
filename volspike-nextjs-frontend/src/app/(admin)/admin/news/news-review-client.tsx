@@ -232,11 +232,11 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ maxArticles: 200 }),
+        body: JSON.stringify({ hoursToKeep: 6 }),
       })
       if (response.ok) {
         const data = await response.json()
-        alert(data.message)
+        alert(`Deleted ${data.deleted} old articles`)
         await fetchStats()
         await fetchArticles(selectedFeed)
       }
@@ -343,7 +343,7 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
 
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-3">
-        {feeds.length === 0 ? (
+        {feeds.length === 0 && (
           <Button onClick={seedFeeds} disabled={seeding}>
             {seeding ? (
               <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -351,15 +351,6 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
               <Newspaper className="w-4 h-4 mr-2" />
             )}
             Seed RSS Feeds
-          </Button>
-        ) : (
-          <Button onClick={seedFeeds} disabled={seeding} variant="outline">
-            {seeding ? (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Newspaper className="w-4 h-4 mr-2" />
-            )}
-            Update Feed URLs
           </Button>
         )}
         <Button onClick={refreshAllFeeds} disabled={refreshingAll} variant="outline">
@@ -376,7 +367,7 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
           ) : (
             <Trash2 className="w-4 h-4 mr-2" />
           )}
-          Cleanup (Keep 200)
+          Cleanup Old Articles (6h)
         </Button>
       </div>
 

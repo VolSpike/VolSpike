@@ -80,7 +80,7 @@ export const RSS_FEED_SOURCES = [
   },
   {
     name: 'U.Today',
-    url: 'https://u.today/rss',
+    url: 'https://u.today/rss/news',
     category: 'ETH/Ripple',
     enabled: true,
     priority: 7,
@@ -94,7 +94,7 @@ export const RSS_FEED_SOURCES = [
   },
   {
     name: 'ChainGPT AI News',
-    url: 'https://app.chaingpt.org/rssfeeds.xml',
+    url: 'https://chaingpt.org/rss',
     category: 'AI-Curated',
     enabled: false,
     priority: 9,
@@ -107,8 +107,8 @@ export const RSS_FEED_SOURCES = [
     priority: 10,
   },
   {
-    name: 'Crypto.news',
-    url: 'https://crypto.news/feed/',
+    name: 'Yahoo Finance Crypto',
+    url: 'https://feeds.finance.yahoo.com/rss/2.0/headline?r=1&category=crypto',
     category: 'Macro Crossover',
     enabled: false,
     priority: 11,
@@ -443,42 +443,23 @@ export class NewsService {
   }
 
   /**
-   * Delete articles keeping only the most recent N articles (default: 200)
+   * Delete articles older than specified hours (default: 6 hours)
    * This keeps the database lean and focused on recent news
    */
-  async cleanupOldArticles(maxArticles: number = 200): Promise<number> {
-    // Get total count
-    const totalCount = await this.db.rssArticle.count()
+  async cleanupOldArticles(hoursToKeep: number = 6): Promise<number> {
+    const cutoffDate = new Date()
+    cutoffDate.setHours(cutoffDate.getHours() - hoursToKeep)
 
-    if (totalCount <= maxArticles) {
-      return 0 // Nothing to delete
-    }
-
-    // Get the pubDate of the article at position maxArticles (the cutoff)
-    const cutoffArticle = await this.db.rssArticle.findMany({
-      orderBy: { pubDate: 'desc' },
-      skip: maxArticles - 1,
-      take: 1,
-      select: { pubDate: true },
-    })
-
-    if (cutoffArticle.length === 0) {
-      return 0
-    }
-
-    const cutoffDate = cutoffArticle[0].pubDate
-
-    // Delete all articles older than the cutoff
     const result = await this.db.rssArticle.deleteMany({
       where: {
-        pubDate: {
+        createdAt: {
           lt: cutoffDate,
         },
       },
     })
 
     if (result.count > 0) {
-      logger.info(`[NewsService] Cleaned up ${result.count} articles (keeping last ${maxArticles})`)
+      logger.info(`[NewsService] Cleaned up ${result.count} articles older than ${hoursToKeep} hours`)
     }
 
     return result.count

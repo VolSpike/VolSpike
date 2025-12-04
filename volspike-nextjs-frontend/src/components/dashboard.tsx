@@ -40,7 +40,7 @@ export function Dashboard() {
         return window.innerWidth < 1280 ? 'alerts' : 'market'
     })
 
-    // Session status tracking
+    // Session status tracking (debug logs removed per user request)
 
     // Determine user tier
     const userTier = session?.user?.tier || 'free'
