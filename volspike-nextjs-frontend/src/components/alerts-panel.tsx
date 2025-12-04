@@ -207,10 +207,10 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
             <TabsTrigger
               value="oi"
               disabled={!canAccessOIAlerts}
-              className="flex items-center gap-1.5 relative"
+              className="flex items-center gap-1.5 relative data-[disabled]:opacity-100"
             >
               <Activity className="h-3.5 w-3.5" />
-              Open Interest
+              <span>Open Interest</span>
               {!canAccessOIAlerts && (
                 <TooltipProvider delayDuration={100}>
                   <Tooltip>
