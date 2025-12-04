@@ -218,11 +218,11 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-4 w-4 p-0 min-w-0 cursor-pointer ml-1 relative z-10"
+                        className="h-4 w-4 p-0 min-w-0 cursor-help ml-1 relative z-10"
                         onClick={(e) => {
                           e.stopPropagation()
                           e.preventDefault()
-                          handleLockClick(e)
+                          setLockDialogOpen(true)
                         }}
                       >
                         <Lock className="h-3 w-3 text-sec-500 hover:text-sec-400 transition-colors" />
@@ -231,7 +231,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                     <TooltipContent
                       side="bottom"
                       align="end"
-                      className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden hidden md:block"
+                      className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
                       sideOffset={4}
                     >
                       <div className="oi-teaser-tooltip-gradient h-1 w-full" />
@@ -243,7 +243,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                           <span className="font-semibold text-xs">Pro Feature</span>
                         </div>
                         <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-                          Track OI changes ≥3% in 5 minutes.
+                          Get alerts on significant OI changes.
                         </p>
                         <Link
                           href="/pricing"
@@ -335,8 +335,14 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
             </DialogTitle>
           </DialogHeader>
           <div className="pt-2">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sec-500/15">
+                <Lock className="h-3 w-3 text-sec-500" />
+              </div>
+              <span className="font-semibold text-sm">Pro Feature</span>
+            </div>
             <p className="text-sm text-muted-foreground mb-3">
-              Track real-time Open Interest changes when OI spikes or dumps ≥3% in 5 minutes.
+              Get alerts on significant Open Interest changes. Track smart money movements.
             </p>
             <Link
               href="/pricing"
