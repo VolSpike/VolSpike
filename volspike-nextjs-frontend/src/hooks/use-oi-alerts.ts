@@ -34,15 +34,17 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
   const socketRef = useRef<Socket | null>(null)
   const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Only admin users can access OI alerts
+  // Pro/Elite users and Admin can access OI alerts
+  const userTier = (session?.user as any)?.tier || 'free'
   const userRole = (session?.user as any)?.role
   const isAdmin = userRole === 'ADMIN'
+  const canAccessOI = isAdmin || userTier === 'pro' || userTier === 'elite'
 
   // Fetch alerts from API
   const fetchAlerts = useCallback(async () => {
-    if (!isAdmin) {
+    if (!canAccessOI) {
       setIsLoading(false)
-      return // Non-admin users don't fetch
+      return // Free tier users don't have access
     }
 
     // Get access token from session (required for admin API)
@@ -88,20 +90,20 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [isAdmin, session])
+  }, [canAccessOI, session])
 
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {
-    if (autoFetch && isAdmin) {
+    if (autoFetch && canAccessOI) {
       fetchAlerts()
-    } else if (!isAdmin) {
+    } else if (!canAccessOI) {
       setIsLoading(false)
     }
-  }, [autoFetch, isAdmin, fetchAlerts])
+  }, [autoFetch, canAccessOI, fetchAlerts])
 
-  // Set up WebSocket connection for real-time alerts (admin only)
+  // Set up WebSocket connection for real-time alerts (Pro/Elite/Admin)
   useEffect(() => {
-    if (typeof window === 'undefined' || !session || !isAdmin) return
+    if (typeof window === 'undefined' || !session || !canAccessOI) return
 
     const apiUrl = process.env.NEXT_PUBLIC_SOCKET_IO_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
     const userEmail = session?.user?.email as string | undefined
@@ -168,7 +170,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
     return () => {
       socket.disconnect()
     }
-  }, [session, isAdmin, onNewAlert])
+  }, [session, canAccessOI, onNewAlert])
 
   return {
     alerts,
@@ -177,5 +179,6 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
     refetch: fetchAlerts,
     isConnected,
     isAdmin,
+    canAccessOI,
   }
 }

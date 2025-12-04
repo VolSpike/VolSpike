@@ -13,6 +13,7 @@
  */
 
 import { Hono } from 'hono'
+import { authMiddleware } from '../middleware/auth'
 import { ingestOpenInterest, ingestOpenInterestAlert, getOpenInterestSamples, getOpenInterestAlerts } from './openInterest.service'
 import type { OpenInterestIngestRequest, OpenInterestAlertInput, OISampleQueryParams, OIAlertQueryParams } from './openInterest.types'
 import { createLogger } from '../lib/logger'
@@ -150,13 +151,22 @@ app.get('/samples', async (c) => {
 
 /**
  * GET /api/open-interest-alerts
- * 
- * Get recent Open Interest alerts (debug endpoint)
+ *
+ * Get recent Open Interest alerts (requires Pro/Elite/Admin access)
  */
-app.get('/alerts', async (c) => {
+app.get('/alerts', authMiddleware, async (c) => {
   try {
+    const user = c.get('user')
+
+    // Check if user has access to OI alerts (Pro/Elite/Admin)
+    const canAccessOI = user.role === 'ADMIN' || user.tier === 'pro' || user.tier === 'elite'
+
+    if (!canAccessOI) {
+      return c.json({ error: 'OI alerts require Pro/Elite tier or Admin access' }, 403)
+    }
+
     const symbol = c.req.query('symbol')
-    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 20
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50
     const direction = c.req.query('direction') as 'UP' | 'DOWN' | undefined
 
     const params: OIAlertQueryParams = {

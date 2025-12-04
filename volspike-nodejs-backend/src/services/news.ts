@@ -162,9 +162,12 @@ export class NewsService {
   async seedFeeds(): Promise<number> {
     let created = 0
 
+    logger.info(`[NewsService] Starting to seed ${RSS_FEED_SOURCES.length} RSS feeds...`)
+
     for (const feed of RSS_FEED_SOURCES) {
       try {
-        await this.db.rssFeed.upsert({
+        logger.info(`[NewsService] Seeding feed: ${feed.name} (${feed.url})`)
+        const result = await this.db.rssFeed.upsert({
           where: { url: feed.url },
           update: {
             name: feed.name,
@@ -174,13 +177,17 @@ export class NewsService {
           },
           create: feed,
         })
+        logger.info(`[NewsService] Successfully seeded feed: ${feed.name}, id: ${result.id}`)
         created++
       } catch (error) {
-        logger.error(`[NewsService] Failed to seed feed ${feed.name}:`, error)
+        logger.error(`[NewsService] Failed to seed feed ${feed.name}:`, {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        })
       }
     }
 
-    logger.info(`[NewsService] Seeded ${created} RSS feeds`)
+    logger.info(`[NewsService] Seeded ${created}/${RSS_FEED_SOURCES.length} RSS feeds`)
     return created
   }
 

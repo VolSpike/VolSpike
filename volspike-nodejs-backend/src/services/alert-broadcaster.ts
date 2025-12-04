@@ -130,7 +130,8 @@ function startTierBasedBroadcasting() {
 
 /**
  * Broadcast Open Interest alert to WebSocket clients
- * Admin-only feature: broadcasts to role-admin room
+ * Available to Pro/Elite tiers and Admin users
+ * Free tier users cannot access OI alerts
  */
 export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
   if (!ioInstance) {
@@ -138,10 +139,16 @@ export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
     return
   }
 
-  // Broadcast to admin room only (OI alerts are admin-only feature for now)
-  ioInstance.to('role-admin').emit('open-interest-alert', alert)
   const pctChangeNum = typeof alert.pctChange === 'number' ? alert.pctChange : Number(alert.pctChange)
-  console.log(`📢 Broadcasted OI alert to admin room: ${alert.symbol} ${alert.direction} (${(pctChangeNum * 100).toFixed(2)}%)`)
+
+  // Broadcast to admin room (for admin panel)
+  ioInstance.to('role-admin').emit('open-interest-alert', alert)
+
+  // Broadcast to Pro and Elite tiers (user dashboard feature)
+  ioInstance.to('tier-pro').emit('open-interest-alert', alert)
+  ioInstance.to('tier-elite').emit('open-interest-alert', alert)
+
+  console.log(`📢 Broadcasted OI alert: ${alert.symbol} ${alert.direction} (${(pctChangeNum * 100).toFixed(2)}%) to admin/pro/elite`)
 }
 
 /**
