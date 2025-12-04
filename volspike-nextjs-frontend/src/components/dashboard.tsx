@@ -329,9 +329,6 @@ export function Dashboard() {
                     )}
 
                     <div className="xl:hidden animate-fade-in space-y-4">
-                        {/* Market News Pane - Mobile */}
-                        <MarketNewsPane maxMessages={20} pollInterval={30000} />
-
                         <Tabs
                             defaultValue="market"
                             className="w-full"
@@ -360,12 +357,12 @@ export function Dashboard() {
                                 {alertsPanelCard}
                             </TabsContent>
                         </Tabs>
+
+                        {/* Market News Pane - Mobile (below Market Data/Alerts) */}
+                        <MarketNewsPane maxMessages={20} pollInterval={30000} />
                     </div>
 
                     <div className="hidden xl:flex flex-col gap-4 animate-fade-in">
-                        {/* Market News Pane - Full width above Market Data/Alerts */}
-                        <MarketNewsPane maxMessages={30} pollInterval={30000} />
-
                         {/* Market Data and Alerts side by side */}
                         <div className="flex gap-2 items-stretch">
                             <div className="flex-[3]">
@@ -385,6 +382,9 @@ export function Dashboard() {
                                 />
                             </div>
                         </div>
+
+                        {/* Market News Pane - Desktop (below Market Data/Alerts) */}
+                        <MarketNewsPane maxMessages={30} pollInterval={30000} />
                     </div>
                 </div>
             </main>
