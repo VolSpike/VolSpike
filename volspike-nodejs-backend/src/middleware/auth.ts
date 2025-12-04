@@ -70,6 +70,7 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
                 id: true,
                 email: true,
                 tier: true,
+                role: true,
                 refreshInterval: true,
                 theme: true,
                 status: true,

@@ -244,8 +244,8 @@ export default function OIAlertsPage() {
                           </div>
                         </div>
 
-                        {/* Direction and percentage badge */}
-                        <div className="flex items-center gap-2">
+                        {/* Percentage badge */}
+                        <div>
                           <Badge
                             variant="outline"
                             className={`text-xs font-mono-tabular ${
@@ -255,12 +255,6 @@ export default function OIAlertsPage() {
                             }`}
                           >
                             {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
-                          </Badge>
-                          <Badge
-                            variant="secondary"
-                            className="text-xs"
-                          >
-                            {isLongSpike ? 'Long Spike' : 'Short Dump'}
                           </Badge>
                         </div>
 
