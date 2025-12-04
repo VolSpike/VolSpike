@@ -80,7 +80,7 @@ export const RSS_FEED_SOURCES = [
   },
   {
     name: 'U.Today',
-    url: 'https://u.today/rss/news',
+    url: 'https://u.today/rss',
     category: 'ETH/Ripple',
     enabled: true,
     priority: 7,
@@ -94,7 +94,7 @@ export const RSS_FEED_SOURCES = [
   },
   {
     name: 'ChainGPT AI News',
-    url: 'https://chaingpt.org/rss',
+    url: 'https://app.chaingpt.org/rssfeeds.xml',
     category: 'AI-Curated',
     enabled: false,
     priority: 9,
@@ -107,8 +107,8 @@ export const RSS_FEED_SOURCES = [
     priority: 10,
   },
   {
-    name: 'Yahoo Finance Crypto',
-    url: 'https://feeds.finance.yahoo.com/rss/2.0/headline?r=1&category=crypto',
+    name: 'Crypto.news',
+    url: 'https://crypto.news/feed/',
     category: 'Macro Crossover',
     enabled: false,
     priority: 11,
