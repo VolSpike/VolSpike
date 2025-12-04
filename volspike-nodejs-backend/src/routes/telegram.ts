@@ -18,6 +18,7 @@ function getTelegramService(): TelegramService {
 }
 
 // Schema for incoming messages from Digital Ocean Pyrogram poller
+// Date accepts ISO 8601 format (Python isoformat() produces +00:00 suffix, not Z)
 const ingestSchema = z.object({
   channel: z.object({
     id: z.number().or(z.bigint()),
@@ -28,7 +29,9 @@ const ingestSchema = z.object({
     z.object({
       id: z.number().or(z.bigint()),
       text: z.string().nullable(),
-      date: z.string().datetime(),
+      date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+        message: 'Invalid ISO 8601 date string',
+      }),
       sender_name: z.string().nullable(),
       views: z.number().nullable(),
       forwards: z.number().nullable(),
