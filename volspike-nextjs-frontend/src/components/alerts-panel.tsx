@@ -28,26 +28,50 @@ import {
 
 interface AlertsPanelProps {
   onNewAlert?: () => void
+  onNewOIAlert?: () => void
   guestMode?: boolean
   guestVisibleCount?: number
   /** When true (side-by-side pane), Price+OI on line 1, Funding on line 2. When false (tab), all on one line. */
   compact?: boolean
+  /** External unread volume alerts count (managed by parent) */
+  unreadVolumeCount?: number
+  /** External unread OI alerts count (managed by parent) */
+  unreadOICount?: number
+  /** Callback when active alerts tab changes */
+  onActiveTabChange?: (tab: 'volume' | 'oi') => void
+  /** External active tab state (managed by parent) */
+  activeAlertsTab?: 'volume' | 'oi'
 }
 
-export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount = 2, compact = false }: AlertsPanelProps = {}) {
+export function AlertsPanel({
+  onNewAlert,
+  onNewOIAlert,
+  guestMode = false,
+  guestVisibleCount = 2,
+  compact = false,
+  unreadVolumeCount: externalUnreadVolumeCount,
+  unreadOICount: externalUnreadOICount,
+  onActiveTabChange,
+  activeAlertsTab: externalActiveTab,
+}: AlertsPanelProps = {}) {
   const { data: session } = useSession()
   const userTier = (session?.user as any)?.tier || 'free'
-  const [activeTab, setActiveTab] = useState<'volume' | 'oi'>('volume')
+  const [internalActiveTab, setInternalActiveTab] = useState<'volume' | 'oi'>('volume')
   const [lockDialogOpen, setLockDialogOpen] = useState(false)
   const [oiNextUpdate, setOiNextUpdate] = useState(0)
   const [, setTick] = useState(0) // Force re-render every second for countdown display
   const oiNextUpdateRef = useRef(0) // Ref to avoid stale closure in interval
 
-  // Unread alert counts for badge display on inactive tab
-  const [unreadVolumeCount, setUnreadVolumeCount] = useState(0)
-  const [unreadOICount, setUnreadOICount] = useState(0)
-  const prevVolumeAlertsRef = useRef<string[]>([])
-  const prevOIAlertsRef = useRef<string[]>([])
+  // Use external state if provided, otherwise use internal state
+  const activeTab = externalActiveTab ?? internalActiveTab
+  const setActiveTab = (tab: 'volume' | 'oi') => {
+    setInternalActiveTab(tab)
+    onActiveTabChange?.(tab)
+  }
+
+  // Use external unread counts if provided, otherwise 0 (managed by parent)
+  const unreadVolumeCount = externalUnreadVolumeCount ?? 0
+  const unreadOICount = externalUnreadOICount ?? 0
 
   // Free tier users cannot access OI alerts
   const canAccessOIAlerts = userTier === 'pro' || userTier === 'elite'
@@ -71,55 +95,6 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
   })
 
   const { enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
-
-  // Track new volume alerts when on OI tab (for badge on Volume tab)
-  useEffect(() => {
-    if (activeTab !== 'oi' || volumeAlerts.length === 0) return
-
-    const currentIds = volumeAlerts.map(a => a.id)
-    const prevIds = prevVolumeAlertsRef.current
-
-    // Only count new alerts if we have previous data (not initial load)
-    if (prevIds.length > 0) {
-      const newCount = currentIds.filter(id => !prevIds.includes(id)).length
-      if (newCount > 0) {
-        setUnreadVolumeCount(prev => prev + newCount)
-      }
-    }
-
-    prevVolumeAlertsRef.current = currentIds
-  }, [volumeAlerts, activeTab])
-
-  // Track new OI alerts when on Volume tab (for badge on OI tab)
-  useEffect(() => {
-    if (activeTab !== 'volume' || !canAccessOIAlerts || oiAlerts.length === 0) return
-
-    const currentIds = oiAlerts.map(a => a.id)
-    const prevIds = prevOIAlertsRef.current
-
-    // Only count new alerts if we have previous data (not initial load)
-    if (prevIds.length > 0) {
-      const newCount = currentIds.filter(id => !prevIds.includes(id)).length
-      if (newCount > 0) {
-        setUnreadOICount(prev => prev + newCount)
-      }
-    }
-
-    prevOIAlertsRef.current = currentIds
-  }, [oiAlerts, activeTab, canAccessOIAlerts])
-
-  // Clear unread count when switching to a tab
-  useEffect(() => {
-    if (activeTab === 'volume') {
-      setUnreadVolumeCount(0)
-      // Update the ref to current state so we don't re-count existing alerts
-      prevVolumeAlertsRef.current = volumeAlerts.map(a => a.id)
-    } else if (activeTab === 'oi') {
-      setUnreadOICount(0)
-      // Update the ref to current state so we don't re-count existing alerts
-      prevOIAlertsRef.current = oiAlerts.map(a => a.id)
-    }
-  }, [activeTab, volumeAlerts, oiAlerts])
 
   // 30-second countdown for OI alerts (matches Digital Ocean polling interval)
   useEffect(() => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSocket } from '@/hooks/use-socket'
 import { useTierChangeListener } from '@/hooks/use-tier-change-listener'
@@ -11,6 +11,8 @@ import { HeaderWithBanner } from '@/components/header-with-banner'
 import { MarketTable } from '@/components/market-table'
 import { AlertPanel } from '@/components/alert-panel'
 import { AlertsPanel } from '@/components/alerts-panel'
+import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
+import { useOIAlerts } from '@/hooks/use-oi-alerts'
 import { TierUpgrade } from '@/components/tier-upgrade'
 import { SubscriptionStatus } from '@/components/subscription-status'
 import { AlertBuilder } from '@/components/alert-builder'
@@ -30,7 +32,6 @@ export function Dashboard() {
     const [alerts, setAlerts] = useState<any[]>([])
     const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
     const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')
-    const [unreadAlertsCount, setUnreadAlertsCount] = useState(0)
     const [currentTab, setCurrentTab] = useState<'market' | 'alerts'>(() => {
         if (typeof window === 'undefined') {
             return 'market'
@@ -40,58 +41,87 @@ export function Dashboard() {
         return window.innerWidth < 1280 ? 'alerts' : 'market'
     })
 
+    // Unified unread alert counts (shared between mobile and desktop views)
+    const [unreadVolumeCount, setUnreadVolumeCount] = useState(0)
+    const [unreadOICount, setUnreadOICount] = useState(0)
+    const [activeAlertsTab, setActiveAlertsTab] = useState<'volume' | 'oi'>('volume')
+    const prevVolumeAlertsRef = useRef<string[]>([])
+    const prevOIAlertsRef = useRef<string[]>([])
+
+    // Total unread count for the main "Alerts" tab badge (mobile view)
+    const totalUnreadCount = unreadVolumeCount + unreadOICount
+
     // Session status tracking (debug logs removed per user request)
 
     // Determine user tier
     const userTier = session?.user?.tier || 'free'
+    const canAccessOIAlerts = userTier === 'pro' || userTier === 'elite'
 
-    // Clear unread badge when viewing alerts tab
-    useEffect(() => {
-        if (currentTab === 'alerts') {
-            setUnreadAlertsCount(0)
-        }
-    }, [currentTab])
+    // Use hooks to track alerts for unread counting
+    // Note: AlertsPanel also uses these hooks, but we need them here to track counts
+    const { alerts: volumeAlerts } = useVolumeAlerts({
+        pollInterval: 15000,
+        autoFetch: true,
+    })
 
-    // Clear badge on window resize to desktop (where both panels visible)
+    const { alerts: oiAlerts } = useOIAlerts({
+        autoFetch: canAccessOIAlerts,
+    })
+
+    // Track new volume alerts for unread count
     useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth >= 1280) {
-                setUnreadAlertsCount(0)
+        if (volumeAlerts.length === 0) return
+
+        const currentIds = volumeAlerts.map(a => a.id)
+        const prevIds = prevVolumeAlertsRef.current
+
+        // Only count new alerts if we have previous data (not initial load)
+        // AND user is not currently viewing volume alerts
+        if (prevIds.length > 0 && activeAlertsTab !== 'volume') {
+            const newCount = currentIds.filter(id => !prevIds.includes(id)).length
+            if (newCount > 0) {
+                setUnreadVolumeCount(prev => prev + newCount)
             }
         }
-        window.addEventListener('resize', handleResize)
 
-        // Also clear immediately if already on desktop
-        if (typeof window !== 'undefined' && window.innerWidth >= 1280) {
-            setUnreadAlertsCount(0)
+        prevVolumeAlertsRef.current = currentIds
+    }, [volumeAlerts, activeAlertsTab])
+
+    // Track new OI alerts for unread count
+    useEffect(() => {
+        if (!canAccessOIAlerts || oiAlerts.length === 0) return
+
+        const currentIds = oiAlerts.map(a => a.id)
+        const prevIds = prevOIAlertsRef.current
+
+        // Only count new alerts if we have previous data (not initial load)
+        // AND user is not currently viewing OI alerts
+        if (prevIds.length > 0 && activeAlertsTab !== 'oi') {
+            const newCount = currentIds.filter(id => !prevIds.includes(id)).length
+            if (newCount > 0) {
+                setUnreadOICount(prev => prev + newCount)
+            }
         }
 
-        return () => window.removeEventListener('resize', handleResize)
-    }, [])
+        prevOIAlertsRef.current = currentIds
+    }, [oiAlerts, activeAlertsTab, canAccessOIAlerts])
 
-    // Handle new volume alerts for badge notification
+    // Handle active alerts tab change - clear the appropriate unread count
+    const handleActiveAlertsTabChange = useCallback((tab: 'volume' | 'oi') => {
+        setActiveAlertsTab(tab)
+        if (tab === 'volume') {
+            setUnreadVolumeCount(0)
+            prevVolumeAlertsRef.current = volumeAlerts.map(a => a.id)
+        } else if (tab === 'oi') {
+            setUnreadOICount(0)
+            prevOIAlertsRef.current = oiAlerts.map(a => a.id)
+        }
+    }, [volumeAlerts, oiAlerts])
+
+    // Legacy callback for volume alert sound (still needed by AlertsPanel)
     const handleNewVolumeAlert = useCallback(() => {
-        const width = typeof window !== 'undefined' ? window.innerWidth : 0
-        console.log('🔔 handleNewVolumeAlert called', { width, currentTab, shouldShow: width < 1280 && currentTab === 'market' })
-
-        // Only increment badge on mobile/tablet when user is viewing Market Data tab
-        // On desktop (xl+), both panels are visible so no badge needed
-        if (typeof window !== 'undefined' && window.innerWidth < 1280) {
-            // Mobile/tablet: only show badge when on Market Data tab
-            if (currentTab === 'market') {
-                console.log('✅ Incrementing badge count')
-                setUnreadAlertsCount(prev => {
-                    const newCount = prev + 1
-                    console.log('Badge count:', prev, '→', newCount)
-                    return newCount
-                })
-            } else {
-                console.log('❌ Not incrementing - on alerts tab')
-            }
-        } else {
-            console.log('❌ Not incrementing - desktop view or window undefined')
-        }
-    }, [currentTab])
+        // This callback is for sound/animation, unread counting is now handled via useEffect
+    }, [])
 
     // Alert builder handlers (defined early to avoid hoisting issues)
     const handleCreateAlert = (symbol: string) => {
@@ -255,6 +285,10 @@ export function Dashboard() {
             onNewAlert={handleNewVolumeAlert}
             guestMode={isGuest}
             guestVisibleCount={2}
+            unreadVolumeCount={unreadVolumeCount}
+            unreadOICount={unreadOICount}
+            activeAlertsTab={activeAlertsTab}
+            onActiveTabChange={handleActiveAlertsTabChange}
         />
     )
 
@@ -294,34 +328,25 @@ export function Dashboard() {
                     )}
 
                     <div className="xl:hidden animate-fade-in">
-                        <Tabs 
-                            defaultValue="market" 
+                        <Tabs
+                            defaultValue="market"
                             className="w-full"
                             value={currentTab}
                             onValueChange={(value) => {
                                 const nextValue = value as 'market' | 'alerts'
-                                console.log('Tab changed:', currentTab, '→', nextValue)
                                 setCurrentTab(nextValue)
-                                // Clear unread count when user switches to alerts tab
-                                if (nextValue === 'alerts') {
-                                    console.log('Clearing badge count')
-                                    setUnreadAlertsCount(0)
-                                }
                             }}
                         >
                             <TabsList className="grid grid-cols-2 w-full">
                                 <TabsTrigger value="market" className="flex-1">Market Data</TabsTrigger>
                                 <TabsTrigger value="alerts" className="relative flex-1">
                                     Alerts
-                                    {(() => {
-                                        const shouldShow = unreadAlertsCount > 0 && currentTab !== 'alerts'
-                                        console.log('Badge render check:', { unreadAlertsCount, currentTab, shouldShow })
-                                        return shouldShow ? (
-                                            <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-lg">
-                                                {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
-                                            </span>
-                                        ) : null
-                                    })()}
+                                    {/* Show badge with total unread count when on Market Data tab */}
+                                    {totalUnreadCount > 0 && currentTab !== 'alerts' && (
+                                        <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-lg">
+                                            {totalUnreadCount > 9 ? '9+' : totalUnreadCount}
+                                        </span>
+                                    )}
                                 </TabsTrigger>
                             </TabsList>
                             <TabsContent value="market" className="mt-4 animate-fade-in">
@@ -344,6 +369,10 @@ export function Dashboard() {
                                 guestMode={isGuest}
                                 guestVisibleCount={2}
                                 compact={true}
+                                unreadVolumeCount={unreadVolumeCount}
+                                unreadOICount={unreadOICount}
+                                activeAlertsTab={activeAlertsTab}
+                                onActiveTabChange={handleActiveAlertsTabChange}
                             />
                         </div>
                     </div>
