@@ -76,6 +76,7 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
   const [seeding, setSeeding] = useState(false)
   const [refreshingAll, setRefreshingAll] = useState(false)
   const [cleaningUp, setCleaningUp] = useState(false)
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({})
 
   const fetchFeeds = useCallback(async () => {
     try {
@@ -244,6 +245,37 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
       console.error('Failed to cleanup articles:', error)
     } finally {
       setCleaningUp(false)
+    }
+  }
+
+  const deleteFeed = async (feedId: string, feedName: string) => {
+    if (!confirm(`Are you sure you want to delete "${feedName}" and all its articles? This cannot be undone.`)) {
+      return
+    }
+
+    setDeleting((prev) => ({ ...prev, [feedId]: true }))
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/news/feeds/${feedId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        alert(data.message)
+        await fetchFeeds()
+        await fetchStats()
+        await fetchArticles(selectedFeed)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        alert(`Failed to delete feed: ${errorData.error || errorData.details || response.statusText}`)
+      }
+    } catch (error) {
+      console.error('Failed to delete feed:', error)
+      alert(`Failed to delete feed: ${error instanceof Error ? error.message : 'Network error'}`)
+    } finally {
+      setDeleting((prev) => ({ ...prev, [feedId]: false }))
     }
   }
 
@@ -448,6 +480,7 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
                       variant="outline"
                       onClick={() => refreshFeed(feed.id)}
                       disabled={refreshing[feed.id]}
+                      title="Refresh feed"
                     >
                       {refreshing[feed.id] ? (
                         <RefreshCw className="w-4 h-4 animate-spin" />
@@ -457,8 +490,23 @@ export function NewsReviewClient({ accessToken }: NewsReviewClientProps) {
                     </Button>
                     <Button
                       size="sm"
+                      variant="outline"
+                      onClick={() => deleteFeed(feed.id, feed.name)}
+                      disabled={deleting[feed.id]}
+                      title="Delete feed"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                    >
+                      {deleting[feed.id] ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => toggleExpand(feed.id)}
+                      title="Expand/collapse"
                     >
                       {expandedFeeds[feed.id] ? (
                         <ChevronUp className="w-4 h-4" />

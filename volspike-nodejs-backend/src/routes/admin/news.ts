@@ -223,6 +223,31 @@ adminNewsRoutes.post('/seed', async (c) => {
   }
 })
 
+// DELETE /api/admin/news/feeds/:id - Delete a feed and all its articles
+adminNewsRoutes.delete('/feeds/:id', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const result = await getNewsService().deleteFeed(id)
+
+    logger.info(`[AdminNews] Deleted feed ${result.name} and ${result.articlesDeleted} articles`)
+
+    return c.json({
+      success: true,
+      message: `Deleted feed "${result.name}" and ${result.articlesDeleted} articles`,
+      ...result,
+    })
+  } catch (error) {
+    logger.error('[AdminNews] Failed to delete feed:', error)
+    return c.json(
+      {
+        error: 'Failed to delete feed',
+        details: error instanceof Error ? error.message : String(error),
+      },
+      500
+    )
+  }
+})
+
 // POST /api/admin/news/cleanup - Delete old articles (keep only last N articles)
 const cleanupSchema = z.object({
   maxArticles: z.coerce.number().min(50).max(1000).default(200), // Default 200 articles

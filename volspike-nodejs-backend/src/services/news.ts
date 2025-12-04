@@ -231,6 +231,39 @@ export class NewsService {
   }
 
   /**
+   * Delete a feed and all its articles
+   */
+  async deleteFeed(id: string): Promise<{ name: string; articlesDeleted: number }> {
+    const feed = await this.db.rssFeed.findUnique({
+      where: { id },
+    })
+
+    if (!feed) {
+      throw new Error('Feed not found')
+    }
+
+    // Delete all articles for this feed first (cascade should handle this, but be explicit)
+    const deleteResult = await this.db.rssArticle.deleteMany({
+      where: { feedId: id },
+    })
+
+    // Delete the feed
+    await this.db.rssFeed.delete({
+      where: { id },
+    })
+
+    // Clear article cache
+    articleQueryCache.flush()
+
+    logger.info(`[NewsService] Deleted feed "${feed.name}" and ${deleteResult.count} articles`)
+
+    return {
+      name: feed.name,
+      articlesDeleted: deleteResult.count,
+    }
+  }
+
+  /**
    * Get articles with pagination and filtering
    */
   async getArticles(options: GetArticlesOptions = {}): Promise<(RssArticle & { feed: RssFeed })[]> {
