@@ -22,6 +22,7 @@ import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
 import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
 import { syncPendingPayments } from './services/payment-sync'
+import { NewsService } from './services/news'
 import type { AppBindings, AppVariables } from './types/hono'
 
 // Initialize Prisma
@@ -480,6 +481,89 @@ if (process.env.ENABLE_SCHEDULED_TASKS !== 'false') {
     // Per AGENTS.md: "Digital Ocean Script: ✅ ONLY place that uses Binance REST API"
     // The backend only receives updates via POST /api/market/open-interest/liquid-universe/update
     logger.info('ℹ️  Liquid universe classification runs on Digital Ocean (per AGENTS.md architecture)')
+
+    // ============================================
+    // RSS NEWS FEED - Refresh & Cleanup
+    // ============================================
+    // Refresh RSS feeds every 15 minutes and cleanup old articles (6 hour retention)
+    const RSS_REFRESH_INTERVAL = 15 * 60 * 1000 // 15 minutes
+    const RSS_CLEANUP_INTERVAL = 60 * 60 * 1000 // 1 hour
+    const RSS_RETENTION_HOURS = 6 // Keep articles for 6 hours
+
+    const newsService = new NewsService(prisma)
+
+    // RSS feed refresh: Every 15 minutes
+    setInterval(async () => {
+        try {
+            logger.info('🔄 Running scheduled RSS feed refresh')
+            const results = await newsService.refreshAllFeeds(true) // Only enabled feeds
+
+            let successful = 0
+            let failed = 0
+            let articlesAdded = 0
+            results.forEach((result) => {
+                if (result.success) {
+                    successful++
+                    articlesAdded += result.articlesAdded
+                } else {
+                    failed++
+                }
+            })
+
+            if (successful > 0 || articlesAdded > 0) {
+                logger.info(`✅ RSS refresh completed: ${successful}/${results.size} feeds, +${articlesAdded} articles`)
+            }
+            if (failed > 0) {
+                logger.warn(`⚠️ RSS refresh: ${failed} feeds failed`)
+            }
+        } catch (error) {
+            logger.error('❌ Scheduled RSS feed refresh failed:', error)
+        }
+    }, RSS_REFRESH_INTERVAL)
+
+    // RSS article cleanup: Every hour (delete articles older than 6 hours)
+    setInterval(async () => {
+        try {
+            logger.info('🔄 Running scheduled RSS article cleanup')
+            const deleted = await newsService.cleanupOldArticles(RSS_RETENTION_HOURS)
+            if (deleted > 0) {
+                logger.info(`✅ RSS cleanup completed: deleted ${deleted} articles older than ${RSS_RETENTION_HOURS} hours`)
+            }
+        } catch (error) {
+            logger.error('❌ Scheduled RSS article cleanup failed:', error)
+        }
+    }, RSS_CLEANUP_INTERVAL)
+
+    // Run initial RSS feed refresh after 3 minutes (let server stabilize)
+    setTimeout(async () => {
+        try {
+            // First, check if feeds exist and seed if needed
+            const feeds = await newsService.getFeeds(true)
+            if (feeds.length === 0) {
+                logger.info('📰 No RSS feeds found, seeding default feeds...')
+                const seededCount = await newsService.seedFeeds()
+                logger.info(`✅ Seeded ${seededCount} RSS feeds`)
+            }
+
+            logger.info('🔄 Running initial RSS feed refresh')
+            const results = await newsService.refreshAllFeeds(true)
+
+            let successful = 0
+            let articlesAdded = 0
+            results.forEach((result) => {
+                if (result.success) {
+                    successful++
+                    articlesAdded += result.articlesAdded
+                }
+            })
+
+            logger.info(`✅ Initial RSS refresh completed: ${successful}/${results.size} feeds, +${articlesAdded} articles`)
+        } catch (error) {
+            logger.error('❌ Initial RSS feed refresh failed:', error)
+        }
+    }, 3 * 60 * 1000) // 3 minutes
+
+    logger.info('✅ RSS feed scheduled tasks initialized (refresh every 15min, cleanup every hour, 6h retention)')
 
     logger.info('✅ Scheduled tasks initialized (payment sync every 30s, renewal reminders every 6h, expiration checks daily)')
 } else {

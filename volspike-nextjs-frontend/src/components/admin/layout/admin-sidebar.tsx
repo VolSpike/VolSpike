@@ -19,7 +19,8 @@ import {
     TrendingUp,
     Coins,
     Bell,
-    Activity
+    Activity,
+    Newspaper,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -75,6 +76,11 @@ const navigation = [
         name: 'Notifications',
         href: '/admin/notifications',
         icon: Bell,
+    },
+    {
+        name: 'News Feeds',
+        href: '/admin/news',
+        icon: Newspaper,
     },
     {
         name: 'Settings',

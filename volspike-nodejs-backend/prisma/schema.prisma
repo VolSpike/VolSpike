@@ -411,3 +411,43 @@ enum AlertType {
   HALF_UPDATE
   FULL_UPDATE
 }
+
+// RSS News Feed Models
+model RssFeed {
+  id          String       @id @default(cuid())
+  name        String
+  url         String       @unique
+  category    String
+  enabled     Boolean      @default(true)
+  priority    Int          @default(0)
+  lastFetchAt DateTime?
+  errorCount  Int          @default(0)
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  articles    RssArticle[]
+
+  @@index([enabled])
+  @@index([priority])
+  @@map("rss_feeds")
+}
+
+model RssArticle {
+  id          String   @id @default(cuid())
+  feedId      String
+  title       String
+  link        String   @unique
+  pubDate     DateTime
+  description String?  @db.Text
+  author      String?
+  categories  String[]
+  enclosure   String?
+  guid        String?
+  createdAt   DateTime @default(now())
+  feed        RssFeed  @relation(fields: [feedId], references: [id], onDelete: Cascade)
+
+  @@index([pubDate(sort: Desc)])
+  @@index([feedId])
+  @@index([createdAt(sort: Desc)])
+  @@map("rss_articles")
+}
