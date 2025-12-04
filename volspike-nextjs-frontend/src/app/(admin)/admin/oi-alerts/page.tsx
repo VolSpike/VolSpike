@@ -291,15 +291,49 @@ export default function OIAlertsPage() {
                         {/* Metrics: Price %, Funding with action icons */}
                         <div className="flex items-end justify-between gap-2">
                           <div className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
-                            {/* Price % - Placeholder until backend provides this data */}
-                            <span className="text-muted-foreground/50">
-                              Price: <span>—</span>
-                            </span>
+                            {/* Price % change during OI measurement period */}
+                            {alert.priceChange !== undefined && alert.priceChange !== null ? (
+                              <span>
+                                Price:{' '}
+                                <span
+                                  className={
+                                    alert.priceChange > 0
+                                      ? 'text-brand-600 dark:text-brand-400'
+                                      : alert.priceChange < 0
+                                        ? 'text-danger-600 dark:text-danger-400'
+                                        : ''
+                                  }
+                                >
+                                  {alert.priceChange >= 0 ? '+' : ''}{(alert.priceChange * 100).toFixed(2)}%
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/50">
+                                Price: <span>—</span>
+                              </span>
+                            )}
 
-                            {/* Funding rate - Placeholder until backend provides this data */}
-                            <span className="text-muted-foreground/50">
-                              Funding: <span>—</span>
-                            </span>
+                            {/* Funding rate at time of alert */}
+                            {alert.fundingRate !== undefined && alert.fundingRate !== null ? (
+                              <span>
+                                Funding:{' '}
+                                <span
+                                  className={
+                                    alert.fundingRate > 0.0003
+                                      ? 'text-brand-600 dark:text-brand-400'
+                                      : alert.fundingRate < -0.0003
+                                        ? 'text-danger-600 dark:text-danger-400'
+                                        : ''
+                                  }
+                                >
+                                  {(alert.fundingRate * 100).toFixed(3)}%
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/50">
+                                Funding: <span>—</span>
+                              </span>
+                            )}
                           </div>
 
                           {/* Action icon buttons */}

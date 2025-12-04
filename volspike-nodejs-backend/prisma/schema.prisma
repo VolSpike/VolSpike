@@ -187,8 +187,8 @@ model VolumeAlert {
   isUpdate        Boolean   @default(false)
   candleDirection String?
   detectionTime   DateTime?
-  priceChange     Float?    // % change from hour open to alert time (e.g., 0.05 for +5%)
-  oiChange        Float?    // % change in OI from hour start (e.g., -0.02 for -2%)
+  oiChange        Float?
+  priceChange     Float?
 
   @@index([symbol, timestamp])
   @@index([timestamp])

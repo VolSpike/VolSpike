@@ -104,6 +104,8 @@ export async function ingestOpenInterestAlert(
         current: alert.current,
         pctChange: alert.pctChange,
         absChange: alert.absChange,
+        priceChange: alert.priceChange ?? null,
+        fundingRate: alert.fundingRate ?? null,
         source: alert.source,
         ts: new Date(alert.timestamp),
       },

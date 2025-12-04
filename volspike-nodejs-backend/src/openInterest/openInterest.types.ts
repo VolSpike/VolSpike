@@ -36,6 +36,8 @@ export interface OpenInterestAlertInput {
   current: number // Current OI (contracts)
   pctChange: number // Percentage change (e.g., 0.1 for 10%)
   absChange: number // Absolute change in contracts
+  priceChange?: number // Price % change during OI measurement period (e.g., 0.05 for 5%)
+  fundingRate?: number // Funding rate at time of alert (e.g., 0.0001 for 0.01%)
   timestamp: string // ISO 8601 timestamp
   source: string // e.g., 'oi_realtime_poller'
 }

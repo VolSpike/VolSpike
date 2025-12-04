@@ -12,6 +12,8 @@ export interface OIAlert {
   current: number
   pctChange: number
   absChange: number
+  priceChange?: number | null
+  fundingRate?: number | null
   source: string
   ts: string
   createdAt: string
