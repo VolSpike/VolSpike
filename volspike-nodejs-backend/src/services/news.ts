@@ -443,23 +443,42 @@ export class NewsService {
   }
 
   /**
-   * Delete articles older than specified hours (default: 6 hours)
+   * Delete articles keeping only the most recent N articles (default: 200)
    * This keeps the database lean and focused on recent news
    */
-  async cleanupOldArticles(hoursToKeep: number = 6): Promise<number> {
-    const cutoffDate = new Date()
-    cutoffDate.setHours(cutoffDate.getHours() - hoursToKeep)
+  async cleanupOldArticles(maxArticles: number = 200): Promise<number> {
+    // Get total count
+    const totalCount = await this.db.rssArticle.count()
 
+    if (totalCount <= maxArticles) {
+      return 0 // Nothing to delete
+    }
+
+    // Get the pubDate of the article at position maxArticles (the cutoff)
+    const cutoffArticle = await this.db.rssArticle.findMany({
+      orderBy: { pubDate: 'desc' },
+      skip: maxArticles - 1,
+      take: 1,
+      select: { pubDate: true },
+    })
+
+    if (cutoffArticle.length === 0) {
+      return 0
+    }
+
+    const cutoffDate = cutoffArticle[0].pubDate
+
+    // Delete all articles older than the cutoff
     const result = await this.db.rssArticle.deleteMany({
       where: {
-        createdAt: {
+        pubDate: {
           lt: cutoffDate,
         },
       },
     })
 
     if (result.count > 0) {
-      logger.info(`[NewsService] Cleaned up ${result.count} articles older than ${hoursToKeep} hours`)
+      logger.info(`[NewsService] Cleaned up ${result.count} articles (keeping last ${maxArticles})`)
     }
 
     return result.count

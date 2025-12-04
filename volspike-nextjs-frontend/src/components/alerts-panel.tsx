@@ -199,7 +199,7 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
         </div>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'volume' | 'oi')} className="flex-1 flex flex-col">
-          <TabsList className="grid grid-cols-2 mb-4" style={{ width: 'calc(100% - 16px)' }}>
+          <TabsList className="grid grid-cols-2 w-full mb-4">
             <TabsTrigger value="volume" className="flex items-center gap-1.5">
               <TrendingUp className="h-3.5 w-3.5" />
               Volume

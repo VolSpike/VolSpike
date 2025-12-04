@@ -223,23 +223,23 @@ adminNewsRoutes.post('/seed', async (c) => {
   }
 })
 
-// POST /api/admin/news/cleanup - Delete old articles
+// POST /api/admin/news/cleanup - Delete old articles (keep only last N articles)
 const cleanupSchema = z.object({
-  hoursToKeep: z.coerce.number().min(1).max(168).default(6), // Default 6 hours, max 7 days
+  maxArticles: z.coerce.number().min(50).max(1000).default(200), // Default 200 articles
 })
 
 adminNewsRoutes.post('/cleanup', async (c) => {
   try {
     const body = await c.req.json().catch(() => ({}))
-    const { hoursToKeep } = cleanupSchema.parse(body)
+    const { maxArticles } = cleanupSchema.parse(body)
 
-    logger.info(`[AdminNews] Cleaning up articles older than ${hoursToKeep} hours...`)
-    const deleted = await getNewsService().cleanupOldArticles(hoursToKeep)
+    logger.info(`[AdminNews] Cleaning up articles (keeping last ${maxArticles})...`)
+    const deleted = await getNewsService().cleanupOldArticles(maxArticles)
 
     return c.json({
       success: true,
       deleted,
-      message: `Deleted ${deleted} articles older than ${hoursToKeep} hours`,
+      message: `Deleted ${deleted} articles (keeping last ${maxArticles})`,
     })
   } catch (error) {
     logger.error('[AdminNews] Failed to cleanup old articles:', error)
