@@ -751,8 +751,10 @@ export function MarketTable({
                                 : selectedWatchlistId && watchlistInfo
                                     ? `${watchlistInfo.name || 'Watchlist'} (${watchlistInfo.items?.length || 0} ${watchlistInfo.items?.length === 1 ? 'symbol' : 'symbols'})`
                                     : userTier === 'free'
-                                        ? 'Top 50 symbols (Free tier)'
-                                        : `${sortedData.length} symbols`}
+                                        ? 'Top 50 symbols 24h volume'
+                                        : userTier === 'pro'
+                                            ? 'Top 100 symbols 24h volume'
+                                            : `${sortedData.length} symbols`}
                         </span>
                     {guestMode && (
                         <Badge variant="secondary" className="text-xs flex items-center gap-1">
@@ -827,8 +829,10 @@ export function MarketTable({
                             : selectedWatchlistId && watchlistInfo
                                 ? `${watchlistInfo.name || 'Watchlist'} (${watchlistInfo.items?.length || 0} ${watchlistInfo.items?.length === 1 ? 'symbol' : 'symbols'})`
                             : userTier === 'free'
-                                ? 'Top 50 symbols (Free tier)'
-                                : `${sortedData.length} symbols`}
+                                ? 'Top 50 symbols 24h volume'
+                                : userTier === 'pro'
+                                    ? 'Top 100 symbols 24h volume'
+                                    : `${sortedData.length} symbols`}
                     </span>
                     <WatchlistExportButton
                         data={sortedData}
