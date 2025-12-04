@@ -361,16 +361,18 @@ model OpenInterestSnapshot {
 }
 
 model OpenInterestAlert {
-  id        String   @id @default(cuid())
-  symbol    String
-  direction String
-  baseline  Decimal  @db.Decimal(30, 8)
-  current   Decimal  @db.Decimal(30, 8)
-  pctChange Decimal  @db.Decimal(10, 6)
-  absChange Decimal  @db.Decimal(30, 8)
-  source    String
-  ts        DateTime
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  symbol      String
+  direction   String
+  baseline    Decimal  @db.Decimal(30, 8)
+  current     Decimal  @db.Decimal(30, 8)
+  pctChange   Decimal  @db.Decimal(10, 6)
+  absChange   Decimal  @db.Decimal(30, 8)
+  priceChange Decimal? @db.Decimal(10, 6)
+  fundingRate Decimal? @db.Decimal(10, 6)
+  source      String
+  ts          DateTime
+  createdAt   DateTime @default(now())
 
   @@index([symbol, ts])
   @@index([ts])
