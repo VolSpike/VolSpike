@@ -440,18 +440,32 @@ export const handleAlertIngest = async (c: any) => {
 
 /**
  * GET /api/open-interest-alerts
- * 
- * Get recent Open Interest alerts (debug endpoint)
+ *
+ * Get recent Open Interest alerts (admin only)
  */
 export const handleGetAlerts = async (c: any) => {
   try {
+    // Check if user is authenticated
+    const user = c.get('user')
+    if (!user) {
+      logger.warn('Unauthenticated attempt to access OI alerts')
+      return c.json({ error: 'Authentication required' }, 401)
+    }
+
+    // Check if user is admin
+    if (user.role !== 'ADMIN') {
+      logger.warn(`Non-admin user ${user.id} attempted to access OI alerts`)
+      return c.json({ error: 'Admin access required' }, 403)
+    }
+
     const symbol = c.req.query('symbol')
-    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 20
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50
+    const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!, 10) : 0
     const direction = c.req.query('direction') as 'UP' | 'DOWN' | undefined
 
     const params: OIAlertQueryParams = {
       symbol,
-      limit,
+      limit: Math.min(limit, 100), // Cap at 100
       direction,
     }
 
@@ -460,6 +474,8 @@ export const handleGetAlerts = async (c: any) => {
     return c.json({
       alerts,
       count: alerts.length,
+      limit: params.limit,
+      offset,
     })
   } catch (error) {
     logger.error('Open Interest alerts fetch error:', error)

@@ -84,7 +84,7 @@ export function setupSocketHandlers(
         }
     })
 
-    io.on('connection', (socket: AuthenticatedSocket) => {
+    io.on('connection', async (socket: AuthenticatedSocket) => {
         const userId = socket.userId!
         const userTier = socket.userTier!
 
@@ -93,6 +93,20 @@ export function setupSocketHandlers(
         // Join user to tier-based room
         socket.join(`tier-${userTier}`)
         socket.join(`user-${userId}`)
+
+        // Join admin users to admin room for OI alerts
+        try {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { role: true }
+            })
+            if (user?.role === 'ADMIN') {
+                socket.join('role-admin')
+                logger.info(`User ${userId} joined role-admin room`)
+            }
+        } catch (error) {
+            logger.warn(`Failed to check admin role for user ${userId}:`, error)
+        }
 
         // Handle symbol subscriptions
         socket.on('subscribe-symbol', async (symbol: string) => {

@@ -258,21 +258,30 @@ export const authConfig: NextAuthConfig = {
             // Always fetch fresh tier data from database when update() is called or periodically
             // This ensures tier changes are reflected immediately
             // Also fetch immediately after OAuth sign-in (when user object is present but token might be stale)
+            // IMPORTANT: Use longer refresh interval (5 minutes) to prevent unnecessary backend calls
+            // and reduce the chance of session invalidation due to transient network issues
             const shouldRefresh = trigger === 'update' ||
                 !token.tierLastChecked ||
-                Date.now() - (token.tierLastChecked as number) > 30000 ||
+                Date.now() - (token.tierLastChecked as number) > 300000 || // 5 minutes instead of 30 seconds
                 (user && account?.provider === 'google') // Force refresh after Google OAuth
 
             if (token.id && shouldRefresh) {
                 try {
                     const meUrl = `${BACKEND_API_URL}/api/auth/me`
+                    // Add timeout to prevent hanging requests
+                    const controller = new AbortController()
+                    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
                     const response = await fetch(meUrl, {
                         method: 'GET',
                         headers: {
                             'Authorization': `Bearer ${token.accessToken || token.id}`,
                             'X-Auth-Source': 'nextauth-jwt',
                         },
+                        signal: controller.signal,
                     })
+
+                    clearTimeout(timeoutId)
 
                     console.log(`[Auth] JWT callback - fetching user data, status: ${response.status}`)
                     
@@ -384,8 +393,14 @@ export const authConfig: NextAuthConfig = {
                         console.warn(`[Auth] Non-404/401 error or unclear error message, status: ${response.status}`)
                     }
                 } catch (error) {
-                    // Silently fail - use cached tier if fetch fails
-                    console.error('[Auth] Error refreshing user data:', error)
+                    // IMPORTANT: Silently fail and use cached token data if fetch fails
+                    // This prevents session invalidation due to network issues or backend downtime
+                    // Only log error for debugging - don't invalidate the session
+                    const errorMessage = error instanceof Error ? error.message : String(error)
+                    const isTimeout = errorMessage.includes('abort') || errorMessage.includes('timeout')
+                    console.error(`[Auth] Error refreshing user data${isTimeout ? ' (timeout)' : ''} - using cached token:`, errorMessage)
+                    // Update tierLastChecked to prevent immediate retry on next page navigation
+                    token.tierLastChecked = Date.now()
                 }
             }
 

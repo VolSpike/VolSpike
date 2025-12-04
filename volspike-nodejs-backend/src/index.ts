@@ -194,11 +194,12 @@ app.route('/api/watchlist', watchlistRoutes)
 app.route('/api/alerts', alertRoutes)
 app.route('/api/volume-alerts', volumeAlertsRouter)
 
-// Open Interest alerts routes (API key protected)
+// Open Interest alerts routes
 import { handleAlertIngest, handleGetAlerts } from './routes/open-interest'
 const oiAlertsApp = new Hono()
-oiAlertsApp.post('/ingest', handleAlertIngest)
-oiAlertsApp.get('/', handleGetAlerts)
+oiAlertsApp.post('/ingest', handleAlertIngest) // API key protected (checked internally)
+oiAlertsApp.use('/', authMiddleware) // Require auth for GET
+oiAlertsApp.get('/', handleGetAlerts) // Admin only (checked internally)
 app.route('/api/open-interest-alerts', oiAlertsApp)
 
 // Apply auth middleware to payment routes (except webhook)

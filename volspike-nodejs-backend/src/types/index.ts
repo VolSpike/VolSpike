@@ -2,6 +2,7 @@ export interface User {
     id: string
     email: string
     tier: 'free' | 'pro' | 'elite'
+    role?: 'USER' | 'ADMIN'
     refreshInterval: number
     theme: string
     walletAddress?: string

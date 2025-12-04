@@ -130,7 +130,7 @@ function startTierBasedBroadcasting() {
 
 /**
  * Broadcast Open Interest alert to WebSocket clients
- * Uses same tier-based broadcasting as volume alerts
+ * Admin-only feature: broadcasts to role-admin room
  */
 export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
   if (!ioInstance) {
@@ -138,19 +138,10 @@ export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
     return
   }
 
-  // Elite tier: broadcast immediately (real-time)
-  ioInstance.to('tier-elite').emit('open-interest-alert', alert)
+  // Broadcast to admin room only (OI alerts are admin-only feature for now)
+  ioInstance.to('role-admin').emit('open-interest-alert', alert)
   const pctChangeNum = typeof alert.pctChange === 'number' ? alert.pctChange : Number(alert.pctChange)
-  console.log(`📢 Broadcasted OI alert to Elite tier: ${alert.symbol} ${alert.direction} (${(pctChangeNum * 100).toFixed(2)}%)`)
-  
-  // Pro tier: queue for 5-minute batch (same as volume alerts)
-  // Note: We reuse the same queue structure but could create separate queues if needed
-  // For now, we'll broadcast immediately to Pro tier as well (can be changed later)
-  ioInstance.to('tier-pro').emit('open-interest-alert', alert)
-  
-  // Free tier: queue for 15-minute batch (same as volume alerts)
-  // For now, we'll broadcast immediately to Free tier as well (can be changed later)
-  ioInstance.to('tier-free').emit('open-interest-alert', alert)
+  console.log(`📢 Broadcasted OI alert to admin room: ${alert.symbol} ${alert.direction} (${(pctChangeNum * 100).toFixed(2)}%)`)
 }
 
 /**

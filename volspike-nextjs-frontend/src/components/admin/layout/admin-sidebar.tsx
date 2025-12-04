@@ -19,7 +19,8 @@ import {
     User,
     TrendingUp,
     Coins,
-    Bell
+    Bell,
+    Activity
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -60,6 +61,11 @@ const navigation = [
         name: 'Metrics',
         href: '/admin/metrics',
         icon: BarChart3,
+    },
+    {
+        name: 'OI Alerts',
+        href: '/admin/oi-alerts',
+        icon: Activity,
     },
     {
         name: 'Assets',

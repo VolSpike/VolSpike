@@ -70,17 +70,17 @@ MAX_REQ_PER_MIN = int(os.getenv("OI_MAX_REQ_PER_MIN", "2000"))
 MIN_INTERVAL_SEC = int(os.getenv("OI_MIN_INTERVAL_SEC", "5"))
 MAX_INTERVAL_SEC = int(os.getenv("OI_MAX_INTERVAL_SEC", "20"))
 
-# OI Alert thresholds
-OI_SPIKE_THRESHOLD_PCT = float(os.getenv("OI_SPIKE_THRESHOLD_PCT", "0.05"))  # 5%
-OI_DUMP_THRESHOLD_PCT = float(os.getenv("OI_DUMP_THRESHOLD_PCT", "0.05"))  # 5%
+# OI Alert thresholds - NEW: 3% over 5 minutes
+OI_SPIKE_THRESHOLD_PCT = float(os.getenv("OI_SPIKE_THRESHOLD_PCT", "0.03"))  # 3%
+OI_DUMP_THRESHOLD_PCT = float(os.getenv("OI_DUMP_THRESHOLD_PCT", "0.03"))  # 3%
 OI_MIN_DELTA_CONTRACTS = float(os.getenv("OI_MIN_DELTA_CONTRACTS", "5000"))
 
-# Alert rate limiting (per symbol, per direction)
-OI_ALERT_RATE_LIMIT_SEC = int(os.getenv("OI_ALERT_RATE_LIMIT_SEC", "900"))  # 15 minutes
+# Lookback window for OI comparison (5 minutes)
+OI_LOOKBACK_WINDOW_SEC = int(os.getenv("OI_LOOKBACK_WINDOW_SEC", "300"))  # 5 minutes
 
-# Baseline window for alerts (in seconds)
-OI_BASELINE_WINDOW_HIGH = int(os.getenv("OI_BASELINE_WINDOW_HIGH", "3600"))  # 60 min
-OI_BASELINE_WINDOW_LOW = int(os.getenv("OI_BASELINE_WINDOW_LOW", "1800"))  # 30 min
+# De-duplication state tracking (per symbol)
+# Tracks whether symbol is currently "outside" threshold to prevent spam
+oi_alert_state = {}  # symbol -> "INSIDE" or "OUTSIDE"
 
 # ─────────────────────── requests session ───────────────────────
 session = requests.Session()
@@ -221,28 +221,28 @@ def initialize_oi_history(symbols: list):
             oi_history[symbol] = deque(maxlen=maxlen)
 
 
-def compute_baseline(symbol: str, now: float) -> Optional[float]:
+def get_oi_5min_ago(symbol: str, now: float) -> Optional[float]:
     """
-    Compute baseline OI from window [now - WINDOW_HIGH, now - WINDOW_LOW].
-    Returns median OI from that window, or None if insufficient data.
+    Get OI value from 5 minutes ago (±30 seconds tolerance).
+    Returns the closest OI sample to (now - 5 minutes), or None if insufficient data.
     """
-    if symbol not in oi_history or len(oi_history[symbol]) < 10:
+    if symbol not in oi_history or len(oi_history[symbol]) < 2:
         return None
-    
-    window_high = now - OI_BASELINE_WINDOW_HIGH
-    window_low = now - OI_BASELINE_WINDOW_LOW
-    
-    samples = [
-        oi for ts, oi in oi_history[symbol]
-        if window_low <= ts <= window_high
-    ]
-    
-    if len(samples) < 5:  # Need at least 5 samples for reliable baseline
-        return None
-    
-    samples.sort()
-    median_idx = len(samples) // 2
-    return samples[median_idx]
+
+    target_time = now - OI_LOOKBACK_WINDOW_SEC
+    tolerance = 30  # ±30 seconds tolerance
+
+    # Find the closest sample to target_time within tolerance
+    closest_sample = None
+    min_diff = float('inf')
+
+    for ts, oi in oi_history[symbol]:
+        diff = abs(ts - target_time)
+        if diff < min_diff and diff <= tolerance:
+            min_diff = diff
+            closest_sample = oi
+
+    return closest_sample
 
 
 def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float, 
@@ -289,50 +289,45 @@ def emit_oi_alert(symbol: str, direction: str, baseline: float, current: float,
 def maybe_emit_oi_alert(symbol: str, current_oi: float, timestamp: float):
     """
     Check if OI change warrants an alert and emit if conditions are met.
-    Posts alerts to backend.
+    Uses de-duplication: only alert when crossing threshold from INSIDE -> OUTSIDE.
+    Compares current OI to OI from 5 minutes ago (±30s tolerance).
     """
-    baseline = compute_baseline(symbol, timestamp)
-    if baseline is None or baseline == 0:
+    oi_5min_ago = get_oi_5min_ago(symbol, timestamp)
+    if oi_5min_ago is None or oi_5min_ago == 0:
+        # Not enough history yet, mark as INSIDE
+        oi_alert_state[symbol] = "INSIDE"
         return
-    
-    pct_change = (current_oi - baseline) / baseline
-    abs_change = current_oi - baseline
-    
-    # Check spike (UP)
-    if (pct_change >= OI_SPIKE_THRESHOLD_PCT and 
-        abs_change >= OI_MIN_DELTA_CONTRACTS):
-        direction = "UP"
-        alert_key = (symbol, direction)
-        
-        # Rate limit check
-        if alert_key in last_oi_alert_at:
-            time_since_last = timestamp - last_oi_alert_at[alert_key]
-            if time_since_last < OI_ALERT_RATE_LIMIT_SEC:
-                return
-        
-        last_oi_alert_at[alert_key] = timestamp
-        
-        print(f"🔺 OI SPIKE: {symbol} {direction} | Baseline: {baseline:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f})")
-        emit_oi_alert(symbol, direction, baseline, current_oi, pct_change, abs_change, timestamp)
-        return
-    
-    # Check dump (DOWN)
-    if (pct_change <= -OI_DUMP_THRESHOLD_PCT and 
-        abs_change <= -OI_MIN_DELTA_CONTRACTS):
-        direction = "DOWN"
-        alert_key = (symbol, direction)
-        
-        # Rate limit check
-        if alert_key in last_oi_alert_at:
-            time_since_last = timestamp - last_oi_alert_at[alert_key]
-            if time_since_last < OI_ALERT_RATE_LIMIT_SEC:
-                return
-        
-        last_oi_alert_at[alert_key] = timestamp
-        
-        print(f"🔻 OI DUMP: {symbol} {direction} | Baseline: {baseline:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f})")
-        emit_oi_alert(symbol, direction, baseline, current_oi, pct_change, abs_change, timestamp)
-        return
+
+    pct_change = (current_oi - oi_5min_ago) / oi_5min_ago
+    abs_change = current_oi - oi_5min_ago
+
+    # Determine if currently OUTSIDE threshold (|change| >= 3%)
+    is_outside = abs(pct_change) >= OI_SPIKE_THRESHOLD_PCT
+
+    # Get previous state (default to INSIDE)
+    previous_state = oi_alert_state.get(symbol, "INSIDE")
+
+    # Only alert on INSIDE -> OUTSIDE transition (de-duplication)
+    if is_outside and previous_state == "INSIDE":
+        # Determine direction
+        if pct_change >= OI_SPIKE_THRESHOLD_PCT and abs_change >= OI_MIN_DELTA_CONTRACTS:
+            direction = "UP"
+            print(f"🔺 OI SPIKE: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f})")
+            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp)
+
+        elif pct_change <= -OI_DUMP_THRESHOLD_PCT and abs_change <= -OI_MIN_DELTA_CONTRACTS:
+            direction = "DOWN"
+            print(f"🔻 OI DUMP: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f})")
+            emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp)
+
+        # Mark as OUTSIDE
+        oi_alert_state[symbol] = "OUTSIDE"
+
+    elif not is_outside:
+        # Back inside threshold, reset state
+        oi_alert_state[symbol] = "INSIDE"
+
+    # If already OUTSIDE and still OUTSIDE, do nothing (no spam)
 
 
 def post_oi_batch(samples: list) -> bool:
@@ -418,7 +413,7 @@ def main_loop():
     print(f"   API Key: {'*' * min(20, len(VOLSPIKE_API_KEY))}... (set)")
     print(f"   Max req/min: {MAX_REQ_PER_MIN}")
     print(f"   Interval range: {MIN_INTERVAL_SEC}-{MAX_INTERVAL_SEC}s")
-    print(f"   Alert thresholds: ±{OI_SPIKE_THRESHOLD_PCT*100:.0f}% / ±{OI_MIN_DELTA_CONTRACTS:.0f} contracts")
+    print(f"   Alert thresholds: ±{OI_SPIKE_THRESHOLD_PCT*100:.0f}% over {OI_LOOKBACK_WINDOW_SEC/60:.0f} min / ±{OI_MIN_DELTA_CONTRACTS:.0f} contracts")
     
     # Load liquid universe from backend
     symbols = load_liquid_universe()
