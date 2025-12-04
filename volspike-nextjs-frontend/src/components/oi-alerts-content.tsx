@@ -370,7 +370,6 @@ export function OIAlertsContent({
                         </button>
                       </div>
                     </div>
-                    </div>
                   </div>
                 </div>
               )
