@@ -309,25 +309,34 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, timestamp: float):
 
     # Only alert on INSIDE -> OUTSIDE transition (de-duplication)
     if is_outside and previous_state == "INSIDE":
-        # Determine direction
+        # Determine direction and emit alert
+        alert_emitted = False
+
         if pct_change >= OI_SPIKE_THRESHOLD_PCT and abs_change >= OI_MIN_DELTA_CONTRACTS:
             direction = "UP"
             print(f"🔺 OI SPIKE: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% (+{abs_change:.0f})")
             emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp)
+            alert_emitted = True
 
         elif pct_change <= -OI_DUMP_THRESHOLD_PCT and abs_change <= -OI_MIN_DELTA_CONTRACTS:
             direction = "DOWN"
             print(f"🔻 OI DUMP: {symbol} {direction} | 5min ago: {oi_5min_ago:.0f} | Current: {current_oi:.0f} | Change: {pct_change*100:.2f}% ({abs_change:.0f})")
             emit_oi_alert(symbol, direction, oi_5min_ago, current_oi, pct_change, abs_change, timestamp)
+            alert_emitted = True
 
-        # Mark as OUTSIDE
-        oi_alert_state[symbol] = "OUTSIDE"
+        # Only mark as OUTSIDE if we actually emitted an alert
+        if alert_emitted:
+            oi_alert_state[symbol] = "OUTSIDE"
+            print(f"  [DEDUP] {symbol} marked as OUTSIDE")
 
     elif not is_outside:
         # Back inside threshold, reset state
         oi_alert_state[symbol] = "INSIDE"
 
-    # If already OUTSIDE and still OUTSIDE, do nothing (no spam)
+    elif is_outside and previous_state == "OUTSIDE":
+        # Already OUTSIDE and still OUTSIDE - skip (de-duplication)
+        # Uncomment for debugging:
+        # print(f"  [DEDUP] {symbol} still OUTSIDE, skipping (was {pct_change*100:.2f}%)")
 
 
 def post_oi_batch(samples: list) -> bool:
