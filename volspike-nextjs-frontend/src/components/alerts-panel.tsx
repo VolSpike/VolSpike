@@ -231,9 +231,11 @@ export function AlertsPanel({ onNewAlert, guestMode = false, guestVisibleCount =
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent
-                      side="top"
+                      side="bottom"
+                      align="end"
                       className="oi-teaser-tooltip max-w-[240px] p-0 overflow-hidden"
-                      sideOffset={4}
+                      sideOffset={8}
+                      collisionPadding={16}
                     >
                       <div className="oi-teaser-tooltip-gradient h-1 w-full" />
                       <div className="px-2.5 py-2">
