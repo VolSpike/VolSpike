@@ -305,7 +305,7 @@ export function Dashboard() {
             
             <HeaderWithBanner hideWalletConnect={isGuest} />
 
-            <main className="container mx-auto px-4 py-8 relative z-10">
+            <main className="container mx-auto px-4 pt-4 pb-8 relative z-10">
                 <div className="space-y-6">
                     {isGuest && (
                         <div className="hidden md:block rounded-lg border border-brand-200/70 bg-brand-50/80 dark:border-border/60 dark:bg-muted/40 p-3 md:p-4 animate-fade-in">
