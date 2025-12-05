@@ -345,13 +345,13 @@ export function VolumeAlertsContent({
   }
 
   // Update type badge color mapping
-  // 30m Update → cyan, Hourly Update → purple
+  // 30m Update → cyan, Hourly Update → amber (more significant)
   const getUpdateBadgeClass = (alertType: string) => {
     if (alertType === 'HALF_UPDATE') {
       return 'bg-sec-500/10 border-sec-500/30 text-sec-600 dark:text-sec-400'
     }
     if (alertType === 'FULL_UPDATE') {
-      return 'bg-elite-500/10 border-elite-500/30 text-elite-600 dark:text-elite-400'
+      return 'bg-warning-500/10 border-warning-500/30 text-warning-600 dark:text-warning-400'
     }
     // Default fallback
     return 'bg-secondary'
