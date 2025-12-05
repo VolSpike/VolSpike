@@ -70,9 +70,10 @@ function MessageItem({ message }: { message: TelegramMessage }) {
   const cleanedText = cleanMessageText(message.text, message.channelUsername)
   const timeAgo = formatDistanceToNow(new Date(message.date), { addSuffix: true })
   const hasLinks = message.links && message.links.length > 0
+  const primaryLink = hasLinks ? message.links[0] : null
 
-  return (
-    <div className="flex-shrink-0 p-3 border-b border-border/40 last:border-b-0 hover:bg-muted/30 transition-colors">
+  const content = (
+    <>
       <div className="flex items-start gap-2">
         <Badge
           variant="outline"
@@ -81,28 +82,34 @@ function MessageItem({ message }: { message: TelegramMessage }) {
           {categoryConfig.label}
         </Badge>
         <span className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">{timeAgo}</span>
+        {hasLinks && (
+          <ExternalLink className="w-3 h-3 text-muted-foreground/50 flex-shrink-0 mt-0.5" />
+        )}
       </div>
       <p className="text-xs mt-1.5 text-foreground/90 leading-relaxed">
         {cleanedText || (
           <span className="text-muted-foreground italic">[Media only]</span>
         )}
       </p>
-      {hasLinks && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {message.links.map((link, idx) => (
-            <a
-              key={idx}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[10px] text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
-            >
-              <ExternalLink className="w-3 h-3" />
-              <span>Source</span>
-            </a>
-          ))}
-        </div>
-      )}
+    </>
+  )
+
+  if (primaryLink) {
+    return (
+      <a
+        href={primaryLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex-shrink-0 p-3 border-b border-border/40 last:border-b-0 hover:bg-muted/30 transition-colors block cursor-pointer"
+      >
+        {content}
+      </a>
+    )
+  }
+
+  return (
+    <div className="flex-shrink-0 p-3 border-b border-border/40 last:border-b-0 hover:bg-muted/30 transition-colors">
+      {content}
     </div>
   )
 }
