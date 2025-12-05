@@ -431,6 +431,10 @@ export const authConfig: NextAuthConfig = {
                         console.warn('[NextAuth] ⚠️ Google OAuth user object missing image field:', user)
                     }
 
+                    // Generate a deviceId for OAuth users (server-side, so use crypto.randomUUID)
+                    // This ensures OAuth users get session tracking just like credentials users
+                    const oauthDeviceId = crypto.randomUUID()
+
                     const requestBody: any = {
                         // Send normalized email to backend for consistent linking
                         email: String(user.email).toLowerCase().trim(),
@@ -440,6 +444,7 @@ export const authConfig: NextAuthConfig = {
                         // Use Google's stable subject identifier returned by NextAuth
                         // to avoid creating duplicate account rows per sign-in
                         providerId: account.providerAccountId,
+                        deviceId: oauthDeviceId, // Pass deviceId for single-session enforcement
                     }
 
                     const headers: HeadersInit = {
@@ -475,10 +480,11 @@ export const authConfig: NextAuthConfig = {
                     })
 
                     if (response.ok) {
-                        const { user: dbUser, token: dbToken } = await response.json()
+                        const { user: dbUser, token: dbToken, sessionId: dbSessionId } = await response.json()
                         console.log('[NextAuth] OAuth endpoint success:', {
                             hasUser: !!dbUser,
                             hasToken: !!dbToken,
+                            hasSessionId: !!dbSessionId,
                             userId: dbUser?.id,
                             email: dbUser?.email,
                             role: dbUser?.role,
@@ -500,9 +506,13 @@ export const authConfig: NextAuthConfig = {
                         token.status = dbUser.status
                         token.twoFactorEnabled = dbUser.twoFactorEnabled
                         token.accessToken = dbToken
+                        // Store sessionId for single-session enforcement
+                        if (dbSessionId) {
+                            token.sessionId = dbSessionId
+                        }
                         token.tierLastChecked = Date.now() // Mark as checked so refresh happens
 
-                        console.log(`[NextAuth] ✅ OAuth account created/linked: ${dbUser.email}, role: ${token.role}, tier: ${token.tier}`)
+                        console.log(`[NextAuth] ✅ OAuth account created/linked: ${dbUser.email}, role: ${token.role}, tier: ${token.tier}, sessionId: ${dbSessionId ? 'present' : 'missing'}`)
                         // CRITICAL: Preserve Google profile image - backend doesn't return it
                         // Always use user.image if available (it's the fresh Google profile photo)
                         if (user.image) {

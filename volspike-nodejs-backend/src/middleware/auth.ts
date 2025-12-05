@@ -66,7 +66,25 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
             return c.json({ error: 'Invalid token' }, 401)
         }
 
-        // Validate session if sessionId is present in the token
+        // Session validation for single-session enforcement
+        // JWT tokens MUST have sessionId for session-based auth (not legacy/mock tokens)
+        const isJwtToken = token.includes('.') && !token.startsWith('mock-token-')
+
+        if (isJwtToken && !sessionId) {
+            // JWT token without sessionId = legacy token that predates session enforcement
+            // Force user to re-login to get a new token with sessionId
+            console.warn('[Auth] JWT token without sessionId - forcing re-login', {
+                userId,
+                path: c.req.path,
+            })
+            return c.json({
+                error: 'Session expired: Please sign in again',
+                code: 'SESSION_INVALID',
+                reason: 'legacy_token',
+            }, 401)
+        }
+
+        // Validate session if sessionId is present
         if (sessionId) {
             const sessionValidation = await validateSession(prisma, sessionId)
 

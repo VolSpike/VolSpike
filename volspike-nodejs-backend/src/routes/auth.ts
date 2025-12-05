@@ -2023,7 +2023,8 @@ auth.get('/sessions/validate', async (c) => {
 
         // Handle non-JWT tokens (simple user IDs)
         if (!token.includes('.')) {
-            // Legacy token format - no session validation
+            // Simple user ID token - these are legacy and should re-authenticate
+            // But we'll allow them through for now as they're handled elsewhere
             return c.json({ valid: true, legacy: true })
         }
 
@@ -2033,8 +2034,9 @@ auth.get('/sessions/validate', async (c) => {
 
             const sessionId = payload.sessionId as string | undefined
             if (!sessionId) {
-                // Token without sessionId (legacy) - allow but flag
-                return c.json({ valid: true, legacy: true })
+                // JWT token without sessionId = legacy token that must re-login
+                // This forces all existing users to re-authenticate
+                return c.json({ valid: false, reason: 'legacy_token' })
             }
 
             const validationResult = await validateSession(prisma, sessionId)

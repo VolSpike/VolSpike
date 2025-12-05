@@ -217,7 +217,21 @@ export function SessionValidator() {
                 if (res.status === 401) {
                     const data = await res.json().catch(() => ({}))
                     if (data?.code === 'SESSION_INVALID') {
-                        await logout('SESSION_INVALID', source, res.status)
+                        // Handle legacy token (token without sessionId) - force re-login
+                        const isLegacyToken = data?.reason === 'legacy_token'
+                        const toastMessage = isLegacyToken
+                            ? 'Your session has expired. Please sign in again to continue.'
+                            : 'Your session is no longer valid. You may have signed in on another device.'
+
+                        toast.error(toastMessage, {
+                            duration: 5000,
+                            icon: '🔐',
+                        })
+
+                        await signOut({
+                            redirect: true,
+                            callbackUrl: '/auth/sign-in?reason=session_invalidated',
+                        })
                         return
                     }
                 }
