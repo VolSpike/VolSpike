@@ -344,6 +344,19 @@ export function VolumeAlertsContent({
     window.open(binanceReferralUrl, '_blank', 'noopener,noreferrer')
   }
 
+  // Update type badge color mapping
+  // 30m Update → cyan, Hourly Update → purple
+  const getUpdateBadgeClass = (alertType: string) => {
+    if (alertType === 'HALF_UPDATE') {
+      return 'bg-sec-500/10 border-sec-500/30 text-sec-600 dark:text-sec-400'
+    }
+    if (alertType === 'FULL_UPDATE') {
+      return 'bg-elite-500/10 border-elite-500/30 text-elite-600 dark:text-elite-400'
+    }
+    // Default fallback
+    return 'bg-secondary'
+  }
+
   // Render alert card (extracted for reuse)
   const renderAlertCard = (alert: any, index: number, isBlurred: boolean) => {
     const isBullish = alert.candleDirection === 'bullish'
@@ -477,7 +490,7 @@ export function VolumeAlertsContent({
               {alert.volumeRatio.toFixed(2)}x
             </Badge>
             {alert.isUpdate && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="outline" className={`text-xs ${getUpdateBadgeClass(alert.alertType)}`}>
                 {alert.alertType === 'HALF_UPDATE' ? '30m Update' : 'Hourly Update'}
               </Badge>
             )}

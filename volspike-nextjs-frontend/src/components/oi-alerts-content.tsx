@@ -152,6 +152,23 @@ export function OIAlertsContent({
     window.open(binanceReferralUrl, '_blank', 'noopener,noreferrer')
   }
 
+  // Timeframe badge color mapping
+  // 5 min (quick) → cyan, 15 min (medium) → purple, 1 hour (longer) → amber
+  const getTimeframeBadgeClass = (timeframe: string | undefined) => {
+    const tf = timeframe || '5 min'
+    if (tf === '5 min') {
+      return 'bg-sec-500/10 border-sec-500/30 text-sec-600 dark:text-sec-400'
+    }
+    if (tf === '15 min') {
+      return 'bg-elite-500/10 border-elite-500/30 text-elite-600 dark:text-elite-400'
+    }
+    if (tf === '1 hour') {
+      return 'bg-warning-500/10 border-warning-500/30 text-warning-600 dark:text-warning-400'
+    }
+    // Default fallback
+    return 'bg-secondary'
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header with connection status and controls */}
@@ -290,7 +307,7 @@ export function OIAlertsContent({
                       >
                         {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
                       </Badge>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="outline" className={`text-xs ${getTimeframeBadgeClass(alert.timeframe)}`}>
                         {alert.timeframe || '5 min'}
                       </Badge>
                     </div>
