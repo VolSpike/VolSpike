@@ -257,7 +257,7 @@ function AuthPageContent() {
                                 {isAdminMode
                                     ? 'Administrator access to VolSpike platform'
                                     : (tab === 'signin'
-                                        ? 'Sign in to access real-time volume spike alerts'
+                                        ? 'Sign in to access real-time volume and OI spikes'
                                         : 'Start tracking Binance perp markets in seconds')
                                 }
                             </CardDescription>
