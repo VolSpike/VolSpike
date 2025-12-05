@@ -29,7 +29,7 @@ interface UseTelegramMessagesReturn {
 export function useTelegramMessages(
   options: UseTelegramMessagesOptions = {}
 ): UseTelegramMessagesReturn {
-  const { limit = 20, pollInterval = 30000, autoFetch = true } = options
+  const { limit = 100, pollInterval = 30000, autoFetch = true } = options
 
   const [messages, setMessages] = useState<TelegramMessage[]>([])
   const [isLoading, setIsLoading] = useState(true)

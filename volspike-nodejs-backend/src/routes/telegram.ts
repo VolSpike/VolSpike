@@ -110,7 +110,7 @@ telegramRouter.get('/health', async (c) => {
 telegramRouter.get('/messages', async (c) => {
   try {
     const query = c.req.query()
-    const limit = Math.min(Math.max(parseInt(query.limit || '20', 10), 1), 50)
+    const limit = Math.min(Math.max(parseInt(query.limit || '100', 10), 1), 100)
 
     const messages = await getTelegramService().getRecentMessages(limit)
 
