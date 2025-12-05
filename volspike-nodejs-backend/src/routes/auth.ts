@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { SignJWT, jwtVerify } from 'jose'
 import { z } from 'zod'
-import { prisma } from '../index'
+import { prisma, io } from '../index'
 import { createLogger } from '../lib/logger'
 import { getUser, requireUser } from '../lib/hono-extensions'
 import EmailService from '../services/email'
@@ -13,6 +13,14 @@ import { nonceManager } from '../services/nonce-manager'
 import { isAllowedChain } from '../config/chains'
 import nacl from 'tweetnacl'
 import bs58 from 'bs58'
+import {
+    createSession,
+    getUserSessions,
+    revokeSession,
+    validateSession,
+    getSessionLimit,
+    type InvalidatedSession
+} from '../services/session'
 
 const logger = createLogger()
 const emailService = EmailService.getInstance()
@@ -61,10 +69,33 @@ async function getUserIdFromHeader(authHeader: string | undefined): Promise<stri
 // Rate limiting store (in production, use Redis)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
+/**
+ * Broadcast session invalidation to affected users via WebSocket.
+ * Forces immediate disconnect and logout on other devices.
+ */
+function broadcastSessionInvalidations(invalidatedSessions: InvalidatedSession[]): void {
+    if (!io || invalidatedSessions.length === 0) return
+
+    for (const session of invalidatedSessions) {
+        // Emit to the user's personal room to trigger immediate logout
+        io.to(`user-${session.userId}`).emit('session:invalidated', {
+            sessionId: session.id,
+            deviceId: session.deviceId,
+            reason: 'new_login',
+            message: 'Your session was ended because you signed in on another device.',
+        })
+        logger.info(`Broadcasted session invalidation to user ${session.userId}`, {
+            sessionId: session.id,
+            deviceId: session.deviceId,
+        })
+    }
+}
+
 // Validation schemas
 const signInSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
+    deviceId: z.string().uuid().optional(), // Client-generated device ID
 })
 
 // Shared password validation schema
@@ -93,6 +124,7 @@ const oauthLinkSchema = z.object({
     image: z.string().optional(),
     provider: z.string(),
     providerId: z.string(),
+    deviceId: z.string().uuid().optional(), // Client-generated device ID
 })
 
 const requestVerificationSchema = z.object({
@@ -168,8 +200,8 @@ auth.post('/signin', async (c) => {
         const body = await c.req.json()
         logger.info(`[AUTH] /signin request received for: ${body.email}`)
 
-        const { email, password } = signInSchema.parse(body)
-        logger.info(`[AUTH] Schema validation passed for: ${email}`)
+        const { email, password, deviceId } = signInSchema.parse(body)
+        logger.info(`[AUTH] Schema validation passed for: ${email}, deviceId: ${deviceId ? 'provided' : 'missing'}`)
 
         // Case-insensitive email lookup
         const user = await prisma.user.findFirst({
@@ -243,12 +275,35 @@ auth.post('/signin', async (c) => {
             data: { lastLoginAt: new Date() },
         })
 
-        const token = await generateToken(user.id)
+        // Create session and enforce single-session for Free/Pro users
+        const effectiveDeviceId = deviceId || crypto.randomUUID()
+        const ipAddress = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'unknown'
+        const userAgent = c.req.header('user-agent') || undefined
 
-        logger.info(`User ${user.email} signed in`)
+        const { sessionId, invalidatedSessions } = await createSession(prisma, {
+            userId: user.id,
+            deviceId: effectiveDeviceId,
+            tier: user.tier,
+            ipAddress,
+            userAgent,
+        })
+
+        // Broadcast invalidations to force logout on other devices
+        if (invalidatedSessions.length > 0) {
+            broadcastSessionInvalidations(invalidatedSessions)
+        }
+
+        // Include sessionId in token for validation on subsequent requests
+        const token = await generateToken(user.id, { sessionId })
+
+        logger.info(`User ${user.email} signed in`, {
+            sessionId,
+            invalidatedCount: invalidatedSessions.length,
+        })
 
         return c.json({
             token,
+            sessionId, // Return sessionId for frontend to store
             user: {
                 id: user.id,
                 email: user.email,
@@ -352,7 +407,7 @@ auth.post('/signup', async (c) => {
 auth.post('/oauth-link', async (c) => {
     try {
         const body = await c.req.json()
-        const { email, name, image, provider, providerId } = oauthLinkSchema.parse(body)
+        const { email, name, image, provider, providerId, deviceId } = oauthLinkSchema.parse(body)
         // Normalize email to ensure consistent user linking regardless of casing
         const normalizedEmail = email.toLowerCase().trim()
 
@@ -402,12 +457,35 @@ auth.post('/oauth-link', async (c) => {
             data: { lastLoginAt: new Date() },
         })
 
-        const token = await generateToken(user.id)
+        // Create session and enforce single-session for Free/Pro users
+        const effectiveDeviceId = deviceId || crypto.randomUUID()
+        const ipAddress = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'unknown'
+        const userAgent = c.req.header('user-agent') || undefined
 
-        logger.info(`OAuth user linked: ${user.email}`)
+        const { sessionId, invalidatedSessions } = await createSession(prisma, {
+            userId: user.id,
+            deviceId: effectiveDeviceId,
+            tier: user.tier,
+            ipAddress,
+            userAgent,
+        })
+
+        // Broadcast invalidations to force logout on other devices
+        if (invalidatedSessions.length > 0) {
+            broadcastSessionInvalidations(invalidatedSessions)
+        }
+
+        // Include sessionId in token for validation on subsequent requests
+        const token = await generateToken(user.id, { sessionId })
+
+        logger.info(`OAuth user linked: ${user.email}`, {
+            sessionId,
+            invalidatedCount: invalidatedSessions.length,
+        })
 
         return c.json({
             token,
+            sessionId, // Return sessionId for frontend to store
             user: {
                 id: user.id,
                 email: user.email,
@@ -1853,6 +1931,124 @@ auth.get('/ping', authMiddleware, async (c) => {
     } catch (error) {
         logger.error('[Auth] /ping error', error)
         return c.json({ error: 'Internal server error' }, 500)
+    }
+})
+
+// ======= Session Management Endpoints =======
+
+// Get user's active sessions (for session management UI)
+auth.get('/sessions', authMiddleware, async (c) => {
+    try {
+        const user = getUser(c)
+        if (!user) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+
+        // Get current sessionId from token if available
+        const authHeader = c.req.header('Authorization')
+        let currentSessionId: string | undefined
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.substring(7)
+                if (token.includes('.')) {
+                    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
+                    const { payload } = await jwtVerify(token, secret)
+                    currentSessionId = payload.sessionId as string | undefined
+                }
+            } catch {
+                // Ignore token parsing errors
+            }
+        }
+
+        const sessions = await getUserSessions(prisma, user.id, currentSessionId)
+        const limit = getSessionLimit(user.tier || 'free')
+
+        return c.json({
+            sessions,
+            maxSessions: limit,
+            tier: user.tier || 'free',
+        })
+    } catch (error) {
+        logger.error('Get sessions error:', error)
+        return c.json({ error: 'Failed to get sessions' }, 500)
+    }
+})
+
+// Revoke a specific session
+auth.post('/sessions/:sessionId/revoke', authMiddleware, async (c) => {
+    try {
+        const user = getUser(c)
+        if (!user) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+
+        const sessionIdToRevoke = c.req.param('sessionId')
+        if (!sessionIdToRevoke) {
+            return c.json({ error: 'Session ID required' }, 400)
+        }
+
+        const result = await revokeSession(prisma, sessionIdToRevoke, user.id, 'user_revoked')
+
+        if (!result.success) {
+            return c.json({ error: result.error || 'Failed to revoke session' }, 400)
+        }
+
+        // Broadcast session invalidation to force logout on that device
+        if (io) {
+            io.to(`user-${user.id}`).emit('session:invalidated', {
+                sessionId: sessionIdToRevoke,
+                reason: 'user_revoked',
+                message: 'This session has been ended.',
+            })
+        }
+
+        logger.info(`Session revoked by user`, { userId: user.id, sessionId: sessionIdToRevoke })
+
+        return c.json({ success: true, message: 'Session revoked successfully' })
+    } catch (error) {
+        logger.error('Revoke session error:', error)
+        return c.json({ error: 'Failed to revoke session' }, 500)
+    }
+})
+
+// Validate a session (for frontend session checks)
+auth.get('/sessions/validate', async (c) => {
+    try {
+        const authHeader = c.req.header('Authorization')
+        if (!authHeader?.startsWith('Bearer ')) {
+            return c.json({ valid: false, reason: 'no_token' })
+        }
+
+        const token = authHeader.substring(7)
+
+        // Handle non-JWT tokens (simple user IDs)
+        if (!token.includes('.')) {
+            // Legacy token format - no session validation
+            return c.json({ valid: true, legacy: true })
+        }
+
+        try {
+            const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'your-secret-key')
+            const { payload } = await jwtVerify(token, secret)
+
+            const sessionId = payload.sessionId as string | undefined
+            if (!sessionId) {
+                // Token without sessionId (legacy) - allow but flag
+                return c.json({ valid: true, legacy: true })
+            }
+
+            const validationResult = await validateSession(prisma, sessionId)
+            return c.json({
+                valid: validationResult.isValid,
+                reason: validationResult.reason,
+                userId: validationResult.userId,
+            })
+        } catch (jwtError) {
+            return c.json({ valid: false, reason: 'invalid_token' })
+        }
+    } catch (error) {
+        logger.error('Session validation error:', error)
+        return c.json({ valid: false, reason: 'validation_error' })
     }
 })
 

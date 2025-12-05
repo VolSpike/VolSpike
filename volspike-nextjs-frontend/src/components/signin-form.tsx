@@ -12,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { trackLogin } from '@/lib/analytics'
+import { getOrCreateDeviceId } from '@/lib/device-id'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/backend'
 
@@ -110,9 +111,13 @@ export function SigninForm({ onSuccess, isAdminMode = false, nextUrl = '/dashboa
                 callbackUrl = undefined
             }
 
+            // Get device ID for single-session enforcement
+            const deviceId = getOrCreateDeviceId()
+
             const result = await signIn('credentials', {
                 email: data.email,
                 password: data.password,
+                deviceId: deviceId || undefined, // Pass deviceId for session tracking
                 redirect: false,
                 // Only pass callbackUrl if we could construct a safe absolute URL.
                 ...(callbackUrl ? { callbackUrl } : {}),

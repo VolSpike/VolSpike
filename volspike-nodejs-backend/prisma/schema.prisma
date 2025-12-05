@@ -35,6 +35,7 @@ model User {
   accounts             Account[]
   adminNotifications   AdminNotification[] @relation("AdminNotifications")
   adminSessions        AdminSession[]
+  userSessions         UserSession[]
   alertSubscriptions   AlertSubscription[]
   alerts               Alert[]
   auditLogs            AuditLog[]          @relation("AuditActor")
@@ -91,6 +92,30 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+model UserSession {
+  id             String    @id @default(cuid())
+  userId         String
+  deviceId       String
+  deviceName     String?
+  ipAddress      String?
+  userAgent      String?
+  tier           String
+  isActive       Boolean   @default(true)
+  invalidatedAt  DateTime?
+  invalidatedBy  String?   // "new_login" | "user_revoked" | "admin_revoked" | "session_limit"
+  lastActivityAt DateTime  @default(now())
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@index([userId, isActive])
+  @@index([expiresAt])
+  @@index([isActive])
+  @@map("user_sessions")
 }
 
 model VerificationToken {

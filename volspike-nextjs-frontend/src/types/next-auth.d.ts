@@ -13,6 +13,7 @@ declare module 'next-auth' {
     accessToken?: string
     walletAddress?: string
     walletProvider?: 'evm' | 'solana' | null
+    sessionId?: string // Session ID for single-session enforcement
   }
 
   interface Session {
@@ -29,6 +30,7 @@ declare module 'next-auth' {
       walletProvider?: 'evm' | 'solana' | null
     }
     accessToken?: string
+    sessionId?: string // Session ID for single-session enforcement
     authMethod?: 'password' | 'google' | 'evm' | 'solana' | null
   }
 }
@@ -45,5 +47,6 @@ declare module 'next-auth/jwt' {
     walletAddress?: string
     walletProvider?: 'evm' | 'solana' | null
     authMethod?: 'password' | 'google' | 'evm' | 'solana' | null
+    sessionId?: string // Session ID for single-session enforcement
   }
 }

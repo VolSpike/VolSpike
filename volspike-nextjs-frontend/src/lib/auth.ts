@@ -41,7 +41,8 @@ export const authConfig: NextAuthConfig = {
             name: 'credentials',
             credentials: {
                 email: { label: 'Email', type: 'email' },
-                password: { label: 'Password', type: 'password' }
+                password: { label: 'Password', type: 'password' },
+                deviceId: { label: 'Device ID', type: 'text' } // Client-generated device ID for session tracking
             },
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) {
@@ -50,7 +51,7 @@ export const authConfig: NextAuthConfig = {
 
                 try {
                     console.log('[NextAuth] Calling backend:', `${BACKEND_API_URL}/api/auth/signin`)
-                    console.log('[NextAuth] Credentials:', { email: credentials.email, hasPassword: !!credentials.password })
+                    console.log('[NextAuth] Credentials:', { email: credentials.email, hasPassword: !!credentials.password, hasDeviceId: !!credentials.deviceId })
 
                     const response = await fetch(`${BACKEND_API_URL}/api/auth/signin`, {
                         method: 'POST',
@@ -60,6 +61,7 @@ export const authConfig: NextAuthConfig = {
                         body: JSON.stringify({
                             email: credentials.email,
                             password: credentials.password,
+                            deviceId: credentials.deviceId || undefined, // Pass deviceId to backend for session tracking
                         }),
                     })
 
@@ -87,12 +89,14 @@ export const authConfig: NextAuthConfig = {
                         throw new Error(errorData?.error || 'Authentication failed')
                     }
 
-                    const { user, token } = await response.json()
+                    const { user, token, sessionId } = await response.json()
 
                     if (!user?.id || !token) {
                         console.error('[NextAuth] Backend response missing user or token')
                         return null
                     }
+
+                    console.log('[NextAuth] Sign-in successful', { sessionId: sessionId ? 'present' : 'missing' })
 
                     return {
                         id: user.id,
@@ -105,6 +109,7 @@ export const authConfig: NextAuthConfig = {
                         twoFactorEnabled: user.twoFactorEnabled,
                         accessToken: token,
                         authMethod: 'password',
+                        sessionId, // Store sessionId for session validation
                     }
                 } catch (error) {
                     console.error('[NextAuth] Authorization error:', error)
@@ -213,6 +218,10 @@ export const authConfig: NextAuthConfig = {
                 token.walletAddress = user.walletAddress
                 token.walletProvider = user.walletProvider
                 token.passwordChangedAt = user.passwordChangedAt || null // Track password change time
+                // Store sessionId for session validation
+                if ((user as any).sessionId) {
+                    token.sessionId = (user as any).sessionId
+                }
                 if ((user as any).authMethod) {
                     token.authMethod = (user as any).authMethod
                 }
@@ -221,12 +230,13 @@ export const authConfig: NextAuthConfig = {
                     token.image = user.image
                 }
                 token.iat = Math.floor(Date.now() / 1000) // Issued at time
-                console.log(`[Auth] JWT callback - User logged in: ${user.email}, role: ${token.role}, tier: ${token.tier}, authMethod: ${token.authMethod}, image: ${user.image ? 'present' : 'missing'}`, {
+                console.log(`[Auth] JWT callback - User logged in: ${user.email}, role: ${token.role}, tier: ${token.tier}, authMethod: ${token.authMethod}, sessionId: ${token.sessionId ? 'present' : 'missing'}`, {
                     userId: user.id,
                     role: token.role,
                     tier: token.tier,
                     authMethod: token.authMethod,
                     hasAccessToken: !!token.accessToken,
+                    hasSessionId: !!token.sessionId,
                 })
             }
 
@@ -573,14 +583,17 @@ export const authConfig: NextAuthConfig = {
                     session.user.image = token.image
                 }
                 session.accessToken = token.accessToken
-                
-                console.log(`[Auth] Session callback - User: ${token.email}, role: ${token.role}, tier: ${session.user.tier}, hasAccessToken: ${!!token.accessToken}, image: ${token.image ? 'present' : 'missing'}`, {
+                // Include sessionId for session validation
+                session.sessionId = token.sessionId
+
+                console.log(`[Auth] Session callback - User: ${token.email}, role: ${token.role}, tier: ${session.user.tier}, hasAccessToken: ${!!token.accessToken}, hasSessionId: ${!!token.sessionId}`, {
                     userId: token.id,
                     email: token.email,
                     role: token.role,
                     tier: token.tier,
                     status: token.status,
                     hasAccessToken: !!token.accessToken,
+                    hasSessionId: !!token.sessionId,
                     authMethod: token.authMethod,
                 })
             } else {

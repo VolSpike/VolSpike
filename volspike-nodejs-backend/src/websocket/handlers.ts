@@ -2,12 +2,14 @@ import { Server as SocketIOServer, Socket } from 'socket.io'
 import { PrismaClient } from '@prisma/client'
 import { createLogger } from '../lib/logger'
 import { getMarketData } from '../services/binance-client'
+import { validateSession } from '../services/session'
 
 const logger = createLogger()
 
 interface AuthenticatedSocket extends Socket {
     userId?: string
     userTier?: string
+    sessionId?: string // Track session ID for invalidation
 }
 
 export function setupSocketHandlers(
@@ -19,6 +21,7 @@ export function setupSocketHandlers(
     io.use(async (socket: AuthenticatedSocket, next) => {
         try {
             const token = socket.handshake.auth.token as string
+            const sessionId = socket.handshake.auth.sessionId as string | undefined
             const queryTier = (socket.handshake.query?.tier as string) || ''
             const method = (socket.handshake.query?.method as string) || ''
 
@@ -74,9 +77,23 @@ export function setupSocketHandlers(
                 return next(new Error('Invalid token'))
             }
 
-            logger.info(`User ${user.id} (${user.tier} tier) authenticated for WebSocket`)
+            // Validate session if sessionId is provided
+            if (sessionId) {
+                const sessionValidation = await validateSession(prisma, sessionId)
+                if (!sessionValidation.isValid) {
+                    logger.warn(`WebSocket connection rejected: session invalid`, {
+                        userId: user.id,
+                        sessionId,
+                        reason: sessionValidation.reason,
+                    })
+                    return next(new Error(`Session invalid: ${sessionValidation.reason}`))
+                }
+            }
+
+            logger.info(`User ${user.id} (${user.tier} tier) authenticated for WebSocket${sessionId ? ', session validated' : ''}`)
             socket.userId = user.id
             socket.userTier = user.tier
+            socket.sessionId = sessionId
             next()
         } catch (error) {
             logger.error('Socket authentication error:', error)
@@ -87,12 +104,36 @@ export function setupSocketHandlers(
     io.on('connection', async (socket: AuthenticatedSocket) => {
         const userId = socket.userId!
         const userTier = socket.userTier!
+        const sessionId = socket.sessionId
 
-        logger.info(`User ${userId} (${userTier} tier) connected via WebSocket`)
+        logger.info(`User ${userId} (${userTier} tier) connected via WebSocket${sessionId ? ` [session: ${sessionId.substring(0, 8)}...]` : ''}`)
 
         // Join user to tier-based room
         socket.join(`tier-${userTier}`)
         socket.join(`user-${userId}`)
+
+        // Listen for session invalidation from backend broadcasts
+        // When a session is invalidated (e.g., user logged in elsewhere),
+        // this socket will receive the event and disconnect
+        socket.on('session:invalidated', (data: { sessionId: string; reason: string; message: string }) => {
+            // Only disconnect if this socket's session was invalidated
+            if (sessionId && data.sessionId === sessionId) {
+                logger.info(`Force disconnecting socket due to session invalidation`, {
+                    userId,
+                    sessionId,
+                    reason: data.reason,
+                })
+                // Send the invalidation message to the client before disconnecting
+                socket.emit('session:force-logout', {
+                    reason: data.reason,
+                    message: data.message,
+                })
+                // Disconnect the socket after a short delay to ensure message is sent
+                setTimeout(() => {
+                    socket.disconnect(true)
+                }, 100)
+            }
+        })
 
         // Join admin users to admin room for OI alerts
         try {

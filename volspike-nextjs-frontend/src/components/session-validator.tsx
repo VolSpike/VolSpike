@@ -1,17 +1,145 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
+import { io, Socket } from 'socket.io-client'
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_IO_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+interface SessionInvalidatedEvent {
+    sessionId: string
+    reason: string
+    message: string
+}
+
+interface ForceLogoutEvent {
+    reason: string
+    message: string
+}
 
 /**
  * Validates the current session against the backend.
  * If the user has been deleted, banned, or the token is no longer valid,
  * it aggressively signs the user out within a few seconds.
+ *
+ * Also listens for WebSocket events to detect when the session has been
+ * invalidated due to login from another device (single-session enforcement).
  */
 export function SessionValidator() {
     const { data: session, status } = useSession()
+    const socketRef = useRef<Socket | null>(null)
 
+    // Handle session invalidation from WebSocket (login from another device)
+    const handleSessionInvalidated = useCallback(async (data: SessionInvalidatedEvent) => {
+        const currentSessionId = (session as any)?.sessionId
+
+        // Only handle if this is our session being invalidated
+        if (currentSessionId && data.sessionId !== currentSessionId) {
+            console.log('[SessionValidator] Received invalidation for different session, ignoring', {
+                receivedSessionId: data.sessionId,
+                currentSessionId,
+            })
+            return
+        }
+
+        console.error('[SessionValidator] Session invalidated via WebSocket', {
+            reason: data.reason,
+            message: data.message,
+            sessionId: data.sessionId,
+        })
+
+        const toastMessage = data.reason === 'new_login'
+            ? 'You have been signed out because your account was accessed from another device.'
+            : data.reason === 'user_revoked'
+                ? 'This session has been ended from another device.'
+                : data.message || 'Your session has ended. Please sign in again.'
+
+        toast.error(toastMessage, {
+            duration: 6000,
+            icon: '🔐',
+        })
+
+        await signOut({
+            redirect: true,
+            callbackUrl: '/auth/sign-in?reason=session_invalidated',
+        })
+    }, [session])
+
+    // Handle direct force logout event
+    const handleForceLogout = useCallback(async (data: ForceLogoutEvent) => {
+        console.error('[SessionValidator] Force logout received', {
+            reason: data.reason,
+            message: data.message,
+        })
+
+        toast.error(data.message || 'Your session has ended. Please sign in again.', {
+            duration: 6000,
+            icon: '🔐',
+        })
+
+        await signOut({
+            redirect: true,
+            callbackUrl: '/auth/sign-in?reason=session_invalidated',
+        })
+    }, [])
+
+    // WebSocket connection for real-time session invalidation
+    useEffect(() => {
+        if (status !== 'authenticated' || !session?.user?.id) {
+            return
+        }
+
+        const userId = session.user.id
+        const sessionId = (session as any)?.sessionId
+
+        // Only connect if we have a sessionId (new session system)
+        if (!sessionId) {
+            console.log('[SessionValidator] No sessionId in session, skipping WebSocket for session invalidation')
+            return
+        }
+
+        const socket = io(SOCKET_URL, {
+            auth: {
+                token: userId,
+                sessionId: sessionId,
+            },
+            query: {
+                method: 'id',
+            },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+        })
+
+        socket.on('connect', () => {
+            console.log('[SessionValidator] WebSocket connected for session events')
+        })
+
+        socket.on('disconnect', (reason) => {
+            console.log('[SessionValidator] WebSocket disconnected:', reason)
+        })
+
+        // Listen for session invalidation events
+        socket.on('session:invalidated', handleSessionInvalidated)
+        socket.on('session:force-logout', handleForceLogout)
+
+        socket.on('connect_error', (error) => {
+            console.warn('[SessionValidator] WebSocket connection error:', error.message)
+        })
+
+        socketRef.current = socket
+
+        return () => {
+            socket.off('session:invalidated', handleSessionInvalidated)
+            socket.off('session:force-logout', handleForceLogout)
+            socket.disconnect()
+            socketRef.current = null
+        }
+    }, [status, session, handleSessionInvalidated, handleForceLogout])
+
+    // Existing heartbeat logic for user deletion/ban detection
     useEffect(() => {
         // Only run heartbeat checks when NextAuth reports an authenticated session.
         if (status !== 'authenticated') {
@@ -39,14 +167,21 @@ export function SessionValidator() {
                 userId: (session.user as any).id,
             })
 
-            toast.error('Your session is no longer valid. You have been logged out.', {
+            // Check if this is a session invalidation error
+            const isSessionError = reason === 'SESSION_INVALID' || reason === 'session_invalid'
+
+            const toastMessage = isSessionError
+                ? 'Your session is no longer valid. You may have signed in on another device.'
+                : 'Your session is no longer valid. You have been logged out.'
+
+            toast.error(toastMessage, {
                 duration: 5000,
-                icon: '⚠️',
+                icon: isSessionError ? '🔐' : '⚠️',
             })
 
             await signOut({
                 redirect: true,
-                callbackUrl: '/auth?reason=deleted',
+                callbackUrl: isSessionError ? '/auth/sign-in?reason=session_invalidated' : '/auth?reason=deleted',
             })
         }
 
@@ -77,6 +212,15 @@ export function SessionValidator() {
                     source,
                     elapsedMs: elapsed,
                 })
+
+                // Check for session invalidation error (401 with SESSION_INVALID code)
+                if (res.status === 401) {
+                    const data = await res.json().catch(() => ({}))
+                    if (data?.code === 'SESSION_INVALID') {
+                        await logout('SESSION_INVALID', source, res.status)
+                        return
+                    }
+                }
 
                 // Treat all non-OK statuses as soft failures (do not auto-logout).
                 // NextAuth will still handle true auth loss. This prevents flapping

@@ -3,6 +3,7 @@ import { UserStatus } from '@prisma/client'
 import { jwtVerify } from 'jose'
 import { prisma } from '../index'
 import type { AppBindings, AppVariables } from '../types/hono'
+import { validateSession, updateSessionActivity } from '../services/session'
 
 export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variables: AppVariables }> = async (c, next) => {
     try {
@@ -15,6 +16,7 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
         const token = authHeader.substring(7) // Remove 'Bearer ' prefix
 
         let userId: string | null = null
+        let sessionId: string | null = null
 
         console.log('[Auth] Incoming authenticated request', {
             path: c.req.path,
@@ -22,13 +24,13 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
             tokenPreview: token.substring(0, 16) + '...',
         })
 
-        // ✅ Check if it's a simple user ID (from NextAuth session)
+        // Check if it's a simple user ID (from NextAuth session)
         if (!token.includes('.') && !token.startsWith('mock-token-')) {
             // Simple user ID token (e.g., "1")
             userId = token
             console.log(`[Auth] Using simple user ID token: ${userId}`)
         }
-        // ✅ Handle mock tokens (development or test accounts)
+        // Handle mock tokens (development or test accounts)
         else if (token.startsWith('mock-token-')) {
             const match = token.match(/^mock-token-(.+?)-\d+$/)
             if (match) {
@@ -38,7 +40,7 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
                 return c.json({ error: 'Invalid mock token format' }, 401)
             }
         }
-        // ✅ Verify real JWT tokens
+        // Verify real JWT tokens
         else {
             try {
                 const secret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'your-secret-key'
@@ -51,7 +53,8 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
                 }
 
                 userId = payload.sub as string
-                console.log(`[Auth] JWT verified for user ID: ${userId}`)
+                sessionId = payload.sessionId as string | null
+                console.log(`[Auth] JWT verified for user ID: ${userId}, sessionId: ${sessionId || 'none'}`)
             } catch (jwtError) {
                 console.error('[Auth] JWT verification failed:', jwtError instanceof Error ? jwtError.message : jwtError)
                 return c.json({ error: 'Invalid token' }, 401)
@@ -61,6 +64,40 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
         if (!userId) {
             console.error('[Auth] No user ID extracted from token')
             return c.json({ error: 'Invalid token' }, 401)
+        }
+
+        // Validate session if sessionId is present in the token
+        if (sessionId) {
+            const sessionValidation = await validateSession(prisma, sessionId)
+
+            if (!sessionValidation.isValid) {
+                console.warn('[Auth] Session invalidated', {
+                    userId,
+                    sessionId,
+                    reason: sessionValidation.reason,
+                    path: c.req.path,
+                })
+
+                // Return specific error codes based on invalidation reason
+                const errorMessage = sessionValidation.reason === 'new_login'
+                    ? 'Session ended: You signed in on another device'
+                    : sessionValidation.reason === 'user_revoked'
+                        ? 'Session ended: You ended this session from another device'
+                        : sessionValidation.reason === 'session_expired'
+                            ? 'Session expired: Please sign in again'
+                            : 'Session invalid: Please sign in again'
+
+                return c.json({
+                    error: errorMessage,
+                    code: 'SESSION_INVALID',
+                    reason: sessionValidation.reason,
+                }, 401)
+            }
+
+            // Update session activity (non-blocking, fire and forget)
+            updateSessionActivity(prisma, sessionId).catch(() => {
+                // Ignore errors - activity tracking is non-critical
+            })
         }
 
         // Get user from database
@@ -100,7 +137,7 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
             return c.json({ error: `Account ${reason}` }, 403)
         }
 
-        console.log(`[Auth] ✅ Authenticated user: ${user.email} (${user.tier} tier)`)
+        console.log(`[Auth] Authenticated user: ${user.email} (${user.tier} tier)${sessionId ? ', session validated' : ''}`)
 
         // Add user to context with proper typing
         c.set('user', user)
