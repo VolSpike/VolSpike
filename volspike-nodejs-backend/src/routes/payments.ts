@@ -1593,10 +1593,10 @@ payments.post('/nowpayments/checkout', async (c) => {
 
         // Determine price based on tier
         const tierPrices: Record<string, number> = {
-            pro: 9.0,
+            pro: 19.0,
             elite: 49.0,
         }
-        const priceAmount = tierPrices[tier] || 9.0
+        const priceAmount = tierPrices[tier] || 19.0
 
         // Generate unique order ID
         const orderId = `volspike-${user.id}-${Date.now()}`

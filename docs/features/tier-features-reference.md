@@ -23,7 +23,7 @@
 VolSpike offers three subscription tiers designed to serve traders at different levels of engagement:
 
 - **Free Tier** ($0/month): Entry-level access for casual traders
-- **Pro Tier** ($9/month): Enhanced features for active traders
+- **Pro Tier** ($19/month): Enhanced features for active traders
 - **Elite Tier** ($49/month): Professional-grade tools for serious traders (Coming Soon)
 
 All tiers use **client-side Binance WebSocket connections** directly from the browser, eliminating server-side data ingestion costs and IP blocking issues. Tier differences are enforced through:
@@ -628,7 +628,7 @@ All tiers use **client-side Binance WebSocket connections** directly from the br
 
 | Feature | Free Tier | Pro Tier | Elite Tier |
 |--------|-----------|----------|-----------|
-| **Price** | $0/month | $9/month | $49/month |
+| **Price** | $0/month | $19/month | $49/month |
 | **Market Data Refresh** | 15 minutes | 5 minutes | Real-time (0ms) |
 | **Symbol Limit** | Top 50 | Top 100 | Unlimited |
 | **Volume Alerts** | 10 alerts | 50 alerts | 100 alerts |

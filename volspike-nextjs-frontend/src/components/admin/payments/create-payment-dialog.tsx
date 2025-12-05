@@ -243,8 +243,8 @@ export function CreatePaymentDialog({ open, onOpenChange, onPaymentCreated }: Cr
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="pro">Pro ($9/month)</SelectItem>
-                                    <SelectItem value="elite">Elite ($29/month)</SelectItem>
+                                    <SelectItem value="pro">Pro ($19/month)</SelectItem>
+                                    <SelectItem value="elite">Elite ($49/month)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

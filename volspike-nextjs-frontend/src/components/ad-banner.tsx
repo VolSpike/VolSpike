@@ -113,7 +113,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                                     variant="outline"
                                     className="bg-white dark:bg-gray-900 text-brand-600 dark:text-brand-400 border-brand-600/30 dark:border-brand-400/30 font-semibold animate-pulse-glow"
                                 >
-                                    $9/month
+                                    $19/month
                                 </Badge>
                             </div>
 
@@ -168,7 +168,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                                     variant="outline"
                                     className="bg-white dark:bg-gray-900 text-brand-600 dark:text-brand-400 border-brand-600/30 dark:border-brand-400/30 text-[10px] md:text-xs font-semibold px-1 md:px-1.5 py-0"
                                 >
-                                    $9/mo
+                                    $19/mo
                                 </Badge>
                             </div>
                         </div>
@@ -177,7 +177,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                                 variant="outline"
                                 className="bg-white dark:bg-gray-900 text-brand-600 dark:text-brand-400 border-brand-600/30 dark:border-brand-400/30 text-[10px] font-semibold px-1 py-0"
                             >
-                                $9/mo
+                                $19/mo
                             </Badge>
                         </div>
                     </div>

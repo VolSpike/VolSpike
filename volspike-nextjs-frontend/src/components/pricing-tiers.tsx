@@ -43,7 +43,7 @@ const tiers = [
   },
   {
     name: 'Pro',
-    price: '$9',
+    price: '$19',
     period: 'per month',
     description: 'For active traders who need faster updates',
     icon: Star,

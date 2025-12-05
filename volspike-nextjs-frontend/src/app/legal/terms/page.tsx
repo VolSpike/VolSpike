@@ -72,7 +72,7 @@ export default async function TermsPage() {
                 <strong>Free Tier:</strong> Available at no cost with limited features (50 symbols, 15-minute updates, 10 alerts).
               </p>
               <p className="text-muted-foreground mb-3">
-                <strong>Paid Subscriptions:</strong> Pro ($9/month) and Elite ($49/month) tiers are billed monthly via Stripe.
+                <strong>Paid Subscriptions:</strong> Pro ($19/month) and Elite ($49/month) tiers are billed monthly via Stripe.
               </p>
               <p className="text-muted-foreground mb-3">
                 <strong>Automatic Renewal:</strong> Subscriptions automatically renew each billing period unless canceled.

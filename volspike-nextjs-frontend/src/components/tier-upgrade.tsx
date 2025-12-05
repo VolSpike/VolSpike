@@ -20,7 +20,7 @@ const tiers = [
     },
     {
         name: 'Pro',
-        price: '$9',
+        price: '$19',
         description: 'Enhanced trading insights',
         features: [
             '5-minute refresh rate',

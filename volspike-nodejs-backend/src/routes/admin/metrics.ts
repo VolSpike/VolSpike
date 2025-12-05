@@ -434,7 +434,7 @@ adminMetricsRoutes.get('/revenue', async (c) => {
                                 // You may need to adjust these thresholds based on your pricing
                                 if (priceAmount >= 50) {
                                     tier = 'elite'
-                                } else if (priceAmount >= 9) {
+                                } else if (priceAmount >= 19) {
                                     tier = 'pro'
                                 } else {
                                     tier = 'free'
@@ -493,7 +493,7 @@ adminMetricsRoutes.get('/revenue', async (c) => {
                                     const priceAmount = price.unit_amount / 100
                                     if (priceAmount >= 50) {
                                         tier = 'elite'
-                                    } else if (priceAmount >= 9) {
+                                    } else if (priceAmount >= 19) {
                                         tier = 'pro'
                                     } else {
                                         tier = 'free'
@@ -689,7 +689,7 @@ adminMetricsRoutes.get('/revenue-analytics', async (c) => {
                                     const priceAmount = price.unit_amount / 100
                                     if (priceAmount >= 50) {
                                         tier = 'elite'
-                                    } else if (priceAmount >= 9) {
+                                    } else if (priceAmount >= 19) {
                                         tier = 'pro'
                                     }
                                 }

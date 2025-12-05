@@ -57,7 +57,7 @@ describe('NowPayments Service', () => {
           payment_id: 'test-payment-123',
           payment_status: 'waiting',
           pay_address: '0xABCDEF123456',
-          price_amount: 9,
+          price_amount: 19,
           price_currency: 'USD',
           pay_amount: 0.0005,
           pay_currency: 'BTC',
@@ -73,7 +73,7 @@ describe('NowPayments Service', () => {
       mockedAxios.post.mockResolvedValue(mockResponse)
 
       const params = {
-        price_amount: 9,
+        price_amount: 19,
         price_currency: 'USD',
         pay_currency: 'BTC',
         order_id: 'order-123',
@@ -105,7 +105,7 @@ describe('NowPayments Service', () => {
       const service = NowPaymentsService.getInstance()
 
       const params = {
-        price_amount: 9,
+        price_amount: 19,
         price_currency: 'USD',
       }
 
@@ -126,7 +126,7 @@ describe('NowPayments Service', () => {
       })
 
       const params = {
-        price_amount: 9,
+        price_amount: 19,
         price_currency: 'USD',
       }
 
@@ -163,7 +163,7 @@ describe('NowPayments Service', () => {
       mockedAxios.post.mockRejectedValue(new Error('Network error'))
 
       const params = {
-        price_amount: 9,
+        price_amount: 19,
         price_currency: 'USD',
       }
 
@@ -234,7 +234,7 @@ describe('NowPayments Service', () => {
           payment_id: 'test-payment-123',
           payment_status: 'finished',
           pay_address: '0xABCDEF123456',
-          price_amount: 9,
+          price_amount: 19,
           price_currency: 'USD',
           pay_amount: 0.0005,
           actually_paid: 0.0005,
@@ -286,11 +286,11 @@ describe('NowPayments Service', () => {
           id: 'invoice-123',
           invoice_url: 'https://nowpayments.io/invoice/invoice-123',
           order_id: 'order-123',
-          price_amount: 9,
+          price_amount: 19,
           price_currency: 'USD',
           pay_currency: 'USDT',
           pay_address: '0xINVOICEADDRESS',
-          pay_amount: 9.05,
+          pay_amount: 19.05,
           created_at: '2024-01-01T00:00:00Z',
         },
       }
@@ -346,7 +346,7 @@ describe('NowPayments Service', () => {
             payment_id: 'test-payment',
             payment_status: status,
             pay_address: '0xABCDEF',
-            price_amount: 9,
+            price_amount: 19,
             price_currency: 'USD',
             pay_amount: 0.0005,
             pay_currency: 'BTC',
@@ -374,7 +374,7 @@ describe('NowPayments Service', () => {
             payment_id: `test-${currency}`,
             payment_status: 'waiting',
             pay_address: '0xABCDEF',
-            price_amount: 9,
+            price_amount: 19,
             price_currency: 'USD',
             pay_amount: 0.001,
             pay_currency: currency,
@@ -387,7 +387,7 @@ describe('NowPayments Service', () => {
         mockedAxios.post.mockResolvedValue(mockResponse)
 
         const params = {
-          price_amount: 9,
+          price_amount: 19,
           price_currency: 'USD',
           pay_currency: currency,
         }
@@ -414,7 +414,7 @@ describe('NowPayments Service', () => {
       })
 
       const params = {
-        price_amount: 9,
+        price_amount: 19,
         price_currency: 'INVALID',
       }
 
@@ -436,7 +436,7 @@ describe('NowPayments Service', () => {
       })
 
       const params = {
-        price_amount: 9,
+        price_amount: 19,
         price_currency: 'USD',
       }
 
