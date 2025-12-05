@@ -290,7 +290,16 @@ export function OIAlertsContent({
                       >
                         {pctChange >= 0 ? '+' : ''}{pctChange.toFixed(2)}%
                       </Badge>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs ${
+                          alert.timeframe === '15 min'
+                            ? 'bg-violet-500/80 dark:bg-violet-500/70'
+                            : alert.timeframe === '1 hour'
+                              ? 'bg-amber-500/80 dark:bg-amber-500/70'
+                              : ''
+                        }`}
+                      >
                         {alert.timeframe || '5 min'}
                       </Badge>
                     </div>

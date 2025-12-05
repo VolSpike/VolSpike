@@ -477,7 +477,14 @@ export function VolumeAlertsContent({
               {alert.volumeRatio.toFixed(2)}x
             </Badge>
             {alert.isUpdate && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge
+                variant="secondary"
+                className={`text-xs ${
+                  alert.alertType === 'FULL_UPDATE'
+                    ? 'bg-amber-500/80 dark:bg-amber-500/70'
+                    : ''
+                }`}
+              >
                 {alert.alertType === 'HALF_UPDATE' ? '30m Update' : 'Hourly Update'}
               </Badge>
             )}
