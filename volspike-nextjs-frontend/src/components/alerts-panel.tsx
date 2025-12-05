@@ -235,7 +235,7 @@ export function AlertsPanel({
               Volume
               {/* Red badge for unread volume alerts when viewing OI tab */}
               {unreadVolumeCount > 0 && activeTab === 'oi' && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-[10px] font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-md">
+                <span className="absolute -top-1 -right-1 z-10 h-4 w-4 flex items-center justify-center text-[10px] font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-md">
                   {unreadVolumeCount > 9 ? '9+' : unreadVolumeCount}
                 </span>
               )}
@@ -250,7 +250,7 @@ export function AlertsPanel({
                 <span>Open Interest</span>
                 {/* Red badge for unread OI alerts when viewing Volume tab */}
                 {unreadOICount > 0 && activeTab === 'volume' && canAccessOIAlerts && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center text-[10px] font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-md">
+                  <span className="absolute -top-1 -right-1 z-10 h-4 w-4 flex items-center justify-center text-[10px] font-bold text-white bg-danger-500 rounded-full animate-badge-scale-pulse shadow-md">
                     {unreadOICount > 9 ? '9+' : unreadOICount}
                   </span>
                 )}
