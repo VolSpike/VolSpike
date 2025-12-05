@@ -358,6 +358,14 @@ export const authConfig: NextAuthConfig = {
                     } else if (response.status === 404 || response.status === 401) {
                         // User not found or token invalid – attempt Google self-heal first if possible
                         const errorData = await response.json().catch(() => ({ error: 'User not found' }))
+
+                        // Check for session invalidation (single-session enforcement)
+                        // If SESSION_INVALID, force logout immediately
+                        if (errorData?.code === 'SESSION_INVALID') {
+                            console.error(`[Auth] ⚠️ Session invalid (${errorData.reason}) - forcing logout`)
+                            return null // Return null to invalidate the session
+                        }
+
                         const isNotFound = response.status === 404 || errorData.error?.toLowerCase().includes('not found')
 
                         if (isNotFound && token.oauthProvider === 'google' && token.oauthProviderAccountId && token.email) {

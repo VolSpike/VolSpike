@@ -1792,12 +1792,18 @@ auth.get('/me', async (c) => {
         let userId: string | null = null
 
         // Check if it's a simple user ID (from NextAuth session)
+        // IMPORTANT: Simple user ID tokens don't have sessionId, so they must be rejected
+        // for single-session enforcement. Only JWT tokens with sessionId are accepted.
         if (!token.includes('.') && !token.startsWith('mock-token-')) {
-            userId = token
-            logger.info('[Auth] /me using simple user ID token', {
-                userId,
+            logger.warn('[Auth] /me rejecting simple user ID token - requires JWT with sessionId', {
+                userId: token,
                 authSource,
             })
+            return c.json({
+                error: 'Session expired: Please sign in again',
+                code: 'SESSION_INVALID',
+                reason: 'legacy_token',
+            }, 401)
         }
         // Handle mock tokens
         else if (token.startsWith('mock-token-')) {
@@ -1828,8 +1834,43 @@ auth.get('/me', async (c) => {
                 }
 
                 userId = payload.sub as string
-                logger.info('[Auth] /me JWT verified', {
+                const sessionId = payload.sessionId as string | undefined
+
+                // Session validation for single-session enforcement
+                // JWT tokens MUST have sessionId (reject legacy tokens without it)
+                if (!sessionId) {
+                    logger.warn('[Auth] /me JWT token without sessionId - forcing re-login', {
+                        userId,
+                        authSource,
+                    })
+                    return c.json({
+                        error: 'Session expired: Please sign in again',
+                        code: 'SESSION_INVALID',
+                        reason: 'legacy_token',
+                    }, 401)
+                }
+
+                // Validate session is still active
+                const sessionValidation = await validateSession(prisma, sessionId)
+                if (!sessionValidation.isValid) {
+                    logger.warn('[Auth] /me session invalidated', {
+                        userId,
+                        sessionId,
+                        reason: sessionValidation.reason,
+                        authSource,
+                    })
+                    return c.json({
+                        error: sessionValidation.reason === 'new_login'
+                            ? 'Session ended: You signed in on another device'
+                            : 'Session invalid: Please sign in again',
+                        code: 'SESSION_INVALID',
+                        reason: sessionValidation.reason,
+                    }, 401)
+                }
+
+                logger.info('[Auth] /me JWT verified with valid session', {
                     userId,
+                    sessionId: sessionId.substring(0, 8) + '...',
                     authSource,
                 })
             } catch (jwtError) {

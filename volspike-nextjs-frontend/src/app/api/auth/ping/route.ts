@@ -6,6 +6,7 @@ import { auth } from '@/lib/auth'
  * - Confirms that the current session is still valid.
  * - Updates last active time via backend /api/auth/ping.
  * - Forwards status codes unchanged so the client can log out on 401/403/404.
+ * - CRITICAL: Must pass accessToken (JWT with sessionId) for session validation.
  */
 export async function GET(request: NextRequest) {
     try {
@@ -22,16 +23,21 @@ export async function GET(request: NextRequest) {
             'https://volspike-production.up.railway.app'
 
         const userId = String((session.user as any).id)
+        // Use accessToken (JWT with sessionId) for proper session validation
+        // Fall back to userId for legacy sessions (will be rejected by backend)
+        const authToken = (session as any).accessToken || userId
 
         console.log('[API Auth Ping] Proxying to backend /api/auth/ping', {
             apiUrl,
             userId,
+            hasAccessToken: !!(session as any).accessToken,
+            hasSessionId: !!(session as any).sessionId,
         })
 
         const backendResponse = await fetch(`${apiUrl}/api/auth/ping`, {
             method: 'GET',
             headers: {
-                Authorization: `Bearer ${userId}`,
+                Authorization: `Bearer ${authToken}`,
                 'X-Auth-Source': 'next-api-auth-ping',
             },
             cache: 'no-store',
