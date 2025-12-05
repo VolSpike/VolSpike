@@ -359,7 +359,7 @@ export function Dashboard() {
                         </Tabs>
 
                         {/* Market News Pane - Mobile (below Market Data/Alerts) */}
-                        <MarketNewsPane maxMessages={20} pollInterval={30000} />
+                        <MarketNewsPane maxMessages={100} pollInterval={30000} />
                     </div>
 
                     <div className="hidden xl:flex flex-col gap-4 animate-fade-in">
@@ -384,7 +384,7 @@ export function Dashboard() {
                         </div>
 
                         {/* Market News Pane - Desktop (below Market Data/Alerts) */}
-                        <MarketNewsPane maxMessages={30} pollInterval={30000} />
+                        <MarketNewsPane maxMessages={100} pollInterval={30000} />
                     </div>
                 </div>
             </main>
