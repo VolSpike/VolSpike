@@ -2,21 +2,37 @@
 
 import { useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { Newspaper, RefreshCw } from 'lucide-react'
+import { Newspaper, RefreshCw, ExternalLink } from 'lucide-react'
 import { useTelegramMessages, TelegramMessage } from '@/hooks/use-telegram-messages'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
-// Category configuration with colors matching admin panel
+// Category configuration with colors
 const CATEGORY_CONFIG: Record<string, { label: string; className: string }> = {
+  crypto: {
+    label: 'Crypto',
+    className: 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30',
+  },
   macro: {
     label: 'Macro',
     className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
   },
-  crypto: {
-    label: 'Crypto',
-    className: 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30',
+  tech: {
+    label: 'Tech',
+    className: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30',
+  },
+  markets: {
+    label: 'Markets',
+    className: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30',
+  },
+  business: {
+    label: 'Business',
+    className: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-500/30',
+  },
+  geopolitics: {
+    label: 'Geopolitics',
+    className: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30',
   },
   general: {
     label: 'General',
@@ -53,6 +69,7 @@ function MessageItem({ message }: { message: TelegramMessage }) {
   const categoryConfig = getCategoryConfig(message.category)
   const cleanedText = cleanMessageText(message.text, message.channelUsername)
   const timeAgo = formatDistanceToNow(new Date(message.date), { addSuffix: true })
+  const hasLinks = message.links && message.links.length > 0
 
   return (
     <div className="flex-shrink-0 p-3 border-b border-border/40 last:border-b-0 hover:bg-muted/30 transition-colors">
@@ -65,11 +82,27 @@ function MessageItem({ message }: { message: TelegramMessage }) {
         </Badge>
         <span className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">{timeAgo}</span>
       </div>
-      <p className="text-xs mt-1.5 text-foreground/90 leading-relaxed line-clamp-2">
+      <p className="text-xs mt-1.5 text-foreground/90 leading-relaxed">
         {cleanedText || (
           <span className="text-muted-foreground italic">[Media only]</span>
         )}
       </p>
+      {hasLinks && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {message.links.map((link, idx) => (
+            <a
+              key={idx}
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[10px] text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span>Source</span>
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

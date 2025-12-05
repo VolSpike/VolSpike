@@ -8,8 +8,9 @@ export interface TelegramMessage {
   id: string
   text: string | null
   date: string
-  category: 'macro' | 'crypto' | 'general'
+  category: 'macro' | 'crypto' | 'tech' | 'markets' | 'business' | 'geopolitics' | 'general'
   channelUsername: string
+  links: string[]
 }
 
 interface UseTelegramMessagesOptions {

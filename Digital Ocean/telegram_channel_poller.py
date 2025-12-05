@@ -80,7 +80,7 @@ load_env()
 # Configuration from environment
 API_ID = os.environ.get('TELEGRAM_API_ID')
 API_HASH = os.environ.get('TELEGRAM_API_HASH')
-CHANNELS = [c.strip() for c in os.environ.get('TELEGRAM_CHANNELS', 'marketfeed,WatcherGuru').split(',') if c.strip()]
+CHANNELS = [c.strip() for c in os.environ.get('TELEGRAM_CHANNELS', 'marketfeed').split(',') if c.strip()]
 BACKEND_URL = os.environ.get('VOLSPIKE_API_URL', 'http://localhost:3001')
 API_KEY = os.environ.get('VOLSPIKE_API_KEY', '')
 
@@ -255,6 +255,19 @@ class TelegramPoller:
         elif message.sender_chat:
             sender_name = message.sender_chat.title
 
+        # Extract links from message entities (text links, URLs)
+        links = []
+        if message.entities:
+            for entity in message.entities:
+                if entity.type == 'text_link' and entity.url:
+                    # Text link (e.g., clickable "..." with URL)
+                    links.append(entity.url)
+                elif entity.type == 'url':
+                    # Plain URL in text
+                    text = message.text or message.caption or ''
+                    url = text[entity.offset:entity.offset + entity.length]
+                    links.append(url)
+
         return {
             'id': message.id,
             'text': message.text or message.caption,
@@ -264,6 +277,7 @@ class TelegramPoller:
             'forwards': message.forwards,
             'has_media': has_media,
             'media_type': media_type,
+            'links': links,  # New field
         }
 
     def send_to_backend(self, channel_info: dict, messages: list[dict]) -> bool:

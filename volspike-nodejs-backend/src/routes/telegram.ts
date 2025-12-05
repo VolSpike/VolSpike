@@ -38,6 +38,7 @@ const ingestSchema = z.object({
       forwards: z.number().nullable(),
       has_media: z.boolean().default(false),
       media_type: z.string().nullable(),
+      links: z.array(z.string()).optional().default([]),
     })
   ),
 })

@@ -510,6 +510,7 @@ model TelegramMessage {
   forwards   Int?
   hasMedia   Boolean         @default(false)
   mediaType  String?
+  links      String[]        @default([]) // URLs extracted from message entities
   createdAt  DateTime        @default(now())
   channel    TelegramChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
 

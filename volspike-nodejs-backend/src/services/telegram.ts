@@ -48,6 +48,7 @@ export interface IngestMessageData {
   forwards: number | null
   has_media: boolean
   media_type: string | null
+  links?: string[]
 }
 
 export interface IngestResult {
@@ -69,6 +70,63 @@ export interface ChannelWithStats extends TelegramChannel {
   _count?: {
     messages: number
   }
+}
+
+// Keyword-based categorization
+const CATEGORY_KEYWORDS = {
+  crypto: [
+    'crypto', 'bitcoin', 'btc', 'ethereum', 'eth', 'liquidated', 'blockchain', 'defi', 'nft',
+    'altcoin', 'token', 'wallet', 'mining', 'staking', 'binance', 'coinbase', 'sol', 'solana',
+    'usdt', 'usdc', '$btc', '$eth', '$sol', 'crypto market', 'digital asset'
+  ],
+  macro: [
+    'fed', 'gdp', 'inflation', 'treasury', 'central bank', 'interest rate', 'unemployment',
+    'recession', 'fed chair', 'powell', 'rate cut', 'rate hike', 'economic', 'bonds', 'yield',
+    'tariff', 'trade', 'deficit', 'trump', 'biden', 'president', 'congress', 'senate',
+    'white house', 'china', 'canada', 'mexico', 'europe', 'imf', 'world bank', 'cpi', 'ppi',
+    'pce', 'gdpnow', 'jobless claims', 'bessent', 'carney', 'sheinbaum'
+  ],
+  tech: [
+    'microsoft', 'apple', 'google', 'meta', 'amazon', 'nvidia', 'tesla', 'openai', 'anthropic',
+    'spacex', '$msft', '$aapl', '$googl', '$meta', '$amzn', '$nvda', '$tsla', 'ai',
+    'artificial intelligence', 'machine learning', 'chatgpt', 'cloud', 'semiconductor', 'chip',
+    'software', 'hardware', 'truth ai', 'antigravity', 'llm', 'amodei'
+  ],
+  markets: [
+    's&p', 'dow', 'nasdaq', 'ftse', 'dax', 'cac', 'nikkei', 'hang seng', 'stocks', 'shares',
+    'rally', 'sell-off', 'volatility', 'vix', 'earnings', 'ipo', 'merger', 'acquisition', 'oil',
+    'gold', 'silver', 'crude', 'wti', 'brent', 'commodities', 'dollar', 'euro', 'yen', 'pound',
+    'forex', 'currency', 'real', 'brazilian'
+  ],
+  business: [
+    'ceo', 'shareholders', 'earnings', 'revenue', 'profit', 'loss', 'quarterly', 'agm', 'board',
+    'directors', 'airline', 'airbus', 'boeing', 'automotive', 'retail', 'manufacturing',
+    'real estate', 'merger', 'layoff', 'hiring', 'expansion', 'bankruptcy', 'restructuring',
+    'supplier', 'union'
+  ],
+  geopolitics: [
+    'war', 'ukraine', 'russia', 'zelensky', 'zelenskiy', 'putin', 'israel', 'palestine', 'iran',
+    'peace', 'ceasefire', 'sanctions', 'nato', 'un', 'g7', 'g20', 'summit', 'treaty',
+    'negotiations', 'afghanistan', 'syria', 'yemen', 'taiwan', 'fifa', 'world cup'
+  ]
+}
+
+function categorizeMessage(text: string | null, channelCategory: string): string {
+  if (!text) return channelCategory
+
+  const lowerText = text.toLowerCase()
+
+  // Check each category for keyword matches
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    for (const keyword of keywords) {
+      if (lowerText.includes(keyword)) {
+        return category
+      }
+    }
+  }
+
+  // Fallback to channel's default category
+  return channelCategory
 }
 
 export class TelegramService {
@@ -130,6 +188,7 @@ export class TelegramService {
               text: msg.text,
               views: msg.views,
               forwards: msg.forwards,
+              links: msg.links || [],
             },
             create: {
               channelId: channel.id,
@@ -141,6 +200,7 @@ export class TelegramService {
               forwards: msg.forwards,
               hasMedia: msg.has_media || false,
               mediaType: msg.media_type,
+              links: msg.links || [],
             },
           })
           inserted++
@@ -387,6 +447,7 @@ export class TelegramService {
       date: Date
       category: string
       channelUsername: string
+      links: string[]
     }[]
   > {
     const messages = await this.db.telegramMessage.findMany({
@@ -407,13 +468,14 @@ export class TelegramService {
       take: limit,
     })
 
-    // Return simplified structure for public consumption
+    // Return simplified structure for public consumption with keyword-based categorization
     return messages.map((msg: any) => ({
       id: msg.id,
       text: msg.text,
       date: msg.date,
-      category: msg.channel.category,
+      category: categorizeMessage(msg.text, msg.channel.category),
       channelUsername: msg.channel.username,
+      links: msg.links || [],
     }))
   }
 }

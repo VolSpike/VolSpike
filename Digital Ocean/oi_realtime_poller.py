@@ -70,6 +70,20 @@ MAX_REQ_PER_MIN = int(os.getenv("OI_MAX_REQ_PER_MIN", "2000"))
 MIN_INTERVAL_SEC = int(os.getenv("OI_MIN_INTERVAL_SEC", "5"))
 MAX_INTERVAL_SEC = int(os.getenv("OI_MAX_INTERVAL_SEC", "20"))
 
+# ─────────────────────────────────────────────────────────────────────────────
+# OI ALERT CONFIGURATION SUMMARY
+# ─────────────────────────────────────────────────────────────────────────────
+# Timeframe | Threshold | Lookback  | Cooldown  | Poll Interval
+# ----------|-----------|-----------|-----------|---------------
+# 5 min     | ≥3%       | 5 min     | 10 min    | ~10 sec (computed)
+# 15 min    | ≥7%       | 15 min    | 15 min    | ~10 sec (computed)
+# 1 hour    | ≥12%      | 60 min    | 60 min    | ~10 sec (computed)
+#
+# Additional requirements:
+# - Minimum absolute OI change: 5,000 contracts
+# - Poll interval computed based on universe size and rate limits
+# ─────────────────────────────────────────────────────────────────────────────
+
 # Multi-timeframe OI Alert thresholds
 # Each timeframe has: (threshold_pct, lookback_window_sec, cooldown_sec, label)
 OI_ALERT_TIMEFRAMES = [
@@ -77,7 +91,7 @@ OI_ALERT_TIMEFRAMES = [
         "label": "5 min",
         "threshold_pct": float(os.getenv("OI_SPIKE_THRESHOLD_PCT_5MIN", "0.03")),   # 3%
         "lookback_sec": int(os.getenv("OI_LOOKBACK_WINDOW_5MIN", "300")),            # 5 minutes
-        "cooldown_sec": int(os.getenv("OI_ALERT_COOLDOWN_5MIN", "300")),             # 5 minutes
+        "cooldown_sec": int(os.getenv("OI_ALERT_COOLDOWN_5MIN", "600")),             # 10 minutes
     },
     {
         "label": "15 min",
