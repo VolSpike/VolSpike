@@ -76,7 +76,7 @@ function MessageItem({ message }: { message: TelegramMessage }) {
 
 export function MarketNewsPane({
   className,
-  maxMessages = 20,
+  maxMessages = 100,
   pollInterval = 30000,
 }: MarketNewsPaneProps) {
   const { messages, isLoading, error, lastUpdate } = useTelegramMessages({
