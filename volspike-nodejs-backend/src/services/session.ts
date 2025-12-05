@@ -17,6 +17,7 @@ export interface CreateSessionParams {
     userId: string
     deviceId: string
     tier: string
+    role?: string // User role - ADMIN users have unlimited sessions
     ipAddress?: string
     userAgent?: string
 }
@@ -87,8 +88,11 @@ export async function createSession(
     prisma: PrismaClient,
     params: CreateSessionParams
 ): Promise<{ sessionId: string; invalidatedSessions: InvalidatedSession[] }> {
-    const { userId, deviceId, tier, ipAddress, userAgent } = params
-    const sessionLimit = SESSION_LIMITS[tier.toLowerCase()] || 1
+    const { userId, deviceId, tier, role, ipAddress, userAgent } = params
+
+    // ADMIN users have unlimited sessions (no enforcement)
+    const isAdmin = role?.toUpperCase() === 'ADMIN'
+    const sessionLimit = isAdmin ? Infinity : (SESSION_LIMITS[tier.toLowerCase()] || 1)
 
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + SESSION_EXPIRY_DAYS)
@@ -118,7 +122,11 @@ export async function createSession(
         // Determine which sessions to invalidate
         let sessionsToInvalidate: { id: string; deviceId: string; userId: string }[] = []
 
-        if (sessionLimit === 1) {
+        // ADMIN users (sessionLimit === Infinity) never have sessions invalidated
+        if (sessionLimit === Infinity) {
+            // No session invalidation for admins - unlimited sessions allowed
+            logger.info(`Admin user ${userId} - skipping session limit enforcement`)
+        } else if (sessionLimit === 1) {
             // Free/Pro: Invalidate ALL other sessions
             sessionsToInvalidate = existingSessions.filter(s => s.deviceId !== deviceId)
         } else {

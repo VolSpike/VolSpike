@@ -284,6 +284,7 @@ auth.post('/signin', async (c) => {
             userId: user.id,
             deviceId: effectiveDeviceId,
             tier: user.tier,
+            role: user.role, // ADMIN users have unlimited sessions
             ipAddress,
             userAgent,
         })
@@ -466,6 +467,7 @@ auth.post('/oauth-link', async (c) => {
             userId: user.id,
             deviceId: effectiveDeviceId,
             tier: user.tier,
+            role: user.role, // ADMIN users have unlimited sessions
             ipAddress,
             userAgent,
         })
