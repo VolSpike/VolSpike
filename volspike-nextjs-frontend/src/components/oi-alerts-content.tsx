@@ -153,14 +153,14 @@ export function OIAlertsContent({
   }
 
   // Timeframe badge color mapping
-  // 5 min (quick) → cyan, 15 min (medium) → slate/muted, 1 hour (significant) → amber
+  // 5 min (quick) → cyan, 15 min (medium) → soft violet, 1 hour (significant) → amber
   const getTimeframeBadgeClass = (timeframe: string | undefined) => {
     const tf = timeframe || '5 min'
     if (tf === '5 min') {
       return 'bg-sec-500/10 border-sec-500/30 text-sec-600 dark:text-sec-400'
     }
     if (tf === '15 min') {
-      return 'bg-slate-500/10 border-slate-500/30 text-slate-600 dark:text-slate-400'
+      return 'bg-violet-500/10 border-violet-500/30 text-violet-600 dark:text-violet-400'
     }
     if (tf === '1 hour') {
       return 'bg-warning-500/10 border-warning-500/30 text-warning-600 dark:text-warning-400'
