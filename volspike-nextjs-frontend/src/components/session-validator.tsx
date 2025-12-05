@@ -62,7 +62,7 @@ export function SessionValidator() {
 
         await signOut({
             redirect: true,
-            callbackUrl: '/auth/sign-in?reason=session_invalidated',
+            callbackUrl: '/auth?reason=session_invalidated',
         })
     }, [session])
 
@@ -80,7 +80,7 @@ export function SessionValidator() {
 
         await signOut({
             redirect: true,
-            callbackUrl: '/auth/sign-in?reason=session_invalidated',
+            callbackUrl: '/auth?reason=session_invalidated',
         })
     }, [])
 
@@ -230,7 +230,7 @@ export function SessionValidator() {
 
                         await signOut({
                             redirect: true,
-                            callbackUrl: '/auth/sign-in?reason=session_invalidated',
+                            callbackUrl: '/auth?reason=session_invalidated',
                         })
                         return
                     }
