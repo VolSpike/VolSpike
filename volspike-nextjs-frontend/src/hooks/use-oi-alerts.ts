@@ -175,7 +175,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
     return () => {
       socket.disconnect()
     }
-  }, [session, canAccessOI, onNewAlert, maxAlerts])
+  }, [session, canAccessOI, onNewAlert, userTier, isAdmin])
 
   return {
     alerts,
