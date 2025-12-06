@@ -234,7 +234,12 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
    * Note: Uses single sound file for all alert types (simpler, cleaner)
    */
   const playSound = useCallback(async (type: AlertType) => {
-    if (!enabled) return
+    console.log('[AlertSounds] playSound called:', { type, enabled, volume })
+
+    if (!enabled) {
+      console.log('[AlertSounds] Sounds disabled, skipping')
+      return
+    }
 
     // Make sure context is ready before any attempt
     await ensureUnlocked()
@@ -243,29 +248,40 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
     try {
       if (soundRef.current) {
         const state = soundRef.current.state()
+        console.log('[AlertSounds] Howler state:', state)
         if (state === 'loaded') {
+          console.log('[AlertSounds] Playing via Howler')
           soundRef.current.play()
           return
+        } else {
+          console.log('[AlertSounds] Howler not loaded, state:', state)
         }
+      } else {
+        console.log('[AlertSounds] soundRef.current is null')
       }
-    } catch {}
+    } catch (err) {
+      console.log('[AlertSounds] Howler failed:', err)
+    }
 
     // 2) Try a lightweight HTML5 Audio element as a pragmatic fallback
     try {
+      console.log('[AlertSounds] Trying HTML5 Audio fallback')
       const el = new Audio('/sounds/alert.mp3')
       ;(el as any).playsInline = true
       el.muted = false
       el.volume = Math.max(0, Math.min(1, volume))
       await el.play()
+      console.log('[AlertSounds] HTML5 Audio played successfully')
       return
-    } catch {
-      // ignore and try Web Audio API
+    } catch (err) {
+      console.log('[AlertSounds] HTML5 Audio failed:', err)
     }
 
     // 3) Web Audio API fallback (ensure context is resumed on iOS)
     try {
       await ensureUnlocked()
     } catch {}
+    console.log('[AlertSounds] Using Web Audio API fallback')
     playFallbackSound(type)
   }, [enabled, volume, playFallbackSound, ensureUnlocked])
 
