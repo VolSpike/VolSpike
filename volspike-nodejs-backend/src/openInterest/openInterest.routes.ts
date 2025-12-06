@@ -177,8 +177,10 @@ app.get('/alerts', authMiddleware, async (c) => {
       return c.json({ error: 'OI alerts require Pro/Elite tier or Admin access' }, 403)
     }
 
+    // Tier-based default limit: Admin gets 100, Elite gets 100, Pro gets 50
+    const defaultLimit = userRecord?.role === 'ADMIN' ? 100 : user.tier === 'elite' ? 100 : 50
     const symbol = c.req.query('symbol')
-    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50
+    const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : defaultLimit
     const direction = c.req.query('direction') as 'UP' | 'DOWN' | undefined
 
     const params: OIAlertQueryParams = {

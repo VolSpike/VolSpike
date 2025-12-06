@@ -64,7 +64,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       setError(null)
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/open-interest-alerts`, {
+      const response = await fetch(`${apiUrl}/api/open-interest-alerts?limit=${maxAlerts}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
