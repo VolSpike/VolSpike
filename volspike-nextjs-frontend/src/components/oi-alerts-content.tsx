@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useOIAlerts, type OIAlert } from '@/hooks/use-oi-alerts'
 import { useAlertSounds } from '@/hooks/use-alert-sounds'
