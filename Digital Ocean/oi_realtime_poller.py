@@ -445,6 +445,10 @@ def maybe_emit_oi_alert(symbol: str, current_oi: float, current_mark_price: floa
     Uses de-duplication: only alert when crossing threshold from INSIDE -> OUTSIDE.
     Also calculates price change over the same period and retrieves current funding rate.
     """
+    # Filter out stablecoin-to-stablecoin pairs (no need to monitor)
+    if symbol == "USDCUSDT":
+        return
+
     # Get current funding rate from WebSocket state file (shared across all timeframes)
     funding_rate = get_funding_rate_from_state(symbol)
 
