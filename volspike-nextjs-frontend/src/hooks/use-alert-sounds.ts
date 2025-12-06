@@ -244,7 +244,7 @@ export function useAlertSounds(options: UseAlertSoundsOptions = {}) {
       if (soundRef.current) {
         const state = soundRef.current.state()
         if (state === 'loaded') {
-      soundRef.current.play()
+          soundRef.current.play()
           return
         }
       }
