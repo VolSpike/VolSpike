@@ -54,6 +54,11 @@ VolSpike is a production‑ready Binance Perpetual Futures dashboard featuring r
 - Volume Alerts: Socket.IO, tier‑room broadcast
   - Guests connect with auth token `guest` and join `tier-free` room
   - Wallet‑only users (no email) connect using `method=id` and token=user id
+- Alert Sounds: Three-tier fallback (Howler.js → HTML5 Audio → Web Audio API)
+  - Parent component (`alerts-panel.tsx`) manages single sound hook instance
+  - External prop threading when `hideControls={true}` to child components
+  - `externalPlaySound`, `externalSoundsEnabled`, `externalSetSoundsEnabled` props
+  - Design principle: Never create new hook instances in children when controls are hidden
 
 ## Authentication
 - Email + Password (verification via SendGrid)

@@ -783,19 +783,57 @@ npm install && npm run dev
 - ✅ **Production Auth** - `NEXTAUTH_URL` fallback to Railway production URL
 - ✅ **Phantom Wallet Fix** - Removed "Not Found" error when wallet not detected
 
-### Alert Sounds & Animations - IN PROGRESS 🚧
-- ✅ **useAlertSounds Hook** - Web Audio API-based hook with localStorage preferences (placeholder for MP3s)
+### Alert Sounds & Animations - ✅ COMPLETE
+- ✅ **useAlertSounds Hook** - Web Audio API-based hook with localStorage preferences
+  - Three-tier fallback: Howler.js → HTML5 Audio → Web Audio API
+  - `playSound(type)` function with comprehensive debugging logs
+  - `enabled`, `setEnabled`, `volume`, `setVolume` state management
+  - Auto-unlock for iOS/mobile audio playback restrictions
+  - Device change detection for Bluetooth speaker reconnection
 - ✅ **Sound Design Requirements** - Professional sound design specifications:
   - 3 distinct sound specifications (Spike Alert, 30m Update, Hourly Update)
   - Technical requirements (MP3, duration, pitch, volume)
   - Professional references (Bloomberg Terminal, TradingView)
+  - Production-ready `/sounds/alert.mp3` (82KB)
 - ✅ **Animation Classes** - Tailwind CSS animations:
   - `animate-slide-in-right` - Spring animation with bounce
   - `animate-scale-in` - Zoom from center
   - `animate-fade-in` - Smooth opacity transition
 - ✅ **Test Buttons** - Available in debug mode (`?debug=true`) for immediate testing
 - ✅ **Alert Card Effects** - Glowing ring, shadow pulse, and color-coded borders
-- 🚧 **Awaiting Expert** - Professional MP3 files to replace Web Audio API sounds
+- ✅ **hideControls Pattern** - External sound prop threading architecture (see below)
+
+#### Alert Sounds Architecture: hideControls Pattern
+
+**Problem**: When we moved from standalone Volume Alerts panel to tabbed Alerts pane (with Volume + OI tabs), alert sounds stopped working.
+
+**Root Cause**: The tabbed `AlertsPanel` component uses `hideControls={true}` to delegate UI controls to the parent. The child components (`VolumeAlertsContent`, `OIAlertsContent`) were setting `playSound = () => {}` (no-op) when `hideControls=true`, breaking all sound playback.
+
+**Solution - External Prop Threading**:
+
+1. **Parent Component** (`alerts-panel.tsx`):
+   - Calls `useAlertSounds()` once at the parent level
+   - Gets `playSound`, `enabled`, `setEnabled` from the hook
+   - Passes them as **external props** to child components
+
+2. **Child Components** (`volume-alerts-content.tsx`, `oi-alerts-content.tsx`):
+   - Accept `externalPlaySound`, `externalSoundsEnabled`, `externalSetSoundsEnabled` props
+   - Use external props when `hideControls=true`, otherwise use local hook
+   - Pattern: `const playSound = hideControls ? (externalPlaySound || (() => {})) : soundHook.playSound`
+
+3. **Benefits**:
+   - Single sound hook instance (no duplicates)
+   - Sound controls work in both standalone and tabbed views
+   - Clear separation of concerns (parent manages state, children consume)
+   - Consistent sound behavior across all alert tabs
+
+**Files Modified** (December 6, 2025):
+- `volspike-nextjs-frontend/src/components/alerts-panel.tsx` - Added sound prop threading
+- `volspike-nextjs-frontend/src/components/volume-alerts-content.tsx` - Accept external sound props
+- `volspike-nextjs-frontend/src/components/oi-alerts-content.tsx` - Accept external sound props
+- `volspike-nextjs-frontend/src/hooks/use-alert-sounds.ts` - Added comprehensive debug logging
+
+**Design Principle**: When using `hideControls={true}`, always thread stateful controls (sounds, settings) as external props from parent to child. Never create new hook instances in children when controls are hidden.
 
 ### Recent Bug Fixes (December 2025)
 - ✅ **Horizontal Scrolling Restored** - Fixed mobile table scrolling by updating `touchAction` CSS from `pan-y pinch-zoom` to `pan-x pan-y pinch-zoom`

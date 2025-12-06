@@ -1081,6 +1081,12 @@ Before considering any task complete:
 - **Never define components inside other components** - Causes re-renders, tooltip instability, and state issues
 - **Use `memo()` for stable child components** - Prevents unnecessary re-renders from parent state changes
 - **Extract stateful UI elements (tooltips, dialogs) as separate components** - Each instance gets its own isolated state
+- **hideControls Pattern - External Prop Threading** - When parent manages state with `hideControls={true}`:
+  - Parent calls the hook once and passes functions as external props
+  - Child uses: `const fn = hideControls ? (externalFn || (() => {})) : hookResult.fn`
+  - Never create new hook instances in children when controls are hidden
+  - Example: Alert sounds broke when moved to tabbed view because children used no-op `() => {}` instead of external `playSound`
+  - Files: `alerts-panel.tsx` (parent), `volume-alerts-content.tsx`, `oi-alerts-content.tsx` (children)
 
 ### Git Mistakes to Avoid
 - **Always check `git status` after `git add`** - Before committing, verify no `.env` files are staged
