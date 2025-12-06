@@ -623,14 +623,63 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
             return { created: 0, newSymbols: [] }
         }
 
-        logger.info(`[AssetMetadata] Detected ${uniqueNewSymbols.length} new assets from Market Data`)
+        logger.info(`[AssetMetadata] Detected ${uniqueNewSymbols.length} potential new assets from Market Data`)
+
+        // Validate new symbols against Binance API to ensure they're actively trading
+        let validatedSymbols = uniqueNewSymbols
+        try {
+            logger.info('[AssetMetadata] Validating new symbols against Binance API...')
+            const { data } = await axios.get(BINANCE_FUTURES_INFO, { timeout: 20000 })
+
+            if (data?.symbols && Array.isArray(data.symbols)) {
+                // Create a Set of actively trading USDT perpetual symbols
+                const activeTradingSymbols = new Set(
+                    data.symbols
+                        .filter((s: any) =>
+                            s?.contractType === 'PERPETUAL' &&
+                            s?.quoteAsset === 'USDT' &&
+                            s?.status === 'TRADING'
+                        )
+                        .map((s: any) => String(s.baseAsset || '').toUpperCase())
+                )
+
+                // Filter out delisted symbols
+                const beforeCount = validatedSymbols.length
+                validatedSymbols = validatedSymbols.filter((base) => {
+                    const isActive = activeTradingSymbols.has(base)
+                    if (!isActive) {
+                        logger.info(`[AssetMetadata] Filtering out delisted/inactive symbol: ${base}`)
+                    }
+                    return isActive
+                })
+
+                const filtered = beforeCount - validatedSymbols.length
+                if (filtered > 0) {
+                    logger.info(`[AssetMetadata] Filtered out ${filtered} delisted/inactive symbols`)
+                }
+
+                if (validatedSymbols.length === 0) {
+                    logger.info('[AssetMetadata] No actively trading symbols to create after validation')
+                    return { created: 0, newSymbols: [] }
+                }
+
+                logger.info(`[AssetMetadata] ✅ Validated ${validatedSymbols.length} actively trading symbols`)
+            } else {
+                logger.warn('[AssetMetadata] Binance API returned unexpected format, proceeding without validation')
+            }
+        } catch (apiError) {
+            logger.warn('[AssetMetadata] Failed to validate symbols against Binance API, proceeding without validation', {
+                error: apiError instanceof Error ? apiError.message : String(apiError),
+            })
+            // Continue with original symbols if API validation fails
+        }
 
         // Create new Asset records
         let created = 0
         const createdSymbols: string[] = []
         const createdAssetIds: string[] = []
 
-        for (const baseSymbol of uniqueNewSymbols) {
+        for (const baseSymbol of validatedSymbols) {
             try {
                 // Reconstruct binanceSymbol from baseSymbol (e.g., "BTC" -> "BTCUSDT")
                 const binanceSymbol = `${baseSymbol}USDT`

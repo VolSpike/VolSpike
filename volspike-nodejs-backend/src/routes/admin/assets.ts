@@ -1004,5 +1004,123 @@ adminAssetRoutes.post('/detect-new', async (c) => {
     }
 })
 
+// POST /api/admin/assets/cleanup-delisted-notifications
+// Clean up notifications for assets that are no longer trading on Binance
+adminAssetRoutes.post('/cleanup-delisted-notifications', async (c) => {
+    try {
+        logger.info('[AdminAssets] POST /cleanup-delisted-notifications - Starting cleanup...')
+
+        // Fetch Binance exchange info
+        const BINANCE_FUTURES_INFO = process.env.BINANCE_PROXY_URL
+            ? `${process.env.BINANCE_PROXY_URL}/fapi/v1/exchangeInfo`
+            : 'https://fapi.binance.com/fapi/v1/exchangeInfo'
+
+        logger.info(`[AdminAssets] Fetching Binance exchange info from: ${BINANCE_FUTURES_INFO}`)
+
+        const response = await axios.get(BINANCE_FUTURES_INFO, {
+            timeout: 30000,
+            headers: { 'User-Agent': 'VolSpike/1.0' },
+        })
+
+        if (!response.data?.symbols || !Array.isArray(response.data.symbols)) {
+            logger.error('[AdminAssets] Binance API returned unexpected format')
+            return c.json({ error: 'Binance API returned unexpected format' }, 500)
+        }
+
+        // Create a Set of actively trading USDT perpetual base symbols
+        const activeTradingSymbols = new Set(
+            response.data.symbols
+                .filter((s: any) =>
+                    s?.contractType === 'PERPETUAL' &&
+                    s?.quoteAsset === 'USDT' &&
+                    s?.status === 'TRADING'
+                )
+                .map((s: any) => String(s.baseAsset || '').toUpperCase())
+        )
+
+        logger.info(`[AdminAssets] Found ${activeTradingSymbols.size} actively trading USDT perpetual symbols`)
+
+        // Fetch all assets from database
+        const allAssets = await prisma.asset.findMany({
+            select: {
+                id: true,
+                baseSymbol: true,
+            },
+        })
+
+        logger.info(`[AdminAssets] Found ${allAssets.length} assets in database`)
+
+        // Identify delisted assets
+        const delistedAssets = allAssets.filter((asset) => !activeTradingSymbols.has(asset.baseSymbol.toUpperCase()))
+
+        if (delistedAssets.length === 0) {
+            logger.info('[AdminAssets] No delisted assets found')
+            return c.json({
+                message: 'No delisted assets found',
+                deletedNotifications: 0,
+                delistedAssets: [],
+            })
+        }
+
+        logger.info(`[AdminAssets] Found ${delistedAssets.length} delisted assets`, {
+            delistedSymbols: delistedAssets.map((a) => a.baseSymbol).slice(0, 20),
+        })
+
+        // Delete notifications for delisted assets
+        const delistedAssetIds = new Set(delistedAssets.map((a) => a.id))
+
+        // Fetch all NEW_ASSET_DETECTED notifications
+        const notifications = await prisma.adminNotification.findMany({
+            where: {
+                type: 'NEW_ASSET_DETECTED',
+            },
+            select: {
+                id: true,
+                metadata: true,
+            },
+        })
+
+        // Filter notifications whose assetId is in the delisted set
+        const notificationsToDelete = notifications.filter((notif) => {
+            const metadata = notif.metadata as { assetId?: string } | null
+            return metadata?.assetId && delistedAssetIds.has(metadata.assetId)
+        })
+
+        // Delete the notifications
+        let deletedCount = 0
+        if (notificationsToDelete.length > 0) {
+            const idsToDelete = notificationsToDelete.map((n) => n.id)
+            const deleteResult = await prisma.adminNotification.deleteMany({
+                where: {
+                    id: {
+                        in: idsToDelete,
+                    },
+                },
+            })
+            deletedCount = deleteResult.count
+        }
+
+        logger.info(`[AdminAssets] ✅ Deleted ${deletedCount} notifications for delisted assets`)
+
+        return c.json({
+            message: `Successfully cleaned up ${deletedCount} notifications for ${delistedAssets.length} delisted assets`,
+            deletedNotifications: deletedCount,
+            delistedAssets: delistedAssets.map((a) => a.baseSymbol),
+        })
+    } catch (error) {
+        logger.error('[AdminAssets] Failed to cleanup delisted notifications', {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+        })
+        return c.json(
+            {
+                error: 'Failed to cleanup delisted notifications',
+                details: error instanceof Error ? error.message : String(error),
+            },
+            500
+        )
+    }
+})
+
 export { adminAssetRoutes }
 
