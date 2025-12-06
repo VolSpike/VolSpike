@@ -1097,6 +1097,30 @@ Before considering any task complete:
 - **Tooltip max-width must accommodate content** - Test with actual content, not just estimated widths
 - **Event propagation in nested clickable elements** - Always use `e.stopPropagation()` and `e.preventDefault()`
 
+### CSS Animation Conflicts
+- **NEVER apply multiple CSS animations to the same element** - They will conflict and reduce animation quality
+- **Problem discovered**: Volume alerts had TWO animations on one element:
+  - `animate-lightning-strike-green` (transform: translateY, scale, rotate)
+  - `animate-electric-charge-green` (boxShadow pulses)
+  - Result: Animations interfered with each other, making dramatic "slide from outside" effects appear "boring"
+- **OI alerts accidentally worked better** because `shadow-*` classes don't exist:
+  - Only main animation (`animate-*`) ran cleanly
+  - Non-existent `shadow-*` classes were ignored by browser
+  - Result: Pure, dramatic transform animations without interference
+- **The fix**: Changed Volume alerts to use non-existent `shadow-*` glow classes (matching OI)
+  - This removes the second animation layer
+  - Prevents animation conflicts
+  - Preserves dramatic "slide from outside container" effects
+- **Best practices for animations**:
+  1. **One animation per element** - Don't combine transform + shadow + opacity animations on same div
+  2. **Use child elements for layered effects** - Parent gets main animation, child gets glow/shadow
+  3. **Test animation conflicts** - If animations look "dampened", check for multiple animation classes
+  4. **Remove 3D perspective for 2D animations** - `perspective: 1000px` modifies how transforms render
+- **Files affected**:
+  - `volume-alerts-content.tsx` - Changed glow classes from `animate-*` to `shadow-*`
+  - `oi-alerts-content.tsx` - Already using `shadow-*` (working correctly)
+  - Both components now render identically dramatic animations
+
 ### Debugging Strategy: Copy Working Code First
 - **CRITICAL**: When a UI component doesn't work, find a working example and copy it EXACTLY first
 - **DON'T overthink or experiment** - No special props, no CSS overrides, no "fixes" until you've copied what works
