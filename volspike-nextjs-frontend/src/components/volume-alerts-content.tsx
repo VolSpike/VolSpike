@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, memo } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
 import { useAlertSounds } from '@/hooks/use-alert-sounds'
 import { Badge } from '@/components/ui/badge'
@@ -149,6 +150,10 @@ export function VolumeAlertsContent({
   externalIsConnected,
   externalNextUpdate,
 }: VolumeAlertsContentProps = {}) {
+  const { data: session } = useSession()
+  const userRole = (session?.user as any)?.role
+  const isAdmin = userRole === 'ADMIN'
+
   // Always call hooks (React rules), but only use them when not using external data
   const hookResult = useVolumeAlerts({
     pollInterval: 15000,
@@ -680,9 +685,7 @@ export function VolumeAlertsContent({
             </span>
           )}
           Showing last {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
-          {tier === 'free' && ' (Free tier: 10 max)'}
-          {tier === 'pro' && ' (Pro tier: 50 max)'}
-          {tier === 'elite' && ' (Elite tier: 100 max)'}
+          {isAdmin ? ' (Admin: 100 max)' : tier === 'free' ? ' (Free tier: 10 max)' : tier === 'pro' ? ' (Pro tier: 50 max)' : tier === 'elite' ? ' (Elite tier: 100 max)' : ''}
         </div>
       )}
     </div>

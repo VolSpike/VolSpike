@@ -98,13 +98,14 @@ volumeAlertsRouter.get('/', async (c) => {
     // Get tier from query parameter (for unauthenticated access)
     // or from authenticated user if available
     const tierParam = c.req.query('tier') || 'free'
-    const tier = ['free', 'pro', 'elite'].includes(tierParam) ? tierParam : 'free'
+    const tier = ['free', 'pro', 'elite', 'admin'].includes(tierParam) ? tierParam : 'free'
 
-    // Tier-based limits
+    // Tier-based limits: Admin gets 100 alerts regardless of subscription tier
     const limits: Record<string, number> = {
       free: 10,
       pro: 50,
       elite: 100,
+      admin: 100, // Admin users get 100 alerts
     }
 
     const limit = limits[tier] || 10
@@ -117,8 +118,8 @@ volumeAlertsRouter.get('/', async (c) => {
     const currentMinute = now.getMinutes()
     let lastBroadcastTime: Date
 
-    if (tier === 'elite') {
-      // Elite sees everything in real-time
+    if (tier === 'elite' || tier === 'admin') {
+      // Elite and Admin see everything in real-time
       lastBroadcastTime = now
     } else if (tier === 'pro') {
       // Pro tier: broadcasts at :00, :05, :10, :15, :20, :25, :30, :35, :40, :45, :50, :55

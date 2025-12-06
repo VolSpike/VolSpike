@@ -46,8 +46,10 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   const socketRef = useRef<Socket | null>(null)
   const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null)
   
-  // Get tier from session, default to free
+  // Get tier and role from session, default to free
   const tier = (session?.user as any)?.tier || 'free'
+  const userRole = (session?.user as any)?.role
+  const isAdmin = userRole === 'ADMIN'
   const isGuest = !session?.user
   
   // Calculate the last broadcast time for the current tier
@@ -98,9 +100,11 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
   const fetchAlerts = useCallback(async () => {
     try {
       setError(null)
-      
+
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/volume-alerts?tier=${tier}`)
+      // Admin users should get 100 alerts regardless of tier
+      const effectiveTier = isAdmin ? 'admin' : tier
+      const response = await fetch(`${apiUrl}/api/volume-alerts?tier=${effectiveTier}`)
       
       if (!response.ok) {
         throw new Error(`Failed to fetch alerts: ${response.statusText}`)
@@ -124,7 +128,7 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [tier])
+  }, [tier, isAdmin])
   
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {
@@ -348,6 +352,7 @@ function getTierLimit(tier: string): number {
     free: 10,
     pro: 50,
     elite: 100,
+    admin: 100, // Admin gets 100 alerts
   }
   return limits[tier] || 10
 }
