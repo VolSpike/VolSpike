@@ -134,6 +134,10 @@ interface VolumeAlertsContentProps {
   externalTier?: string
   externalIsConnected?: boolean
   externalNextUpdate?: number
+  /** External sound controls (when hideControls is true) */
+  externalPlaySound?: (type: 'spike' | 'half_update' | 'full_update') => void
+  externalSoundsEnabled?: boolean
+  externalSetSoundsEnabled?: (enabled: boolean) => void
 }
 
 export function VolumeAlertsContent({
@@ -149,6 +153,9 @@ export function VolumeAlertsContent({
   externalTier,
   externalIsConnected,
   externalNextUpdate,
+  externalPlaySound,
+  externalSoundsEnabled,
+  externalSetSoundsEnabled,
 }: VolumeAlertsContentProps = {}) {
   const { data: session } = useSession()
   const userRole = (session?.user as any)?.role
@@ -174,9 +181,9 @@ export function VolumeAlertsContent({
   const isConnected = hideControls ? (externalIsConnected || false) : hookResult.isConnected
   const nextUpdate = hideControls ? (externalNextUpdate || 0) : hookResult.nextUpdate
 
-  const playSound = hideControls ? (() => {}) : soundHook.playSound
-  const soundsEnabled = hideControls ? false : soundHook.enabled
-  const setSoundsEnabled = hideControls ? (() => {}) : soundHook.setEnabled
+  const playSound = hideControls ? (externalPlaySound || (() => {})) : soundHook.playSound
+  const soundsEnabled = hideControls ? (externalSoundsEnabled || false) : soundHook.enabled
+  const setSoundsEnabled = hideControls ? (externalSetSoundsEnabled || (() => {})) : soundHook.setEnabled
   const ensureUnlocked = hideControls ? (async () => {}) : soundHook.ensureUnlocked
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
   const [testAlerts, setTestAlerts] = useState<typeof alerts>([])

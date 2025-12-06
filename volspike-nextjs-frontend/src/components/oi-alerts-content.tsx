@@ -20,6 +20,10 @@ interface OIAlertsContentProps {
   externalError?: string | null
   externalRefetch?: () => void
   externalIsConnected?: boolean
+  /** External sound controls (when hideControls is true) */
+  externalPlaySound?: (type: 'spike' | 'half_update' | 'full_update') => void
+  externalSoundsEnabled?: boolean
+  externalSetSoundsEnabled?: (enabled: boolean) => void
 }
 
 export function OIAlertsContent({
@@ -30,6 +34,9 @@ export function OIAlertsContent({
   externalError,
   externalRefetch,
   externalIsConnected,
+  externalPlaySound,
+  externalSoundsEnabled,
+  externalSetSoundsEnabled,
 }: OIAlertsContentProps) {
   const { data: session } = useSession()
   const userTier = (session?.user as any)?.tier || 'free'
@@ -40,9 +47,9 @@ export function OIAlertsContent({
   // Always call hooks (React rules), but only use them when not using external data
   const soundHook = useAlertSounds()
 
-  const playSound = hideControls ? (() => {}) : soundHook.playSound
-  const soundsEnabled = hideControls ? false : soundHook.enabled
-  const setSoundsEnabled = hideControls ? (() => {}) : soundHook.setEnabled
+  const playSound = hideControls ? (externalPlaySound || (() => {})) : soundHook.playSound
+  const soundsEnabled = hideControls ? (externalSoundsEnabled || false) : soundHook.enabled
+  const setSoundsEnabled = hideControls ? (externalSetSoundsEnabled || (() => {})) : soundHook.setEnabled
   const ensureUnlocked = hideControls ? (async () => {}) : soundHook.ensureUnlocked
 
   // Handle new alert callback (for sound and animation)

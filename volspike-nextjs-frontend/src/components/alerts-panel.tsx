@@ -94,7 +94,7 @@ export function AlertsPanel({
     autoFetch: activeTab === 'oi' && canAccessOIAlerts,
   })
 
-  const { enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
+  const { playSound, enabled: soundsEnabled, setEnabled: setSoundsEnabled, ensureUnlocked } = useAlertSounds()
 
   // 30-second countdown for OI alerts (matches Digital Ocean polling interval)
   useEffect(() => {
@@ -320,6 +320,9 @@ export function AlertsPanel({
               externalTier={volumeTier}
               externalIsConnected={volumeConnected}
               externalNextUpdate={volumeNextUpdate}
+              externalPlaySound={playSound}
+              externalSoundsEnabled={soundsEnabled}
+              externalSetSoundsEnabled={setSoundsEnabled}
             />
           </TabsContent>
 
@@ -333,6 +336,9 @@ export function AlertsPanel({
                 externalError={oiError}
                 externalRefetch={oiRefetch}
                 externalIsConnected={oiConnected}
+                externalPlaySound={playSound}
+                externalSoundsEnabled={soundsEnabled}
+                externalSetSoundsEnabled={setSoundsEnabled}
               />
             ) : (
               <div className="h-full flex flex-col items-center justify-center p-6 text-center">
