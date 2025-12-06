@@ -272,9 +272,10 @@ export function useVolumeAlerts(options: UseVolumeAlertsOptions = {}) {
     })
     
     socketRef.current = socket
-    
+
     socket.on('connect', () => {
-      console.log(`✅ Connected to volume alerts WebSocket (${tier} tier)`)
+      const tierLabel = isAdmin ? 'admin' : `${tier} tier`
+      console.log(`✅ Connected to volume alerts WebSocket (${tierLabel})`)
       setIsConnected(true)
       setError(null)
     })
