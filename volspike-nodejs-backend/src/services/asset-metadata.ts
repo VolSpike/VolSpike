@@ -629,7 +629,16 @@ export const detectNewAssetsFromMarketData = async (symbols: string[]): Promise<
         let validatedSymbols = uniqueNewSymbols
         try {
             logger.info('[AssetMetadata] Validating new symbols against Binance API...')
-            const { data } = await axios.get(BINANCE_FUTURES_INFO, { timeout: 20000 })
+
+            // Use proxy if BINANCE_PROXY_URL is set (to bypass Railway IP block)
+            const BINANCE_API_URL = process.env.BINANCE_PROXY_URL
+                ? `${process.env.BINANCE_PROXY_URL}/api/binance/futures/info`
+                : BINANCE_FUTURES_INFO
+
+            const { data } = await axios.get(BINANCE_API_URL, {
+                timeout: 20000,
+                validateStatus: (status) => status < 500,
+            })
 
             if (data?.symbols && Array.isArray(data.symbols)) {
                 // Create a Set of actively trading USDT perpetual symbols

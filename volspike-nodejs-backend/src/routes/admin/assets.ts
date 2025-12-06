@@ -1011,16 +1011,16 @@ adminAssetRoutes.post('/cleanup-delisted', async (c) => {
     try {
         logger.info('[AdminAssets] POST /cleanup-delisted - Starting cleanup...')
 
-        // Fetch Binance exchange info
+        // Fetch Binance exchange info (use proxy to bypass Railway IP block)
         const BINANCE_FUTURES_INFO = process.env.BINANCE_PROXY_URL
-            ? `${process.env.BINANCE_PROXY_URL}/fapi/v1/exchangeInfo`
+            ? `${process.env.BINANCE_PROXY_URL}/api/binance/futures/info`
             : 'https://fapi.binance.com/fapi/v1/exchangeInfo'
 
         logger.info(`[AdminAssets] Fetching Binance exchange info from: ${BINANCE_FUTURES_INFO}`)
 
         const response = await axios.get(BINANCE_FUTURES_INFO, {
             timeout: 30000,
-            headers: { 'User-Agent': 'VolSpike/1.0' },
+            validateStatus: (status) => status < 500,
         })
 
         if (!response.data?.symbols || !Array.isArray(response.data.symbols)) {
