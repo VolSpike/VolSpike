@@ -51,26 +51,22 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       return // Free tier users don't have access
     }
 
-    // Get access token from session (required for admin API)
-    const accessToken = (session as any)?.accessToken as string | undefined
-    if (!accessToken) {
-      console.debug('[useOIAlerts] No access token in session')
-      setError('No access token available')
-      setIsLoading(false)
-      return
-    }
-
     try {
       setError(null)
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      // Use cookie-based session auth (no Bearer token needed)
+      // Backend authMiddleware will validate session cookies automatically
       const response = await fetch(`${apiUrl}/api/open-interest-alerts?limit=${maxAlerts}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include', // Send cookies with request
         cache: 'no-store',
       })
+
+      if (response.status === 401) {
+        setError('Authentication required')
+        setIsLoading(false)
+        return
+      }
 
       if (response.status === 403) {
         setError('Pro or Elite subscription required')
@@ -95,7 +91,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts')
       setIsLoading(false)
     }
-  }, [canAccessOI, session, maxAlerts])
+  }, [canAccessOI, maxAlerts])
 
   // Fetch alerts on mount if autoFetch is enabled
   useEffect(() => {

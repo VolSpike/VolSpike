@@ -43,6 +43,7 @@ import requests
 from pyrogram import Client
 from pyrogram.types import Message
 from pyrogram.errors import FloodWait, ChannelPrivate, UsernameNotOccupied
+from pyrogram.enums import MessageEntityType
 
 # Setup logging
 logging.basicConfig(
@@ -257,16 +258,45 @@ class TelegramPoller:
 
         # Extract links from message entities (text links, URLs)
         links = []
+
+        # DEBUG: Dump entire message object
+        logger.info(f"===== RAW MESSAGE {message.id} =====")
+        logger.info(f"Message object type: {type(message)}")
+        logger.info(f"Message dir: {[attr for attr in dir(message) if not attr.startswith('_')]}")
+
+        # Log key attributes
+        logger.info(f"text: {message.text}")
+        logger.info(f"caption: {message.caption if hasattr(message, 'caption') else 'N/A'}")
+        logger.info(f"entities: {message.entities}")
+        logger.info(f"caption_entities: {message.caption_entities if hasattr(message, 'caption_entities') else 'N/A'}")
+        logger.info(f"web_page: {message.web_page if hasattr(message, 'web_page') else 'N/A'}")
+        logger.info(f"media: {message.media if hasattr(message, 'media') else 'N/A'}")
+        logger.info(f"reply_markup: {message.reply_markup if hasattr(message, 'reply_markup') else 'N/A'}")
+        logger.info(f"===== END RAW MESSAGE {message.id} =====")
+
+        # Try web_page first
+        if hasattr(message, 'web_page') and message.web_page:
+            logger.info(f"Message {message.id} has web_page: url={message.web_page.url if hasattr(message.web_page, 'url') else 'N/A'}")
+            if hasattr(message.web_page, 'url'):
+                links.append(message.web_page.url)
+                logger.info(f"Added link from web_page: {message.web_page.url}")
+
         if message.entities:
+            logger.info(f"Message {message.id} has {len(message.entities)} entities")
             for entity in message.entities:
-                if entity.type == 'text_link' and entity.url:
+                logger.info(f"Entity type: {entity.type}, url: {getattr(entity, 'url', None)}")
+                if entity.type == MessageEntityType.TEXT_LINK and hasattr(entity, 'url') and entity.url:
                     # Text link (e.g., clickable "..." with URL)
                     links.append(entity.url)
-                elif entity.type == 'url':
+                    logger.info(f"Found text_link: {entity.url}")
+                elif entity.type == MessageEntityType.URL:
                     # Plain URL in text
                     text = message.text or message.caption or ''
                     url = text[entity.offset:entity.offset + entity.length]
                     links.append(url)
+                    logger.info(f"Found url: {url}")
+        else:
+            logger.info(f"Message {message.id} has NO entities")
 
         return {
             'id': message.id,
