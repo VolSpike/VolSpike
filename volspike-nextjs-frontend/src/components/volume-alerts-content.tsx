@@ -390,29 +390,29 @@ export function VolumeAlertsContent({
       return ''
     }
 
-    // 🌟 Complementary glow effects for each animation
+    // 🌟 Complementary glow effects for each animation (applied to child element)
     const getGlowClass = () => {
       if (!isNew) return ''
 
       // SPIKE ALERTS
       if (alert.alertType === 'SPIKE' || !alert.isUpdate) {
         return isBullish
-          ? 'shadow-electric-charge-green'  // Electric charge pulses
-          : 'shadow-shockwave-red'          // Shockwave ripples
+          ? 'animate-electric-charge-green'  // Electric charge pulses
+          : 'animate-shockwave-red'          // Shockwave ripples
       }
 
       // 30M UPDATES
       if (alert.alertType === 'HALF_UPDATE') {
         return isBullish
-          ? 'shadow-energy-wave-green'      // Energy waves
-          : 'shadow-alert-beacon-red'       // Alert beacon
+          ? 'animate-energy-wave-green'      // Energy waves
+          : 'animate-alert-beacon-red'       // Alert beacon
       }
 
       // HOURLY UPDATES
       if (alert.alertType === 'FULL_UPDATE') {
         return isBullish
-          ? 'shadow-gentle-glow-green'      // Gentle glow
-          : 'shadow-soft-pulse-red'         // Soft pulse
+          ? 'animate-gentle-glow-green'      // Gentle glow
+          : 'animate-soft-pulse-red'         // Soft pulse
       }
 
       return ''
@@ -444,12 +444,12 @@ export function VolumeAlertsContent({
             : isBearish
               ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
               : 'border-border hover:bg-muted/50'
-        } ${getAnimationClass()} ${getGlowClass()} ${
+        } ${getAnimationClass()} ${
           isNew ? 'ring-2 ' + (isBullish ? 'ring-brand-500/50' : isBearish ? 'ring-danger-500/50' : 'ring-brand-500/50') : ''
         } ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
         title="Click to replay animation and sound"
       >
-        <div className="space-y-2">
+        <div className={`space-y-2 ${getGlowClass()}`}>
           {/* Header: Asset name and timestamp */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
