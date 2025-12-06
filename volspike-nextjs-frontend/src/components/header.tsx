@@ -332,8 +332,21 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                             >
                                 Start Free
                             </Button>
-                            <Link href="/auth?tab=signin" className="hidden md:inline text-sm text-muted-foreground hover:text-foreground ml-1">
-                                Sign in
+                            {/* Sign In button for narrow screens */}
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => router.push('/auth?tab=signin')}
+                                className="md:hidden h-9 px-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-150"
+                            >
+                                Sign In
+                            </Button>
+                            {/* Sign In link for wide screens */}
+                            <Link
+                                href="/auth?tab=signin"
+                                className="hidden md:inline-flex items-center px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-150"
+                            >
+                                Sign In
                             </Link>
                         </div>
                     )}
