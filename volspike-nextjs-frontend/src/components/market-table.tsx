@@ -1255,7 +1255,6 @@ export function MarketTable({
             <Sheet
                 open={!!selectedSymbol}
                 onOpenChange={(open) => {
-                    // Only close when explicitly requested (e.g., via close button)
                     if (!open) {
                         setSelectedSymbol(null)
                     }
@@ -1264,14 +1263,6 @@ export function MarketTable({
             >
                 <SheetContent
                     className="w-full sm:max-w-md bg-background/95 backdrop-blur-xl border-border/50"
-                    onPointerDownOutside={(e) => {
-                        // Prevent closing when clicking outside the sheet
-                        e.preventDefault()
-                    }}
-                    onInteractOutside={(e) => {
-                        // Prevent closing when interacting outside the sheet
-                        e.preventDefault()
-                    }}
                 >
                     {selectedSymbol && (
                         <>
