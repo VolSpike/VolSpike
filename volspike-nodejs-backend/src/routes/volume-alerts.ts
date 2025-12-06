@@ -137,25 +137,29 @@ volumeAlertsRouter.get('/', async (c) => {
 
     logger.info(`Fetching alerts for tier=${tier}, lastBroadcastTime=${lastBroadcastTime.toISOString()}`)
 
-    const alerts = await prisma.volumeAlert.findMany({
-      where: {
-        ...(symbol ? { symbol } : {}),
-        // Only return alerts from completed broadcast intervals
-        // Use detectionTime (when detected on DO) or fallback to timestamp (for backwards compat)
-        OR: [
-          {
-            detectionTime: {
-              lte: lastBroadcastTime,
-            }
-          },
-          {
-            detectionTime: null,
-            timestamp: {
-              lte: lastBroadcastTime,
-            }
+    // Admin and Elite get all recent alerts without time filtering
+    // Free and Pro get time-filtered alerts based on broadcast schedule
+    const whereClause: any = symbol ? { symbol } : {}
+
+    if (tier !== 'elite' && tier !== 'admin') {
+      // Only apply time filtering for Free and Pro tiers
+      whereClause.OR = [
+        {
+          detectionTime: {
+            lte: lastBroadcastTime,
           }
-        ]
-      },
+        },
+        {
+          detectionTime: null,
+          timestamp: {
+            lte: lastBroadcastTime,
+          }
+        }
+      ]
+    }
+
+    const alerts = await prisma.volumeAlert.findMany({
+      where: whereClause,
       orderBy: { timestamp: 'desc' },
       take: limit,
     })
