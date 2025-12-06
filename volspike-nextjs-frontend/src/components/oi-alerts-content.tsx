@@ -392,9 +392,7 @@ export function OIAlertsContent({
       {alerts.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground text-center">
           Showing last {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
-          {tier === 'pro' && ` (Pro tier: ${maxAlerts} max)`}
-          {tier === 'elite' && ` (Elite tier: ${maxAlerts} max)`}
-          {hookResult.isAdmin && ` (Admin: ${maxAlerts} max)`}
+          {hookResult.isAdmin ? ` (Admin: ${maxAlerts} max)` : tier === 'pro' ? ` (Pro tier: ${maxAlerts} max)` : tier === 'elite' ? ` (Elite tier: ${maxAlerts} max)` : ''}
         </div>
       )}
     </div>
