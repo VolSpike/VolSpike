@@ -265,10 +265,10 @@ export function VolumeAlertsContent({
 
       playSound(soundType)
 
-      // Clear "new" status after animation completes (2 seconds)
+      // Clear "new" status after animation completes (3 seconds)
       setTimeout(() => {
         setNewAlertIds(new Set())
-      }, 2000)
+      }, 3000)
     }
 
     prevAlertsRef.current = alerts
@@ -438,7 +438,7 @@ export function VolumeAlertsContent({
       <div
         key={alert.id}
         onClick={handleAlertClick}
-        className={`cursor-pointer rounded-lg border p-3 transition-all duration-150 hover:shadow-md ${
+        className={`cursor-pointer rounded-lg border p-3 transition-all hover:shadow-md ${
           isBullish
             ? 'border-brand-500/30 bg-brand-500/5 hover:bg-brand-500/10'
             : isBearish
