@@ -291,15 +291,15 @@ export function OIAlertsContent({
 
                 // Match Volume alerts glow patterns
                 if (isLongSpike) {
-                  if (timeframe === '5 min') return 'shadow-electric-charge-green'
-                  if (timeframe === '15 min') return 'shadow-energy-wave-green'
-                  if (timeframe === '1 hour') return 'shadow-gentle-glow-green'
-                  return 'shadow-electric-charge-green'
+                  if (timeframe === '5 min') return 'animate-electric-charge-green'
+                  if (timeframe === '15 min') return 'animate-energy-wave-green'
+                  if (timeframe === '1 hour') return 'animate-gentle-glow-green'
+                  return 'animate-electric-charge-green'
                 } else {
-                  if (timeframe === '5 min') return 'shadow-shockwave-red'
-                  if (timeframe === '15 min') return 'shadow-alert-beacon-red'
-                  if (timeframe === '1 hour') return 'shadow-soft-pulse-red'
-                  return 'shadow-shockwave-red'
+                  if (timeframe === '5 min') return 'animate-shockwave-red'
+                  if (timeframe === '15 min') return 'animate-alert-beacon-red'
+                  if (timeframe === '1 hour') return 'animate-soft-pulse-red'
+                  return 'animate-shockwave-red'
                 }
               }
 

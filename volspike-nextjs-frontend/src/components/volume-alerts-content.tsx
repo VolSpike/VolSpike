@@ -431,7 +431,7 @@ export function VolumeAlertsContent({
 
       setTimeout(() => {
         setNewAlertIds(new Set())
-      }, 2000)
+      }, 3000)
     }
 
     return (
