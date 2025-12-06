@@ -426,8 +426,13 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             })
 
             if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.error || errorData.details || 'Failed to cleanup delisted assets')
+                const errorData = await response.json().catch(() => ({}))
+                console.error('[AdminAssetsTable] ❌ Server returned error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    errorData,
+                })
+                throw new Error(errorData.error || errorData.details || `HTTP ${response.status}: ${response.statusText}`)
             }
 
             const result = await response.json()
@@ -449,9 +454,20 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
             console.error('[AdminAssetsTable] ❌ Failed to cleanup delisted assets', {
                 error: err,
                 message: err?.message,
+                stack: err?.stack,
+                name: err?.name,
             })
 
-            toast.error(err?.message || 'Failed to cleanup delisted assets', {
+            let errorMsg = err?.message || 'Failed to cleanup delisted assets'
+
+            // Add specific error context
+            if (err?.name === 'TypeError' && err?.message?.includes('fetch')) {
+                errorMsg = 'Network error: Cannot reach backend. Make sure backend is deployed.'
+            } else if (err?.message?.includes('404')) {
+                errorMsg = 'Endpoint not found. Backend may need to be deployed with latest changes.'
+            }
+
+            toast.error(errorMsg, {
                 duration: 8000,
             })
         } finally {
