@@ -313,7 +313,7 @@ export function OIAlertsContent({
                       : isShortDump
                         ? 'border-danger-500/30 bg-danger-500/5 hover:bg-danger-500/10'
                         : 'border-border hover:bg-muted/50'
-                  } ${getAnimationClass()} ${getGlowClass()} ${
+                  } ${getAnimationClass()} ${
                     isNew ? 'ring-2 ' + (isLongSpike ? 'ring-brand-500/50' : 'ring-danger-500/50') : ''
                   }`}
                   title="Click to replay animation and sound"

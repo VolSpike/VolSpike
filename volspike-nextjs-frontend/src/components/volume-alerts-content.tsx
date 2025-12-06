@@ -449,7 +449,7 @@ export function VolumeAlertsContent({
         } ${isBlurred ? 'pointer-events-none select-none filter blur-[2px] opacity-70' : ''}`}
         title="Click to replay animation and sound"
       >
-        <div className={`space-y-2 ${getGlowClass()}`}>
+        <div className="space-y-2">
           {/* Header: Asset name and timestamp */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
