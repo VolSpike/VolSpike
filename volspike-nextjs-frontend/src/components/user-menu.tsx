@@ -305,9 +305,6 @@ export function UserMenu() {
                             >
                                 <Shield className="h-4 w-4 mr-2.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-150" />
                                 <span className="flex-1 font-semibold text-blue-700 dark:text-blue-300">Admin Panel</span>
-                                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-[10px] border-blue-500/30 text-blue-600 dark:text-blue-400 dark:border-blue-400/30">
-                                    ADMIN
-                                </Badge>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="my-1 mx-2" />
                         </>
