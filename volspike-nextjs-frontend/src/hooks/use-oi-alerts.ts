@@ -139,7 +139,8 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
         clearTimeout(disconnectTimerRef.current)
         disconnectTimerRef.current = null
       }
-      console.log('✅ Connected to OI alerts WebSocket (admin)')
+      const tierLabel = isAdmin ? 'admin' : `${userTier} tier`
+      console.log(`✅ Connected to OI alerts WebSocket (${tierLabel})`)
       setIsConnected(true)
       setError(null)
     })
@@ -175,7 +176,7 @@ export function useOIAlerts(options: UseOIAlertsOptions = {}) {
     return () => {
       socket.disconnect()
     }
-  }, [session, canAccessOI, onNewAlert, userTier, isAdmin])
+  }, [session, canAccessOI, userTier, isAdmin])
 
   return {
     alerts,
