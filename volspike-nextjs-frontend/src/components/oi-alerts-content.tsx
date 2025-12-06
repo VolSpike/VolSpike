@@ -52,10 +52,10 @@ export function OIAlertsContent({
   const setSoundsEnabled = hideControls ? (externalSetSoundsEnabled || (() => {})) : soundHook.setEnabled
   const ensureUnlocked = hideControls ? (async () => {}) : soundHook.ensureUnlocked
 
-  // Handle new alert callback (for sound and animation)
+  // Handle new alert callback (for parent component notifications)
+  // Sound and animation are handled by useEffect below
   const handleNewAlert = () => {
-    console.log('🔔 New OI alert arrived, playing sound')
-    playSound('spike') // Use 'spike' type for OI alerts
+    console.log('🔔 New OI alert arrived via WebSocket')
   }
 
   const hookResult = useOIAlerts({
@@ -72,39 +72,60 @@ export function OIAlertsContent({
   const tier = hookResult.userTier || userTier
   const maxAlerts = hookResult.maxAlerts || 50
 
-  // Track new alerts for animation
-  if (alerts.length > 0 && prevAlertsRef.current.length > 0) {
+  // Detect new alerts and play sounds (matches Volume alerts pattern)
+  useEffect(() => {
+    if (alerts.length === 0 || prevAlertsRef.current.length === 0) {
+      prevAlertsRef.current = alerts
+      return
+    }
+
     const prevIds = new Set(prevAlertsRef.current.map(a => a.id))
-    const newIds = alerts.filter(a => !prevIds.has(a.id)).map(a => a.id)
+    const newAlerts = alerts.filter(a => !prevIds.has(a.id))
 
-    if (newIds.length > 0) {
-      setNewAlertIds(prev => {
-        const updated = new Set(prev)
-        newIds.forEach(id => updated.add(id))
-        return updated
-      })
+    if (newAlerts.length > 0) {
+      // Mark new alerts for animation
+      setNewAlertIds(new Set(newAlerts.map(a => a.id)))
 
-      // Remove "new" status after animation completes
+      // Play sound for the first new alert based on timeframe
+      const firstNew = newAlerts[0]
+      const timeframe = firstNew.timeframe || '5 min'
+      const soundType =
+        timeframe === '5 min' ? 'spike' :
+        timeframe === '15 min' ? 'half_update' :
+        timeframe === '1 hour' ? 'full_update' :
+        'spike' // Default
+
+      playSound(soundType)
+
+      // Clear "new" status after animation completes (3 seconds)
       setTimeout(() => {
-        setNewAlertIds(prev => {
-          const updated = new Set(prev)
-          newIds.forEach(id => updated.delete(id))
-          return updated
-        })
+        setNewAlertIds(new Set())
       }, 3000)
     }
-  }
-  prevAlertsRef.current = alerts
+
+    prevAlertsRef.current = alerts
+  }, [alerts, playSound])
 
   // Handle alert card click - replay animation and sound
   const handleAlertClick = (alertId: string) => {
+    const alert = alerts.find(a => a.id === alertId)
+    if (!alert) return
+
     setNewAlertIds(prev => {
       const updated = new Set(prev)
       updated.add(alertId)
       return updated
     })
 
-    playSound('spike')
+    // Map timeframe to sound type (matching Volume alerts pattern)
+    const timeframe = alert.timeframe || '5 min'
+    const soundType =
+      timeframe === '5 min' ? 'spike' :
+      timeframe === '15 min' ? 'half_update' :
+      timeframe === '1 hour' ? 'full_update' :
+      'spike' // Default
+
+    playSound(soundType)
 
     setTimeout(() => {
       setNewAlertIds(prev => {
@@ -236,17 +257,50 @@ export function OIAlertsContent({
               const isShortDump = alert.direction === 'DOWN'
               const pctChange = alert.pctChange * 100 // Convert to percentage
 
-              // Animation classes
+              // Animation classes based on direction and timeframe
               const getAnimationClass = () => {
                 if (!isNew) return ''
-                return 'animate-slide-in-right'
+
+                const timeframe = alert.timeframe || '5 min'
+
+                // Match Volume alerts animation mapping:
+                // 1. UP + 5 min = green no tag = animate-lightning-strike-green
+                // 2. UP + 15 min = green 30m tag = animate-quantum-shimmer-green
+                // 3. UP + 1 hour = green hourly tag = animate-aurora-wave-green
+                // 4. DOWN + 5 min = red no tag = animate-meteor-impact-red
+                // 5. DOWN + 15 min = red 30m tag = animate-warning-pulse-red
+                // 6. DOWN + 1 hour = red hourly tag = animate-ember-glow-red
+
+                if (isLongSpike) {
+                  if (timeframe === '5 min') return 'animate-lightning-strike-green'
+                  if (timeframe === '15 min') return 'animate-quantum-shimmer-green'
+                  if (timeframe === '1 hour') return 'animate-aurora-wave-green'
+                  return 'animate-lightning-strike-green' // Default to 5 min
+                } else {
+                  if (timeframe === '5 min') return 'animate-meteor-impact-red'
+                  if (timeframe === '15 min') return 'animate-warning-pulse-red'
+                  if (timeframe === '1 hour') return 'animate-ember-glow-red'
+                  return 'animate-meteor-impact-red' // Default to 5 min
+                }
               }
 
               const getGlowClass = () => {
                 if (!isNew) return ''
-                return isLongSpike
-                  ? 'shadow-brand-glow'
-                  : 'shadow-danger-glow'
+
+                const timeframe = alert.timeframe || '5 min'
+
+                // Match Volume alerts glow patterns
+                if (isLongSpike) {
+                  if (timeframe === '5 min') return 'shadow-electric-charge-green'
+                  if (timeframe === '15 min') return 'shadow-energy-wave-green'
+                  if (timeframe === '1 hour') return 'shadow-gentle-glow-green'
+                  return 'shadow-electric-charge-green'
+                } else {
+                  if (timeframe === '5 min') return 'shadow-shockwave-red'
+                  if (timeframe === '15 min') return 'shadow-alert-beacon-red'
+                  if (timeframe === '1 hour') return 'shadow-soft-pulse-red'
+                  return 'shadow-shockwave-red'
+                }
               }
 
               return (
