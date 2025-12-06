@@ -663,13 +663,13 @@ export function VolumeAlertsContent({
         </div>
       ) : guestMode ? (
         <div className="h-[500px] overflow-hidden">
-          <div className="space-y-3" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
+          <div className="space-y-3">
             {displayAlerts.map((alert, index) => renderAlertCard(alert, index, guestMode && index >= guestVisibleCount))}
           </div>
         </div>
       ) : (
         <ScrollArea className="h-[500px]" direction="vertical" showHint>
-          <div className="space-y-3 pb-3 pr-4" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
+          <div className="space-y-3 pb-3 pr-4">
             {displayAlerts.map((alert, index) => renderAlertCard(alert, index, false))}
           </div>
         </ScrollArea>
