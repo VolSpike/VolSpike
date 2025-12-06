@@ -7,7 +7,7 @@ import type { AssetRecord } from '@/lib/asset-manifest'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Save, Trash2, RefreshCw, RefreshCcw, AlertCircle, CheckCircle2, Clock, Database, LayoutGrid, LayoutList, X } from 'lucide-react'
+import { Loader2, Plus, Save, Trash2, RefreshCw, RefreshCcw, AlertCircle, CheckCircle2, Clock, Database, LayoutGrid, LayoutList, X, Trash } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import toast from 'react-hot-toast'
 import { AssetCardView } from './asset-card-view'
@@ -24,6 +24,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
     const [refreshingId, setRefreshingId] = useState<string | null>(null)
     const [bulkRefreshing, setBulkRefreshing] = useState(false)
     const [syncingBinance, setSyncingBinance] = useState(false)
+    const [cleaningDelisted, setCleaningDelisted] = useState(false)
     const [query, setQuery] = useState('')
     const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards') // Default to cards for better UX
     const [recentlyRefreshed, setRecentlyRefreshed] = useState<Set<string>>(new Set())
@@ -399,6 +400,64 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         }
     }
 
+    const handleCleanupDelisted = async () => {
+        if (!accessToken) {
+            toast.error('Authentication required')
+            return
+        }
+
+        const confirmed = confirm(
+            'This will delete all delisted assets (no longer trading on Binance) from the database.\n\n' +
+            'Delisted assets like TROYUSDT, DGBUSDT, UNFIUSDT etc. will be permanently removed.\n\n' +
+            'Are you sure you want to continue?'
+        )
+
+        if (!confirmed) return
+
+        setCleaningDelisted(true)
+        try {
+            console.log('[AdminAssetsTable] 🧹 Starting delisted assets cleanup...')
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/assets/cleanup-delisted`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || errorData.details || 'Failed to cleanup delisted assets')
+            }
+
+            const result = await response.json()
+            console.log('[AdminAssetsTable] ✅ Cleanup successful:', result)
+
+            toast.success(
+                result.message || `Deleted ${result.deletedAssets} delisted assets`,
+                { duration: 5000 }
+            )
+
+            // Show list of deleted symbols if available
+            if (result.delistedSymbols && result.delistedSymbols.length > 0) {
+                console.log('[AdminAssetsTable] 📋 Deleted symbols:', result.delistedSymbols)
+            }
+
+            // Reload assets to reflect deletion
+            await fetchAssets()
+        } catch (err: any) {
+            console.error('[AdminAssetsTable] ❌ Failed to cleanup delisted assets', {
+                error: err,
+                message: err?.message,
+            })
+
+            toast.error(err?.message || 'Failed to cleanup delisted assets', {
+                duration: 8000,
+            })
+        } finally {
+            setCleaningDelisted(false)
+        }
+    }
 
     const handleDelete = async (asset: AssetRecord) => {
         if (!asset.id) {
@@ -864,26 +923,49 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
                 {/* Divider (hidden on mobile) */}
                 <div className="hidden md:block w-px h-6 bg-border/50 flex-shrink-0" />
 
-                {/* Primary Action: Run Cycle */}
-                <Button
-                    size="default"
-                    variant="default"
-                    onClick={handleRunCycle}
-                    disabled={bulkRefreshing || syncingBinance || (refreshProgress?.isRunning ?? false)}
-                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md flex-shrink-0 whitespace-nowrap"
-                >
-                    {bulkRefreshing || refreshProgress?.isRunning ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Processing...
-                        </>
-                    ) : (
-                        <>
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Run Refresh Cycle
-                        </>
-                    )}
-                </Button>
+                {/* Primary Actions: Run Cycle + Cleanup */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                        size="default"
+                        variant="default"
+                        onClick={handleRunCycle}
+                        disabled={bulkRefreshing || syncingBinance || cleaningDelisted || (refreshProgress?.isRunning ?? false)}
+                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-md whitespace-nowrap"
+                    >
+                        {bulkRefreshing || refreshProgress?.isRunning ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Processing...
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                                Run Refresh Cycle
+                            </>
+                        )}
+                    </Button>
+
+                    <Button
+                        size="default"
+                        variant="destructive"
+                        onClick={handleCleanupDelisted}
+                        disabled={bulkRefreshing || syncingBinance || cleaningDelisted || (refreshProgress?.isRunning ?? false)}
+                        className="shadow-md whitespace-nowrap"
+                        title="Delete assets that are no longer trading on Binance"
+                    >
+                        {cleaningDelisted ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Cleaning...
+                            </>
+                        ) : (
+                            <>
+                                <Trash className="h-4 w-4 mr-2" />
+                                Cleanup Delisted
+                            </>
+                        )}
+                    </Button>
+                </div>
 
                 {/* Secondary Actions: View Toggle + Sync */}
                 <div className="flex items-center gap-2 flex-shrink-0">

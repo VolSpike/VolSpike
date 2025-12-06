@@ -1004,11 +1004,12 @@ adminAssetRoutes.post('/detect-new', async (c) => {
     }
 })
 
-// POST /api/admin/assets/cleanup-delisted-notifications
-// Clean up notifications for assets that are no longer trading on Binance
-adminAssetRoutes.post('/cleanup-delisted-notifications', async (c) => {
+// POST /api/admin/assets/cleanup-delisted
+// Delete assets that are no longer trading on Binance (delisted)
+// Associated notifications will be cascade deleted automatically
+adminAssetRoutes.post('/cleanup-delisted', async (c) => {
     try {
-        logger.info('[AdminAssets] POST /cleanup-delisted-notifications - Starting cleanup...')
+        logger.info('[AdminAssets] POST /cleanup-delisted - Starting cleanup...')
 
         // Fetch Binance exchange info
         const BINANCE_FUTURES_INFO = process.env.BINANCE_PROXY_URL
@@ -1057,8 +1058,8 @@ adminAssetRoutes.post('/cleanup-delisted-notifications', async (c) => {
             logger.info('[AdminAssets] No delisted assets found')
             return c.json({
                 message: 'No delisted assets found',
-                deletedNotifications: 0,
-                delistedAssets: [],
+                deletedAssets: 0,
+                delistedSymbols: [],
             })
         }
 
@@ -1066,55 +1067,33 @@ adminAssetRoutes.post('/cleanup-delisted-notifications', async (c) => {
             delistedSymbols: delistedAssets.map((a) => a.baseSymbol).slice(0, 20),
         })
 
-        // Delete notifications for delisted assets
-        const delistedAssetIds = new Set(delistedAssets.map((a) => a.id))
+        // Delete delisted assets from database
+        // This will CASCADE delete associated notifications automatically
+        const delistedAssetIds = delistedAssets.map((a) => a.id)
 
-        // Fetch all NEW_ASSET_DETECTED notifications
-        const notifications = await prisma.adminNotification.findMany({
+        const deleteResult = await prisma.asset.deleteMany({
             where: {
-                type: 'NEW_ASSET_DETECTED',
-            },
-            select: {
-                id: true,
-                metadata: true,
-            },
-        })
-
-        // Filter notifications whose assetId is in the delisted set
-        const notificationsToDelete = notifications.filter((notif) => {
-            const metadata = notif.metadata as { assetId?: string } | null
-            return metadata?.assetId && delistedAssetIds.has(metadata.assetId)
-        })
-
-        // Delete the notifications
-        let deletedCount = 0
-        if (notificationsToDelete.length > 0) {
-            const idsToDelete = notificationsToDelete.map((n) => n.id)
-            const deleteResult = await prisma.adminNotification.deleteMany({
-                where: {
-                    id: {
-                        in: idsToDelete,
-                    },
+                id: {
+                    in: delistedAssetIds,
                 },
-            })
-            deletedCount = deleteResult.count
-        }
+            },
+        })
 
-        logger.info(`[AdminAssets] ✅ Deleted ${deletedCount} notifications for delisted assets`)
+        logger.info(`[AdminAssets] ✅ Deleted ${deleteResult.count} delisted assets from database`)
 
         return c.json({
-            message: `Successfully cleaned up ${deletedCount} notifications for ${delistedAssets.length} delisted assets`,
-            deletedNotifications: deletedCount,
-            delistedAssets: delistedAssets.map((a) => a.baseSymbol),
+            message: `Successfully deleted ${deleteResult.count} delisted assets`,
+            deletedAssets: deleteResult.count,
+            delistedSymbols: delistedAssets.map((a) => a.baseSymbol),
         })
     } catch (error) {
-        logger.error('[AdminAssets] Failed to cleanup delisted notifications', {
+        logger.error('[AdminAssets] Failed to cleanup delisted assets', {
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
         })
         return c.json(
             {
-                error: 'Failed to cleanup delisted notifications',
+                error: 'Failed to cleanup delisted assets',
                 details: error instanceof Error ? error.message : String(error),
             },
             500
