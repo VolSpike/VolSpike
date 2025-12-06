@@ -397,22 +397,22 @@ export function VolumeAlertsContent({
       // SPIKE ALERTS
       if (alert.alertType === 'SPIKE' || !alert.isUpdate) {
         return isBullish
-          ? 'animate-electric-charge-green'  // Electric charge pulses
-          : 'animate-shockwave-red'          // Shockwave ripples
+          ? 'shadow-electric-charge-green'  // Electric charge pulses
+          : 'shadow-shockwave-red'          // Shockwave ripples
       }
 
       // 30M UPDATES
       if (alert.alertType === 'HALF_UPDATE') {
         return isBullish
-          ? 'animate-energy-wave-green'      // Energy waves
-          : 'animate-alert-beacon-red'       // Alert beacon
+          ? 'shadow-energy-wave-green'      // Energy waves
+          : 'shadow-alert-beacon-red'       // Alert beacon
       }
 
       // HOURLY UPDATES
       if (alert.alertType === 'FULL_UPDATE') {
         return isBullish
-          ? 'animate-gentle-glow-green'      // Gentle glow
-          : 'animate-soft-pulse-red'         // Soft pulse
+          ? 'shadow-gentle-glow-green'      // Gentle glow
+          : 'shadow-soft-pulse-red'         // Soft pulse
       }
 
       return ''
