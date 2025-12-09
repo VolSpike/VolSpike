@@ -302,8 +302,8 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                                 from your alerts management page.
                             </p>
                             <p className="mt-2">
-                                Alerts are checked every 15 minutes for Free tier, every 5 minutes for Pro,
-                                and in real-time for Elite tier.
+                                Alerts are monitored every 5 minutes. Once triggered, alerts are automatically
+                                marked as inactive and can be reactivated from your alerts page.
                             </p>
                         </div>
                     </div>
