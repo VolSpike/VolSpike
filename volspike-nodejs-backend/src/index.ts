@@ -23,6 +23,7 @@ import { telegramRouter } from './routes/telegram'
 import { runAssetRefreshCycle, retryRateLimitedAssets } from './services/asset-metadata'
 import { setupSocketHandlers } from './websocket/handlers'
 import { setSocketIO } from './services/alert-broadcaster'
+import { setUserAlertSocketIO } from './websocket/broadcast-user-alert'
 import { checkAndSendRenewalReminders, checkAndDowngradeExpiredSubscriptions } from './services/renewal-reminder'
 import { syncPendingPayments } from './services/payment-sync'
 import { NewsService } from './services/news'
@@ -295,6 +296,9 @@ logger.info('✅ Socket.IO attached to HTTP server')
 
 // Initialize alert broadcaster with Socket.IO instance
 setSocketIO(io)
+
+// Initialize user alert broadcaster with Socket.IO instance
+setUserAlertSocketIO(io)
 
 // Setup Socket.IO handlers first
 setupSocketHandlers(io, prisma, logger)

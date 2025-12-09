@@ -1,8 +1,14 @@
-import { getIO } from './socket-manager'
+import type { Server as SocketIOServer } from 'socket.io'
 import { createLogger } from '../lib/logger'
 import { sendAlertEmail } from '../services/email'
 
 const logger = createLogger()
+
+let ioInstance: SocketIOServer | null = null
+
+export function setUserAlertSocketIO(io: SocketIOServer) {
+    ioInstance = io
+}
 
 export interface UserAlertPayload {
     userId: string
@@ -19,8 +25,7 @@ export interface UserAlertPayload {
 
 export async function broadcastUserAlert(payload: UserAlertPayload) {
     try {
-        const io = getIO()
-        if (!io) {
+        if (!ioInstance) {
             logger.warn('Socket.IO not initialized, cannot broadcast user alert')
             return
         }
@@ -61,7 +66,7 @@ export async function broadcastUserAlert(payload: UserAlertPayload) {
 
         // Broadcast to user's personal room
         const userRoom = `user:${payload.userId}`
-        io.to(userRoom).emit('user-alert-triggered', message)
+        ioInstance.to(userRoom).emit('user-alert-triggered', message)
 
         logger.info('User alert broadcasted via Socket.IO', {
             userId: payload.userId,
