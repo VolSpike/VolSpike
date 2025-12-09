@@ -90,10 +90,7 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
 
     const handleTypeChange = (typeId: AlertType) => {
         setSelectedType(typeId)
-        const type = alertTypes.find(t => t.id === typeId)
-        if (type) {
-            setAlertValue(type.defaultValue.toString())
-        }
+        setAlertValue('') // Clear value when type changes
     }
 
     const handleCreate = async () => {
@@ -234,7 +231,8 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                             placeholder={currentType?.placeholder}
                             value={alertValue}
                             onChange={(e) => setAlertValue(e.target.value)}
-                            className="font-mono-tabular"
+                            onFocus={(e) => e.target.select()}
+                            className="font-mono-tabular [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         {currentType && (
                             <p className="text-xs text-muted-foreground">
