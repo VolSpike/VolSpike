@@ -1,12 +1,17 @@
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+import { getNextAuthSession } from '@/lib/auth-server'
 import { Header } from '@/components/header'
 import { BackgroundPattern } from '@/components/ui/background-pattern'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { GraduationCap, BookOpen, Video, Award, Sparkles } from 'lucide-react'
+import { GraduationCap, BookOpen, Video, Award, Sparkles, Bell } from 'lucide-react'
 
-export default function AcademyPage() {
+export default async function AcademyPage() {
+    const session = await getNextAuthSession()
+    const tier = session?.user?.tier || 'free'
+    const isGuest = !session?.user
+
     return (
         <div className="min-h-screen flex flex-col bg-background">
             <BackgroundPattern />
@@ -104,19 +109,46 @@ export default function AcademyPage() {
                                 </div>
                             </div>
 
-                            {/* CTA Section */}
-                            <div className="mt-8 p-6 rounded-lg bg-gradient-to-r from-brand-500/10 to-sec-500/10 border border-brand-500/20 text-center">
-                                <p className="text-sm text-muted-foreground mb-3">
-                                    Want to be notified when we launch?
-                                </p>
-                                <a
-                                    href="/auth?tab=signup"
-                                    className="inline-flex items-center justify-center px-6 py-3 text-sm font-medium rounded-lg bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-lg shadow-brand-500/20 ring-1 ring-brand-500/20 transition-all duration-200"
-                                >
-                                    <GraduationCap className="w-4 h-4 mr-2" />
-                                    Join VolSpike Today
-                                </a>
-                            </div>
+                            {/* CTA Section - Contextual based on user status */}
+                            {isGuest ? (
+                                <div className="mt-8 p-6 rounded-lg bg-gradient-to-r from-brand-500/10 to-sec-500/10 border border-brand-500/20 text-center">
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        Want to be notified when we launch?
+                                    </p>
+                                    <a
+                                        href="/auth?tab=signup"
+                                        className="inline-flex items-center justify-center px-6 py-3 text-sm font-medium rounded-lg bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-lg shadow-brand-500/20 ring-1 ring-brand-500/20 transition-all duration-200"
+                                    >
+                                        <GraduationCap className="w-4 h-4 mr-2" />
+                                        Join VolSpike Today
+                                    </a>
+                                </div>
+                            ) : tier === 'free' ? (
+                                <div className="mt-8 p-6 rounded-lg bg-gradient-to-r from-brand-500/10 to-sec-500/10 border border-brand-500/20 text-center">
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        Unlock premium Academy content when it launches
+                                    </p>
+                                    <a
+                                        href="/pricing"
+                                        className="inline-flex items-center justify-center px-6 py-3 text-sm font-medium rounded-lg bg-gradient-to-r from-brand-600 to-sec-600 hover:from-brand-700 hover:to-sec-700 text-white shadow-lg shadow-brand-500/20 ring-1 ring-brand-500/20 transition-all duration-200"
+                                    >
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                        Upgrade to Pro
+                                    </a>
+                                </div>
+                            ) : (
+                                <div className="mt-8 p-6 rounded-lg bg-gradient-to-r from-brand-500/10 to-sec-500/10 border border-brand-500/20 text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-2">
+                                        <Bell className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+                                    </div>
+                                    <p className="text-sm font-medium text-foreground mb-1">
+                                        You&apos;ll be among the first to know
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        As a {tier === 'pro' ? 'Pro' : 'Elite'} member, you&apos;ll get early access when the Academy launches
+                                    </p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
