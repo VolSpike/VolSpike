@@ -73,10 +73,10 @@ export function CommandPalette({ userTier = 'free', onCreateAlert }: CommandPale
                         <span>Watchlist</span>
                     </CommandItem>
                     <CommandItem
-                        onSelect={() => runCommand(() => router.push('/alerts'))}
+                        onSelect={() => runCommand(() => router.push('/settings/alerts'))}
                     >
                         <Bell className="mr-2 h-4 w-4" />
-                        <span>Email Alerts</span>
+                        <span>Alerts</span>
                     </CommandItem>
                     <CommandItem
                         onSelect={() => runCommand(() => router.push('/settings'))}

@@ -13,6 +13,7 @@ import { AlertPanel } from '@/components/alert-panel'
 import { AlertsPanel } from '@/components/alerts-panel'
 import { useVolumeAlerts } from '@/hooks/use-volume-alerts'
 import { useOIAlerts } from '@/hooks/use-oi-alerts'
+import { useUserAlertListener } from '@/hooks/use-user-alert-listener'
 import { TierUpgrade } from '@/components/tier-upgrade'
 import { SubscriptionStatus } from '@/components/subscription-status'
 import { AlertBuilder } from '@/components/alert-builder'
@@ -29,7 +30,10 @@ export function Dashboard() {
     
     // Listen for tier changes via WebSocket and auto-refresh session
     useTierChangeListener()
-    
+
+    // Listen for user cross alerts
+    useUserAlertListener()
+
     const [alerts, setAlerts] = useState<any[]>([])
     const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
     const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')

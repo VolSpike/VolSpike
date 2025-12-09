@@ -325,13 +325,13 @@ export function UserMenu() {
 
                     <DropdownMenuItem
                         onClick={() => {
-                            router.push('/alerts')
+                            router.push('/settings/alerts')
                             setIsOpen(false)
                         }}
                         className="mx-2 my-0.5 rounded-lg transition-all duration-150 hover:bg-muted/80 focus:bg-muted"
                     >
                         <Bell className="h-4 w-4 mr-2.5 text-muted-foreground" />
-                        <span className="flex-1">Email Alerts</span>
+                        <span className="flex-1">Alerts</span>
                     </DropdownMenuItem>
                 </div>
 
