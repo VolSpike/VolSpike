@@ -77,23 +77,63 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
     const { data: session } = useSession()
     const [selectedType, setSelectedType] = useState<AlertType>('PRICE_CROSS')
     const [alertValue, setAlertValue] = useState('')
+    const [displayValue, setDisplayValue] = useState('') // Formatted display value
     const [deliveryMethod, setDeliveryMethod] = useState<'DASHBOARD' | 'EMAIL' | 'BOTH'>('DASHBOARD')
     const [isCreating, setIsCreating] = useState(false)
 
     const currentType = alertTypes.find(t => t.id === selectedType)
+
+    // Format number with thousand separators
+    const formatNumberWithCommas = (value: string): string => {
+        // Remove all non-digit and non-decimal characters
+        const cleaned = value.replace(/[^\d.]/g, '')
+
+        // Split into integer and decimal parts
+        const parts = cleaned.split('.')
+        const integerPart = parts[0]
+        const decimalPart = parts[1]
+
+        // Add thousand separators to integer part
+        const formatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+
+        // Return with decimal part if it exists
+        return decimalPart !== undefined ? `${formatted}.${decimalPart}` : formatted
+    }
+
+    // Remove formatting to get raw number
+    const unformatNumber = (value: string): string => {
+        return value.replace(/,/g, '')
+    }
 
     // Reset form when opened with new symbol
     useEffect(() => {
         if (open) {
             setSelectedType('PRICE_CROSS')
             setAlertValue('')
+            setDisplayValue('')
             setDeliveryMethod('DASHBOARD')
         }
     }, [open, symbol])
 
     const handleTypeChange = (typeId: AlertType) => {
         setSelectedType(typeId)
-        setAlertValue('') // Clear value when type changes
+        setAlertValue('')
+        setDisplayValue('')
+    }
+
+    const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const input = e.target.value
+        const unformatted = unformatNumber(input)
+
+        // For funding rate, don't format (it's a small percentage)
+        if (selectedType === 'FUNDING_CROSS') {
+            setAlertValue(input)
+            setDisplayValue(input)
+        } else {
+            // For price and OI, format with commas
+            setAlertValue(unformatted)
+            setDisplayValue(formatNumberWithCommas(input))
+        }
     }
 
     const handleCreate = async () => {
@@ -235,7 +275,7 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                                                 </p>
                                                 {isLocked && (
                                                     <a
-                                                        href="/checkout"
+                                                        href="/pricing"
                                                         onClick={(e) => e.stopPropagation()}
                                                         className="text-xs text-sec-600 dark:text-sec-400 hover:underline mt-1 inline-block font-medium"
                                                     >
@@ -257,13 +297,13 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                         </Label>
                         <Input
                             id="alert-value"
-                            type="number"
-                            step={selectedType === 'FUNDING_CROSS' ? '0.001' : '1'}
+                            type="text"
+                            inputMode="decimal"
                             placeholder={currentType?.placeholder}
-                            value={alertValue}
-                            onChange={(e) => setAlertValue(e.target.value)}
+                            value={displayValue}
+                            onChange={handleValueChange}
                             onFocus={(e) => e.target.select()}
-                            className="font-mono-tabular [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="font-mono-tabular"
                         />
                         {currentType && (
                             <p className="text-xs text-muted-foreground">
