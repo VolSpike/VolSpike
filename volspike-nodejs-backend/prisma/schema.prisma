@@ -45,6 +45,7 @@ model User {
   verificationTokens   VerificationToken[]
   walletAccounts       WalletAccount[]
   watchlists           Watchlist[]
+  userCrossAlerts      UserCrossAlert[]
 
   @@map("users")
 }
@@ -194,6 +195,29 @@ model Alert {
 
   @@index([userId, createdAt])
   @@map("alerts")
+}
+
+model UserCrossAlert {
+  id               String             @id @default(cuid())
+  userId           String
+  symbol           String
+  alertType        CrossAlertType
+  threshold        Float
+  lastCheckedValue Float?
+  lastCheckedAt    DateTime?
+  deliveryMethod   AlertDeliveryMethod @default(DASHBOARD)
+  isActive         Boolean            @default(true)
+  triggeredCount   Int                @default(0)
+  triggeredAt      DateTime?
+  triggeredValue   Float?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([symbol, isActive])
+  @@index([isActive, lastCheckedAt])
+  @@map("user_cross_alerts")
 }
 
 model VolumeAlert {
@@ -437,6 +461,18 @@ enum AlertType {
   SPIKE
   HALF_UPDATE
   FULL_UPDATE
+}
+
+enum CrossAlertType {
+  PRICE_CROSS
+  FUNDING_CROSS
+  OI_CROSS
+}
+
+enum AlertDeliveryMethod {
+  DASHBOARD
+  EMAIL
+  BOTH
 }
 
 // RSS News Feed Models

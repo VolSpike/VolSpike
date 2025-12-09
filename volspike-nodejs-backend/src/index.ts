@@ -12,6 +12,8 @@ import { marketRoutes } from './routes/market'
 import { watchlistRoutes } from './routes/watchlist'
 import { alertRoutes } from './routes/alerts'
 import volumeAlertsRouter from './routes/volume-alerts'
+import { userCrossAlertRoutes } from './routes/user-cross-alerts'
+import { userCrossAlertTriggerRoutes } from './routes/user-cross-alerts-trigger'
 import { assetsRoutes } from './routes/assets'
 import openInterestRouter from './routes/open-interest'
 import { paymentRoutes } from './routes/payments'
@@ -195,6 +197,13 @@ app.use('/api/watchlist/*', authMiddleware)
 app.route('/api/watchlist', watchlistRoutes)
 app.route('/api/alerts', alertRoutes)
 app.route('/api/volume-alerts', volumeAlertsRouter)
+
+// User cross alerts routes (require authentication)
+app.use('/api/user-alerts/*', authMiddleware)
+app.route('/api/user-alerts', userCrossAlertRoutes)
+
+// User cross alerts trigger routes (for Digital Ocean script - API key protected)
+app.route('/api/user-alerts-trigger', userCrossAlertTriggerRoutes)
 
 // Open Interest alerts routes
 import { handleAlertIngest, handleGetAlerts } from './routes/open-interest'

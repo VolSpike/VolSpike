@@ -1695,6 +1695,148 @@ Need help? Contact us at support@volspike.com
             return false
         }
     }
+
+    /**
+     * Send alert notification email when a cross alert is triggered
+     */
+    async sendAlertEmail(data: {
+        to: string
+        symbol: string
+        alertType: string
+        threshold: string
+        currentValue: string
+        direction: string
+    }): Promise<boolean> {
+        try {
+            const subject = `VolSpike Alert: ${data.symbol} ${data.alertType} Crossed ${data.threshold}`
+
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; }
+                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+                        .header h1 { margin: 0; font-size: 24px; }
+                        .content { background: #f7f9fc; padding: 30px; border-radius: 0 0 8px 8px; }
+                        .alert-box { background: white; border-left: 4px solid #667eea; padding: 20px; margin: 20px 0; border-radius: 4px; }
+                        .metric { margin: 12px 0; }
+                        .metric-label { font-weight: 600; color: #666; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .metric-value { font-size: 18px; font-weight: 700; color: #667eea; margin-top: 4px; }
+                        .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+                        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+                        .footer a { color: #667eea; text-decoration: none; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>🔔 VolSpike Alert Triggered</h1>
+                        </div>
+                        <div class="content">
+                            <p style="font-size: 16px; margin-top: 0;">Your ${data.alertType.toLowerCase()} alert for <strong>${data.symbol}</strong> has been triggered!</p>
+
+                            <div class="alert-box">
+                                <div class="metric">
+                                    <div class="metric-label">Symbol</div>
+                                    <div class="metric-value">${data.symbol}</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Alert Type</div>
+                                    <div class="metric-value">${data.alertType}</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Threshold</div>
+                                    <div class="metric-value">${data.threshold}</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Current Value</div>
+                                    <div class="metric-value">${data.currentValue}</div>
+                                </div>
+                                <div class="metric">
+                                    <div class="metric-label">Direction</div>
+                                    <div class="metric-value">Crossed ${data.direction}</div>
+                                </div>
+                            </div>
+
+                            <p style="margin-top: 24px;">
+                                <a href="https://volspike.com/dashboard" class="button">View in Dashboard</a>
+                            </p>
+
+                            <p style="font-size: 14px; color: #666; margin-top: 24px;">
+                                This alert has been marked as inactive. You can reactivate it from your alerts management page.
+                            </p>
+                        </div>
+                        <div class="footer">
+                            <p>
+                                Manage your alerts: <a href="https://volspike.com/settings/alerts">Alert Settings</a><br>
+                                Questions? Visit <a href="https://volspike.com">VolSpike.com</a>
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `
+
+            const text = `
+VolSpike Alert Triggered
+
+Your ${data.alertType.toLowerCase()} alert for ${data.symbol} has been triggered!
+
+Symbol: ${data.symbol}
+Alert Type: ${data.alertType}
+Threshold: ${data.threshold}
+Current Value: ${data.currentValue}
+Direction: Crossed ${data.direction}
+
+View in Dashboard: https://volspike.com/dashboard
+
+This alert has been marked as inactive. You can reactivate it from your alerts management page.
+
+Manage your alerts: https://volspike.com/settings/alerts
+            `.trim()
+
+            const msg = {
+                to: data.to,
+                from: this.fromEmail,
+                subject,
+                html,
+                text,
+                categories: ['user-alert'],
+                customArgs: {
+                    type: 'user-alert',
+                    symbol: data.symbol,
+                    alertType: data.alertType,
+                    timestamp: Date.now().toString()
+                }
+            }
+
+            await mail.send(msg)
+            logger.info(`Alert email sent`, { to: data.to, symbol: data.symbol, alertType: data.alertType })
+            return true
+        } catch (error) {
+            logger.error('Failed to send alert email:', error)
+            return false
+        }
+    }
 }
 
 export default EmailService
+
+/**
+ * Helper function to send alert email
+ */
+export async function sendAlertEmail(data: {
+    to: string
+    symbol: string
+    alertType: string
+    threshold: string
+    currentValue: string
+    direction: string
+}): Promise<boolean> {
+    const emailService = new EmailService()
+    return emailService.sendAlertEmail(data)
+}
