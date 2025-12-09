@@ -9,7 +9,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Bell, Zap, Star, Sparkles, Menu, X, Home, LayoutDashboard, Tag, Settings, LogOut } from 'lucide-react'
+import { Bell, Zap, Star, Sparkles, Menu, X, Home, LayoutDashboard, Tag, Settings, LogOut, GraduationCap } from 'lucide-react'
 import { UserMenu } from '@/components/user-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
@@ -92,6 +92,20 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                         Dashboard
                     </SafeNavLink>
                     <SafeNavLink
+                        href="/academy"
+                        debugLabel="header-academy"
+                        className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative pointer-events-auto ${pathname === '/academy'
+                            ? 'text-brand-600 dark:text-brand-400 bg-brand-500/10 font-semibold'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            }`}
+                        style={{ zIndex: 101 }}
+                    >
+                        {pathname === '/academy' && (
+                            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand-600 dark:bg-brand-400 rounded-full" />
+                        )}
+                        Academy
+                    </SafeNavLink>
+                    <SafeNavLink
                         href="/donate"
                         debugLabel="header-donate"
                         className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-150 relative ${pathname === '/donate'
@@ -170,6 +184,18 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 >
                                     <Tag className="h-4 w-4" />
                                     Pricing
+                                </Link>
+
+                                <Link
+                                    href="/academy"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${pathname === '/academy'
+                                        ? 'bg-brand-500/10 text-brand-600 dark:text-brand-400 font-semibold'
+                                        : 'hover:bg-muted'
+                                        }`}
+                                >
+                                    <GraduationCap className="h-4 w-4" />
+                                    Academy
                                 </Link>
 
                                 <Link
