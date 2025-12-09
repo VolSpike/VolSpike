@@ -117,7 +117,7 @@ userCrossAlertsTrigger.get('/active', async (c) => {
             return c.json({ error: 'Unauthorized' }, 401)
         }
 
-        // Fetch all active alerts
+        // Fetch all active alerts with user tier
         const alerts = await prisma.userCrossAlert.findMany({
             where: {
                 isActive: true,
@@ -131,17 +131,29 @@ userCrossAlertsTrigger.get('/active', async (c) => {
                 lastCheckedValue: true,
                 lastCheckedAt: true,
                 deliveryMethod: true,
+                user: {
+                    select: {
+                        tier: true,
+                    }
+                }
             },
             orderBy: {
                 lastCheckedAt: 'asc', // Check oldest first
             },
         })
 
+        // Flatten user tier into alert object
+        const alertsWithTier = alerts.map(alert => ({
+            ...alert,
+            userTier: alert.user.tier,
+            user: undefined, // Remove nested user object
+        }))
+
         logger.info('Active alerts fetched for checking', {
-            count: alerts.length,
+            count: alertsWithTier.length,
         })
 
-        return c.json({ alerts })
+        return c.json({ alerts: alertsWithTier })
     } catch (error) {
         logger.error('Fetch active alerts error:', error)
         return c.json({ error: 'Failed to fetch active alerts' }, 500)

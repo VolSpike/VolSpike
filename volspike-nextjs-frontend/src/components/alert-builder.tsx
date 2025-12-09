@@ -48,7 +48,8 @@ const alertTypes = [
         icon: TrendingUp,
         defaultValue: 50000,
         unit: '$',
-        placeholder: '50000'
+        placeholder: '50000',
+        requiresPro: false,
     },
     {
         id: 'FUNDING_CROSS' as AlertType,
@@ -57,7 +58,8 @@ const alertTypes = [
         icon: Zap,
         defaultValue: 0.05,
         unit: '%',
-        placeholder: '0.05'
+        placeholder: '0.05',
+        requiresPro: false,
     },
     {
         id: 'OI_CROSS' as AlertType,
@@ -66,7 +68,8 @@ const alertTypes = [
         icon: BarChart3,
         defaultValue: 1000000000,
         unit: '$',
-        placeholder: '1000000000'
+        placeholder: '1000000000',
+        requiresPro: true,
     },
 ]
 
@@ -179,38 +182,66 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                             {alertTypes.map((type) => {
                                 const Icon = type.icon
                                 const isSelected = selectedType === type.id
+                                const isLocked = type.requiresPro && userTier === 'free'
+                                const canSelect = !isLocked
+
                                 return (
                                     <button
                                         key={type.id}
-                                        onClick={() => handleTypeChange(type.id)}
+                                        onClick={() => canSelect && handleTypeChange(type.id)}
+                                        disabled={isLocked}
                                         className={`relative p-4 rounded-lg border-2 transition-all duration-200 text-left group ${
-                                            isSelected
+                                            isLocked
+                                                ? 'border-border/30 bg-muted/30 cursor-not-allowed opacity-75'
+                                                : isSelected
                                                 ? 'border-brand-500 bg-brand-500/5'
                                                 : 'border-border/50 hover:border-brand-500/30 hover:bg-muted/50'
                                         }`}
                                     >
                                         <div className="flex items-start gap-3">
                                             <div className={`p-2 rounded-md transition-colors ${
-                                                isSelected
+                                                isLocked
+                                                    ? 'bg-muted/50'
+                                                    : isSelected
                                                     ? 'bg-brand-500/20'
                                                     : 'bg-muted group-hover:bg-brand-500/10'
                                             }`}>
                                                 <Icon className={`h-5 w-5 ${
-                                                    isSelected ? 'text-brand-600 dark:text-brand-400' : 'text-muted-foreground'
+                                                    isLocked
+                                                        ? 'text-muted-foreground/50'
+                                                        : isSelected
+                                                        ? 'text-brand-600 dark:text-brand-400'
+                                                        : 'text-muted-foreground'
                                                 }`} />
                                             </div>
                                             <div className="flex-1">
                                                 <div className="font-semibold text-sm mb-1 flex items-center gap-2">
-                                                    {type.name}
-                                                    {isSelected && (
+                                                    <span className={isLocked ? 'text-muted-foreground/70' : ''}>
+                                                        {type.name}
+                                                    </span>
+                                                    {isSelected && !isLocked && (
                                                         <Badge variant="outline" className="text-[10px] border-brand-500/50 text-brand-600 dark:text-brand-400">
                                                             Selected
                                                         </Badge>
                                                     )}
+                                                    {isLocked && (
+                                                        <Badge variant="outline" className="text-[10px] border-sec-500/50 text-sec-600 dark:text-sec-400 bg-sec-500/10">
+                                                            Pro+
+                                                        </Badge>
+                                                    )}
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">
+                                                <p className={`text-xs ${isLocked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
                                                     {type.description}
                                                 </p>
+                                                {isLocked && (
+                                                    <a
+                                                        href="/checkout"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="text-xs text-sec-600 dark:text-sec-400 hover:underline mt-1 inline-block font-medium"
+                                                    >
+                                                        Upgrade to unlock →
+                                                    </a>
+                                                )}
                                             </div>
                                         </div>
                                     </button>
@@ -302,8 +333,9 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                                 from your alerts management page.
                             </p>
                             <p className="mt-2">
-                                Alerts are monitored every 5 minutes. Once triggered, alerts are automatically
-                                marked as inactive and can be reactivated from your alerts page.
+                                Alerts are monitored every{' '}
+                                {userTier === 'free' ? '5 minutes' : '30 seconds'}.
+                                Once triggered, alerts are automatically marked as inactive and can be reactivated from your alerts page.
                             </p>
                         </div>
                     </div>
