@@ -45,12 +45,12 @@ export default function AcademyPage() {
                                 <Sparkles className="w-5 h-5 text-brand-600 dark:text-brand-400 animate-pulse" />
                             </div>
                             <CardDescription className="text-base">
-                                We're building something special for you
+                                We&apos;re building something special for you
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <p className="text-center text-muted-foreground">
-                                The VolSpike Academy is currently under development. Soon you'll have access to:
+                                The VolSpike Academy is currently under development. Soon you&apos;ll have access to:
                             </p>
 
                             {/* Feature Grid */}
