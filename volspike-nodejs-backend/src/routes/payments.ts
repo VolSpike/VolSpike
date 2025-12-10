@@ -86,6 +86,7 @@ payments.post('/checkout', async (c) => {
             mode: mode, // 'subscription' or 'payment'
             success_url: successUrl,
             cancel_url: cancelUrl,
+            allow_promotion_codes: true, // Enable promo code input
             metadata: {
                 userId: user.id,
                 paymentMode: mode,
