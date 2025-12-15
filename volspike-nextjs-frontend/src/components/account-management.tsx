@@ -545,8 +545,8 @@ export function AccountManagement() {
                                                         <Unlink className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Unlink email & password</p>
+                                                <TooltipContent side="top" align="end" sideOffset={5}>
+                                                    <p className="whitespace-nowrap">Unlink email & password</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
@@ -688,8 +688,8 @@ export function AccountManagement() {
                                                         <Unlink className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Unlink Google OAuth</p>
+                                                <TooltipContent side="top" align="end" sideOffset={5}>
+                                                    <p className="whitespace-nowrap">Unlink Google OAuth</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
