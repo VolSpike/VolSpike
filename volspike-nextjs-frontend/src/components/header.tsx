@@ -212,7 +212,11 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
 
                                 <Separator className="my-4" />
 
-                                {session ? (
+                                {status === 'loading' ? (
+                                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                                        Loading…
+                                    </div>
+                                ) : session ? (
                                     <>
                                         {/* Tier Badge */}
                                         <div className="px-3 py-2 mb-2">

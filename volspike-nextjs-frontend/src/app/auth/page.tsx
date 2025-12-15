@@ -40,7 +40,7 @@ function AuthPageContent() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const pathname = usePathname()
-    const { data: session, status } = useSession()
+    const { data: session, status, update } = useSession()
 
     // Simple state management - no form hooks in parent
     const [tab, setTab] = useState<'signin' | 'signup'>(
@@ -82,7 +82,7 @@ function AuthPageContent() {
                 await new Promise(resolve => setTimeout(resolve, 500))
 
                 // Check session again after refresh
-                const response = await fetch('/api/auth/session', { credentials: 'include' })
+                const response = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
                 const latestSession = await response.json().catch(() => null)
                 const userRole = latestSession?.user?.role || session?.user?.role
                 const userEmail = latestSession?.user?.email || session?.user?.email
@@ -289,15 +289,36 @@ function AuthPageContent() {
                                     console.log('[AuthPage] nextUrl:', nextUrl)
                                     setResendEmail(email)
 
-                                    // Small delay to ensure session is properly set
-                                    await new Promise(resolve => setTimeout(resolve, 100))
+                                    // For credentials sign-in we use `redirect:false` and client navigation.
+                                    // In production this can leave SessionProvider briefly stale (unauthenticated)
+                                    // until a full reload. Prime NextAuth's in-memory session state, then navigate.
+                                    try {
+                                        const start = Date.now()
+                                        const maxMs = 2000
+                                        while (Date.now() - start < maxMs) {
+                                            const nextSession = await update().catch(() => null)
+                                            if ((nextSession as any)?.user?.id) break
+                                            await new Promise(resolve => setTimeout(resolve, 75))
+                                        }
+                                    } catch {
+                                        // Best-effort; we still navigate below.
+                                    }
 
-                                    console.log('[AuthPage] Calling router.refresh()')
-                                    router.refresh()
+                                    // Prefer a hard navigation (matches OAuth behaviour) to guarantee that the
+                                    // first render after login sees the fresh session cookie.
+                                    if (typeof window !== 'undefined') {
+                                        try {
+                                            const target = new URL(nextUrl, window.location.origin)
+                                            if (target.origin === window.location.origin) {
+                                                window.location.assign(target.pathname + target.search + target.hash)
+                                                return
+                                            }
+                                        } catch {
+                                            // fall through to router navigation
+                                        }
+                                    }
 
-                                    console.log('[AuthPage] Calling router.push with nextUrl:', nextUrl)
-                                    router.push(nextUrl)
-                                    console.log('[AuthPage] Router.push completed')
+                                    router.replace(nextUrl)
                                 }}
                                 isAdminMode={isAdminMode}
                                 nextUrl={nextUrl}
