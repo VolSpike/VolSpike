@@ -257,9 +257,22 @@ export function AccountManagement() {
         }
 
         try {
-            // For email/password, we need to clear the password hash
-            // This is a special case - we'll need an endpoint for this
-            toast.error('Email/password unlinking not yet implemented. Please contact support.')
+            const res = await fetch(`${API_URL}/api/auth/password/unlink`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.user?.id}`,
+                },
+                credentials: 'include',
+            })
+
+            if (!res.ok) {
+                const errorData = await res.json()
+                throw new Error(errorData.error || 'Failed to unlink email/password')
+            }
+
+            toast.success('Email/password unlinked successfully')
+            await loadAccounts()
         } catch (error: any) {
             console.error('Unlink email error:', error)
             toast.error(error.message || 'Failed to unlink email/password')

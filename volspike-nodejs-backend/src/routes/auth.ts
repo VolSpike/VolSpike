@@ -1775,6 +1775,56 @@ auth.post('/oauth/unlink', authMiddleware, async (c) => {
     }
 })
 
+// Unlink email/password from account
+auth.post('/password/unlink', authMiddleware, async (c) => {
+    try {
+        const user = c.get('user')!
+
+        // Check if user has a password set
+        const currentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { passwordHash: true },
+        })
+
+        if (!currentUser?.passwordHash) {
+            return c.json({ error: 'No email/password authentication method found' }, 404)
+        }
+
+        // Don't allow unlinking if it's the only auth method
+        const userAccounts = await prisma.account.findMany({
+            where: { userId: user.id },
+        })
+        const userWallets = await prisma.walletAccount.findMany({
+            where: { userId: user.id },
+        })
+
+        const hasOAuth = userAccounts.length > 0
+        const hasWallets = userWallets.length > 0
+
+        if (!hasOAuth && !hasWallets) {
+            return c.json({
+                error: 'Cannot unlink. This is your only authentication method. Please link another method first.'
+            }, 400)
+        }
+
+        // Clear password hash to unlink email/password auth
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { passwordHash: null },
+        })
+
+        logger.info(`Email/password unlinked from user ${user.id}`)
+
+        return c.json({
+            success: true,
+            message: 'Email/password unlinked successfully'
+        })
+    } catch (error: any) {
+        logger.error('Password unlink error:', error)
+        return c.json({ error: error.message || 'Failed to unlink email/password' }, 500)
+    }
+})
+
 // Get current user (requires authentication via Authorization header)
 auth.get('/me', async (c) => {
     try {
