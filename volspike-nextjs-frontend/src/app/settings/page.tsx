@@ -118,17 +118,10 @@ function SettingsContent() {
         )
     }
 
-    // If not authenticated after loading completes, show the page anyway
-    // The auth middleware/SessionValidator will handle redirects if truly unauthenticated
-    if (!session?.user) {
-        return (
-            <div className="flex-1 bg-background">
-                <HeaderWithBanner />
-                <main className="container mx-auto px-4 py-8">
-                    <div className="text-center">Loading your settings...</div>
-                </main>
-            </div>
-        )
+    // If user is unauthenticated (not just missing session data), let SessionValidator handle it
+    // Don't render a stuck loading state - just show empty content briefly
+    if (status === 'unauthenticated') {
+        return null
     }
 
     const handleCopy = async (text: string, label: string) => {
