@@ -20,7 +20,7 @@ import { broadcastPasswordChange } from '@/lib/password-change-broadcast'
 import { AccountManagement } from '@/components/account-management'
 
 function SettingsContent() {
-    const { data: session, status } = useSession()
+    const { data: session, status, update } = useSession()
     const router = useRouter()
     const searchParams = useSearchParams()
     const identity = useUserIdentity()
@@ -61,6 +61,17 @@ function SettingsContent() {
     useEffect(() => {
         setIsClient(true)
     }, [])
+
+    // Force session refresh on mount to ensure header displays correctly
+    // This fixes an issue where email/password auth users see "Start Free/Sign In"
+    // in the header immediately after login, while OAuth users work fine
+    useEffect(() => {
+        if (status === 'authenticated' && session?.user?.id) {
+            update().catch(() => {
+                // Ignore errors - session will load naturally
+            })
+        }
+    }, [status, session?.user?.id, update])
 
     // Sync tab from URL query parameter on mount and when URL changes
     useEffect(() => {

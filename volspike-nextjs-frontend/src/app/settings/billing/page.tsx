@@ -131,7 +131,7 @@ function CryptoStatusBadge({ status }: { status?: string | null }) {
 }
 
 function BillingInner() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const router = useRouter()
   const token = useAuthToken(session as any)
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -142,6 +142,17 @@ function BillingInner() {
   const [upgradeLoading, setUpgradeLoading] = useState(false)
   const [invoices, setInvoices] = useState<Invoice[] | null>(null)
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[] | null>(null)
+
+  // Force session refresh on mount to ensure header displays correctly
+  // This fixes an issue where email/password auth users see "Start Free/Sign In"
+  // in the header immediately after login, while OAuth users work fine
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      update().catch(() => {
+        // Ignore errors - session will load naturally
+      })
+    }
+  }, [status, session?.user?.id, update])
 
   useEffect(() => {
     let cancelled = false
