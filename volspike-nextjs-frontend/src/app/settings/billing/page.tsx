@@ -143,17 +143,6 @@ function BillingInner() {
   const [invoices, setInvoices] = useState<Invoice[] | null>(null)
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[] | null>(null)
 
-  // Force session refresh on mount to ensure header displays correctly
-  // This fixes an issue where email/password auth users see "Start Free/Sign In"
-  // in the header immediately after login, while OAuth users work fine
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user?.id) {
-      update().catch(() => {
-        // Ignore errors - session will load naturally
-      })
-    }
-  }, [status, session?.user?.id, update])
-
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -299,17 +288,8 @@ function BillingInner() {
     )
   }
 
-  // Show loading state if session is still loading
-  if (status === 'loading') {
-    return (
-      <div className="flex-1 bg-background">
-        <HeaderWithBanner />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading...</div>
-        </main>
-      </div>
-    )
-  }
+  // No auth checks - just render the page
+  // The header will handle showing login state correctly
 
   return (
     <div className="flex-1 bg-background">
