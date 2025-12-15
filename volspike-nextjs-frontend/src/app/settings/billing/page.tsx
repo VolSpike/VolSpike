@@ -148,14 +148,15 @@ function BillingInner() {
   // This prevents race conditions where session is still being established
   useEffect(() => {
     // Wait for session to fully load before making redirect decisions
-    if (status === 'loading') return
+    // Check both status and loading state to ensure session has stabilized
+    if (status === 'loading' || loading) return
 
     // Only redirect if definitively unauthenticated after session has loaded
     if (status === 'unauthenticated') {
       console.log('[Billing] Session unauthenticated after load, redirecting to /auth')
       router.push('/auth')
     }
-  }, [status, router])
+  }, [status, loading, router])
 
   useEffect(() => {
     let cancelled = false

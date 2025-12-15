@@ -66,15 +66,16 @@ function SettingsContent() {
     // Do NOT redirect during initial 'loading' state or transient 'unauthenticated' during session initialization
     // This prevents race conditions where session is still being established
     useEffect(() => {
-        // Wait for session to fully load before making redirect decisions
-        if (status === 'loading') return
+        // Wait for BOTH session AND identity to fully load before making redirect decisions
+        // identity.isLoading checks sessionStatus === 'loading', providing additional safety
+        if (status === 'loading' || identity.isLoading) return
 
-        // Only redirect if definitively unauthenticated after session has loaded
+        // Only redirect if definitively unauthenticated after session has fully loaded
         if (status === 'unauthenticated') {
             console.log('[Settings] Session unauthenticated after load, redirecting to /auth')
             router.push('/auth')
         }
-    }, [status, router])
+    }, [status, identity.isLoading, router])
 
     // Sync tab from URL query parameter on mount and when URL changes
     useEffect(() => {
