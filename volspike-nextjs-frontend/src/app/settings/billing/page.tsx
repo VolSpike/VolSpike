@@ -143,20 +143,29 @@ function BillingInner() {
   const [invoices, setInvoices] = useState<Invoice[] | null>(null)
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[] | null>(null)
 
-  // CRITICAL: Only redirect if session is confirmed unauthenticated
-  // Do NOT redirect during initial 'loading' state or transient 'unauthenticated' during session initialization
-  // This prevents race conditions where session is still being established
-  useEffect(() => {
-    // Wait for session to fully load before making redirect decisions
-    // Check both status and loading state to ensure session has stabilized
-    if (status === 'loading' || loading) return
+  // Show loading state if session is still loading
+  if (status === 'loading') {
+    return (
+      <div className="flex-1 bg-background">
+        <HeaderWithBanner />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading...</div>
+        </main>
+      </div>
+    )
+  }
 
-    // Only redirect if definitively unauthenticated after session has loaded
-    if (status === 'unauthenticated') {
-      console.log('[Billing] Session unauthenticated after load, redirecting to /auth')
-      router.push('/auth')
-    }
-  }, [status, loading, router])
+  // If not authenticated, show loading state - SessionValidator will handle redirect if needed
+  if (!session?.user) {
+    return (
+      <div className="flex-1 bg-background">
+        <HeaderWithBanner />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading your billing information...</div>
+        </main>
+      </div>
+    )
+  }
 
   useEffect(() => {
     let cancelled = false
