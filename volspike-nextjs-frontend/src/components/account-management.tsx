@@ -545,7 +545,7 @@ export function AccountManagement() {
                                                         <Unlink className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="top" align="end" sideOffset={5}>
+                                                <TooltipContent side="top" align="end" sideOffset={10}>
                                                     <p className="whitespace-nowrap">Unlink email & password</p>
                                                 </TooltipContent>
                                             </Tooltip>
