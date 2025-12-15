@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PasswordInput } from '@/components/password-input'
 import { 
     Wallet, 
@@ -532,14 +533,23 @@ export function AccountManagement() {
                                         Active
                                     </Badge>
                                     {hasAnyAuth && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleUnlinkEmail}
-                                            className="text-muted-foreground hover:text-red-400"
-                                        >
-                                            <Unlink className="h-4 w-4" />
-                                        </Button>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={handleUnlinkEmail}
+                                                        className="text-muted-foreground hover:text-red-400"
+                                                    >
+                                                        <Unlink className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Unlink email & password</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     )}
                                 </>
                             ) : (
@@ -666,14 +676,23 @@ export function AccountManagement() {
                                         </div>
                                     </div>
                                     {hasAnyAuth && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleUnlinkOAuth(account.provider)}
-                                            className="text-muted-foreground hover:text-red-400"
-                                        >
-                                            <Unlink className="h-4 w-4" />
-                                        </Button>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleUnlinkOAuth(account.provider)}
+                                                        className="text-muted-foreground hover:text-red-400"
+                                                    >
+                                                        <Unlink className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Unlink Google OAuth</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     )}
                                 </div>
                             ))}
