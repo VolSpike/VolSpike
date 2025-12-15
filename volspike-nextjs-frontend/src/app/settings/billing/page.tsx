@@ -143,30 +143,6 @@ function BillingInner() {
   const [invoices, setInvoices] = useState<Invoice[] | null>(null)
   const [cryptoPayments, setCryptoPayments] = useState<CryptoPayment[] | null>(null)
 
-  // Show loading state if session is still loading
-  if (status === 'loading') {
-    return (
-      <div className="flex-1 bg-background">
-        <HeaderWithBanner />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading...</div>
-        </main>
-      </div>
-    )
-  }
-
-  // If not authenticated, show loading state - SessionValidator will handle redirect if needed
-  if (!session?.user) {
-    return (
-      <div className="flex-1 bg-background">
-        <HeaderWithBanner />
-        <main className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading your billing information...</div>
-        </main>
-      </div>
-    )
-  }
-
   useEffect(() => {
     let cancelled = false
     async function load() {
@@ -308,6 +284,30 @@ function BillingInner() {
           {locked ? <Lock className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
         </span>
         <span className="truncate">{label}</span>
+      </div>
+    )
+  }
+
+  // Show loading state if session is still loading
+  if (status === 'loading') {
+    return (
+      <div className="flex-1 bg-background">
+        <HeaderWithBanner />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading...</div>
+        </main>
+      </div>
+    )
+  }
+
+  // If not authenticated, show loading state - SessionValidator will handle redirect if needed
+  if (!session?.user) {
+    return (
+      <div className="flex-1 bg-background">
+        <HeaderWithBanner />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading your billing information...</div>
+        </main>
       </div>
     )
   }
