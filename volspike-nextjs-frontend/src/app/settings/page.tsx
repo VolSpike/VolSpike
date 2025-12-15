@@ -118,12 +118,6 @@ function SettingsContent() {
         )
     }
 
-    // If user is unauthenticated (not just missing session data), let SessionValidator handle it
-    // Don't render a stuck loading state - just show empty content briefly
-    if (status === 'unauthenticated') {
-        return null
-    }
-
     const handleCopy = async (text: string, label: string) => {
         try {
             await navigator.clipboard.writeText(text)

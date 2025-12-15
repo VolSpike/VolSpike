@@ -300,12 +300,6 @@ function BillingInner() {
     )
   }
 
-  // If user is unauthenticated (not just missing session data), let SessionValidator handle it
-  // Don't render a stuck loading state - just show empty content briefly
-  if (status === 'unauthenticated') {
-    return null
-  }
-
   return (
     <div className="flex-1 bg-background">
       <HeaderWithBanner />
