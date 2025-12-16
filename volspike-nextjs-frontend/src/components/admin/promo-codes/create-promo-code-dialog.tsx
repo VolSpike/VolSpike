@@ -121,6 +121,7 @@ export function CreatePromoCodeDialog({ open, onOpenChange, onPromoCodeCreated }
                                 value={formData.discountPercent}
                                 onChange={(e) => setFormData({ ...formData, discountPercent: e.target.value })}
                                 disabled={isLoading}
+                                className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                             <span className="text-sm text-muted-foreground">%</span>
                         </div>
@@ -135,6 +136,7 @@ export function CreatePromoCodeDialog({ open, onOpenChange, onPromoCodeCreated }
                             value={formData.maxUses}
                             onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })}
                             disabled={isLoading}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                     </div>
 

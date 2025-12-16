@@ -579,23 +579,32 @@ class AdminAPIClient {
     }
 
     async getPromoCodeById(id: string): Promise<{
-        promoCode: any
-        usageHistory: any[]
-        stats: {
-            totalDiscountGiven: number
-            remainingUses: number
-            isExpired: boolean
-        }
+        id: string
+        code: string
+        discountPercent: number
+        maxUses: number
+        currentUses: number
+        remainingUses: number
+        validUntil: string
+        active: boolean
+        paymentMethod: string
+        createdAt: string
+        updatedAt: string
+        createdBy: { id: string; email: string }
+        totalDiscountGiven: number
+        isExpired: boolean
+        usages: Array<{
+            id: string
+            userId: string
+            userEmail: string
+            paymentId: string
+            discountAmount: number
+            originalAmount: number
+            finalAmount: number
+            createdAt: string
+        }>
     }> {
-        return this.request<{
-            promoCode: any
-            usageHistory: any[]
-            stats: {
-                totalDiscountGiven: number
-                remainingUses: number
-                isExpired: boolean
-            }
-        }>(`/api/admin/promo-codes/${id}`)
+        return this.request(`/api/admin/promo-codes/${id}`)
     }
 
     async createPromoCode(data: {

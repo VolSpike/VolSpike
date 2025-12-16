@@ -51,7 +51,14 @@ export function ViewPromoCodeDialog({ open, onOpenChange, promoCodeId }: ViewPro
         )
     }
 
-    const { promoCode, usageHistory, stats } = data
+    // Data comes flat from backend - extract into expected structure
+    const promoCode = data
+    const usageHistory = data.usages || []
+    const stats = {
+        totalDiscountGiven: data.totalDiscountGiven || 0,
+        remainingUses: data.remainingUses || 0,
+        isExpired: data.isExpired || false,
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -161,7 +168,7 @@ export function ViewPromoCodeDialog({ open, onOpenChange, promoCodeId }: ViewPro
                                             <TableRow key={usage.id}>
                                                 <TableCell>
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm">{usage.user.email}</span>
+                                                        <span className="text-sm">{usage.userEmail}</span>
                                                         <span className="text-xs text-muted-foreground">{usage.userId}</span>
                                                     </div>
                                                 </TableCell>
@@ -173,7 +180,7 @@ export function ViewPromoCodeDialog({ open, onOpenChange, promoCodeId }: ViewPro
                                                     ${usage.finalAmount.toFixed(2)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {format(new Date(usage.usedAt), 'MMM dd, yyyy')}
+                                                    {format(new Date(usage.createdAt), 'MMM dd, yyyy')}
                                                 </TableCell>
                                             </TableRow>
                                         ))}
