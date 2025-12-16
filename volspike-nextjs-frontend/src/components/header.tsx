@@ -292,7 +292,10 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                         </SheetContent>
                     </Sheet>
 
-                    <ThemeToggle />
+                    {/* Theme toggle - hidden on mobile for guest users to make room for full logo */}
+                    <div className={session ? '' : 'hidden sm:block'}>
+                        <ThemeToggle />
+                    </div>
 
                     {status === 'loading' ? (
                         <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
