@@ -1,35 +1,20 @@
 import { Hono } from 'hono'
-import { z } from 'zod'
-import { requireUser } from '../../lib/hono-extensions'
 import { createLogger } from '../../lib/logger'
 import { promoCodeAdminService } from '../../services/admin/promo-code-admin'
 import { createPromoCodeSchema, updatePromoCodeSchema } from '../../lib/validation/promo-codes'
 import { PromoPaymentMethod } from '@prisma/client'
+import type { AppBindings, AppVariables } from '../../types/hono'
 
 const logger = createLogger()
-const promoCodes = new Hono()
-
-// Middleware to require ADMIN role
-const requireAdmin = async (c: any, next: any) => {
-    const user = requireUser(c)
-    if (user.role !== 'ADMIN') {
-        logger.warn('Non-admin user attempted to access admin promo codes endpoint', {
-            userId: user.id,
-            email: user.email,
-            role: user.role,
-        })
-        return c.json({ error: 'Forbidden: Admin access required' }, 403)
-    }
-    await next()
-}
-
-// Apply admin middleware to all routes
-promoCodes.use('*', requireAdmin)
+const promoCodes = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
 
 // Create promo code
 promoCodes.post('/', async (c) => {
     try {
-        const user = requireUser(c)
+        const user = c.get('adminUser')
+        if (!user) {
+            return c.json({ error: 'Authentication required' }, 401)
+        }
         const body = await c.req.json()
 
         const validatedData = createPromoCodeSchema.parse(body)
@@ -107,7 +92,10 @@ promoCodes.get('/:id', async (c) => {
 // Update promo code
 promoCodes.patch('/:id', async (c) => {
     try {
-        const user = requireUser(c)
+        const user = c.get('adminUser')
+        if (!user) {
+            return c.json({ error: 'Authentication required' }, 401)
+        }
         const id = c.req.param('id')
         const body = await c.req.json()
 
@@ -157,7 +145,10 @@ promoCodes.patch('/:id', async (c) => {
 // Delete promo code
 promoCodes.delete('/:id', async (c) => {
     try {
-        const user = requireUser(c)
+        const user = c.get('adminUser')
+        if (!user) {
+            return c.json({ error: 'Authentication required' }, 401)
+        }
         const id = c.req.param('id')
 
         const result = await promoCodeAdminService.deletePromoCode(id)
