@@ -5,11 +5,11 @@ import { format } from 'date-fns'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Edit, Trash2, Eye, Copy, Check, RefreshCw } from 'lucide-react'
+import { Edit, Trash2, Eye, Copy, Check, RefreshCw, Tag } from 'lucide-react'
 import { EditPromoCodeDialog } from './edit-promo-code-dialog'
 import { DeletePromoCodeDialog } from './delete-promo-code-dialog'
 import { ViewPromoCodeDialog } from './view-promo-code-dialog'
-import { AdminPagination } from '@/components/admin/admin-pagination'
+import { Pagination } from '@/components/ui/pagination'
 import { toast } from 'react-hot-toast'
 
 interface PromoCodesTableProps {
@@ -215,7 +215,7 @@ export function PromoCodesTable({
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-                <AdminPagination
+                <Pagination
                     currentPage={pagination.currentPage}
                     totalPages={pagination.totalPages}
                     onPageChange={onPageChange}
