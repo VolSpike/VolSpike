@@ -253,7 +253,7 @@ export default function CryptoCheckoutPage() {
 
             {/* Price Display */}
             {promoIsValid && originalPrice > 0 && (
-              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="p-4 rounded-lg bg-sec-500/5 border border-sec-500/20">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-foreground">Subscription Price</p>
@@ -265,7 +265,7 @@ export default function CryptoCheckoutPage() {
                     <p className="text-sm text-muted-foreground line-through">
                       ${originalPrice.toFixed(2)}/month
                     </p>
-                    <p className="text-2xl font-bold text-green-600 dark:text-green-500">
+                    <p className="text-2xl font-bold text-sec-500 dark:text-sec-400">
                       ${finalPrice.toFixed(2)}/month
                     </p>
                   </div>

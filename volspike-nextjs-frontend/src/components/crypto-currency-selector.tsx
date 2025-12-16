@@ -49,63 +49,41 @@ const SUPPORTED_CURRENCIES: SupportedCurrency[] = [
 ]
 
 /**
- * Get cryptocurrency logo URL with multiple fallback sources
- * Uses reliable CDNs with proper fallback chain
+ * Get cryptocurrency logo URL - using reliable static CDN
+ * CryptoLogos.cc is fast and reliable for crypto logos
  */
 function getCryptoLogoUrl(logoId: string): string {
-  // Primary: CoinGecko CDN (most reliable)
-  // Fallback chain: CryptoCompare -> CoinCap -> Local fallback
-  const coinGeckoId = getCoinGeckoImageId(logoId)
-
-  // Try CoinGecko first (most reliable)
-  return `https://assets.coingecko.com/coins/images/${coinGeckoId}/large/${logoId}.png`
-}
-
-/**
- * Map our logo IDs to CoinGecko image IDs
- * These are the image IDs from CoinGecko's API
- */
-function getCoinGeckoImageId(logoId: string): number {
-  const imageIdMap: Record<string, number> = {
-    'tether': 825, // USDT
-    'usd-coin': 6319, // USDC
-    'solana': 4128, // SOL
-    'bitcoin': 1, // BTC
-    'ethereum': 279, // ETH
+  // Use cryptologos.cc as primary - fast CDN with consistent URLs
+  const logoUrls: Record<string, string> = {
+    'tether': 'https://cryptologos.cc/logos/tether-usdt-logo.png?v=040',
+    'usd-coin': 'https://cryptologos.cc/logos/usd-coin-usdc-logo.png?v=040',
+    'solana': 'https://cryptologos.cc/logos/solana-sol-logo.png?v=040',
+    'bitcoin': 'https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=040',
+    'ethereum': 'https://cryptologos.cc/logos/ethereum-eth-logo.png?v=040',
   }
-  return imageIdMap[logoId] || 1
+  return logoUrls[logoId] || logoUrls['bitcoin']
 }
 
 /**
  * Get fallback logo URLs for each cryptocurrency
- * Used when primary CDN fails
+ * Used when primary CDN fails - using GitHub raw (very reliable)
  */
-function getFallbackLogoUrls(logoId: string, name: string): string[] {
+function getFallbackLogoUrls(logoId: string): string[] {
   const fallbacks: Record<string, string[]> = {
     'tether': [
-      'https://cryptologos.cc/logos/tether-usdt-logo.png',
-      'https://cryptoicons.org/api/icon/usdt/200',
-      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/${name.toLowerCase()}.png`,
+      'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdt.png',
     ],
     'usd-coin': [
-      'https://cryptologos.cc/logos/usd-coin-usdc-logo.png',
-      'https://cryptoicons.org/api/icon/usdc/200',
-      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdc.png`,
+      'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/usdc.png',
     ],
     'solana': [
-      'https://cryptologos.cc/logos/solana-sol-logo.png',
-      'https://cryptoicons.org/api/icon/sol/200',
-      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/sol.png`,
+      'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/sol.png',
     ],
     'bitcoin': [
-      'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
-      'https://cryptoicons.org/api/icon/btc/200',
-      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/btc.png`,
+      'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/btc.png',
     ],
     'ethereum': [
-      'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-      'https://cryptoicons.org/api/icon/eth/200',
-      `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/eth.png`,
+      'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/eth.png',
     ],
   }
 
@@ -130,7 +108,7 @@ function CryptoLogo({
 
   // Build array of all logo URLs to try (primary + fallbacks)
   const primaryUrl = getCryptoLogoUrl(logoId)
-  const fallbackUrls = getFallbackLogoUrls(logoId, name)
+  const fallbackUrls = getFallbackLogoUrls(logoId)
   const allLogoUrls = [primaryUrl, ...fallbackUrls]
   const currentUrl = allLogoUrls[currentImageIndex] || primaryUrl
 
@@ -184,9 +162,8 @@ function CryptoLogo({
           e.stopPropagation()
           handleImageError()
         }}
-        loading="lazy"
-        // Removed crossOrigin="anonymous" - many CDNs don't support CORS for images
-        // Fallback mechanism handles failures gracefully
+        loading="eager"
+        fetchPriority="high"
         onLoad={() => {
           // Image loaded successfully - reset error state if it was set
           if (imageError) {
