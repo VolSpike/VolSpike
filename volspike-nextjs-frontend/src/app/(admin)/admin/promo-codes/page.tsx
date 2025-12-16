@@ -66,7 +66,12 @@ export default async function PromoCodesPage({ searchParams }: PromoCodesPagePro
             </AdminLayout>
         )
     } catch (error) {
-        console.error('Error fetching promo codes (server):', error)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error('Error fetching promo codes (server):', {
+            error: errorMessage,
+            stack: error instanceof Error ? error.stack : undefined,
+            query,
+        })
         return (
             <AdminLayout>
                 <div className="space-y-6">
@@ -74,6 +79,9 @@ export default async function PromoCodesPage({ searchParams }: PromoCodesPagePro
                         <p className="text-red-700 dark:text-red-200 font-semibold mb-2">Error loading promo codes</p>
                         <p className="text-sm text-red-600 dark:text-red-300">
                             We couldn&apos;t load the promo codes data. Please refresh the page to try again.
+                        </p>
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-2 font-mono">
+                            {errorMessage}
                         </p>
                     </div>
                 </div>
