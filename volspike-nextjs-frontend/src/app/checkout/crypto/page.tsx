@@ -13,6 +13,7 @@ import { toast } from 'react-hot-toast'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
 import { PromoCodeInput } from '@/components/promo-code-input'
 import { usePromoCode } from '@/hooks/use-promo-code'
+import { TIER_PRICES } from '@/lib/pricing'
 
 export default function CryptoCheckoutPage() {
   const { data: session } = useSession()
@@ -251,27 +252,37 @@ export default function CryptoCheckoutPage() {
               />
             </div>
 
-            {/* Price Display */}
-            {promoIsValid && originalPrice > 0 && (
-              <div className="p-4 rounded-lg bg-sec-500/5 border border-sec-500/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Subscription Price</p>
-                    <p className="text-xs text-muted-foreground mt-1">
+            {/* Price Display - Always visible */}
+            <div className="p-4 rounded-lg bg-sec-500/5 border border-sec-500/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {tier.charAt(0).toUpperCase() + tier.slice(1)} Tier
+                  </p>
+                  {promoIsValid && (
+                    <p className="text-xs text-sec-600 dark:text-sec-400 mt-1">
                       {discountPercent}% discount applied
                     </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground line-through">
-                      ${originalPrice.toFixed(2)}/month
+                  )}
+                </div>
+                <div className="text-right">
+                  {promoIsValid ? (
+                    <>
+                      <p className="text-sm text-muted-foreground line-through">
+                        ${TIER_PRICES[tier]}/month
+                      </p>
+                      <p className="text-2xl font-bold text-sec-500 dark:text-sec-400">
+                        ${finalPrice.toFixed(2)}/month
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-2xl font-bold text-foreground">
+                      ${TIER_PRICES[tier]}/month
                     </p>
-                    <p className="text-2xl font-bold text-sec-500 dark:text-sec-400">
-                      ${finalPrice.toFixed(2)}/month
-                    </p>
-                  </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Payment Info */}
             <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
