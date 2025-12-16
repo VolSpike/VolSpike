@@ -5,11 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, Star, Zap } from 'lucide-react'
+import { formatPrice } from '@/lib/pricing'
 
 const tiers = [
     {
         name: 'Free',
-        price: '$0',
+        price: formatPrice('free'),
         description: 'Basic volume tracking',
         features: [
             '15-minute refresh rate',
@@ -20,7 +21,7 @@ const tiers = [
     },
     {
         name: 'Pro',
-        price: '$19',
+        price: formatPrice('pro'),
         description: 'Enhanced trading insights',
         features: [
             '5-minute refresh rate',
@@ -33,7 +34,7 @@ const tiers = [
     },
     {
         name: 'Elite',
-        price: '$49',
+        price: formatPrice('elite'),
         description: 'Real-time professional trading',
         features: [
             '30-second refresh rate',

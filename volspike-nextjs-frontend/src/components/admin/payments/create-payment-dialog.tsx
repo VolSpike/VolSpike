@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { adminAPI } from '@/lib/admin/api-client'
 import { toast } from 'react-hot-toast'
 import { Loader2, Search, User } from 'lucide-react'
+import { formatPrice } from '@/lib/pricing'
 
 interface CreatePaymentDialogProps {
     open: boolean
@@ -243,8 +244,8 @@ export function CreatePaymentDialog({ open, onOpenChange, onPaymentCreated }: Cr
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="pro">Pro ($19/month)</SelectItem>
-                                    <SelectItem value="elite">Elite ($49/month)</SelectItem>
+                                    <SelectItem value="pro">Pro ({formatPrice('pro')}/month)</SelectItem>
+                                    <SelectItem value="elite">Elite ({formatPrice('elite')}/month)</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

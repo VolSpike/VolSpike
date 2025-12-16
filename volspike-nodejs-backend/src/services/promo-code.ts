@@ -1,12 +1,7 @@
 import { PrismaClient, PromoPaymentMethod } from '@prisma/client'
+import { TIER_PRICES } from '../lib/pricing'
 
 const prisma = new PrismaClient()
-
-// Tier pricing (monthly)
-const TIER_PRICING = {
-    pro: 19.0,
-    elite: 100.0,
-} as const
 
 export interface ValidatePromoCodeRequest {
     code: string
@@ -89,7 +84,7 @@ export class PromoCodeService {
         }
 
         // Calculate discount
-        const originalPrice = TIER_PRICING[tier]
+        const originalPrice = TIER_PRICES[tier]
         const discountAmount = (originalPrice * promoCode.discountPercent) / 100
         const finalPrice = Math.max(0, originalPrice - discountAmount)
 

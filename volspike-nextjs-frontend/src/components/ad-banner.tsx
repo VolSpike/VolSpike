@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
+import { formatPrice } from '@/lib/pricing'
 
 interface AdBannerProps {
     userTier?: string
@@ -113,7 +114,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                                     variant="outline"
                                     className="bg-white dark:bg-gray-900 text-brand-600 dark:text-brand-400 border-brand-600/30 dark:border-brand-400/30 font-semibold animate-pulse-glow"
                                 >
-                                    $19/month
+                                    {formatPrice('pro')}/month
                                 </Badge>
                             </div>
 
@@ -168,7 +169,7 @@ export function AdBanner({ userTier = 'free', className }: AdBannerProps) {
                                     variant="outline"
                                     className="bg-white dark:bg-gray-900 text-brand-600 dark:text-brand-400 border-brand-600/30 dark:border-brand-400/30 text-[10px] md:text-xs font-semibold px-1 md:px-1.5 py-0"
                                 >
-                                    $19/mo
+                                    {formatPrice('pro')}/mo
                                 </Badge>
                             </div>
                         </div>

@@ -10,6 +10,7 @@ import { useSession } from 'next-auth/react'
 import { startProCheckout } from '@/lib/payments'
 import { toast } from 'react-hot-toast'
 import { PaymentMethodSelector } from '@/components/payment-method-selector'
+import { formatPrice } from '@/lib/pricing'
 
 interface PricingTiersProps {
   currentTier?: string
@@ -18,7 +19,7 @@ interface PricingTiersProps {
 const tiers = [
   {
     name: 'Free',
-    price: '$0',
+    price: formatPrice('free'),
     period: 'forever',
     description: 'Perfect for casual traders and getting started',
     icon: Zap,
@@ -43,7 +44,7 @@ const tiers = [
   },
   {
     name: 'Pro',
-    price: '$19',
+    price: formatPrice('pro'),
     period: 'per month',
     description: 'For active traders who need faster updates',
     icon: Star,
@@ -67,7 +68,7 @@ const tiers = [
   },
   {
     name: 'Elite',
-    price: '$49',
+    price: formatPrice('elite'),
     period: 'per month',
     description: 'Professional-grade tools for serious traders',
     icon: Sparkles,
