@@ -129,6 +129,7 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: AppBindings; Variable
                 refreshInterval: true,
                 theme: true,
                 status: true,
+                stripeCustomerId: true,
             },
         })
 
