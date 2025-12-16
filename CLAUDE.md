@@ -1139,6 +1139,90 @@ Before considering any task complete:
   - Using exact same structure as working `OILockButton` component
   - Only AFTER confirming it works, adjusting `side` and `align` for positioning
 
+### NextAuth Credentials Login vs OAuth - Session State Bug (December 2025)
+
+**The Problem**: Email/password users saw "Start Free / Sign In" in the header immediately after successful login when navigating to Settings or Billing pages. OAuth (Google) users worked correctly.
+
+**Root Cause Analysis** (Required expert consultation):
+- **Credentials login** uses `signIn('credentials', { redirect: false })` + client-side `router.push('/dashboard')`
+- This leaves NextAuth's `SessionProvider` in-memory state **stale** until a hard page reload
+- **OAuth login** does a full server redirect, so the browser always rehydrates from a fresh cookie
+- The stale session caused `useSession()` to briefly return `unauthenticated` status on navigation
+
+**Why Common Fixes Failed**:
+- Adding `status === 'loading'` guards caused infinite "Loading..." states
+- Adding `update()` calls on mount didn't refresh the in-memory session fast enough
+- Checking `status === 'unauthenticated'` and returning `null` caused black screens
+- These approaches treated symptoms, not the root cause
+
+**The Fix** (3 parts):
+
+1. **Force NextAuth route to never be cached** (`volspike-nextjs-frontend/src/app/api/auth/[...nextauth]/route.ts`):
+   ```typescript
+   export const runtime = 'nodejs'
+   export const dynamic = 'force-dynamic'
+   export const revalidate = 0
+   ```
+
+2. **Use hard navigation after credentials login** (`volspike-nextjs-frontend/src/app/auth/page.tsx`):
+   ```typescript
+   // After successful credentials signIn:
+   await update() // Refresh session
+   window.location.href = callbackUrl || '/dashboard' // Hard navigation, not router.push
+   ```
+
+3. **Header loading guard for mobile menu** (`volspike-nextjs-frontend/src/components/header.tsx`):
+   - Added check to prevent flash of unauthenticated state in mobile menu
+
+**Key Insight**: The difference between OAuth and credentials login is the navigation method:
+- OAuth: Full page redirect → fresh cookie → fresh SessionProvider state
+- Credentials: Client-side router.push → stale SessionProvider state → brief "unauthenticated" flash
+
+**Files Modified**:
+- `volspike-nextjs-frontend/src/app/api/auth/[...nextauth]/route.ts`
+- `volspike-nextjs-frontend/src/app/auth/page.tsx`
+- `volspike-nextjs-frontend/src/components/header.tsx`
+
+### Stripe Billing Portal "No Customer Found" Bug (December 2025)
+
+**The Problem**: Pro users with valid Stripe subscriptions saw "No active subscription found" and "No customer found" error on the Billing page.
+
+**Root Cause**: The auth middleware (`volspike-nodejs-backend/src/middleware/auth.ts`) was not including `stripeCustomerId` in the Prisma `select` statement when fetching user data. The `/api/payments/portal` endpoint checked `user.stripeCustomerId`, but it was always `undefined`.
+
+**The Fix**: Added `stripeCustomerId: true` to the auth middleware's Prisma select:
+```typescript
+const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+        id: true,
+        email: true,
+        tier: true,
+        role: true,
+        refreshInterval: true,
+        theme: true,
+        status: true,
+        stripeCustomerId: true, // THIS WAS MISSING
+    },
+})
+```
+
+**Debugging Note**: When testing Stripe API calls locally with test keys (`sk_test_...`), customers created in **live mode** won't be found. Production uses live keys, so always verify which Stripe environment you're querying.
+
+### Tooltip Clipping by Container Boundaries
+
+**The Problem**: Tooltips on unlink buttons in Settings were being cut off by the container's `overflow: hidden` or boundaries.
+
+**The Fix**: Added `TooltipPrimitive.Portal` wrapper in `volspike-nextjs-frontend/src/components/ui/tooltip.tsx`:
+```typescript
+const TooltipContent = React.forwardRef<...>(({ className, sideOffset = 4, ...props }, ref) => (
+  <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Content ... />
+  </TooltipPrimitive.Portal>
+))
+```
+
+Portal renders the tooltip at the document body level, escaping any container clipping.
+
 ---
 
 **Last Updated**: December 2025

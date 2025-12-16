@@ -9,6 +9,8 @@ import { getUser, requireUser } from '../lib/hono-extensions'
 import { EmailService } from '../services/email'
 import { NowPaymentsService } from '../services/nowpayments'
 import { WatchlistService } from '../services/watchlist-service'
+import { promoCodeService } from '../services/promo-code'
+import { promoCodeValidationSchema } from '../lib/validation/promo-codes'
 
 const logger = createLogger()
 
@@ -103,6 +105,43 @@ payments.post('/checkout', async (c) => {
             return c.json({ error: 'Unauthorized' }, 401)
         }
         return c.json({ error: 'Failed to create checkout session' }, 500)
+    }
+})
+
+// Validate promo code
+payments.post('/validate-promo-code', async (c) => {
+    try {
+        const user = requireUser(c)
+        const body = await c.req.json()
+        const { code, tier, paymentMethod } = promoCodeValidationSchema.parse(body)
+
+        const result = await promoCodeService.validateCode({
+            code,
+            tier,
+            paymentMethod,
+        })
+
+        if (result.valid) {
+            return c.json({
+                valid: true,
+                discountPercent: result.discountPercent,
+                originalPrice: result.originalPrice,
+                finalPrice: result.finalPrice,
+            })
+        } else {
+            return c.json({
+                valid: false,
+                error: result.error,
+                reason: result.reason,
+            })
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        logger.error('Validate promo code error:', message)
+        if (message.includes('User not authenticated') || message.includes('Authorization')) {
+            return c.json({ error: 'Unauthorized' }, 401)
+        }
+        return c.json({ error: 'Failed to validate promo code' }, 500)
     }
 })
 
@@ -1555,11 +1594,12 @@ payments.post('/nowpayments/checkout', async (c) => {
             payCurrency: body.payCurrency,
         })
 
-        const { tier, successUrl, cancelUrl, payCurrency } = z.object({
+        const { tier, successUrl, cancelUrl, payCurrency, promoCode } = z.object({
             tier: z.enum(['pro', 'elite']),
             successUrl: z.string().url(),
             cancelUrl: z.string().url(),
             payCurrency: z.string().optional(), // Optional - user-selected currency
+            promoCode: z.string().optional(), // Optional - promo code
         }).parse(body)
 
         // Prevent early renewals for the same tier while a crypto sub is still active.
@@ -1594,10 +1634,54 @@ payments.post('/nowpayments/checkout', async (c) => {
 
         // Determine price based on tier
         const tierPrices: Record<string, number> = {
-            pro: 19.0,
-            elite: 49.0,
+            pro: 30.0,
+            elite: 100.0,
         }
-        const priceAmount = tierPrices[tier] || 19.0
+        let priceAmount = tierPrices[tier] || 30.0
+        let promoCodeId: string | undefined
+        let discountPercent = 0
+        const originalPrice = priceAmount
+
+        // Validate and apply promo code if provided
+        if (promoCode) {
+            try {
+                const promoResult = await promoCodeService.validateCode({
+                    code: promoCode,
+                    tier,
+                    paymentMethod: 'crypto',
+                })
+
+                if (promoResult.valid && promoResult.finalPrice !== undefined) {
+                    priceAmount = promoResult.finalPrice
+                    promoCodeId = promoResult.promoCodeId
+                    discountPercent = promoResult.discountPercent || 0
+                    logger.info('Promo code applied to checkout', {
+                        code: promoCode,
+                        discountPercent,
+                        originalPrice,
+                        finalPrice: priceAmount,
+                        promoCodeId,
+                    })
+                } else {
+                    logger.warn('Invalid promo code provided', {
+                        code: promoCode,
+                        error: promoResult.error,
+                        reason: promoResult.reason,
+                    })
+                    return c.json({
+                        error: promoResult.error || 'Invalid promo code',
+                    }, 400)
+                }
+            } catch (error) {
+                logger.error('Error validating promo code', {
+                    code: promoCode,
+                    error: error instanceof Error ? error.message : String(error),
+                })
+                return c.json({
+                    error: 'Failed to validate promo code',
+                }, 500)
+            }
+        }
 
         // Generate unique order ID
         const orderId = `volspike-${user.id}-${Date.now()}`
@@ -1971,6 +2055,9 @@ payments.post('/nowpayments/checkout', async (c) => {
                     invoiceId: String(invoiceId), // Required - used for hosted checkout
                     orderId: orderId, // Required - used for tracking
                     paymentUrl: invoiceUrl, // Required - invoice_url from API
+                    promoCodeId: promoCodeId || null, // Store promo code ID if applied
+                    payAmount: priceAmount, // Store final price (after discount)
+                    payCurrency: 'usd',
                     // Optional fields are not set here - they'll be null until payment completes
                     // expiresAt and renewalReminderSent will be set by webhook when payment_status = 'finished'
                 },
@@ -2567,6 +2654,55 @@ payments.post('/nowpayments/webhook', async (c) => {
                             paidAt: new Date(),
                         } as any,
                     })
+
+                    // If promo code was used, increment usage and create usage record
+                    if (cryptoPayment.promoCodeId) {
+                        try {
+                            const tierPrices: Record<string, number> = {
+                                pro: 30.0,
+                                elite: 100.0,
+                            }
+                            const originalPrice = tierPrices[cryptoPayment.tier] || 30.0
+                            const finalPrice = cryptoPayment.payAmount || originalPrice
+                            const discountAmount = originalPrice - finalPrice
+
+                            // Increment usage count
+                            await tx.promoCode.update({
+                                where: { id: cryptoPayment.promoCodeId },
+                                data: {
+                                    currentUses: {
+                                        increment: 1,
+                                    },
+                                },
+                            })
+
+                            // Create usage record
+                            await tx.promoCodeUsage.create({
+                                data: {
+                                    promoCodeId: cryptoPayment.promoCodeId,
+                                    userId: cryptoPayment.userId,
+                                    paymentId: cryptoPayment.id,
+                                    discountAmount,
+                                    originalAmount: originalPrice,
+                                    finalAmount: finalPrice,
+                                },
+                            })
+
+                            logger.info('Promo code usage recorded', {
+                                promoCodeId: cryptoPayment.promoCodeId,
+                                userId: cryptoPayment.userId,
+                                discountAmount,
+                                originalPrice,
+                                finalPrice,
+                            })
+                        } catch (promoError) {
+                            logger.error('Failed to record promo code usage (non-critical)', {
+                                promoCodeId: cryptoPayment.promoCodeId,
+                                error: promoError instanceof Error ? promoError.message : String(promoError),
+                            })
+                            // Don't fail the whole transaction for promo code tracking errors
+                        }
+                    }
                 })
 
                 logger.info(`✅ User ${cryptoPayment.userId} upgraded to ${cryptoPayment.tier} via crypto payment`, {

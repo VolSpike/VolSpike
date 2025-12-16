@@ -241,10 +241,17 @@ def update_checked_value(alert_id: str, last_checked_value: float):
         print(f"  ⚠️  Error updating checked value: {e}")
 
 
-def check_alerts():
-    """Main alert checking logic."""
+def check_alerts(tier_filter: Optional[str] = None):
+    """
+    Main alert checking logic.
+
+    Args:
+        tier_filter: If specified, only check alerts for this tier ('free', 'pro', 'elite')
+    """
     print(f"\n{'='*80}")
     print(f"User Alert Checker – {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if tier_filter:
+        print(f"Tier Filter: {tier_filter.upper()}")
     print(f"{'='*80}\n")
 
     # Fetch all active alerts
@@ -254,6 +261,13 @@ def check_alerts():
         print("No active alerts to check\n")
         return
 
+    # Filter by tier if specified
+    if tier_filter:
+        alerts = [a for a in alerts if a.get("userTier", "free").lower() == tier_filter.lower()]
+        if not alerts:
+            print(f"No active alerts for tier: {tier_filter}\n")
+            return
+
     # Group alerts by symbol to minimize API calls
     alerts_by_symbol: Dict[str, List[Dict]] = {}
     for alert in alerts:
@@ -262,7 +276,8 @@ def check_alerts():
             alerts_by_symbol[symbol] = []
         alerts_by_symbol[symbol].append(alert)
 
-    print(f"Checking {len(alerts)} alerts across {len(alerts_by_symbol)} symbols\n")
+    tier_label = f" ({tier_filter} tier)" if tier_filter else ""
+    print(f"Checking {len(alerts)} alerts{tier_label} across {len(alerts_by_symbol)} symbols\n")
 
     # Process each symbol
     for symbol, symbol_alerts in alerts_by_symbol.items():
@@ -273,6 +288,7 @@ def check_alerts():
             alert_type = alert["alertType"]
             threshold = alert["threshold"]
             last_checked_value = alert.get("lastCheckedValue")
+            user_tier = alert.get("userTier", "free")
 
             # Fetch current value
             current_value = get_current_value(symbol, alert_type)
@@ -295,14 +311,40 @@ def check_alerts():
 
 
 def main():
-    """Main loop."""
+    """
+    Main loop with tier-based checking intervals.
+
+    Checking frequencies:
+    - Free tier: Every 5 minutes (300 seconds)
+    - Pro tier: Every 30 seconds
+    - Elite tier: Every 30 seconds
+
+    Strategy: Check Pro/Elite every 30s, check Free every 10th iteration (5 minutes)
+    """
     print("🚀 User Alert Checker started")
     print(f"   Backend: {VOLSPIKE_API_URL}")
-    print(f"   WS Funding: {'Enabled' if WS_FUNDING_ENABLED else 'Disabled'}\n")
+    print(f"   WS Funding: {'Enabled' if WS_FUNDING_ENABLED else 'Disabled'}")
+    print(f"\n📊 Checking intervals:")
+    print(f"   • Pro/Elite: 30 seconds")
+    print(f"   • Free: 5 minutes (300 seconds)\n")
+
+    iteration = 0
+    PRO_ELITE_INTERVAL = 30  # 30 seconds for Pro/Elite
+    FREE_CHECK_EVERY_N = 10  # Check Free tier every 10th iteration (10 * 30s = 5min)
 
     while True:
         try:
-            check_alerts()
+            iteration += 1
+
+            # Always check Pro and Elite (every 30 seconds)
+            print(f"\n🔄 Iteration {iteration}")
+            check_alerts(tier_filter="pro")
+            check_alerts(tier_filter="elite")
+
+            # Check Free tier every 10th iteration (every 5 minutes)
+            if iteration % FREE_CHECK_EVERY_N == 0:
+                check_alerts(tier_filter="free")
+
         except KeyboardInterrupt:
             print("\n👋 Shutting down gracefully...")
             break
@@ -311,10 +353,16 @@ def main():
             import traceback
             traceback.print_exc()
 
-        # Sleep for 5 minutes (300 seconds)
-        # TODO: Adjust based on user tier in future (15min for Free, 5min for Pro, real-time for Elite)
-        print(f"💤 Sleeping for 5 minutes... (next check at {(datetime.datetime.now() + datetime.timedelta(minutes=5)).strftime('%H:%M:%S')})\n")
-        time.sleep(300)
+        # Sleep for 30 seconds until next Pro/Elite check
+        next_check = datetime.datetime.now() + datetime.timedelta(seconds=PRO_ELITE_INTERVAL)
+        next_free = ""
+        if iteration % FREE_CHECK_EVERY_N == 0:
+            # Just checked Free, next Free check in 5 minutes
+            next_free_time = datetime.datetime.now() + datetime.timedelta(minutes=5)
+            next_free = f", Free: {next_free_time.strftime('%H:%M:%S')}"
+
+        print(f"💤 Sleeping {PRO_ELITE_INTERVAL}s... (next Pro/Elite: {next_check.strftime('%H:%M:%S')}{next_free})\n")
+        time.sleep(PRO_ELITE_INTERVAL)
 
 
 if __name__ == "__main__":

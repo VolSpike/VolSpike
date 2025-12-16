@@ -46,6 +46,8 @@ model User {
   walletAccounts       WalletAccount[]
   watchlists           Watchlist[]
   userCrossAlerts      UserCrossAlert[]
+  createdPromoCodes    PromoCode[]      @relation("PromoCodeCreator")
+  promoCodeUsages      PromoCodeUsage[] @relation("PromoCodeUsages")
 
   @@map("users")
 }
@@ -346,26 +348,28 @@ model AdminWallet {
 }
 
 model CryptoPayment {
-  id                   String    @id @default(cuid())
+  id                   String     @id @default(cuid())
   userId               String
-  paymentId            String?   @unique
+  paymentId            String?    @unique
   paymentStatus        String?
   payAmount            Float?
-  payCurrency          String?   @default("usd")
+  payCurrency          String?    @default("usd")
   actuallyPaid         Float?
   actuallyPaidCurrency String?
   purchaseId           String?
   tier                 String
-  invoiceId            String    @unique
+  invoiceId            String     @unique
   orderId              String
   paymentUrl           String
   payAddress           String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  promoCodeId          String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
   paidAt               DateTime?
   expiresAt            DateTime?
   renewalReminderSent  DateTime?
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode            PromoCode? @relation(fields: [promoCodeId], references: [id])
 
   @@index([userId])
   @@index([paymentId])
@@ -373,6 +377,7 @@ model CryptoPayment {
   @@index([orderId])
   @@index([paymentStatus])
   @@index([expiresAt])
+  @@index([promoCodeId])
   @@map("crypto_payments")
 }
 
@@ -473,6 +478,55 @@ enum AlertDeliveryMethod {
   DASHBOARD
   EMAIL
   BOTH
+}
+
+enum PromoPaymentMethod {
+  CRYPTO
+  STRIPE
+  ALL
+}
+
+// Promo Code Models
+model PromoCode {
+  id              String              @id @default(cuid())
+  code            String              @unique
+  discountPercent Int
+  maxUses         Int
+  currentUses     Int                 @default(0)
+  validUntil      DateTime
+  active          Boolean             @default(true)
+  paymentMethod   PromoPaymentMethod  @default(CRYPTO)
+  createdById     String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  createdBy       User                @relation("PromoCodeCreator", fields: [createdById], references: [id])
+  usages          PromoCodeUsage[]
+  cryptoPayments  CryptoPayment[]
+
+  @@index([code])
+  @@index([active, validUntil])
+  @@index([paymentMethod])
+  @@map("promo_codes")
+}
+
+model PromoCodeUsage {
+  id             String    @id @default(cuid())
+  promoCodeId    String
+  userId         String
+  paymentId      String
+  discountAmount Float
+  originalAmount Float
+  finalAmount    Float
+  createdAt      DateTime  @default(now())
+
+  promoCode      PromoCode @relation(fields: [promoCodeId], references: [id])
+  user           User      @relation("PromoCodeUsages", fields: [userId], references: [id])
+
+  @@index([promoCodeId])
+  @@index([userId])
+  @@index([paymentId])
+  @@map("promo_code_usages")
 }
 
 // RSS News Feed Models
