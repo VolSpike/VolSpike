@@ -6,7 +6,7 @@ import { promoCodeAdminService } from '../../services/admin/promo-code-admin'
 import { createPromoCodeSchema, updatePromoCodeSchema } from '../../lib/validation/promo-codes'
 import { PromoPaymentMethod } from '@prisma/client'
 
-const logger = createLogger('promo-codes')
+const logger = createLogger()
 const promoCodes = new Hono()
 
 // Middleware to require ADMIN role
