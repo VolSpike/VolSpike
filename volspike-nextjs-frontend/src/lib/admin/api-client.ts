@@ -558,6 +558,86 @@ class AdminAPIClient {
         })
     }
 
+    // Promo Codes API
+    async getPromoCodes(query: {
+        status?: 'active' | 'inactive' | 'expired' | 'all'
+        sortBy?: 'createdAt' | 'code' | 'currentUses' | 'validUntil'
+        sortOrder?: 'asc' | 'desc'
+        page?: number
+        limit?: number
+    } = {}): Promise<{
+        promoCodes: any[]
+        pagination: any
+    }> {
+        const params = new URLSearchParams()
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                params.append(key, String(value))
+            }
+        })
+        return this.request<{ promoCodes: any[]; pagination: any }>(`/api/admin/promo-codes?${params.toString()}`)
+    }
+
+    async getPromoCodeById(id: string): Promise<{
+        promoCode: any
+        usageHistory: any[]
+        stats: {
+            totalDiscountGiven: number
+            remainingUses: number
+            isExpired: boolean
+        }
+    }> {
+        return this.request<{
+            promoCode: any
+            usageHistory: any[]
+            stats: {
+                totalDiscountGiven: number
+                remainingUses: number
+                isExpired: boolean
+            }
+        }>(`/api/admin/promo-codes/${id}`)
+    }
+
+    async createPromoCode(data: {
+        code: string
+        discountPercent: number
+        maxUses: number
+        validUntil: string
+        paymentMethod?: 'CRYPTO' | 'STRIPE' | 'ALL'
+        active?: boolean
+    }): Promise<any> {
+        return this.request<any>('/api/admin/promo-codes', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async updatePromoCode(id: string, data: {
+        discountPercent?: number
+        maxUses?: number
+        validUntil?: string
+        active?: boolean
+    }): Promise<any> {
+        return this.request<any>(`/api/admin/promo-codes/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async deletePromoCode(id: string): Promise<{
+        success: boolean
+        type: 'hard' | 'soft'
+        message: string
+    }> {
+        return this.request<{
+            success: boolean
+            type: 'hard' | 'soft'
+            message: string
+        }>(`/api/admin/promo-codes/${id}`, {
+            method: 'DELETE',
+        })
+    }
+
     // Health check
     async healthCheck(): Promise<{ status: string; timestamp: string; version: string }> {
         return this.request<{ status: string; timestamp: string; version: string }>('/api/admin/health')

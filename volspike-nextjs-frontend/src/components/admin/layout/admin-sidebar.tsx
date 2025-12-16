@@ -21,6 +21,7 @@ import {
     Bell,
     Newspaper,
     Send,
+    Tag,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -46,6 +47,11 @@ const navigation = [
         name: 'Payments',
         href: '/admin/payments',
         icon: CreditCard,
+    },
+    {
+        name: 'Promo Codes',
+        href: '/admin/promo-codes',
+        icon: Tag,
     },
     {
         name: 'Revenue Analytics',
@@ -171,7 +177,7 @@ export function AdminSidebar() {
                                 <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Users & Billing
                                 </p>
-                                {navigation.slice(1, 5).map((item) => {
+                                {navigation.slice(1, 6).map((item) => {
                                     const isActive = pathname === item.href
                                     return (
                                         <Link
@@ -199,7 +205,7 @@ export function AdminSidebar() {
                                 <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Monitoring &amp; Settings
                                 </p>
-                                {navigation.slice(5).map((item) => {
+                                {navigation.slice(6).map((item) => {
                                     const isActive = pathname === item.href
                                     return (
                                         <Link
