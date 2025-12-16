@@ -46,16 +46,18 @@ export const initGA = () => {
 
   console.log('[Analytics] Initializing GA4 with ID:', GA_MEASUREMENT_ID)
 
-  // Initialize dataLayer and gtag BEFORE loading the script
+  // Initialize dataLayer FIRST (required by Google Analytics)
   window.dataLayer = window.dataLayer || []
+
+  // Define gtag function that queues commands to dataLayer
   function gtag(...args: any[]) {
-    console.log('[Analytics] gtag call:', args[0], args[1])
-    window.dataLayer.push(args)
+    window.dataLayer.push(arguments)
   }
-  // Store gtag function globally
+
+  // Store gtag function globally so Google's script can find it
   ; (window as any).gtag = gtag
 
-  // Queue initial config
+  // Queue initial commands (will be processed when Google's script loads)
   gtag('js', new Date())
   gtag('config', GA_MEASUREMENT_ID, {
     page_path: window.location.pathname,
@@ -63,21 +65,22 @@ export const initGA = () => {
     debug_mode: true,
   })
 
-  console.log('[Analytics] dataLayer initialized:', window.dataLayer)
+  console.log('[Analytics] dataLayer initialized with', window.dataLayer.length, 'queued events')
 
-  // Load gtag script - it will process the queued dataLayer events
-  const script1 = document.createElement('script')
-  script1.async = true
-  script1.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
-  script1.onload = () => {
-    console.log('[Analytics] gtag script loaded successfully - tracking should now be active')
+  // Load Google's gtag script - it will replace our gtag function and process the queue
+  const script = document.createElement('script')
+  script.async = true
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
+  script.onload = () => {
+    console.log('[Analytics] ✓ Google gtag.js loaded - tracking is now active')
+    console.log('[Analytics] ✓ Check Network tab for requests to google-analytics.com/g/collect')
   }
-  script1.onerror = (error) => {
-    console.error('[Analytics] Failed to load gtag script:', error)
+  script.onerror = (error) => {
+    console.error('[Analytics] ✗ Failed to load gtag script:', error)
   }
-  document.head.appendChild(script1)
+  document.head.appendChild(script)
 
-  console.log('[Analytics] GA4 initialized with debug mode')
+  console.log('[Analytics] GA4 initialization started')
 }
 
 // Track page views
