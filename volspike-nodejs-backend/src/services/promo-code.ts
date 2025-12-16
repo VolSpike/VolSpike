@@ -4,7 +4,7 @@ const prisma = new PrismaClient()
 
 // Tier pricing (monthly)
 const TIER_PRICING = {
-    pro: 30.0,
+    pro: 19.0,
     elite: 100.0,
 } as const
 
