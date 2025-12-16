@@ -11,7 +11,7 @@ import { useClientOnlyMarketData } from '../../hooks/use-client-only-market-data
 
 // Mock WebSocket
 class MockWebSocket {
-  readyState = WebSocket.CONNECTING
+  readyState: 0 | 1 | 2 | 3 = WebSocket.CONNECTING
   onopen: ((event: Event) => void) | null = null
   onmessage: ((event: MessageEvent) => void) | null = null
   onclose: ((event: CloseEvent) => void) | null = null
@@ -203,4 +203,3 @@ describe('useClientOnlyMarketData - Watchlist Symbol Inclusion', () => {
     }
   })
 })
-
