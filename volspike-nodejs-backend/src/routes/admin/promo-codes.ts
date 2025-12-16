@@ -168,7 +168,7 @@ promoCodes.delete('/:id', async (c) => {
             deletedBy: user.email,
         })
 
-        return c.json(result, 204)
+        return c.json(result, 200)
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         logger.error('Delete promo code error:', message)
