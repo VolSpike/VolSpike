@@ -20,18 +20,6 @@ const isAnalyticsEnabled = () => {
   const isProduction = process.env.NODE_ENV === 'production'
   const isExplicitlyEnabled = process.env.NEXT_PUBLIC_ENABLE_ANALYTICS === 'true'
 
-  // Debug logging
-  if (typeof window !== 'undefined') {
-    console.log('[Analytics Debug]', {
-      hasMeasurementId,
-      measurementId: GA_MEASUREMENT_ID || 'NOT SET',
-      isProduction,
-      isExplicitlyEnabled,
-      nodeEnv: process.env.NODE_ENV,
-      enabled: hasMeasurementId && (isProduction || isExplicitlyEnabled)
-    })
-  }
-
   return hasMeasurementId && (isProduction || isExplicitlyEnabled)
 }
 
@@ -43,8 +31,6 @@ export const initGA = () => {
   }
 
   if (typeof window === 'undefined') return
-
-  console.log('[Analytics] Initializing GA4 with ID:', GA_MEASUREMENT_ID)
 
   // Initialize dataLayer FIRST (required by Google Analytics)
   window.dataLayer = window.dataLayer || []
@@ -62,25 +48,15 @@ export const initGA = () => {
   gtag('config', GA_MEASUREMENT_ID, {
     page_path: window.location.pathname,
     send_page_view: true,
-    debug_mode: true,
   })
-
-  console.log('[Analytics] dataLayer initialized with', window.dataLayer.length, 'queued events')
 
   // Load Google's gtag script - it will replace our gtag function and process the queue
   const script = document.createElement('script')
   script.async = true
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
-  script.onload = () => {
-    console.log('[Analytics] ✓ Google gtag.js loaded - tracking is now active')
-    console.log('[Analytics] ✓ Check Network tab for requests to google-analytics.com/g/collect')
-  }
-  script.onerror = (error) => {
-    console.error('[Analytics] ✗ Failed to load gtag script:', error)
-  }
   document.head.appendChild(script)
 
-  console.log('[Analytics] GA4 initialization started')
+  console.log('[Analytics] GA4 initialized')
 }
 
 // Track page views
