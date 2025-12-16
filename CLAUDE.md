@@ -461,6 +461,42 @@ Examples:
 
 ### Working with Payments
 
+#### Tier Pricing (Single Source of Truth)
+
+**CRITICAL**: All tier prices are defined in a SINGLE location. NEVER hardcode prices anywhere else.
+
+| Tier | Price |
+|------|-------|
+| Free | $0 |
+| Pro | $19/month |
+| Elite | $49/month |
+
+**Where prices are defined**:
+- **Frontend**: `volspike-nextjs-frontend/src/lib/pricing.ts`
+- **Backend**: `volspike-nodejs-backend/src/lib/pricing.ts`
+
+**How to use**:
+```typescript
+// Frontend - for display
+import { formatPrice, TIER_PRICES } from '@/lib/pricing'
+formatPrice('pro')  // Returns "$19"
+TIER_PRICES.pro     // Returns 19
+
+// Backend - for calculations
+import { TIER_PRICES } from '../lib/pricing'
+TIER_PRICES.pro     // Returns 19
+```
+
+**When changing prices**:
+1. Update BOTH `lib/pricing.ts` files (frontend AND backend)
+2. Update this documentation
+3. Note: Legal pages (`/legal/terms`) have hardcoded prices and must be updated manually
+
+**DO NOT**:
+- Hardcode prices like `$19` or `$49` in components
+- Make up prices - always check the pricing files first
+- Create new price variables elsewhere
+
 #### Stripe Integration
 - **Features**:
   - Subscription management
@@ -1096,6 +1132,17 @@ Before considering any task complete:
 ### UI/UX Patterns
 - **Tooltip max-width must accommodate content** - Test with actual content, not just estimated widths
 - **Event propagation in nested clickable elements** - Always use `e.stopPropagation()` and `e.preventDefault()`
+
+### NEVER Make Up Values - Always Search First
+- **NEVER invent prices, limits, or configuration values** - Always search the codebase first
+- **Example mistake**: Created promo code service with `pro: 30.0` when actual price was $19
+- **Why it happened**: Assumed a price instead of searching for existing price definitions
+- **The fix**: Created `lib/pricing.ts` as single source of truth for tier prices
+- **Rule**: Before defining ANY business value (prices, limits, quotas), search for:
+  - Existing constants files
+  - Configuration in the codebase
+  - Ask the user if unsure
+- **Files to check for pricing**: `lib/pricing.ts` in both frontend and backend
 
 ### CSS Animation Conflicts
 - **NEVER apply multiple CSS animations to the same element** - They will conflict and reduce animation quality
