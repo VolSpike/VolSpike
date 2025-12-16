@@ -146,7 +146,8 @@ export async function startOneTimeTestPayment(session: Session | null, priceId?:
 export async function startCryptoCheckout(
   session: Session | null,
   tier: 'pro' | 'elite',
-  payCurrency?: string
+  payCurrency?: string,
+  promoCode?: string
 ): Promise<{ paymentUrl: string; invoiceId: string | number | null; paymentId: string | null }> {
   if (!session?.user) {
     throw new Error('You must be signed in to upgrade.')
@@ -185,6 +186,7 @@ export async function startCryptoCheckout(
         successUrl,
         cancelUrl,
         payCurrency, // Pass selected currency to backend
+        promoCode, // Pass promo code if provided
       }),
     })
 

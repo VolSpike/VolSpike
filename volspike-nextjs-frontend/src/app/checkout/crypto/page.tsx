@@ -11,18 +11,33 @@ import { cn } from '@/lib/utils'
 import { startCryptoCheckout } from '@/lib/payments'
 import { toast } from 'react-hot-toast'
 import { CryptoCurrencySelector } from '@/components/crypto-currency-selector'
+import { PromoCodeInput } from '@/components/promo-code-input'
+import { usePromoCode } from '@/hooks/use-promo-code'
 
 export default function CryptoCheckoutPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const tier = (searchParams.get('tier') || 'pro') as 'pro' | 'elite'
-  
+
   const [selectedCurrency, setSelectedCurrency] = useState<string>('usdtsol') // Default to USDT on Solana
   const [isLoading, setIsLoading] = useState(false)
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'select' | 'redirecting'>('select')
+
+  // Promo code hook
+  const {
+    promoCode,
+    setPromoCode,
+    discountPercent,
+    originalPrice,
+    finalPrice,
+    error: promoError,
+    loading: promoLoading,
+    isValid: promoIsValid,
+    validatePromoCode,
+  } = usePromoCode(tier)
 
   useEffect(() => {
     if (!session?.user) {
@@ -41,8 +56,8 @@ export default function CryptoCheckoutPage() {
       setIsLoading(true)
       setError(null)
       setStep('redirecting')
-      
-      const result = await startCryptoCheckout(session, tier, selectedCurrency)
+
+      const result = await startCryptoCheckout(session, tier, selectedCurrency, promoIsValid ? promoCode : undefined)
       if (result.paymentUrl) {
         setPaymentUrl(result.paymentUrl)
         // Auto-redirect after a brief moment
@@ -222,6 +237,41 @@ export default function CryptoCheckoutPage() {
               selectedCurrency={selectedCurrency}
               onCurrencyChange={setSelectedCurrency}
             />
+
+            {/* Promo Code Input */}
+            <div className="space-y-2">
+              <PromoCodeInput
+                promoCode={promoCode}
+                onPromoCodeChange={setPromoCode}
+                onValidate={() => validatePromoCode(promoCode)}
+                error={promoError}
+                loading={promoLoading}
+                isValid={promoIsValid}
+                discountPercent={discountPercent}
+              />
+            </div>
+
+            {/* Price Display */}
+            {promoIsValid && originalPrice > 0 && (
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Subscription Price</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {discountPercent}% discount applied
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground line-through">
+                      ${originalPrice.toFixed(2)}/month
+                    </p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-500">
+                      ${finalPrice.toFixed(2)}/month
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Payment Info */}
             <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
