@@ -92,6 +92,7 @@ export function EditPromoCodeDialog({ open, onOpenChange, promoCode, onPromoCode
                                 value={formData.discountPercent}
                                 onChange={(e) => setFormData({ ...formData, discountPercent: e.target.value })}
                                 disabled={isLoading}
+                                className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                             <span className="text-sm text-muted-foreground">%</span>
                         </div>
@@ -106,6 +107,7 @@ export function EditPromoCodeDialog({ open, onOpenChange, promoCode, onPromoCode
                             value={formData.maxUses}
                             onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })}
                             disabled={isLoading}
+                            className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <p className="text-xs text-muted-foreground">
                             Current uses: {promoCode?.currentUses || 0}. Cannot set below current uses.
