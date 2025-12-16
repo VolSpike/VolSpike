@@ -45,9 +45,9 @@ export default async function PromoCodesPage({ searchParams }: PromoCodesPagePro
     }
 
     const query = {
-        status: (params.status as any) || 'all',
-        sortBy: (params.sortBy as any) || 'createdAt',
-        sortOrder: (params.sortOrder as any) || 'desc',
+        status: (params.status as 'active' | 'inactive' | 'expired' | 'all' | undefined) || 'all',
+        sortBy: (params.sortBy as 'createdAt' | 'code' | 'currentUses' | 'validUntil' | undefined) || 'createdAt',
+        sortOrder: (params.sortOrder as 'asc' | 'desc' | undefined) || 'desc',
         page: params.page ? parseInt(params.page) : 1,
         limit: params.limit ? parseInt(params.limit) : 20,
     }

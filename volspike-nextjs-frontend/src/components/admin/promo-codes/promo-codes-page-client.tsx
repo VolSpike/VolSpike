@@ -16,9 +16,9 @@ interface PromoCodesPageClientProps {
         pagination: any
     }
     query: {
-        status?: string
-        sortBy?: string
-        sortOrder?: string
+        status?: 'active' | 'inactive' | 'expired' | 'all'
+        sortBy?: 'createdAt' | 'code' | 'currentUses' | 'validUntil'
+        sortOrder?: 'asc' | 'desc'
         page?: number
         limit?: number
     }
