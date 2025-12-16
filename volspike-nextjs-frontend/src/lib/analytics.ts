@@ -44,27 +44,38 @@ export const initGA = () => {
 
   if (typeof window === 'undefined') return
 
+  console.log('[Analytics] Initializing GA4 with ID:', GA_MEASUREMENT_ID)
+
   // Load gtag script
   const script1 = document.createElement('script')
   script1.async = true
   script1.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`
+  script1.onload = () => {
+    console.log('[Analytics] gtag script loaded successfully')
+  }
+  script1.onerror = (error) => {
+    console.error('[Analytics] Failed to load gtag script:', error)
+  }
   document.head.appendChild(script1)
 
   // Initialize gtag
   window.dataLayer = window.dataLayer || []
   function gtag(...args: any[]) {
+    console.log('[Analytics] gtag call:', args[0], args[1])
     window.dataLayer.push(args)
   }
   gtag('js', new Date())
   gtag('config', GA_MEASUREMENT_ID, {
     page_path: window.location.pathname,
     send_page_view: true,
+    debug_mode: true,
   })
 
     // Store gtag function globally
     ; (window as any).gtag = gtag
 
-  console.log('[Analytics] GA4 initialized')
+  console.log('[Analytics] GA4 initialized with debug mode')
+  console.log('[Analytics] dataLayer:', window.dataLayer)
 }
 
 // Track page views
