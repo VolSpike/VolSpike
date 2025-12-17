@@ -1827,9 +1827,9 @@ Manage your alerts: https://volspike.com/settings/alerts
      * Send suggestion notification to team
      */
     async sendSuggestionNotification(data: {
-        name: string
+        name?: string
         email: string
-        type: 'feature' | 'improvement' | 'bug' | 'other'
+        type?: 'feature' | 'improvement' | 'bug' | 'other'
         title: string
         description: string
     }): Promise<boolean> {
@@ -1848,8 +1848,9 @@ Manage your alerts: https://volspike.com/settings/alerts
                 other: '💬'
             }
 
-            const typeLabel = typeLabels[data.type]
-            const typeEmoji = typeEmojis[data.type]
+            const typeLabel = data.type ? typeLabels[data.type] : 'General Feedback'
+            const typeEmoji = data.type ? typeEmojis[data.type] : '💬'
+            const displayName = data.name || 'Anonymous'
 
             const msg: any = {
                 to: 'support@volspike.com',
@@ -1882,14 +1883,14 @@ Manage your alerts: https://volspike.com/settings/alerts
           <td style="padding:32px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#334155;">
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
+                ${data.type ? `<tr>
                   <td style="padding:8px 0;color:#64748b;font-size:14px;">Type:</td>
                   <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${typeLabel}</td>
-                </tr>
-                <tr>
+                </tr>` : ''}
+                ${data.name ? `<tr>
                   <td style="padding:8px 0;color:#64748b;font-size:14px;">From:</td>
                   <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${data.name}</td>
-                </tr>
+                </tr>` : ''}
                 <tr>
                   <td style="padding:8px 0;color:#64748b;font-size:14px;">Email:</td>
                   <td align="right" style="padding:8px 0;"><a href="mailto:${data.email}" style="color:#0ea371;text-decoration:none;">${data.email}</a></td>
@@ -1919,7 +1920,7 @@ ${data.description}
         <tr>
           <td style="padding:0 32px 32px;text-align:center;">
             <a href="mailto:${data.email}?subject=Re: ${encodeURIComponent(data.title)}" style="display:inline-block;padding:12px 32px;background:#0ea371;color:#fff;text-decoration:none;border-radius:6px;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-              Reply to ${data.name}
+              Reply to ${displayName}
             </a>
           </td>
         </tr>
@@ -1932,9 +1933,7 @@ ${data.description}
                 text: `
 New Suggestion Received
 
-Type: ${typeLabel}
-From: ${data.name}
-Email: ${data.email}
+${data.type ? `Type: ${typeLabel}\n` : ''}${data.name ? `From: ${data.name}\n` : ''}Email: ${data.email}
 
 Title: ${data.title}
 
@@ -1942,7 +1941,7 @@ Description:
 ${data.description}
 
 ---
-Reply to this email to respond to ${data.name}.
+Reply to this email to respond to ${displayName}.
                 `.trim(),
                 categories: ['suggestion-notification'],
                 customArgs: {

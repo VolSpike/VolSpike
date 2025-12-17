@@ -14,7 +14,7 @@ type SuggestionType = 'feature' | 'improvement' | 'bug' | 'other'
 export default function SuggestionsPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [type, setType] = useState<SuggestionType>('feature')
+  const [type, setType] = useState<SuggestionType | ''>('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [isVerified, setIsVerified] = useState(false)
@@ -64,7 +64,7 @@ export default function SuggestionsPage() {
       // Reset form
       setName('')
       setEmail('')
-      setType('feature')
+      setType('')
       setTitle('')
       setDescription('')
       setIsVerified(false)
@@ -139,19 +139,18 @@ export default function SuggestionsPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label htmlFor="name" className="text-sm font-medium">
-                    Name
+                    Name <span className="text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your name"
-                    required
                   />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium">
-                    Email
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <Input
                     id="email"
@@ -168,7 +167,9 @@ export default function SuggestionsPage() {
             {/* Suggestion Type */}
             <div className="space-y-6 p-6 rounded-lg border bg-card">
               <div className="space-y-2">
-                <h2 className="text-xl font-semibold">Suggestion Type</h2>
+                <h2 className="text-xl font-semibold">
+                  Suggestion Type <span className="text-muted-foreground text-sm font-normal">(optional)</span>
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   What kind of feedback are you sharing?
                 </p>
@@ -179,7 +180,7 @@ export default function SuggestionsPage() {
                   <button
                     key={suggestionType.value}
                     type="button"
-                    onClick={() => setType(suggestionType.value)}
+                    onClick={() => setType(type === suggestionType.value ? '' : suggestionType.value)}
                     className={cn(
                       'p-4 rounded-lg border-2 text-left transition-all duration-200',
                       'hover:border-primary/50 hover:bg-primary/5',
@@ -209,7 +210,7 @@ export default function SuggestionsPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="title" className="text-sm font-medium">
-                    Title
+                    Title <span className="text-red-500">*</span>
                   </label>
                   <Input
                     id="title"
@@ -221,7 +222,7 @@ export default function SuggestionsPage() {
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="description" className="text-sm font-medium">
-                    Description
+                    Description <span className="text-red-500">*</span>
                   </label>
                   <Textarea
                     id="description"

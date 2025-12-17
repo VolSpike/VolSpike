@@ -8,9 +8,9 @@ const logger = createLogger()
 // Suggestions API endpoint - receives user feedback and sends email notifications
 
 const suggestionSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(100),
+  name: z.string().max(100).optional(),
   email: z.string().email('Invalid email address'),
-  type: z.enum(['feature', 'improvement', 'bug', 'other']),
+  type: z.enum(['feature', 'improvement', 'bug', 'other']).optional(),
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().min(10, 'Description must be at least 10 characters').max(5000),
 })
