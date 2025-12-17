@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Check, X, Sparkles } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 
 interface HumanVerificationProps {
   onVerified: (verified: boolean) => void
@@ -62,8 +62,7 @@ export function HumanVerification({ onVerified, className }: HumanVerificationPr
               : 'border-primary/20 from-primary/5 to-primary/10'
         )}
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-primary" />
+        <div className="mb-4">
           <h3 className="text-sm font-semibold">Human Verification</h3>
         </div>
 
@@ -84,6 +83,7 @@ export function HumanVerification({ onVerified, className }: HumanVerificationPr
               className={cn(
                 'w-20 text-center font-mono font-bold rounded-md border-2 bg-background px-3 py-2 text-lg transition-colors',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
                 status === 'success'
                   ? 'border-green-500'
                   : status === 'error'

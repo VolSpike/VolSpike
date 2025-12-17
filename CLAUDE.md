@@ -259,6 +259,17 @@ Before considering any task complete:
 3. Ask user before upgrading anything
 4. Document the decision in CLAUDE.md
 
+### 🚨 NEVER Add Spinner Arrows to Number Inputs
+
+**Rule**: All `<input type="number">` fields MUST hide the spinner arrows (up/down arrows).
+
+**Always include these Tailwind classes**:
+```
+[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+```
+
+**Why**: User explicitly requested this multiple times. Spinner arrows are unwanted UI clutter.
+
 ---
 
 **Last Updated**: December 2025 | **Founder & Lead Engineer**: Nik Sitnikov
