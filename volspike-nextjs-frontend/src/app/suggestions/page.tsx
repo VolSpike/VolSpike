@@ -105,7 +105,7 @@ export default function SuggestionsPage() {
                 <div className="space-y-1">
                   <h3 className="font-semibold text-green-500">Thank you for your suggestion!</h3>
                   <p className="text-sm text-green-500/80">
-                    We've received your feedback and will review it carefully. You'll hear from us if we need more details.
+                    We&apos;ve received your feedback and will review it carefully. You&apos;ll hear from us if we need more details.
                   </p>
                 </div>
               </div>

@@ -107,7 +107,7 @@ export function HumanVerification({ onVerified, className }: HumanVerificationPr
               {status === 'success' ? (
                 <>
                   <Check className="h-4 w-4" />
-                  <span>Verified! You're human.</span>
+                  <span>Verified! You&apos;re human.</span>
                 </>
               ) : (
                 <>
