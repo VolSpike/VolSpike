@@ -1,6 +1,6 @@
 {
     "name": "volspike-backend",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "VolSpike Node.js Backend with Hono, TypeScript, and Prisma",
     "main": "dist/index.js",
     "scripts": {
