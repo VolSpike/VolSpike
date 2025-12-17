@@ -5,6 +5,8 @@ import { EmailService } from '../services/email'
 
 const logger = createLogger()
 
+// Suggestions API endpoint - receives user feedback and sends email notifications
+
 const suggestionSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Invalid email address'),
