@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { cn } from '@/lib/utils'
 import { Check, X } from 'lucide-react'
 
@@ -9,7 +9,12 @@ interface HumanVerificationProps {
   className?: string
 }
 
-export function HumanVerification({ onVerified, className }: HumanVerificationProps) {
+export interface HumanVerificationHandle {
+  reset: () => void
+}
+
+export const HumanVerification = forwardRef<HumanVerificationHandle, HumanVerificationProps>(
+  ({ onVerified, className }, ref) => {
   const [challenge, setChallenge] = useState<{ num1: number; num2: number; answer: number }>({
     num1: 0,
     num2: 0,
@@ -42,6 +47,14 @@ export function HumanVerification({ onVerified, className }: HumanVerificationPr
     setStatus('pending')
     setShowFeedback(false)
   }
+
+  // Expose reset method to parent
+  useImperativeHandle(ref, () => ({
+    reset: () => {
+      generateChallenge()
+      onVerified(false)
+    }
+  }))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -131,4 +144,6 @@ export function HumanVerification({ onVerified, className }: HumanVerificationPr
       </div>
     </div>
   )
-}
+})
+
+HumanVerification.displayName = 'HumanVerification'

@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { HeaderWithBanner } from '@/components/header-with-banner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { HumanVerification } from '@/components/human-verification'
+import { HumanVerification, HumanVerificationHandle } from '@/components/human-verification'
 import { Lightbulb, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,12 +21,13 @@ export default function SuggestionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const verificationRef = useRef<HumanVerificationHandle>(null)
 
-  const suggestionTypes: { value: SuggestionType; label: string; description: string }[] = [
-    { value: 'feature', label: 'New Feature', description: 'Suggest a new feature or capability' },
-    { value: 'improvement', label: 'Improvement', description: 'Enhance an existing feature' },
-    { value: 'bug', label: 'Bug Report', description: 'Report an issue or bug' },
-    { value: 'other', label: 'Other', description: 'General feedback or ideas' },
+  const suggestionTypes: { value: SuggestionType; label: string; description: string; emoji: string }[] = [
+    { value: 'feature', label: 'New Feature', description: 'Suggest a new feature or capability', emoji: '💡' },
+    { value: 'improvement', label: 'Improvement', description: 'Enhance an existing feature', emoji: '⚡' },
+    { value: 'bug', label: 'Bug Report', description: 'Report an issue or bug', emoji: '🐛' },
+    { value: 'other', label: 'Other', description: 'General feedback or ideas', emoji: '💬' },
   ]
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,6 +71,8 @@ export default function SuggestionsPage() {
       setTitle('')
       setDescription('')
       setIsVerified(false)
+      // Reset human verification
+      verificationRef.current?.reset()
     } catch (error) {
       console.error('Error submitting suggestion:', error)
       setSubmitStatus('error')
@@ -98,34 +101,6 @@ export default function SuggestionsPage() {
               Help us shape the future of VolSpike. We value your feedback and suggestions to make our platform even better.
             </p>
           </div>
-
-          {/* Success Message */}
-          {submitStatus === 'success' && (
-            <div className="mb-8 p-6 rounded-lg border border-green-500/50 bg-gradient-to-br from-green-950/30 to-green-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-green-500">Thank you for your suggestion!</h3>
-                  <p className="text-sm text-green-500/80">
-                    We&apos;ve received your feedback and will review it carefully. You&apos;ll hear from us if we need more details.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {submitStatus === 'error' && errorMessage && (
-            <div className="mb-8 p-6 rounded-lg border border-red-500/50 bg-gradient-to-br from-red-950/30 to-red-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" />
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-red-500">Submission Failed</h3>
-                  <p className="text-sm text-red-500/80">{errorMessage}</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -191,7 +166,10 @@ export default function SuggestionsPage() {
                         : 'border-border bg-background'
                     )}
                   >
-                    <div className="font-medium mb-1">{suggestionType.label}</div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-2xl">{suggestionType.emoji}</span>
+                      <span className="font-medium">{suggestionType.label}</span>
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {suggestionType.description}
                     </div>
@@ -242,7 +220,35 @@ export default function SuggestionsPage() {
             </div>
 
             {/* Human Verification */}
-            <HumanVerification onVerified={setIsVerified} />
+            <HumanVerification ref={verificationRef} onVerified={setIsVerified} />
+
+            {/* Success Message */}
+            {submitStatus === 'success' && (
+              <div className="p-6 rounded-lg border border-green-500/50 bg-gradient-to-br from-green-950/30 to-green-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-green-500">Thank you for your suggestion!</h3>
+                    <p className="text-sm text-green-500/80">
+                      We&apos;ve received your feedback and will review it carefully. You&apos;ll hear from us if we need more details.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {submitStatus === 'error' && errorMessage && (
+              <div className="p-6 rounded-lg border border-red-500/50 bg-gradient-to-br from-red-950/30 to-red-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-red-500">Submission Failed</h3>
+                    <p className="text-sm text-red-500/80">{errorMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Submit Button */}
             <div className="flex justify-center">
