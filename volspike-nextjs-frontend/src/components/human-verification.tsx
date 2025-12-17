@@ -24,6 +24,16 @@ export function HumanVerification({ onVerified, className }: HumanVerificationPr
     generateChallenge()
   }, [])
 
+  // Auto-verify when correct answer is typed
+  useEffect(() => {
+    if (userAnswer && parseInt(userAnswer) === challenge.answer && status !== 'success') {
+      setStatus('success')
+      setShowFeedback(true)
+      onVerified(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userAnswer, challenge.answer, status])
+
   const generateChallenge = () => {
     const num1 = Math.floor(Math.random() * 10) + 1
     const num2 = Math.floor(Math.random() * 10) + 1
