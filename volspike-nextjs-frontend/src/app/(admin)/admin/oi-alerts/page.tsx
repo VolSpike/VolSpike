@@ -341,7 +341,18 @@ export default function OIAlertsPage() {
                           </div>
 
                           {/* Action icon buttons */}
-                          <div className="flex items-center gap-0">
+                          <div className="flex items-end gap-0">
+                            {/* Add to Twitter button (admin only) - positioned above Binance/TradingView row */}
+                            {session?.user?.role === 'ADMIN' && (
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <AddToTwitterButton
+                                  alertId={alert.id}
+                                  alertType="OPEN_INTEREST"
+                                  alertCardId={`oi-alert-${alert.id}`}
+                                />
+                              </div>
+                            )}
+
                             {/* Binance icon button */}
                             <button
                               onClick={(e) => handleBinanceClick(alert.symbol, e)}
@@ -352,31 +363,18 @@ export default function OIAlertsPage() {
                               <Coins className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/bn:text-warning-500 transition-colors" />
                             </button>
 
-                            <div className="flex flex-col gap-0">
-                              {/* Add to Twitter button (admin only) - positioned above TradingView */}
-                              {session?.user?.role === 'ADMIN' && (
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <AddToTwitterButton
-                                    alertId={alert.id}
-                                    alertType="OPEN_INTEREST"
-                                    alertCardId={`oi-alert-${alert.id}`}
-                                  />
-                                </div>
-                              )}
-
-                              {/* TradingView icon button */}
-                              <button
-                                onClick={(e) => handleTradingViewClick(alert.symbol, e)}
-                                className="group/tv flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
-                                title="Open in TradingView"
-                                aria-label="Open in TradingView"
-                              >
-                                <div className="relative">
-                                  <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
-                                  <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
-                                </div>
-                              </button>
-                            </div>
+                            {/* TradingView icon button */}
+                            <button
+                              onClick={(e) => handleTradingViewClick(alert.symbol, e)}
+                              className="group/tv flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-elite-500/10 hover:scale-110 active:scale-95"
+                              title="Open in TradingView"
+                              aria-label="Open in TradingView"
+                            >
+                              <div className="relative">
+                                <BarChart3 className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/tv:text-elite-500 transition-colors" />
+                                <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
+                              </div>
+                            </button>
                           </div>
                         </div>
                       </div>
