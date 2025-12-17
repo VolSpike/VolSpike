@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { X, Loader2, Check } from 'lucide-react'
+import { Twitter, Loader2, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import { captureAlertCard } from '@/lib/capture-alert-image'
@@ -74,7 +74,7 @@ export function AddToTwitterButton({
     return (
       <button
         disabled
-        className="p-1.5 rounded-md text-green-500 cursor-not-allowed"
+        className="p-1 rounded-md text-green-500 cursor-not-allowed"
         title="Already queued for Twitter"
       >
         <Check className="h-3.5 w-3.5" />
@@ -86,13 +86,13 @@ export function AddToTwitterButton({
     <button
       onClick={handleAddToTwitter}
       disabled={disabled || isLoading}
-      className="group/x p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="group/twitter p-1 rounded-md transition-all duration-200 hover:bg-blue-500/10 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
       title="Add to Twitter queue"
     >
       {isLoading ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/70" />
       ) : (
-        <X className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/x:text-foreground transition-colors" />
+        <Twitter className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/twitter:text-blue-400 group-hover/twitter:drop-shadow-[0_0_8px_rgba(96,165,250,0.6)] transition-all duration-200" />
       )}
     </button>
   )
