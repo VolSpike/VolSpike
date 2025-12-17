@@ -47,17 +47,19 @@ export default function SuggestionsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name,
+          name: name || undefined,
           email,
-          type,
-          title,
+          type: type || undefined,
+          title: title || undefined,
           description,
         }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to submit suggestion')
+        console.error('API Error:', response.status, data)
+        throw new Error(data.error || data.details?.[0]?.message || 'Failed to submit suggestion')
       }
 
       setSubmitStatus('success')
@@ -229,8 +231,12 @@ export default function SuggestionsPage() {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Provide as much detail as you'd like..."
                     className="min-h-[150px]"
+                    minLength={10}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Minimum 10 characters ({description.length}/10)
+                  </p>
                 </div>
               </div>
             </div>
