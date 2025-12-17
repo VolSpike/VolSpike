@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Twitter, Loader2, Check } from 'lucide-react'
+import { X, Loader2, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import { captureAlertCard } from '@/lib/capture-alert-image'
@@ -72,32 +72,28 @@ export function AddToTwitterButton({
 
   if (isAdded) {
     return (
-      <Button variant="ghost" size="sm" disabled className="gap-2">
-        <Check className="h-4 w-4 text-green-500" />
-        <span className="text-xs text-green-500">Queued</span>
-      </Button>
+      <button
+        disabled
+        className="p-1.5 rounded-md text-green-500 cursor-not-allowed"
+        title="Already queued for Twitter"
+      >
+        <Check className="h-3.5 w-3.5" />
+      </button>
     )
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
+    <button
       onClick={handleAddToTwitter}
       disabled={disabled || isLoading}
-      className="gap-2 hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950"
+      className="group/x p-1.5 rounded-md hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      title="Add to Twitter queue"
     >
       {isLoading ? (
-        <>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-xs">Capturing...</span>
-        </>
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/70" />
       ) : (
-        <>
-          <Twitter className="h-4 w-4" />
-          <span className="text-xs">Add to Twitter</span>
-        </>
+        <X className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/x:text-foreground transition-colors" />
       )}
-    </Button>
+    </button>
   )
 }
