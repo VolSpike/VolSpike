@@ -30,9 +30,12 @@ suggestionRoutes.post('/', async (c) => {
       title: validatedData.title,
     })
 
-    // Send email notification
+    // Send emails in parallel for faster response
     const emailService = EmailService.getInstance()
-    await emailService.sendSuggestionNotification(validatedData)
+    await Promise.all([
+      emailService.sendSuggestionNotification(validatedData),
+      emailService.sendSuggestionConfirmation(validatedData),
+    ])
 
     return c.json({
       success: true,

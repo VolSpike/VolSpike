@@ -1958,6 +1958,161 @@ Reply to this email to respond to ${displayName}.
             return false
         }
     }
+
+    /**
+     * Send confirmation email to user who submitted a suggestion
+     */
+    async sendSuggestionConfirmation(data: {
+        name?: string
+        email: string
+        type?: 'feature' | 'improvement' | 'bug' | 'other'
+        title?: string
+        description: string
+    }): Promise<boolean> {
+        try {
+            const typeLabels = {
+                feature: 'New Feature',
+                improvement: 'Improvement',
+                bug: 'Bug Report',
+                other: 'Other'
+            }
+
+            const typeEmojis = {
+                feature: '💡',
+                improvement: '⚡',
+                bug: '🐛',
+                other: '💬'
+            }
+
+            const typeLabel = data.type ? typeLabels[data.type] : 'General Feedback'
+            const typeEmoji = data.type ? typeEmojis[data.type] : '💬'
+            const displayName = data.name || 'there'
+            const displayTitle = data.title || 'your suggestion'
+
+            const msg: any = {
+                to: data.email,
+                from: {
+                    email: this.fromEmail,
+                    name: 'VolSpike'
+                },
+                replyTo: 'support@volspike.com',
+                subject: `${typeEmoji} Thank you for your suggestion!`,
+                html: `
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Thank you for your suggestion</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;">
+    <tr><td align="center" style="padding:24px;">
+      <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
+        <tr>
+          <td align="center" style="padding:32px;background:#0ea371;border-radius:12px 12px 0 0;">
+            <div style="font:700 24px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#fff;">
+              ${typeEmoji} Thank You!
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#334155;">
+            <p style="margin:0 0 16px;">Hi ${displayName},</p>
+
+            <p style="margin:0 0 24px;">Thank you for taking the time to share your feedback with us! We&apos;ve received your suggestion and our team will review it carefully.</p>
+
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
+              <div style="font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">
+                Your Submission
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${data.type ? `<tr>
+                  <td style="padding:8px 0;color:#64748b;font-size:14px;">Type:</td>
+                  <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${typeLabel}</td>
+                </tr>` : ''}
+                ${data.title ? `<tr>
+                  <td style="padding:8px 0;color:#64748b;font-size:14px;">Title:</td>
+                  <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${data.title}</td>
+                </tr>` : ''}
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;font-size:14px;">Email:</td>
+                  <td align="right" style="padding:8px 0;color:#0ea371;">${data.email}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="margin-bottom:24px;">
+              <div style="font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+                Description
+              </div>
+              <div style="padding:16px;background:#f8fafc;border-radius:6px;white-space:pre-wrap;font-size:14px;line-height:1.6;color:#334155;">
+${data.description}
+              </div>
+            </div>
+
+            <p style="margin:0 0 16px;">We truly value your input as we work to improve VolSpike. Your feedback helps us build better features and deliver a better experience for all our users.</p>
+
+            <p style="margin:0;color:#64748b;font-size:14px;">If you have any questions, feel free to reply to this email.</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 32px;text-align:center;">
+            <a href="https://volspike.com/dashboard" style="display:inline-block;padding:12px 32px;background:#0ea371;color:#fff;text-decoration:none;border-radius:6px;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              Back to Dashboard
+            </a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 32px;text-align:center;font-size:12px;color:#94a3b8;">
+            <p style="margin:0;">VolSpike - Real-time Binance Perpetual Futures Analytics</p>
+            <p style="margin:8px 0 0;">
+              <a href="https://volspike.com" style="color:#0ea371;text-decoration:none;">volspike.com</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+                `,
+                text: `
+Hi ${displayName},
+
+Thank you for taking the time to share your feedback with us! We've received your suggestion and our team will review it carefully.
+
+YOUR SUBMISSION
+---------------
+${data.type ? `Type: ${typeLabel}\n` : ''}${data.title ? `Title: ${data.title}\n` : ''}Email: ${data.email}
+
+Description:
+${data.description}
+
+We truly value your input as we work to improve VolSpike. Your feedback helps us build better features and deliver a better experience for all our users.
+
+If you have any questions, feel free to reply to this email.
+
+---
+VolSpike - Real-time Binance Perpetual Futures Analytics
+https://volspike.com
+                `.trim(),
+                categories: ['suggestion-confirmation'],
+                customArgs: {
+                    type: 'suggestion-confirmation',
+                    suggestionType: data.type,
+                    timestamp: Date.now().toString()
+                }
+            }
+
+            await mail.send(msg)
+            logger.info(`Suggestion confirmation sent to: ${data.email}`)
+            return true
+        } catch (error) {
+            logger.error('Failed to send suggestion confirmation:', error)
+            return false
+        }
+    }
 }
 
 export default EmailService
