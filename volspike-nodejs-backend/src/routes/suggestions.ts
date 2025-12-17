@@ -30,13 +30,16 @@ suggestionRoutes.post('/', async (c) => {
       title: validatedData.title,
     })
 
-    // Send emails in parallel for faster response
+    // Send emails asynchronously in background for instant response
     const emailService = EmailService.getInstance()
-    await Promise.all([
+    Promise.all([
       emailService.sendSuggestionNotification(validatedData),
       emailService.sendSuggestionConfirmation(validatedData),
-    ])
+    ]).catch((error) => {
+      logger.error('Failed to send suggestion emails in background:', error)
+    })
 
+    // Return success immediately without waiting for emails
     return c.json({
       success: true,
       message: 'Suggestion submitted successfully',
