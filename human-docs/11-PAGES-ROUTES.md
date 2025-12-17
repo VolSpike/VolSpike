@@ -29,7 +29,13 @@ VolSpike uses Next.js 15 App Router. All pages are located in `src/app/`.
 /support                 # Support page
 /academy                 # Trading academy
 /docs                    # Documentation
+/donate                  # Donation page
+/suggestions             # User feedback/suggestions
 /status                  # System status
+/debug/open-interest     # OI debugging (dev only)
+/test                    # Testing page (dev only)
+/test-payment            # Stripe test (dev only)
+/test-crypto-payment     # Crypto test (test accounts)
 /admin                   # Admin dashboard
 /admin/users             # User management
 /admin/users/[id]        # User details
@@ -94,6 +100,93 @@ Static legal content.
 **File:** `src/app/support/page.tsx`
 
 Contact information and FAQ.
+
+---
+
+### Donate (`/donate`)
+
+**File:** `src/app/donate/page.tsx`
+
+Donation page with multiple cryptocurrency options:
+- Bitcoin, Ethereum, Solana addresses
+- QR codes for each
+- Copy-to-clipboard functionality
+
+---
+
+### Suggestions (`/suggestions`)
+
+**File:** `src/app/suggestions/page.tsx`
+
+User feedback and suggestion submission form accessible from footer "Suggestions" link.
+
+**Features:**
+- Beautiful form with custom human verification (math challenge)
+- Optional fields: Name, Suggestion Type (💡⚡🐛💬), Title
+- Required fields: Email, Description (min 10 characters)
+- Auto-verify when correct answer entered
+- Instant submission response (~50-100ms)
+- Success message with auto-dismiss after 5 seconds
+- Manual dismiss button (X) on success/error messages
+- Human verification resets after successful submission
+
+**Email Notifications:**
+- Sends notification to support@volspike.com with suggestion details
+- Sends confirmation email to user with submission recap
+- Emails sent asynchronously in background (non-blocking)
+- Beautiful HTML email templates with VolSpike branding
+
+**Components Used:**
+- `HumanVerification` - Custom math challenge component with forwardRef
+- Emoji-enhanced suggestion type selector
+- Character counter for description field
+- Form state management with React hooks
+
+---
+
+### Academy (`/academy`)
+
+**File:** `src/app/academy/page.tsx`
+
+Trading education content:
+- Volume spike trading strategies
+- Open interest analysis
+- Funding rate interpretation
+- Risk management guides
+
+---
+
+## Debug/Test Pages
+
+### OI Debug (`/debug/open-interest`)
+
+**File:** `src/app/debug/open-interest/page.tsx`
+
+Open Interest debugging page (development only):
+- Raw OI data visualization
+- API response inspection
+- WebSocket connection status
+
+---
+
+### Test Payment (`/test-payment`)
+
+**File:** `src/app/test-payment/page.tsx`
+
+Stripe payment testing (development only):
+- Test subscription flows
+- Webhook testing
+
+---
+
+### Test Crypto Payment (`/test-crypto-payment`)
+
+**File:** `src/app/test-crypto-payment/page.tsx`
+
+Crypto payment testing (test accounts only):
+- $1 test payments
+- Restricted to emails ending with `-test@volspike.com`
+- Full NowPayments flow testing
 
 ---
 

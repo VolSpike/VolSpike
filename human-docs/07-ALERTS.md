@@ -131,9 +131,11 @@ io.to(`tier-${tier}`).emit('volume-alert', alert)
 
 OI alerts fire when open interest changes significantly:
 
-- **5-minute change**: >3% change
-- **15-minute change**: >5% change
-- **1-hour change**: >10% change
+- **5-minute change**: >=3% change (10 min cooldown)
+- **15-minute change**: >=7% change (15 min cooldown)
+- **1-hour change**: >=12% change (60 min cooldown)
+
+Additional requirement: Minimum absolute OI change of 5,000 contracts
 
 ### Detection Logic
 
@@ -143,10 +145,11 @@ Located in `Digital Ocean/oi_realtime_poller.py`:
 def detect_oi_change(current_oi, baseline_oi, timeframe):
     change_pct = ((current_oi - baseline_oi) / baseline_oi) * 100
 
+    # Threshold percentages as decimal (0.03 = 3%)
     thresholds = {
-        '5 min': 3.0,
-        '15 min': 5.0,
-        '1 hour': 10.0
+        '5 min': 0.03,   # 3%
+        '15 min': 0.07,  # 7%
+        '1 hour': 0.12   # 12%
     }
 
     if abs(change_pct) >= thresholds[timeframe]:

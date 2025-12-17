@@ -11,7 +11,7 @@ VolSpike is a professional-grade trading dashboard for Binance Perpetual Futures
 ### 1. Real-Time Market Data
 
 - Live price feeds for all Binance USDT perpetual pairs
--  24-hour volume and price change tracking
+- 24-hour volume and price change tracking
 - Funding rates for each trading pair
 - Open Interest data (Pro/Elite tiers)
 

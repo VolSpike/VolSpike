@@ -107,14 +107,89 @@ interface OIAlertsContentProps {
 
 ### Header (`header.tsx`)
 
-Main navigation bar.
+Main navigation bar with responsive design and tier-aware UI.
+
+**File:** `src/components/header.tsx` (391 lines)
 
 **Features:**
-- Logo and brand
-- Navigation links
-- User menu (authenticated)
-- Sign in/up buttons (guest)
-- Mobile hamburger menu
+- Logo and brand with hover animation
+- Navigation links (Dashboard, Pricing, Academy, Donate)
+- Active link highlighting with bottom border indicator
+- User menu dropdown (authenticated users)
+- "Start Free" + "Sign In" buttons (guest users)
+- Mobile hamburger menu via Sheet component
+- Tier badge pill (Free/Pro/Elite) with color coding
+- Notification bell (empty state placeholder)
+- Theme toggle (hidden on mobile for guests)
+- Admin route detection (returns null on `/admin/*`)
+- Single identity enforcement via `useEnforceSingleIdentity` hook
+
+**Props:**
+```typescript
+interface HeaderProps {
+    hideWalletConnect?: boolean  // Hide wallet connect button (default: false)
+}
+```
+
+**Tier Badge Colors:**
+- Free: `bg-muted/70 border-border text-muted-foreground`
+- Pro: `bg-sec-500/20 border-sec-500/40 text-sec-400`
+- Elite: `bg-elite-500/20 border-elite-500/40 text-elite-400`
+
+**Mobile Menu:**
+- Sheet component slides from left
+- Shows all navigation links
+- Shows tier badge and settings for authenticated users
+- Shows "Upgrade to Pro" CTA for free tier users
+- Sign out button
+
+**Dependencies:**
+- `@rainbow-me/rainbowkit` - ConnectButton
+- `next-auth/react` - useSession, signIn, signOut
+- `@/hooks/use-enforce-single-identity` - Single identity enforcement
+- `@/components/safe-nav-link` - Navigation wrapper
+
+---
+
+### Footer (`footer.tsx`)
+
+Site-wide footer with dynamic theme support.
+
+**File:** `src/components/footer.tsx` (136 lines)
+
+**Features:**
+- Logo and brand description
+- Platform links (Pricing, Donate, Docs, Support)
+- Company links (Privacy, Terms, Refunds, Suggestions)
+- Dynamic dark mode on specific auth routes
+- Current year copyright
+- "Crafted for high-volatility markets" tagline
+
+**Links Configuration:**
+```typescript
+const primaryLinks = [
+    { href: '/pricing', label: 'Pricing' },
+    { href: '/donate', label: 'Donate' },
+    { href: '/docs', label: 'Docs' },
+    { href: '/support', label: 'Support' },
+]
+
+const secondaryLinks = [
+    { href: '/legal/privacy', label: 'Privacy' },
+    { href: '/legal/terms', label: 'Terms' },
+    { href: '/legal/refunds', label: 'Refund & Cancellation' },
+    { href: '/suggestions', label: 'Suggestions' },
+]
+```
+
+**Theme Handling:**
+- Forces dark theme on `/auth` and `/auth/verify` routes
+- Otherwise respects user's theme preference
+- Smooth color transitions via Tailwind
+
+**Dependencies:**
+- `next-themes` - useTheme
+- `@/components/safe-nav-link` - Navigation wrapper
 
 ---
 
@@ -581,6 +656,219 @@ Modal shown when account is deleted.
 
 ---
 
+## Infrastructure Components
+
+### Providers (`providers.tsx`)
+
+Root provider wrapper component that sets up all application-wide contexts.
+
+**File:** `src/components/providers.tsx` (135 lines)
+
+**Provider Hierarchy:**
+```
+QueryClientProvider
+└── SessionProvider (NextAuth)
+    ├── SessionValidator
+    ├── SessionTracker
+    ├── TierChangeListener
+    ├── PasswordChangeListener
+    ├── UserDeletionHandler
+    └── Web3Providers (dynamic import, SSR disabled)
+        └── ThemeProvider
+            ├── children (app content)
+            ├── AuthDebugPanel
+            ├── ConditionalAdPlaceholder (Free tier only)
+            ├── ConditionalFooter (hidden on auth/admin)
+            └── Toaster (react-hot-toast)
+```
+
+**Features:**
+- TanStack Query client (1 min stale time, 5 min cache)
+- NextAuth session management
+- Web3 wallet providers (dynamically imported)
+- Theme management (dark default)
+- Build version guard (auto-reload on deployments)
+- Conditional footer (hidden on auth/admin pages)
+- Conditional ad placeholder (Free tier only)
+- Global toast notifications
+
+**Listener Components Included:**
+- `SessionValidator` - Validates session integrity
+- `SessionTracker` - Tracks session state changes
+- `TierChangeListener` - Listens for tier upgrades via Socket.IO
+- `PasswordChangeListener` - Detects password changes
+- `UserDeletionHandler` - Handles account deletion/ban events
+
+---
+
+### Tier Change Listener (`tier-change-listener.tsx`)
+
+Listens for tier upgrade events via Socket.IO and refreshes session.
+
+**Side Effects:**
+- Listens for `tier-changed` Socket.IO event
+- Calls NextAuth `update()` to refresh session
+- Forces router refresh on success
+- Force reloads page on failure (500ms delay)
+
+---
+
+### Password Change Listener (`password-change-listener.tsx`)
+
+Detects password changes and forces re-authentication.
+
+**Features:**
+- Monitors `passwordChangedAt` in session
+- Forces logout when password changed elsewhere
+- Shows toast notification
+
+---
+
+### Session Tracker (`session-tracker.tsx`)
+
+Tracks session state for debugging and analytics.
+
+**Features:**
+- Logs session changes to console (development)
+- Tracks session status transitions
+- Monitors auth events
+
+---
+
+### Session Validator (`session-validator.tsx`)
+
+Validates session integrity with backend.
+
+**Features:**
+- Periodic session validation
+- Handles invalid/expired sessions
+- Forces logout on validation failure
+
+---
+
+### User Deletion Handler (`user-deletion-handler.tsx`)
+
+Handles account deletion, suspension, and ban events.
+
+**Features:**
+- Listens for `user-deleted` Socket.IO event
+- Shows Account Deleted Modal
+- Forces logout after 2 seconds
+- Redirects to `/auth` with reason query param
+
+**Deletion Reasons:**
+- `deleted` - Account deleted by user/admin
+- `banned` - Account banned
+- `suspended` - Account suspended
+
+---
+
+### Auth Debug Panel (`auth-debug-panel.tsx`)
+
+Development-only panel showing authentication state.
+
+**Features:**
+- Shows session status
+- Displays user ID, email, tier, role
+- Shows wallet connection status
+- Only renders in development
+
+---
+
+### Web3 Providers (`web3-providers.tsx`)
+
+EVM wallet provider setup via RainbowKit.
+
+**Features:**
+- WagmiProvider configuration
+- RainbowKit theme (dark mode)
+- Supported chains (Ethereum, Polygon, etc.)
+- Query client for Wagmi
+
+---
+
+### Solana Providers (`solana-providers.tsx`)
+
+Solana wallet provider setup.
+
+**Features:**
+- ConnectionProvider
+- WalletProvider
+- Phantom wallet adapter
+- Network configuration
+
+---
+
+### Theme Provider (`theme-provider.tsx`)
+
+Theme context provider via next-themes.
+
+**Props:**
+```typescript
+interface ThemeProviderProps {
+    attribute: 'class'      // CSS class-based theming
+    defaultTheme: 'dark'    // Dark theme default
+    enableSystem: boolean   // Respect system preference
+    disableTransitionOnChange: boolean  // Prevent flash
+}
+```
+
+---
+
+### Theme Toggle (`theme-toggle.tsx`)
+
+Dark/light mode toggle button.
+
+**File:** `src/components/theme-toggle.tsx` (26 lines)
+
+**Features:**
+- Sun/Moon icon animation on toggle
+- Smooth rotation transitions
+- Accessible with screen reader text
+- Ghost button variant
+
+```typescript
+<ThemeToggle />
+// Renders animated sun/moon button
+```
+
+---
+
+### Safe Nav Link (`safe-nav-link.tsx`)
+
+Navigation link wrapper with pointer event fix.
+
+**Features:**
+- Workaround for z-index/pointer-events issues
+- Debug label for troubleshooting
+- Passes through all Link props
+
+```typescript
+<SafeNavLink href="/dashboard" debugLabel="nav-dashboard">
+    Dashboard
+</SafeNavLink>
+```
+
+---
+
+### Ad Placeholder (`ad-placeholder.tsx`)
+
+Advertisement placeholder for free tier users.
+
+**Props:**
+```typescript
+interface AdPlaceholderProps {
+    variant: 'horizontal' | 'vertical'
+}
+```
+
+**Features:**
+- Conditional rendering (Free tier only)
+- Multiple size variants
+- Placeholder design
+
+---
+
 ## Component Patterns
 
 ### Defining Props Interface
@@ -654,3 +942,53 @@ Card.Content = function CardContent({ children }) {
 ---
 
 ## Next: [Hooks Reference](10-HOOKS.md)
+
+
+---
+
+### HumanVerification (`human-verification.tsx`)
+
+Custom human verification component using math challenges for form submissions.
+
+**File:** `src/components/human-verification.tsx`
+
+**Props:**
+```typescript
+interface HumanVerificationProps {
+  onVerified: (verified: boolean) => void
+  className?: string
+}
+
+interface HumanVerificationHandle {
+  reset: () => void
+}
+```
+
+**Features:**
+- Random math challenge (addition, 1-10 range)
+- Auto-verification when correct answer typed
+- Success/error visual feedback with animations
+- Customizable styling via className
+- Exposes reset() method via forwardRef
+- No spinner arrows on number input
+- Used on Suggestions page
+
+**Usage:**
+```typescript
+const verificationRef = useRef<HumanVerificationHandle>(null)
+const [isVerified, setIsVerified] = useState(false)
+
+<HumanVerification 
+  ref={verificationRef} 
+  onVerified={setIsVerified} 
+/>
+
+// Reset after form submission
+verificationRef.current?.reset()
+```
+
+**Styling:**
+- Border color changes based on status (pending/success/error)
+- Gradient background with theme colors
+- Lucide React icons for visual feedback
+

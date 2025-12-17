@@ -4,13 +4,18 @@
 
 Services in VolSpike contain business logic separated from route handlers. Located in `volspike-nodejs-backend/src/services/`.
 
+**Total Service Files:** 22
+- **Main Services:** 15 files
+- **Admin Services:** 6 files
+- **Infrastructure:** 1 file (deprecated)
+
 ---
 
 ## Email Service
 
-**File:** `services/email.ts`
+**File:** `services/email.ts` (2000+ lines)
 
-Handles all transactional emails via SendGrid. Implemented as a singleton class.
+Handles all transactional emails via SendGrid. Implemented as a singleton class with 11 email methods.
 
 ### Class: EmailService
 
@@ -19,55 +24,149 @@ export class EmailService {
     private fromEmail: string      // Default: 'noreply@volspike.com'
     private baseUrl: string        // For verification links
 
-    // Password reset with VML fallback for Outlook
-    async sendPasswordResetEmail(data: { email: string; resetUrl: string }): Promise<boolean>
+    // Get singleton instance
+    static getInstance(): EmailService
 
-    // Email verification
-    async sendVerificationEmail(data: EmailVerificationData): Promise<boolean>
-
-    // Welcome after signup
-    async sendWelcomeEmail(data: WelcomeEmailData): Promise<boolean>
-
-    // Tier upgrade confirmation
-    async sendTierUpgradeEmail(data: TierUpgradeEmailData): Promise<boolean>
-
-    // Crypto renewal reminder (7 days before expiration)
-    async sendCryptoRenewalReminder(data: CryptoRenewalReminderData): Promise<boolean>
-
-    // Crypto subscription expired notification
-    async sendCryptoSubscriptionExpired(data: CryptoSubscriptionExpiredData): Promise<boolean>
-
-    // Payment confirmation for crypto payments
-    async sendPaymentConfirmationEmail(data: PaymentConfirmationEmailData): Promise<boolean>
-
-    // Partial payment notification
-    async sendPartialPaymentEmail(data: PartialPaymentEmailData): Promise<boolean>
-
-    // Alert admin to payment issues
-    async sendPaymentIssueAlert(data: PaymentIssueAlertData): Promise<boolean>
+    // Generate verification token (32 bytes hex)
+    generateVerificationToken(): string
 }
 ```
 
-### Usage
+### Email Methods (13 total)
+
+| Method | Purpose | Recipient | Trigger |
+|--------|---------|-----------|---------|
+| `sendPasswordResetEmail` | Password reset link (60 min expiry) | User | `/auth/forgot` form |
+| `sendVerificationEmail` | Email verification link (24h expiry) | User | Signup |
+| `sendWelcomeEmail` | Welcome after email verification | User | Email verified |
+| `sendTierUpgradeEmail` | Tier upgrade/downgrade confirmation | User | Tier change |
+| `sendPaymentConfirmationEmail` | Crypto payment confirmed | User | Payment finished |
+| `sendPartialPaymentEmail` | Partial payment notification | User | Payment underpaid |
+| `sendCryptoRenewalReminder` | Renewal reminder (7 days before) | User | Scheduled task |
+| `sendCryptoSubscriptionExpired` | Subscription expired notification | User | Expiration check |
+| `sendPaymentIssueAlertEmail` | Payment issue alert | Admin | Payment problems |
+| `sendPaymentSuccessAlertEmail` | Payment success notification | Admin | Payment completed |
+| `sendAlertEmail` | Custom user alert triggered | User | User-defined alert |
+| `sendSuggestionNotification` | User feedback submitted | support@volspike.com | `/suggestions` form |
+| `sendSuggestionConfirmation` | Suggestion confirmation | User | `/suggestions` form |
+
+### Email Data Interfaces
 
 ```typescript
-import { EmailService } from '../services/email'
+interface EmailVerificationData {
+    email: string
+    name?: string
+    verificationUrl: string
+}
 
-const emailService = new EmailService()
-await emailService.sendPasswordResetEmail({
-    email: user.email,
-    resetUrl: `https://volspike.com/auth/reset-password?token=${token}`
-})
+interface WelcomeEmailData {
+    email: string
+    name?: string
+    tier: string
+}
+
+interface TierUpgradeEmailData {
+    email: string
+    name?: string
+    newTier: string
+    previousTier?: string
+}
+
+interface PaymentConfirmationEmailData {
+    email: string
+    name?: string
+    tier: string
+    amountUsd: number
+    payCurrency: string
+    actuallyPaid: number | null
+    actuallyPaidCurrency: string | null
+    paymentId: string
+    orderId: string
+    expiresAt: Date
+}
+
+interface PartialPaymentEmailData {
+    email: string
+    name?: string
+    tier: string
+    requestedAmount: number
+    actuallyPaid: number
+    payCurrency: string
+    shortfall: number
+    shortfallPercent: string
+    paymentId: string
+    orderId: string
+}
+
+interface CryptoRenewalReminderData {
+    email: string
+    tier: string
+    daysUntilExpiration: number
+    expiresAt: Date
+}
+
+interface CryptoSubscriptionExpiredData {
+    email: string
+    tier: string
+    expiresAt: Date
+}
+
+interface PaymentIssueAlertData {
+    type: string
+    details: Record<string, any>
+}
 ```
+
+### External API Calls
+
+| API | Endpoint | Method | Purpose |
+|-----|----------|--------|---------|
+| SendGrid | `/mail/send` | POST | Send transactional emails |
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SENDGRID_API_KEY` | Yes | SendGrid API authentication |
+| `SENDGRID_FROM_EMAIL` | No | Sender email (default: `noreply@volspike.com`) |
+| `SENDGRID_VERIFICATION_TEMPLATE_ID` | No | Optional template for verification emails |
+| `SENDGRID_WELCOME_TEMPLATE_ID` | No | Optional template for welcome emails |
+| `EMAIL_VERIFICATION_URL_BASE` | No | Base URL for verification links |
 
 ### Email Template Features
 
-All emails include:
+All emails are production-ready with:
+
+**Visual Design:**
 - VolSpike logo hosted at `https://volspike.com/email/volspike-badge@2x.png`
+- Brand green header (`#0ea371` / `#059669`)
+- Clean white card design with rounded corners
+- Support footer: `support@volspike.com`
+
+**Compatibility:**
 - VML fallback for bulletproof buttons in Outlook
+- `<!--[if mso]>` conditional comments for Microsoft clients
+- Inline CSS for maximum compatibility
+- System fonts with fallbacks
+
+**Responsiveness:**
+- `@media` queries for mobile
+- Max-width containers (600px)
+- Fluid image scaling
+
+**Deliverability:**
 - Hidden preheader text for email previews
-- Responsive design with `@media` queries
-- Support email footer: `support@volspike.com`
+- Proper `role="presentation"` on tables
+- Text-only fallback version
+- SendGrid category tagging
+
+### Error Handling
+
+- Graceful fallback to plain text if template ID missing
+- Non-blocking email failures (logged but not thrown)
+- Detailed error logging with SendGrid response details
+- Safe initialization on startup (doesn't crash if SendGrid not configured)
+- XSS protection via HTML escaping of user inputs
 
 ---
 
@@ -77,86 +176,43 @@ All emails include:
 
 Manages real-time alert delivery via Socket.IO. Uses module-level functions (not a class).
 
-### Initialization
+### Exported Functions
 
 ```typescript
-let ioInstance: SocketIOServer | null = null
+// Initialize with Socket.IO server instance
+export function setSocketIO(io: SocketIOServer): void
 
-// Called from index.ts after Socket.IO server is created
-export function setSocketIO(io: SocketIOServer) {
-    ioInstance = io
-    startTierBasedBroadcasting()
-}
-```
+// Broadcast volume spike alert (tier-based delivery)
+export function broadcastVolumeAlert(alert: VolumeAlert): void
 
-### Volume Alert Broadcasting
+// Broadcast Open Interest alert (Pro/Elite/Admin only)
+export function broadcastOpenInterestAlert(alert: OpenInterestAlert): void
 
-```typescript
-export function broadcastVolumeAlert(alert: VolumeAlert) {
-    // Elite tier: broadcast immediately
-    ioInstance.to('tier-elite').emit('volume-alert', alert)
+// Broadcast OI data update
+export function broadcastOpenInterestUpdate(
+    symbol: string,
+    openInterest: number,
+    openInterestUsd: number,
+    source: string
+): void
 
-    // Pro tier: immediate if at 5-minute interval, else queue
-    const alertMinute = alert.detectionTime.getMinutes()
-    if (alertMinute % 5 === 0) {
-        ioInstance.to('tier-pro').emit('volume-alert', alert)
-    } else {
-        alertQueues.pro.push(alert)
-    }
-
-    // Free tier: immediate if at 15-minute interval, else queue
-    if (alertMinute % 15 === 0) {
-        ioInstance.to('tier-free').emit('volume-alert', alert)
-    } else {
-        alertQueues.free.push(alert)
-    }
-}
-```
-
-### Open Interest Alert Broadcasting
-
-```typescript
-export function broadcastOpenInterestAlert(alert: OpenInterestAlert) {
-    // Serialize Prisma Decimal fields to numbers
-    const serializedAlert = {
-        id: alert.id,
-        symbol: alert.symbol,
-        direction: alert.direction,
-        baseline: Number(alert.baseline),
-        current: Number(alert.current),
-        pctChange: Number(alert.pctChange),
-        // ... more fields
-    }
-
-    // OI alerts go to admin, pro, and elite only (not free tier)
-    ioInstance.to('role-admin').emit('open-interest-alert', serializedAlert)
-    ioInstance.to('tier-pro').emit('open-interest-alert', serializedAlert)
-    ioInstance.to('tier-elite').emit('open-interest-alert', serializedAlert)
-}
-```
-
-### User Deletion Broadcasting
-
-```typescript
+// Force disconnect deleted/banned user
 export async function broadcastUserDeletion(
     userId: string,
-    reason: 'deleted' | 'banned' | 'suspended' = 'deleted'
-) {
-    // Emit to user's room
-    ioInstance.to(`user-${userId}`).emit('user-deleted', {
-        userId,
-        reason,
-        timestamp: new Date().toISOString(),
-        message: 'Your account has been permanently deleted.'
-    })
-
-    // Force disconnect all sockets for this user
-    const sockets = await ioInstance.in(`user-${userId}`).fetchSockets()
-    sockets.forEach(socket => socket.disconnect(true))
-}
+    reason: 'deleted' | 'banned' | 'suspended'
+): Promise<void>
 ```
 
-### Wall-Clock Batching
+### Socket.IO Emissions
+
+| Event | Rooms | Description |
+|-------|-------|-------------|
+| `volume-alert` | `tier-elite`, `tier-pro`, `tier-free` | Volume spike alert |
+| `open-interest-alert` | `role-admin`, `tier-pro`, `tier-elite` | OI spike/dump alert |
+| `open-interest-update` | All tiers | Real-time OI data |
+| `user-deleted` | `user-{userId}` | Account deletion notification |
+
+### Wall-Clock Batching System
 
 ```typescript
 function startTierBasedBroadcasting() {
@@ -190,6 +246,14 @@ function startTierBasedBroadcasting() {
 | Free | 15 min | :00, :15, :30, :45 |
 | Pro | 5 min | :00, :05, :10, :15, ... |
 | Elite | Instant | Immediate on detection |
+
+### Key Features
+
+- Tier-based alert broadcasting with intelligent batching
+- Serializes Prisma Decimal fields to JSON-compatible numbers
+- In-memory queue system for batching alerts
+- User deletion enforcement (forced socket disconnect)
+- Comprehensive logging with emoji indicators
 
 ---
 
@@ -226,94 +290,49 @@ export class PromoCodeService {
 export const promoCodeService = new PromoCodeService()
 ```
 
+### Interfaces
+
+```typescript
+interface ValidatePromoCodeRequest {
+    code: string
+    tier: 'pro' | 'elite'
+    paymentMethod: 'STRIPE' | 'CRYPTO'
+}
+
+interface ValidatePromoCodeResponse {
+    valid: boolean
+    discountPercent?: number
+    originalPrice?: number
+    finalPrice?: number
+    promoCodeId?: string
+    error?: string
+    reason?: 'expired' | 'max_uses_reached' | 'inactive' | 'invalid_code' | 'wrong_payment_method'
+}
+```
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `findUnique` | PromoCode | Fetch by code |
+| `update` | PromoCode | Increment usage `{ increment: 1 }` |
+| `create` | PromoCodeUsage | Create usage record |
+| `$transaction` | - | Atomic usage increment |
+
 ### Validation Logic
 
-```typescript
-async validateCode(request: ValidatePromoCodeRequest): Promise<ValidatePromoCodeResponse> {
-    const { code, tier, paymentMethod } = request
-    const normalizedCode = code.toUpperCase().trim()
-
-    const promoCode = await prisma.promoCode.findUnique({
-        where: { code: normalizedCode }
-    })
-
-    // Check existence
-    if (!promoCode) {
-        return { valid: false, error: 'Promo code not found', reason: 'invalid_code' }
-    }
-
-    // Check active
-    if (!promoCode.active) {
-        return { valid: false, error: 'Promo code is no longer active', reason: 'inactive' }
-    }
-
-    // Check expiration
-    if (new Date() > promoCode.validUntil) {
-        return { valid: false, error: 'Promo code has expired', reason: 'expired' }
-    }
-
-    // Check usage limit
-    if (promoCode.currentUses >= promoCode.maxUses) {
-        return { valid: false, error: 'Promo code usage limit reached', reason: 'max_uses_reached' }
-    }
-
-    // Check payment method (STRIPE, CRYPTO, or ALL)
-    if (!this.checkPaymentMethodMatch(promoCode.paymentMethod, paymentMethod)) {
-        return { valid: false, error: `Promo code not valid for ${paymentMethod} payments`, reason: 'wrong_payment_method' }
-    }
-
-    // Calculate discount using centralized pricing
-    const originalPrice = TIER_PRICES[tier]  // from lib/pricing.ts
-    const discountAmount = (originalPrice * promoCode.discountPercent) / 100
-    const finalPrice = Math.max(0, originalPrice - discountAmount)
-
-    return {
-        valid: true,
-        discountPercent: promoCode.discountPercent,
-        originalPrice,
-        finalPrice,
-        promoCodeId: promoCode.id
-    }
-}
-```
-
-### Usage Recording (Transactional)
-
-```typescript
-async incrementUsage(codeId, userId, paymentId, amounts) {
-    await prisma.$transaction(async (tx) => {
-        // Double-check usage limit under lock
-        const promoCode = await tx.promoCode.findUnique({ where: { id: codeId } })
-        if (promoCode.currentUses >= promoCode.maxUses) {
-            throw new Error('Promo code usage limit reached')
-        }
-
-        // Increment counter
-        await tx.promoCode.update({
-            where: { id: codeId },
-            data: { currentUses: { increment: 1 } }
-        })
-
-        // Create usage record for auditing
-        await tx.promoCodeUsage.create({
-            data: {
-                promoCodeId: codeId,
-                userId,
-                paymentId,
-                discountAmount: amounts.discountAmount,
-                originalAmount: amounts.originalAmount,
-                finalAmount: amounts.finalAmount
-            }
-        })
-    })
-}
-```
+1. Code normalization (uppercase, trim)
+2. Active status check
+3. Expiration date check
+4. Usage limit enforcement
+5. Payment method matching (CRYPTO/STRIPE/ALL)
+6. Price validation against `TIER_PRICES` from `lib/pricing.ts`
 
 ---
 
 ## NowPayments Service
 
-**File:** `services/nowpayments.ts`
+**File:** `services/nowpayments.ts` (500+ lines)
 
 Integration with NowPayments API for cryptocurrency payments.
 
@@ -321,30 +340,66 @@ Integration with NowPayments API for cryptocurrency payments.
 
 ```typescript
 export class NowPaymentsService {
-    // Create hosted invoice for payment
+    // Get singleton instance
+    static getInstance(): NowPaymentsService
+
+    // Create payment
+    async createPayment(params: CreatePaymentParams): Promise<PaymentResponse>
+
+    // Get payment status by ID
+    async getPaymentStatus(paymentId: string): Promise<PaymentResponse>
+
+    // Get invoice status
+    async getInvoiceStatus(invoiceId: string): Promise<InvoiceResponse>
+
+    // Create payment from existing invoice
+    async createPaymentFromInvoice(invoiceId: string): Promise<PaymentResponse>
+
+    // Create hosted invoice
     async createInvoice(params: CreateInvoiceParams): Promise<InvoiceResponse>
 
-    // Check payment status by payment ID
-    async getPaymentStatus(paymentId: string): Promise<PaymentStatus>
-
-    // Validate IPN webhook signature (HMAC-SHA512)
-    validateIPN(body: any, signature: string): boolean
+    // Get list of available currencies
+    async getAvailableCurrencies(): Promise<string[]>
 
     // Get minimum payment amount for currency
-    async getMinimumPaymentAmount(currency: string): Promise<number>
+    async getMinimumAmount(currencyFrom: string, currencyTo: string): Promise<number | null>
+
+    // Verify IPN webhook signature (HMAC-SHA512)
+    verifyIPNSignature(body: string, signature: string): boolean
 }
 ```
 
-### IPN Signature Validation
+### External API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/payment` | POST | Create payment |
+| `/payment/{paymentId}` | GET | Get payment status |
+| `/invoice/{invoiceId}` | GET | Get invoice status |
+| `/invoice` | POST | Create invoice |
+| `/currencies` | GET | List supported currencies |
+| `/min-amount` | GET | Get minimum payment amount |
+
+**Base URL:** `https://api.nowpayments.io/v1`
+
+### IPN Webhook Validation
 
 ```typescript
-validateIPN(body: any, signature: string): boolean {
+verifyIPNSignature(body: string, signature: string): boolean {
     const hmac = crypto.createHmac('sha512', process.env.NOWPAYMENTS_IPN_SECRET)
-        .update(JSON.stringify(body))
+        .update(body)
         .digest('hex')
     return hmac === signature
 }
 ```
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NOWPAYMENTS_API_URL` | No | API base URL (default: https://api.nowpayments.io/v1) |
+| `NOWPAYMENTS_API_KEY` | Yes | API authentication |
+| `NOWPAYMENTS_IPN_SECRET` | Yes | Webhook verification secret |
 
 ### Supported Currencies
 
@@ -357,6 +412,13 @@ validateIPN(body: any, signature: string): boolean {
 | ETH | eth | Ethereum |
 | BTC | btc | Bitcoin |
 
+### Error Handling
+
+- Detailed logging of all API responses
+- Graceful error messages for common failures (401, 400, network)
+- Rate limit retry with exponential backoff
+- Network error handling (connection refused, timeout)
+
 ---
 
 ## Payment Sync Service
@@ -365,42 +427,46 @@ validateIPN(body: any, signature: string): boolean {
 
 Polls NowPayments API to sync pending payment statuses.
 
-### Function: syncPendingPayments
+### Exported Function
 
 ```typescript
 export async function syncPendingPayments(): Promise<{
+    checked: number
     synced: number
     upgraded: number
-    errors: number
-}> {
-    // Find payments still waiting or confirming
-    const pending = await prisma.cryptoPayment.findMany({
-        where: { paymentStatus: { in: ['waiting', 'confirming'] } },
-        include: { user: true }
-    })
-
-    for (const payment of pending) {
-        const status = await nowPayments.getPaymentStatus(payment.paymentId)
-
-        if (status === 'finished') {
-            // Atomic upgrade with transaction
-            await prisma.$transaction(async (tx) => {
-                await tx.cryptoPayment.update({
-                    where: { id: payment.id },
-                    data: { paymentStatus: 'finished' }
-                })
-                await tx.user.update({
-                    where: { id: payment.userId },
-                    data: { tier: payment.tier }
-                })
-            })
-
-            // Notify user via WebSocket
-            io.to(`user-${payment.userId}`).emit('tier-change', { tier: payment.tier })
-        }
-    }
-}
+}>
 ```
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `findMany` | CryptoPayment | Find pending payments (max 100) |
+| `update` | CryptoPayment | Update status and amounts |
+| `update` | User | Upgrade user tier |
+| `$transaction` | - | Atomic user upgrade |
+
+### Sync Logic
+
+1. Finds all payments NOT in: `['finished', 'confirmed', 'failed', 'refunded', 'expired']`
+2. Fetches latest status from NowPayments API
+3. Updates payment with: paymentStatus, actuallyPaid, actuallyPaidCurrency, updatedAt
+4. Handles `partially_paid` status with:
+   - Change threshold detection (1% or 0.000001 minimum delta)
+   - Admin notification with payment issue alert
+   - User notification email
+   - Exchange rate calculations
+
+### Upgrade Trigger
+
+- When payment status becomes 'finished' or 'confirmed'
+- User tier must NOT match payment tier (prevents double upgrades)
+- Creates subscription expiry date (now + 30 days)
+- Sends payment confirmation email + tier upgrade email
+
+### Rate Limiting
+
+- 500ms delay between API calls (prevents rate limiting)
 
 ### Scheduling
 
@@ -418,77 +484,51 @@ setInterval(syncPendingPayments, 30_000)
 
 Handles crypto subscription renewal reminders and expiration.
 
-### Functions
+### Exported Functions
 
 ```typescript
 // Send 7-day reminder emails for expiring subscriptions
-export async function checkAndSendRenewalReminders(): Promise<void>
+export async function checkAndSendRenewalReminders(): Promise<{
+    checked: number
+    sent: number
+}>
 
 // Downgrade users whose crypto subscriptions have expired
-export async function checkAndDowngradeExpiredSubscriptions(): Promise<void>
+export async function checkAndDowngradeExpiredSubscriptions(): Promise<{
+    checked: number
+    downgraded: number
+}>
 ```
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `findMany` | CryptoPayment | Find expiring/expired payments |
+| `update` | CryptoPayment | Update reminderSentAt timestamp |
+| `update` | User | Downgrade tier to 'free' |
+| `deleteMany` | Watchlist | Delete all user watchlists on downgrade |
 
 ### Reminder Logic
 
-```typescript
-async function checkAndSendRenewalReminders() {
-    const sevenDaysFromNow = addDays(new Date(), 7)
+| Window | Behavior |
+|--------|----------|
+| 7 days | Send once when entered (if not sent) |
+| 3 days | Send every 24 hours if changed/not sent |
+| 1 day | Send every 12 hours if changed/not sent |
 
-    const expiringSoon = await prisma.cryptoPayment.findMany({
-        where: {
-            paymentStatus: 'finished',
-            expiresAt: { lte: sevenDaysFromNow, gte: new Date() },
-            renewalReminderSent: false
-        },
-        include: { user: true }
-    })
+### Downgrade Logic
 
-    for (const payment of expiringSoon) {
-        await emailService.sendCryptoRenewalReminder({
-            email: payment.user.email,
-            tier: payment.tier,
-            daysUntilExpiration: differenceInDays(payment.expiresAt, new Date()),
-            expiresAt: payment.expiresAt
-        })
+1. Finds crypto payments with `paymentStatus = 'finished'` AND `expiresAt < now`
+2. Deletes all user watchlists (no grandfathering)
+3. Sends expiration notification email
+4. Updates user tier to 'free'
 
-        await prisma.cryptoPayment.update({
-            where: { id: payment.id },
-            data: { renewalReminderSent: true }
-        })
-    }
-}
-```
+### Scheduled Task Resilience
 
-### Expiration Logic
-
-```typescript
-async function checkAndDowngradeExpiredSubscriptions() {
-    const expired = await prisma.cryptoPayment.findMany({
-        where: {
-            paymentStatus: 'finished',
-            expiresAt: { lt: new Date() }
-        },
-        include: { user: { where: { tier: { not: 'free' } } } }
-    })
-
-    for (const payment of expired) {
-        if (!payment.user) continue
-
-        await prisma.user.update({
-            where: { id: payment.userId },
-            data: { tier: 'free' }
-        })
-
-        await emailService.sendCryptoSubscriptionExpired({
-            email: payment.user.email,
-            tier: payment.tier,
-            expiresAt: payment.expiresAt
-        })
-
-        io.to(`user-${payment.userId}`).emit('tier-change', { tier: 'free' })
-    }
-}
-```
+- Pre-flight schema check (queries expiresAt field)
+- Graceful handling if migration not applied
+- Non-throwing errors (returns empty result instead)
 
 ---
 
@@ -498,32 +538,50 @@ async function checkAndDowngradeExpiredSubscriptions() {
 
 Manages cryptographic nonces for Web3 (SIWE) authentication.
 
-### Functions
+### Exported Instance
 
 ```typescript
-// Generate a random nonce for wallet address
-export function generateNonce(address: string): string
-
-// Validate nonce hasn't been used and isn't expired
-export function validateNonce(address: string, nonce: string): boolean
-
-// Mark nonce as consumed (one-time use)
-export function consumeNonce(address: string, nonce: string): void
+export const nonceManager: NonceManager
 ```
 
-### Usage in SIWE Flow
+### Public Methods
 
 ```typescript
-// 1. Frontend requests nonce
-const nonce = generateNonce(walletAddress)
+class NonceManager {
+    // Generate nonce for wallet address
+    generate(address: string, provider: 'evm' | 'solana'): string
 
-// 2. User signs message containing nonce
-// 3. Backend validates signature and nonce
-if (validateNonce(address, signedNonce)) {
-    consumeNonce(address, signedNonce)  // Prevent replay
-    // Create session...
+    // Validate nonce hasn't been used and isn't expired
+    validate(nonce: string): NonceData | null
+
+    // Mark nonce as consumed (one-time use)
+    consume(nonce: string): boolean
+
+    // Get current nonce count
+    getSize(): number
+
+    // Clear all nonces
+    clear(): void
 }
 ```
+
+### Features
+
+| Feature | Value |
+|---------|-------|
+| Storage | In-memory Map |
+| TTL | 5 minutes (300,000 ms) |
+| Use | One-time only |
+| Cleanup | Every 30 seconds |
+
+### Security
+
+- Nonces expire automatically after 5 minutes
+- Cleanup on process SIGTERM
+- Logging of nonce lifecycle (generated, validated, consumed, expired)
+- SIWE EIP-4361 compliant
+
+**Note:** Uses in-memory storage; for production with multiple instances, should use Redis.
 
 ---
 
@@ -533,32 +591,68 @@ if (validateNonce(address, signedNonce)) {
 
 Manages user watchlists (symbol-only storage).
 
-### Class: WatchlistService
+### Class: WatchlistService (Static Methods)
 
 ```typescript
 export class WatchlistService {
-    // Get all watchlists for user
-    async getUserWatchlists(userId: string): Promise<Watchlist[]>
+    // Get tier limits
+    static getLimits(tier: string): { watchlistLimit: number; symbolLimit: number }
 
-    // Get single watchlist
-    async getWatchlist(id: string, userId: string): Promise<Watchlist | null>
+    // Count user's watchlists
+    static countWatchlists(userId: string): Promise<number>
 
-    // Create new watchlist
-    async createWatchlist(userId: string, name: string, symbols: string[]): Promise<Watchlist>
+    // Count unique symbols across all watchlists
+    static countUniqueSymbols(userId: string): Promise<number>
 
-    // Update watchlist
-    async updateWatchlist(id: string, userId: string, data: UpdateData): Promise<Watchlist>
+    // Check if user can create new watchlist
+    static canCreateWatchlist(userId: string, tier: string): Promise<{
+        allowed: boolean
+        reason?: string
+        currentCount: number
+        limit: number
+    }>
 
-    // Delete watchlist
-    async deleteWatchlist(id: string, userId: string): Promise<void>
+    // Check if user can add symbol
+    static canAddSymbol(userId: string, tier: string, symbol: string, watchlistId: string): Promise<{
+        allowed: boolean
+        reason?: string
+        currentCount: number
+        limit: number
+        isDuplicate: boolean
+    }>
 
-    // Add symbols to watchlist
-    async addSymbols(id: string, userId: string, symbols: string[]): Promise<Watchlist>
+    // Get complete limit status
+    static getLimitStatus(userId: string, tier: string): Promise<{...}>
 
-    // Remove symbols from watchlist
-    async removeSymbols(id: string, userId: string, symbols: string[]): Promise<Watchlist>
+    // Delete all watchlists for user
+    static deleteAllWatchlists(userId: string): Promise<number>
 }
 ```
+
+### Tier Limits
+
+| Tier | Watchlists | Symbols |
+|------|------------|---------|
+| Free | 1 | 10 |
+| Pro | 3 | 30 |
+| Elite | 50 | Unlimited |
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `count` | Watchlist | Count user watchlists |
+| `groupBy` | WatchlistItem | Count unique symbols |
+| `findUnique` | Contract | Find symbol (no create) |
+| `findFirst` | WatchlistItem | Check for duplicates |
+| `deleteMany` | Watchlist | Cascade delete items |
+
+### Validation Logic
+
+- Duplicate check per watchlist
+- New symbol check across all user watchlists
+- Users can add same symbol to multiple watchlists (counted once)
+- When at limit, still allows adding existing symbols
 
 **Important:** Watchlists store symbols only (e.g., `['BTCUSDT', 'ETHUSDT']`). Market data comes from client-side Binance WebSocket.
 
@@ -570,21 +664,71 @@ export class WatchlistService {
 
 RSS feed management for crypto news.
 
-### Functions
+### Class: NewsService
 
 ```typescript
-// Get all configured news sources
-export async function getFeeds(): Promise<NewsSource[]>
+export class NewsService {
+    constructor(prisma: PrismaClient)
 
-// Seed default feeds (CoinDesk, Cointelegraph, etc.)
-export async function seedFeeds(): Promise<void>
+    // Seed default RSS feeds
+    async seedFeeds(): Promise<number>
 
-// Refresh all feeds and import new articles
-export async function refreshAllFeeds(): Promise<RefreshResult[]>
+    // Get all feeds with stats
+    async getFeeds(includeDisabled?: boolean): Promise<FeedWithStats[]>
 
-// Remove articles older than retention period
-export async function cleanupOldArticles(daysToKeep: number): Promise<number>
+    // Get single feed
+    async getFeed(id: string): Promise<RssFeed | null>
+
+    // Update feed settings
+    async updateFeed(id: string, data: UpdateData): Promise<RssFeed>
+
+    // Delete feed and articles
+    async deleteFeed(id: string): Promise<{ name: string; articlesDeleted: number }>
+
+    // Get articles with pagination
+    async getArticles(options: ArticleOptions): Promise<RssArticle[]>
+
+    // Refresh single feed
+    async refreshFeed(feedId: string): Promise<RefreshFeedResult>
+
+    // Refresh all feeds
+    async refreshAllFeeds(enabledOnly?: boolean): Promise<Map<string, RefreshFeedResult>>
+
+    // Cleanup old articles
+    async cleanupOldArticles(maxArticles?: number): Promise<number>
+
+    // Get statistics
+    async getStats(): Promise<Stats>
+}
 ```
+
+### External API Calls
+
+- RSS Feed Parser via `parseRssFeed()` from `../lib/rss`
+- 12 curated cryptocurrency news sources (CoinDesk, Cointelegraph, CryptoSlate, etc.)
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `upsert` | RssFeed | Seed/update feeds |
+| `findMany` | RssFeed | List with article counts |
+| `findMany` | RssArticle | Get articles with pagination |
+| `upsert` | RssArticle | Store/update articles |
+| `deleteMany` | RssArticle | Cleanup old articles |
+
+### Caching
+
+- Article query cache via `articleQueryCache` (5-minute TTL)
+- Flush on updates
+
+### Features
+
+- Batch feed refresh (5 feeds at a time)
+- Auto-cleanup keeps only 200 most recent articles
+- Error tracking per feed (errorCount, lastError)
+- Feed priority ordering
+- Enable/disable feeds
 
 ---
 
@@ -594,21 +738,94 @@ export async function cleanupOldArticles(daysToKeep: number): Promise<number>
 
 Manages user sessions for single-session enforcement.
 
-### Functions
+### Exported Functions
 
 ```typescript
 // Create session (invalidates existing for same device)
-export async function createSession(userId: string, deviceId: string): Promise<Session>
+export async function createSession(
+    prisma: PrismaClient,
+    params: CreateSessionParams
+): Promise<{ sessionId: string; invalidatedSessions: number }>
 
 // Validate session token
-export async function validateSession(token: string): Promise<Session | null>
+export async function validateSession(
+    prisma: PrismaClient,
+    sessionId: string
+): Promise<{ isValid: boolean; userId?: string; reason?: string }>
 
-// Invalidate specific session
-export async function invalidateSession(sessionId: string): Promise<void>
+// Update last activity timestamp
+export async function updateSessionActivity(
+    prisma: PrismaClient,
+    sessionId: string
+): Promise<void>
 
-// Invalidate all sessions for user (force logout everywhere)
-export async function invalidateAllSessions(userId: string): Promise<void>
+// Get all user sessions
+export async function getUserSessions(
+    prisma: PrismaClient,
+    userId: string,
+    currentSessionId?: string
+): Promise<SessionInfo[]>
+
+// Revoke specific session
+export async function revokeSession(
+    prisma: PrismaClient,
+    sessionId: string,
+    userId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }>
+
+// Revoke all sessions for user
+export async function revokeAllUserSessions(
+    prisma: PrismaClient,
+    userId: string,
+    reason?: string
+): Promise<{ count: number }>
+
+// Get session limit for tier
+export function getSessionLimit(tier: string): number
+
+// Cleanup expired sessions
+export async function cleanupExpiredSessions(
+    prisma: PrismaClient
+): Promise<number>
 ```
+
+### Session Limits
+
+| Tier | Limit | Behavior |
+|------|-------|----------|
+| Free | 1 | Invalidates all others on new login |
+| Pro | 1 | Invalidates all others on new login |
+| Elite | 4 | Oldest invalidated if limit exceeded |
+| ADMIN | Unlimited | No enforcement |
+
+### Session Fields
+
+```typescript
+interface UserSession {
+    id: string
+    userId: string
+    deviceId: string
+    deviceName: string
+    ipAddress: string
+    userAgent: string
+    tier: string
+    expiresAt: Date       // 30 days
+    isActive: boolean
+    invalidatedAt?: Date
+    invalidatedBy?: string
+    lastActivityAt: Date
+}
+```
+
+### Device Detection
+
+Parses userAgent for device name:
+- "Chrome on Windows"
+- "Safari on Mac"
+- "iPhone"
+- "iPad"
+- "Android Phone"
 
 ---
 
@@ -618,43 +835,352 @@ export async function invalidateAllSessions(userId: string): Promise<void>
 
 Telegram channel message ingestion.
 
-### Functions
+### Class: TelegramService
 
 ```typescript
-// Store message from external poller
-export async function ingestMessage(message: TelegramMessage): Promise<void>
+export class TelegramService {
+    constructor(prisma: PrismaClient)
 
-// Get recent messages with pagination
-export async function getMessages(limit: number, offset: number): Promise<TelegramMessage[]>
+    // Ingest messages from poller
+    async ingestMessages(
+        channelData: ChannelData,
+        messages: MessageData[]
+    ): Promise<IngestResult>
 
-// Mark message as relevant for alerts
-export async function markRelevant(messageId: string): Promise<void>
+    // Get channels with stats
+    async getChannels(): Promise<ChannelWithStats[]>
+
+    // Get messages with pagination
+    async getMessages(options: MessageOptions): Promise<{
+        messages: TelegramMessage[]
+        total: number
+    }>
+
+    // Cleanup old messages
+    async cleanupOldMessages(maxMessagesPerChannel?: number): Promise<number>
+
+    // Get statistics
+    async getStats(): Promise<Stats>
+
+    // Set channel error
+    async setChannelError(channelId: string, error: string): Promise<void>
+
+    // Toggle channel enabled state
+    async toggleChannel(id: string, enabled: boolean): Promise<TelegramChannel>
+
+    // Delete channel and messages
+    async deleteChannel(id: string): Promise<{
+        username: string
+        messagesDeleted: number
+    }>
+
+    // Get recent messages (simplified)
+    async getRecentMessages(limit?: number): Promise<SimplifiedMessage[]>
+}
 ```
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `upsert` | TelegramChannel | Create/update channels |
+| `upsert` | TelegramMessage | Store/update messages |
+| `deleteMany` | TelegramMessage | Cleanup by date |
+
+### Message Categorization
+
+Keyword-based auto-categorization:
+- `crypto` - Cryptocurrency topics
+- `macro` - Macroeconomic news
+- `tech` - Technology news
+- `markets` - General market news
+- `business` - Business news
+- `geopolitics` - Political events
+
+### Features
+
+- Pagination support (limit, page)
+- Filtering by channel username or ID
+- Date filtering (before parameter)
+- JSON serialization handling (BigInt → String)
+- Handles BigInt conversion (messageId, channelId)
+- Upsert pattern for duplicate handling
+- Automatic cleanup (keeps 1000 most recent messages per channel)
+- Handles media types: hasMedia, mediaType, links array
 
 ---
 
 ## Asset Metadata Service
 
-**File:** `services/asset-metadata.ts`
+**File:** `services/asset-metadata.ts` (1000+ lines)
 
 Enriches cryptocurrency assets with CoinGecko metadata.
 
-### Functions
+### Exported Functions
 
 ```typescript
-// Run full refresh cycle for all assets
-export async function runAssetRefreshCycle(): Promise<RefreshResult>
+// Get refresh progress status
+export function getRefreshProgress(): RefreshProgress
+
+// Get asset manifest for frontend
+export async function getAssetManifest(): Promise<{
+    assets: Asset[]
+    generatedAt: Date
+    source: string
+}>
+
+// Refresh single asset metadata
+export async function refreshSingleAsset(
+    asset: Asset,
+    forceRefresh?: boolean
+): Promise<{ success: boolean; reason?: string; error?: string }>
+
+// Detect new assets from market data
+export async function detectNewAssetsFromMarketData(
+    symbols: string[]
+): Promise<{ created: number; newSymbols: string[] }>
 
 // Retry assets that hit rate limits
-export async function retryRateLimitedAssets(): Promise<void>
+export async function retryRateLimitedAssets(): Promise<{
+    retried: number
+    succeeded: number
+    failed: number
+}>
 
-// Get current refresh progress
-export function getRefreshProgress(): { completed: number; total: number; inProgress: boolean }
+// Run full refresh cycle
+export async function runAssetRefreshCycle(
+    reason?: string
+): Promise<DetailedResults>
 ```
+
+### External API Calls
+
+| API | Endpoint | Method | Purpose |
+|-----|----------|--------|---------|
+| CoinGecko | `/search?query={symbol}` | GET | Search for coin |
+| CoinGecko | `/coins/{id}` | GET | Get coin profile |
+| CoinGecko | `{image_url}` | GET | Fetch logo image |
+| Binance | `/fapi/v1/exchangeInfo` | GET | Validate symbols |
+
+**CoinGecko Base URL:** `https://api.coingecko.com/api/v3`
 
 ### Rate Limiting
 
-CoinGecko free tier allows ~10-30 requests/minute. Service waits 3 seconds between requests.
+- 3 second gap between requests
+- Exponential backoff on 429 (5s, 10s, 20s)
+- Proxy support via `BINANCE_PROXY_URL`
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `findMany` | Asset | Get all assets |
+| `create` | Asset | Create new asset (status 'AUTO') |
+| `update` | Asset | Update with CoinGecko data |
+| `count` | Asset | Check if DB empty |
+
+### Asset Refresh Logic
+
+| Asset State | Behavior |
+|-------------|----------|
+| Complete | Weekly refresh only (7 days) |
+| Incomplete | Auto-refresh when missing fields OR stale |
+| No CoinGecko ID | Skip (appears in "Missing Data" filter) |
+
+### Progress Tracking
+
+```typescript
+interface RefreshProgress {
+    isRunning: boolean
+    current: number
+    total: number
+    currentSymbol: string
+    startedAt: Date
+    refreshed: number
+    failed: number
+    skipped: number
+    noUpdate: number
+    errors: string[]
+    successes: string[]
+}
+```
+
+Progress kept for 30 seconds after completion for frontend polling.
+
+### Features
+
+- 60-item batch limit for new symbol creation per run
+- Static seed manifest (BTC, ETH, SOL, etc.) for bootstrap
+- Logo URL handling: CoinGecko URL + base64 fallback
+- Description sanitization: HTML tag removal, entity decoding
+- URL validation before storage (HEAD request check, private IP rejection)
+- Force refresh with CoinGecko ID changes (clears old data if 404)
+
+---
+
+## Binance Client
+
+**File:** `services/binance-client.ts`
+
+**Note:** Per CLAUDE.md architecture rules, Binance REST API should ONLY be called from Digital Ocean scripts. This service exists for legacy/fallback purposes.
+
+### Exported Functions
+
+```typescript
+// Get market data for symbol(s)
+export async function getMarketData(
+    symbol?: string,
+    skipVolumeFilter?: boolean
+): Promise<MarketData[] | MarketData | null>
+
+// Get data for single symbol
+export async function getSymbolData(
+    symbol: string
+): Promise<MarketData | null>
+
+// Get historical candlestick data
+export async function getHistoricalData(
+    symbol: string,
+    interval?: string,
+    limit?: number
+): Promise<Kline[]>
+```
+
+### External API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/fapi/v1/ticker/24hr` | GET | 24-hour price/volume |
+| `/fapi/v1/premiumIndex` | GET | Funding rates |
+| `/fapi/v1/klines` | GET | Historical candlesticks |
+
+**Base URL:** `https://fapi.binance.com`
+
+### Volume Filtering
+
+- Single symbol: Respects `skipVolumeFilter` parameter
+- Batch: Filters symbols with <$1M 24h quote volume
+- Watchlist symbols can bypass volume filter
+
+### Error Handling
+
+- Returns empty array on API failure (non-throwing)
+- Detailed logging of Binance API errors
+- Graceful fallback for funding rate failures (uses 0)
+
+---
+
+## Currency Mapper Service
+
+**File:** `services/currency-mapper.ts`
+
+Maps internal currency codes to NowPayments format.
+
+### Exported Functions
+
+```typescript
+// Map our code to NowPayments code
+export function mapCurrencyToNowPayments(
+    ourCode: string,
+    availableCurrencies?: string[]
+): string | null
+
+// Get display name for currency
+export function getCurrencyDisplayName(ourCode: string): string
+
+// Get network identifier
+export function getCurrencyNetwork(ourCode: string): string
+
+// Check if currency is supported
+export function isSupportedCurrency(ourCode: string): boolean
+```
+
+### Supported Currencies
+
+| Our Code | Display Name | Network |
+|----------|--------------|---------|
+| usdtsol | USDT | Solana |
+| usdterc20 | USDT | Ethereum |
+| usdce | USDC | Ethereum |
+| sol | SOL | Solana |
+| btc | BTC | Bitcoin |
+| eth | ETH | Ethereum |
+
+### Mapping Priority
+
+1. Network-specific formats (exact match): usdtsol, usdterc20, usdc-erc20
+2. Network-specific formats (fuzzy match): Partial matching with network identifiers
+3. Fallback search: Contains base code + network identifier
+4. Generic formats (exact): Original code, uppercase variants
+
+### Network Safety
+
+- Solana: Checks sol, spl, solana identifiers; excludes eth/erc20
+- Ethereum: Checks erc20, eth, ethereum identifiers; excludes sol/spl
+- Prevents cross-network mismatches
+
+---
+
+## Notifications Service
+
+**File:** `services/notifications.ts`
+
+Creates admin notifications for system events.
+
+### Exported Functions
+
+```typescript
+// Create notification for all admins
+export async function createAdminNotification(
+    type: string,
+    title: string,
+    message: string,
+    metadata?: object
+): Promise<void>
+
+// Notify when new asset detected
+export async function notifyNewAssetDetected(
+    assetSymbol: string,
+    assetId: string
+): Promise<void>
+```
+
+### Database Operations
+
+| Operation | Model | Purpose |
+|-----------|-------|---------|
+| `findMany` | User | Find all admin users |
+| `createMany` | AdminNotification | Create batch notifications |
+
+### Notification Types
+
+| Type | Description |
+|------|-------------|
+| `NEW_ASSET_DETECTED` | Auto-generated when new asset detected |
+| `ASSET_ENRICHMENT_FAILED` | When metadata enrichment fails |
+
+---
+
+## OI Liquidity Job (Deprecated)
+
+**File:** `services/oi-liquidity-job.ts`
+
+**Status:** DEPRECATED - Moved to Digital Ocean Python scripts.
+
+### Remaining Export
+
+```typescript
+// API endpoint to serve liquid universe data
+export async function getLiquidUniverseForAPI(): Promise<{
+    updatedAt: Date
+    enterThreshold: number
+    exitThreshold: number
+    symbols: string[]
+    totalSymbols: number
+}>
+```
+
+Data is populated by Digital Ocean script, this service only reads.
 
 ---
 
@@ -662,40 +1188,184 @@ CoinGecko free tier allows ~10-30 requests/minute. Service waits 3 seconds betwe
 
 Located in `services/admin/`:
 
-### User Management (`admin/user-management.ts`)
+### User Management Service
 
-| Function | Description |
-|----------|-------------|
-| `listUsers` | Paginated user list with filters |
-| `getUser` | Get user details by ID |
-| `updateUser` | Update user profile |
-| `deleteUser` | Soft or hard delete user |
-| `changeTier` | Change subscription tier |
-| `changeStatus` | Change account status |
+**File:** `services/admin/user-management.ts`
 
-### Audit Service (`admin/audit-service.ts`)
+```typescript
+export class UserManagementService {
+    // Get paginated user list
+    static getUsers(query: UserQuery): Promise<{ users: User[]; pagination: Pagination }>
 
-| Function | Description |
-|----------|-------------|
-| `logAuditEvent` | Record admin action with details |
-| `getAuditLogs` | Query audit logs with filters |
+    // Get user by ID with relations
+    static getUserById(userId: string): Promise<UserDetail>
 
-### Metrics Service (`admin/metrics-service.ts`)
+    // Create new user (admin action)
+    static createUser(
+        data: CreateUserData,
+        adminUserId: string
+    ): Promise<{ user: User; temporaryPassword: string }>
 
-| Function | Description |
-|----------|-------------|
-| `getSystemMetrics` | Database, API health metrics |
-| `getRevenueMetrics` | Revenue by period, method |
-| `getUserMetrics` | User counts, tier distribution |
+    // Update user data
+    static updateUser(userId: string, data: UpdateData, adminUserId: string): Promise<User>
 
-### Two-Factor Service (`admin/two-factor.ts`)
+    // Delete user (soft or hard)
+    static deleteUser(userId: string, hardDelete: boolean, adminUserId: string): Promise<{ success: boolean }>
 
-| Function | Description |
-|----------|-------------|
-| `generateSecret` | Generate TOTP secret and QR code |
-| `verifyToken` | Verify 6-digit TOTP code |
-| `enable2FA` | Enable 2FA for user |
-| `disable2FA` | Disable 2FA for user |
+    // Suspend user account
+    static suspendUser(userId: string, adminUserId: string): Promise<User>
+
+    // Activate user account
+    static activateUser(userId: string, adminUserId: string): Promise<User>
+
+    // Reset user password
+    static resetPassword(userId: string, adminUserId: string): Promise<{ temporaryPassword: string }>
+
+    // Change user role
+    static changeRole(userId: string, role: string, adminUserId: string): Promise<User>
+}
+```
+
+### Audit Service
+
+**File:** `services/admin/audit-service.ts`
+
+```typescript
+export class AuditService {
+    // Create audit log entry
+    static createAuditLog(data: CreateAuditLogData): Promise<AuditLog>
+
+    // Get audit logs with filters
+    static getAuditLogs(query: AuditLogQuery): Promise<{ logs: AuditLog[]; pagination: Pagination }>
+
+    // Get statistics
+    static getAuditLogStats(days?: number): Promise<Stats>
+
+    // Search audit logs
+    static searchAuditLogs(
+        searchTerm: string,
+        query: AuditLogQuery
+    ): Promise<{ logs: AuditLog[]; pagination: Pagination; searchTerm: string }>
+
+    // Get single log by ID
+    static getAuditLogById(logId: string): Promise<AuditLog>
+
+    // Get logs for specific user
+    static getUserAuditLogs(userId: string, query: AuditLogQuery): Promise<{ logs: AuditLog[]; pagination: Pagination }>
+
+    // Export logs to file
+    static exportAuditLogs(query: AuditLogQuery, format: 'csv' | 'json'): Promise<string>
+
+    // Log user action (convenience method)
+    static logUserAction(actorUserId: string, action: string, targetType: string, ...): Promise<AuditLog>
+
+    // Log security event
+    static logSecurityEvent(actorUserId: string, event: string, details: object, ...): Promise<AuditLog>
+
+    // Log bulk action
+    static logBulkAction(actorUserId: string, action: string, targetType: string, targetIds: string[], ...): Promise<AuditLog>
+
+    // Cleanup old logs
+    static cleanupOldAuditLogs(retentionDays?: number): Promise<number>
+}
+```
+
+**Audit Log Retention:** 90+ days by default.
+
+### Metrics Service
+
+**File:** `services/admin/metrics-service.ts`
+
+```typescript
+export class MetricsService {
+    // Get system-wide metrics
+    static getSystemMetrics(period?: string): Promise<SystemMetrics>
+
+    // Get user metrics
+    static getUserMetrics(period?: string): Promise<UserMetrics>
+
+    // Get revenue metrics
+    static getRevenueMetrics(period?: string): Promise<RevenueMetrics>
+
+    // Get activity metrics
+    static getActivityMetrics(period?: string): Promise<ActivityMetrics>
+
+    // Get health metrics
+    static getHealthMetrics(): Promise<HealthMetrics>
+}
+```
+
+**Periods:** '7d', '30d', '90d', '1y'
+
+**Note:** Revenue, API response time, error rate, and resource usage are placeholder implementations.
+
+### Two-Factor Service
+
+**File:** `services/admin/two-factor.ts`
+
+```typescript
+export class TwoFactorService {
+    // Generate 2FA setup (secret + QR code)
+    static generate2FASetup(userId: string): Promise<TwoFactorSetup>
+
+    // Verify 6-digit TOTP code
+    static verify2FACode(userId: string, code: string, backupCode?: string): Promise<boolean>
+
+    // Enable 2FA for user
+    static enable2FA(userId: string, adminUserId: string): Promise<void>
+
+    // Disable 2FA for user
+    static disable2FA(userId: string, adminUserId: string): Promise<void>
+
+    // Verify backup code
+    static verifyBackupCode(userId: string, backupCode: string): Promise<boolean>
+
+    // Generate new backup codes
+    static generateNewBackupCodes(userId: string, adminUserId: string): Promise<string[]>
+
+    // Check if 2FA enabled
+    static is2FAEnabled(userId: string): Promise<boolean>
+
+    // Get 2FA status
+    static get2FAStatus(userId: string): Promise<Status>
+
+    // Validate setup (before enabling)
+    static validate2FASetup(userId: string, code: string): Promise<boolean>
+
+    // Log failed attempt
+    static logFailed2FAAttempt(userId: string, code: string): Promise<void>
+
+    // Log successful attempt
+    static logSuccessful2FAAttempt(userId: string): Promise<void>
+}
+```
+
+**External Libraries:**
+- `speakeasy`: TOTP secret generation and verification
+- `qrcode`: QR code generation
+
+**Backup Codes:**
+- 10 codes, 8 characters each
+- Format: `XXXXXXXX` (uppercase alphanumeric A-Z0-9)
+
+**TOTP Settings:**
+- 30-second time windows
+- Window=2 allows ±60 seconds tolerance
+- Issuer: "VolSpike"
+
+**Security Note:** 2FA secrets stored unencrypted. Production should encrypt.
+
+### Invite Service
+
+**File:** `services/admin/invite-service.ts`
+
+Handles user invitations with email delivery.
+
+### Promo Code Admin Service
+
+**File:** `services/admin/promo-code-admin.ts`
+
+Admin-specific promo code management (CRUD operations).
 
 ---
 
@@ -707,6 +1377,8 @@ Some services use classes with singleton exports:
 ```typescript
 export class EmailService { ... }
 export const emailService = new EmailService()
+// or
+static getInstance(): EmailService
 ```
 
 Others use module-level functions:
@@ -714,7 +1386,7 @@ Others use module-level functions:
 export function broadcastVolumeAlert(alert: VolumeAlert) { ... }
 ```
 
-### Error Handling
+### Error Handling Pattern
 
 ```typescript
 async function serviceFunction(): Promise<Result> {
@@ -745,3 +1417,33 @@ const logger = createLogger()
 logger.info('Processing started', { userId, action })
 logger.error('Processing failed', { error: error.message })
 ```
+
+---
+
+## Critical Notes
+
+1. **Binance REST API in Backend:** `binance-client.ts` exists but per CLAUDE.md, Binance REST API should ONLY run on Digital Ocean. This is legacy code.
+
+2. **2FA Storage Not Encrypted:** Comments note `twoFactorSecret` should be encrypted in production.
+
+3. **Revenue Metrics Stubbed:** MetricsService revenue methods return 0/empty (need Stripe integration).
+
+4. **Nonce Manager Not Distributed:** In-memory Map doesn't work with multiple Node.js instances (needs Redis in production).
+
+5. **Email Service Initialization Silent:** Non-critical failures on startup don't block the app.
+
+---
+
+## Summary Statistics
+
+| Metric | Count |
+|--------|-------|
+| Total Functions/Methods | 150+ |
+| Database Models Touched | 20+ |
+| External APIs Called | 4 (SendGrid, NowPayments, CoinGecko, Binance) |
+| Transaction Usage | 5 services |
+| Logging Coverage | 100% |
+
+---
+
+## Next: [Database Schema](15-DATABASE.md)

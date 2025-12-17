@@ -216,7 +216,7 @@ This document maps every file in the VolSpike project to its documentation, purp
 |------|--------|---------------|---------|
 | `web3-providers.tsx` | USED | [08-FRONTEND-OVERVIEW.md](08-FRONTEND-OVERVIEW.md) | EVM wallet providers |
 | `solana-providers.tsx` | USED | [08-FRONTEND-OVERVIEW.md](08-FRONTEND-OVERVIEW.md) | Solana wallet providers |
-| `analytics-provider.tsx` | USED | [09-COMPONENTS.md](09-COMPONENTS.md) | Analytics wrapper |
+| `analytics-provider.tsx` | USED | [23-ANALYTICS.md](23-ANALYTICS.md) | GA4 page view tracking |
 
 #### UI Components
 
@@ -342,7 +342,7 @@ See [17-ADMIN-PAGES.md](17-ADMIN-PAGES.md) for complete admin component document
 | `asset-manifest.ts` | USED | [09-COMPONENTS.md](09-COMPONENTS.md) | Asset metadata cache |
 | `coingecko-rate-limiter.ts` | USED | [14-SERVICES.md](14-SERVICES.md) | CoinGecko API rate limiting |
 | `avatar-utils.ts` | USED | [09-COMPONENTS.md](09-COMPONENTS.md) | Avatar generation |
-| `analytics.ts` | USED | [08-FRONTEND-OVERVIEW.md](08-FRONTEND-OVERVIEW.md) | Analytics tracking |
+| `analytics.ts` | USED | [23-ANALYTICS.md](23-ANALYTICS.md) | GA4 analytics tracking |
 | `click-debugger.ts` | TEST | N/A | Click event debugging |
 | `admin/api-client.ts` | USED | [16-ADMIN-OVERVIEW.md](16-ADMIN-OVERVIEW.md) | Admin API wrapper |
 | `admin/currency-format.ts` | USED | [16-ADMIN-OVERVIEW.md](16-ADMIN-OVERVIEW.md) | Crypto currency formatting |
@@ -555,18 +555,25 @@ See [17-ADMIN-PAGES.md](17-ADMIN-PAGES.md) for complete admin component document
 
 | File | Status | Doc Reference | Purpose |
 |------|--------|---------------|---------|
-| `hourly_volume_alert_dual_env.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | **MAIN** - Volume spike detection |
-| `oi_realtime_poller.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | OI polling and alerts |
-| `oi_liquid_universe_job.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Liquid symbol classification |
-| `binance_funding_ws_daemon.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding rate WebSocket |
-| `funding_api_server.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding rate API |
+| `hourly_volume_alert_dual_env.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | **MAIN** - Volume spike detection (585 lines) |
+| `oi_realtime_poller.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | OI polling + multi-timeframe alerts (773 lines) |
+| `oi_liquid_universe_job.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Liquid symbol classification (272 lines) |
+| `binance_funding_ws_daemon.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding rate WebSocket daemon (234 lines) |
+| `funding_api_server.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding rate HTTP API (355 lines) |
+| `user_alert_checker.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | User-defined threshold alerts (370 lines) |
+| `telegram_channel_poller.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Telegram channel monitoring (420 lines) |
+| `funding_health_monitor.py` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Health check + auto-restart (306 lines) |
 
 ### Service Files (USED)
 
 | File | Status | Doc Reference | Purpose |
 |------|--------|---------------|---------|
-| `binance-funding-api.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding API systemd |
-| `binance-funding-ws.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding WS systemd |
+| `volspike.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Main volume alert service |
+| `binance-funding-ws.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding WebSocket daemon |
+| `binance-funding-api.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Funding HTTP API server |
+| `telegram-channel-poller.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Telegram channel poller |
+| `user-alert-checker.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | User alert checker |
+| `funding-health-check.service` | USED | [18-DIGITAL-OCEAN.md](18-DIGITAL-OCEAN.md) | Health monitoring (oneshot) |
 
 ### Testing/Debug Scripts (TEST)
 
@@ -575,7 +582,6 @@ See [17-ADMIN-PAGES.md](17-ADMIN-PAGES.md) for complete admin component document
 | `test_oi_alert_logic.py` | TEST | N/A | OI alert testing |
 | `test_oi_poller_interval.py` | TEST | N/A | Poller timing tests |
 | `simulate_dual_alerts.py` | TEST | N/A | Alert simulation |
-| `funding_health_monitor.py` | TEST | N/A | Funding health checks |
 
 ### Legacy/Duplicate Scripts (CANDIDATES FOR REMOVAL)
 
@@ -598,8 +604,6 @@ See [17-ADMIN-PAGES.md](17-ADMIN-PAGES.md) for complete admin component document
 | `validate_funding_comparison.py` | DUPLICATE | Validation tool | Remove |
 | `verify_funding_data.py` | DUPLICATE | Verification tool | Remove |
 | `Verify/hourly_volume_alert_dual_env.py` | DUPLICATE | Duplicate in subfolder | Remove |
-| `telegram_channel_poller.py` | UNUSED | Feature not active | Keep or Remove |
-| `user_alert_checker.py` | UNUSED | Feature not active | Keep or Remove |
 
 ---
 
@@ -618,23 +622,21 @@ See [17-ADMIN-PAGES.md](17-ADMIN-PAGES.md) for complete admin component document
 
 | Status | Count | Description |
 |--------|-------|-------------|
-| USED | ~250 | Actively used in production |
+| USED | ~260 | Actively used in production |
 | TEST | ~20 | Test files |
 | CONFIG | ~15 | Configuration files |
-| DUPLICATE | ~17 | Candidates for removal |
-| UNUSED | ~4 | Legacy code to remove |
+| DUPLICATE | ~15 | Candidates for removal |
+| UNUSED | ~2 | Legacy code to remove |
 
 ### Cleanup Recommendations
 
 **High Priority (Remove)**:
 1. 15 duplicate Python scripts in Digital Ocean folder
-2. 2 unused frontend hooks
+2. 2 unused frontend hooks (`use-binance-websocket.ts`, `use-market-data.ts`)
 3. 1 duplicate verification folder
 
 **Medium Priority (Review)**:
-1. `telegram_channel_poller.py` - Check if feature is planned
-2. `user_alert_checker.py` - Check if feature is planned
-3. Various comparison/verification scripts if not needed for debugging
+1. Various comparison/verification scripts if not needed for debugging
 
 ### Documentation Coverage
 
@@ -645,15 +647,15 @@ See [17-ADMIN-PAGES.md](17-ADMIN-PAGES.md) for complete admin component document
 | Frontend Hooks | 24 | 100% |
 | Backend Routes | 25 | 100% |
 | Backend Services | 22 | 100% |
-| Digital Ocean (Prod) | 5 | 100% |
-| Digital Ocean (Test) | 4 | Identified |
-| Digital Ocean (Duplicate) | 17 | Flagged for removal |
+| Digital Ocean (Prod) | 8 | 100% |
+| Digital Ocean (Services) | 6 | 100% |
+| Digital Ocean (Test) | 3 | Identified |
+| Digital Ocean (Duplicate) | 15 | Flagged for removal |
 
 ---
 
 ## Next Steps
 
-1. **Delete duplicate Python scripts** (17 files)
+1. **Delete duplicate Python scripts** (15 files)
 2. **Delete unused hooks** (2 files)
-3. **Review telegram/user_alert scripts** for future use
-4. **Update this document** when files are added/removed
+3. **Update this document** when files are added/removed

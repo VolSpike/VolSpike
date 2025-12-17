@@ -44,12 +44,47 @@ Located in `volspike-nextjs-frontend/.env.local`
 |----------|----------|-------------|
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Yes | WalletConnect Cloud project ID |
 
+### Solana
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_SOLANA_CLUSTER` | No | Solana cluster (`mainnet-beta` or `devnet`) |
+| `NEXT_PUBLIC_ENABLE_SOLANA` | No | Enable Solana wallet auth (`1`/`0`) |
+| `NEXT_PUBLIC_PUBLIC_URL` | No | Public URL for Phantom deeplinks |
+
+### NowPayments (Frontend)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_NOWPAYMENTS_ENABLED` | No | Show crypto payment option (`true`/`false`) |
+
+### Debug Flags
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_PRICE_FLASH` | No | Enable price flash animations (`true`/`1`) |
+| `NEXT_PUBLIC_DEBUG_SCROLL` | No | Enable scroll debugging (`true`/`1`) |
+| `NEXT_PUBLIC_AVATAR_FILTER_GOOGLE_TILES` | No | Filter Google avatar tiles (`true`/`false`) |
+
 ### Google OAuth
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth client secret |
+
+### Google Analytics
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | No | GA4 Measurement ID (e.g., `G-XXXXXXXXXX`) |
+| `NEXT_PUBLIC_ENABLE_ANALYTICS` | No | Enable analytics in dev (`true`/`false`) |
+
+**Note:** Analytics is only active when:
+- `NEXT_PUBLIC_GA_MEASUREMENT_ID` is set AND
+- Either `NODE_ENV === 'production'` OR `NEXT_PUBLIC_ENABLE_ANALYTICS === 'true'`
+
+See [23-ANALYTICS.md](23-ANALYTICS.md) for full documentation.
 
 ### Build
 
@@ -84,6 +119,10 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
 # Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# Google Analytics (optional - only needed if tracking)
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+# NEXT_PUBLIC_ENABLE_ANALYTICS=true  # Uncomment to enable in dev
 ```
 
 ---

@@ -2,17 +2,19 @@
 
 ## Overview
 
-VolSpike has 24+ custom React hooks that handle data fetching, authentication, real-time connections, and UI state.
+VolSpike has 25 custom React hooks that handle data fetching, authentication, real-time connections, and UI state. This document provides comprehensive documentation based on actual code review.
+
+**Total Hooks**: 25 files in `/volspike-nextjs-frontend/src/hooks/`
 
 ---
 
 ## Market Data Hooks
 
-### useClientOnlyMarketData
+### useClientOnlyMarketData (CRITICAL - CORE HOOK)
 
 **File:** `src/hooks/use-client-only-market-data.ts`
 
-The most important hook - handles direct Binance WebSocket connection.
+The most important hook - handles direct Binance WebSocket connection with tier-based throttling and Open Interest integration.
 
 **Signature:**
 ```typescript
@@ -24,7 +26,7 @@ function useClientOnlyMarketData({
   data: MarketData[]
   status: 'connecting' | 'live' | 'reconnecting' | 'error'
   lastUpdate: number
-  nextUpdate: number
+  nextUpdate: number  // Always 0 for real-time
   isLive: boolean
   isConnecting: boolean
   isReconnecting: boolean
@@ -38,41 +40,74 @@ function useClientOnlyMarketData({
 |-------|------|-------------|
 | `tier` | `'free' \| 'pro' \| 'elite'` | User's subscription tier |
 | `onDataUpdate` | `(data: MarketData[]) => void` | Callback when data updates |
-| `watchlistSymbols` | `string[]` | Symbols to always include |
+| `watchlistSymbols` | `string[]` | Symbols to always include (bypass tier limits) |
+
+**Key Implementation Details:**
+- WebSocket URL: `wss://fstream.binance.com/stream?streams=!ticker@arr/!markPrice@arr`
+- Bootstrap window: 900ms to collect data, minimum 30 symbols
+- Debounced rendering: 200ms between renders
+- Exponential backoff reconnection: 1s, 2s, 4s... up to 30s
+- Geofence fallback: Uses localStorage if WebSocket fails after 3s
+
+**State Management (Internal):**
+- `tickersRef` - Map of ticker data
+- `fundingRef` - Map of funding rates
+- `openInterestRef` - Map of OI data
+- `allowedSymbolsRef` - Binance whitelist from exchangeInfo
+- `symbolPrecisionRef` - Decimal precision per symbol
+
+**Side Effects & Subscriptions:**
+- WebSocket connection on mount
+- OI polling every 5 minutes (wall-clock aligned)
+- Socket.IO listener for `open-interest-update` events
+- Watchdog timer for stale OI data (6-minute threshold)
+
+**API Calls:**
+- `GET https://fapi.binance.com/fapi/v1/ticker/24hr` - Warm start seed
+- `GET https://fapi.binance.com/fapi/v1/premiumIndex` - Seed funding rates
+- `GET https://fapi.binance.com/fapi/v1/exchangeInfo` - Fetch active symbols
+- `GET /api/market/open-interest` - Fetch OI from backend
+
+**localStorage Keys:**
+- `volspike:lastSnapshot` - Last market data snapshot
+- `volspike:exchangeInfo:perpUsdt` - Cached symbol whitelist (1-hour TTL)
+- `volspike:exchangeInfo:precision` - Cached price precision
+- `vs:openInterest` - Cached OI data
+
+**Environment Variables:**
+- `NEXT_PUBLIC_WS_URL` - WebSocket URL (default: Binance direct)
+- `NEXT_PUBLIC_API_URL` - Backend API URL
+- `NEXT_PUBLIC_SOCKET_IO_URL` - Socket.IO URL
 
 **Usage:**
 ```typescript
-const { data, status, isLive } = useClientOnlyMarketData({
+const { data, status, isLive, openInterestAsOf } = useClientOnlyMarketData({
   tier: user.tier,
   watchlistSymbols: watchlist?.symbols || [],
 })
 ```
 
-**Key Implementation Details:**
-- Connects to `wss://fstream.binance.com/stream`
-- Streams: `!ticker@arr` and `!markPrice@arr`
-- Debounces updates (200ms)
-- Exponential backoff reconnection
-- localStorage fallback for blocked regions
-- Fetches OI from backend separately
-
 ---
 
-### useMarketData
+### useMarketData (LEGACY)
 
 **File:** `src/hooks/use-market-data.ts`
 
-Legacy hook, delegates to `useClientOnlyMarketData`.
+**Status:** DEPRECATED - Replaced by `useClientOnlyMarketData`
 
-**Note:** Kept for backwards compatibility.
+Legacy hook using backend REST API for market data. Kept for backwards compatibility.
+
+**Note:** This hook uses TanStack Query to fetch from `/api/market/data`. The new architecture uses client-side WebSocket instead.
 
 ---
 
-### useBinanceWebSocket
+### useBinanceWebSocket (LEGACY)
 
 **File:** `src/hooks/use-binance-websocket.ts`
 
-Low-level WebSocket management (used internally).
+**Status:** DEPRECATED - Replaced by `useClientOnlyMarketData`
+
+Low-level WebSocket management. Kept for backwards compatibility.
 
 ---
 
@@ -82,27 +117,53 @@ Low-level WebSocket management (used internally).
 
 **File:** `src/hooks/use-volume-alerts.ts`
 
-Manages volume spike alert subscription and display.
+Manages volume spike alert subscription with tier-based batching and guest preview.
 
 **Signature:**
 ```typescript
-function useVolumeAlerts(tier: string): {
+function useVolumeAlerts(options?: {
+  pollInterval?: number      // Default: 15000ms
+  autoFetch?: boolean        // Default: true
+  onNewAlert?: (alert) => void
+  guestLive?: boolean        // Default: false
+  guestVisibleCount?: number // Default: 2
+}): {
   alerts: VolumeAlert[]
+  isLoading: boolean
+  error: string | null
+  tier: string
   isConnected: boolean
-  countdown: number  // Seconds until next batch
-  initialLoading: boolean
+  nextUpdate: number  // ms until next batch (0 for Elite)
+  refetch: () => void
 }
 ```
 
-**Features:**
-- Subscribes to Socket.IO `volume-alert` events
-- Handles `volume-alerts-batch` for batched delivery
-- Fetches initial alerts on mount
-- Manages countdown timer
+**Wall-Clock Batching:**
+- **Elite**: Real-time (nextUpdate = 0)
+- **Pro**: :00, :05, :10, :15 (5-minute marks)
+- **Free**: :00, :15, :30, :45 (15-minute marks)
+- **Guest**: 3-second polling (guest-live mode)
+
+**Tier-based Alert Limits:**
+- Free: 10 alerts (2 visible in guest preview)
+- Pro: 50 alerts
+- Elite: 100 alerts
+- Admin: 100 alerts
+
+**Socket.IO Auth Methods:**
+- Guest: `token: 'guest'`, `query: { tier: 'free' }`
+- Wallet-only: `token: userId`, `query: { method: 'id' }`
+- Email users: `token: email`
+
+**API Calls:**
+- `GET /api/volume-alerts?tier={tier}` - Fetch alerts
+- Socket.IO `volume-alert` event subscription
 
 **Usage:**
 ```typescript
-const { alerts, isConnected, countdown } = useVolumeAlerts(tier)
+const { alerts, isConnected, nextUpdate, refetch } = useVolumeAlerts({
+  onNewAlert: (alert) => playSound('spike')
+})
 ```
 
 ---
@@ -111,20 +172,35 @@ const { alerts, isConnected, countdown } = useVolumeAlerts(tier)
 
 **File:** `src/hooks/use-oi-alerts.ts`
 
-Manages Open Interest alert subscription.
+Manages Open Interest alerts with tier-based access control (Pro/Elite only).
 
 **Signature:**
 ```typescript
-function useOIAlerts(tier: string): {
+function useOIAlerts(options?: {
+  autoFetch?: boolean
+  onNewAlert?: (alert) => void
+}): {
   alerts: OIAlert[]
+  isLoading: boolean
+  error: string | null
   isConnected: boolean
+  canAccessOI: boolean  // Pro/Elite/Admin only
+  userTier: string
+  isAdmin: boolean
+  maxAlerts: number     // 50 or 100 based on tier
+  refetch: () => void
 }
 ```
 
-**Usage:**
-```typescript
-const { alerts, isConnected } = useOIAlerts(tier)
-```
+**Access Control:**
+- Free: Denied (403)
+- Pro: 50 alerts max
+- Elite: 100 alerts max
+- Admin: 100 alerts max
+
+**API Calls:**
+- `GET /api/open-interest-alerts?limit={maxAlerts}` with Bearer token
+- Socket.IO `open-interest-alert` event subscription
 
 ---
 
@@ -132,27 +208,44 @@ const { alerts, isConnected } = useOIAlerts(tier)
 
 **File:** `src/hooks/use-alert-sounds.ts`
 
-Manages alert sound playback.
+Manages alert notification sounds with Howler.js and Web Audio API fallbacks.
 
 **Signature:**
 ```typescript
-function useAlertSounds(): {
+function useAlertSounds(options?: {
+  enabled?: boolean  // Defaults from localStorage
+  volume?: number    // 0-1, defaults from localStorage
+}): {
+  playSound: (type: 'spike' | 'half_update' | 'full_update') => void
   enabled: boolean
   setEnabled: (enabled: boolean) => void
   volume: number
   setVolume: (volume: number) => void
-  playSound: (type: 'spike' | 'update' | 'hourly') => void
+  loading: boolean
+  ensureUnlocked: () => void  // Resume audio context (mobile)
 }
 ```
 
-**Features:**
-- Three-tier fallback (Howler > HTML5 Audio > Web Audio)
-- Persists preference to localStorage
-- Volume control
+**Sound Types:**
+- `spike` - New volume spike alert
+- `half_update` - 30-minute update
+- `full_update` - Hourly update
+
+**Fallback System:**
+1. Howler.js (MP3/WebM)
+2. HTML5 Audio
+3. Web Audio API (procedural synthesis)
+
+**localStorage Keys:**
+- `alertSoundsEnabled` - Boolean state
+- `alertSoundsVolume` - Volume number (0-1)
 
 **Usage:**
 ```typescript
-const { enabled, setEnabled, playSound } = useAlertSounds()
+const { enabled, setEnabled, playSound, ensureUnlocked } = useAlertSounds()
+
+// Unlock audio on user interaction
+onClick={() => ensureUnlocked()}
 
 // On new alert
 if (enabled) {
@@ -166,16 +259,18 @@ if (enabled) {
 
 **File:** `src/hooks/use-user-alert-listener.ts`
 
-Listens for user-specific custom alerts.
+Listens for custom user alerts and displays toast + browser notifications.
 
 **Signature:**
 ```typescript
-function useUserAlertListener(userId: string): {
-  alerts: UserAlert[]
-  hasNew: boolean
-  clearNew: () => void
-}
+function useUserAlertListener(): void
 ```
+
+**Side Effects:**
+- Listens for `user-alert-triggered` via Socket.IO
+- Shows toast notification (react-hot-toast, 8s duration)
+- Requests browser notification permission on first alert
+- Shows browser notification if permitted
 
 ---
 
@@ -183,14 +278,22 @@ function useUserAlertListener(userId: string): {
 
 **File:** `src/hooks/use-browser-notifications.ts`
 
-Manages browser push notifications.
+Manages browser Push Notifications API integration.
 
 **Signature:**
 ```typescript
 function useBrowserNotifications(): {
-  permission: NotificationPermission
+  permission: NotificationPermission  // 'default' | 'granted' | 'denied'
+  isSupported: boolean
   requestPermission: () => Promise<void>
-  showNotification: (title: string, body: string) => void
+  showNotification: (options: {
+    title: string
+    body: string
+    icon?: string
+    badge?: string
+    tag?: string
+    requireInteraction?: boolean
+  }) => void
 }
 ```
 
@@ -202,23 +305,36 @@ function useBrowserNotifications(): {
 
 **File:** `src/hooks/use-wallet-auth.ts`
 
-Handles EVM wallet authentication flow.
+Complete EVM wallet authentication via SIWE (Sign-In with Ethereum).
 
 **Signature:**
 ```typescript
 function useWalletAuth(): {
   isConnecting: boolean
-  isAuthenticated: boolean
-  address: string | undefined
-  signIn: () => Promise<void>
-  signOut: () => void
+  isSigning: boolean
+  isAuthenticating: boolean
+  error: string | null
+  signInWithWallet: () => Promise<void>
 }
 ```
 
-**Features:**
-- Integrates with RainbowKit
-- SIWE message signing
-- JWT token handling
+**Auth Flow:**
+1. Check wallet connected via Wagmi
+2. Get nonce from `GET /api/auth/siwe/nonce`
+3. Prepare SIWE message from `GET /api/auth/siwe/prepare`
+4. Sign message with wallet (via signMessageAsync)
+5. Verify signature at `POST /api/auth/siwe/verify`
+6. Create NextAuth session via `signIn('siwe', ...)`
+7. Redirect to dashboard
+
+**Wallet Linking:**
+- If already authenticated, sends Authorization header with user ID
+- Backend links wallet to existing account
+
+**Dependencies:**
+- `useAccount` - Wagmi (address, chainId, isConnected)
+- `useSignMessage` - Wagmi sign message
+- `useSession` - NextAuth session
 
 ---
 
@@ -226,18 +342,32 @@ function useWalletAuth(): {
 
 **File:** `src/hooks/use-solana-auth.ts`
 
-Handles Solana wallet authentication.
+Complete Solana wallet authentication with mobile deep-linking support.
 
 **Signature:**
 ```typescript
 function useSolanaAuth(): {
   isConnecting: boolean
-  isAuthenticated: boolean
-  publicKey: string | undefined
-  signIn: () => Promise<void>
-  signOut: () => void
+  isSigning: boolean
+  isAuthenticating: boolean
+  error: string | null
+  signInWithSolana: () => Promise<void>
 }
 ```
+
+**Platform-Specific Behavior:**
+- **iOS**: Uses Phantom deep-link (`startIOSConnectDeepLink`)
+- **Android**: Uses SolanaMobileWalletAdapterWalletName, retry after 1.2s
+- **Desktop**: Phantom extension check, fallback to WalletConnect
+
+**Auth Flow:**
+1. Detect platform (iOS/Android/Desktop)
+2. Get nonce from `POST /api/auth/solana/nonce`
+3. Get signing message from `GET /api/auth/solana/prepare`
+4. Sign message with wallet
+5. Verify at `POST /api/auth/solana/verify`
+6. Create NextAuth session
+7. Redirect to dashboard
 
 ---
 
@@ -245,23 +375,24 @@ function useSolanaAuth(): {
 
 **File:** `src/hooks/use-phantom-connect.ts`
 
-Phantom wallet connection with mobile deep-link support.
+Phantom wallet deep-link connection for Solana mobile.
 
 **Signature:**
 ```typescript
 function usePhantomConnect(): {
-  connect: () => Promise<void>
-  disconnect: () => void
-  isConnected: boolean
-  isMobile: boolean
-  publicKey: string | undefined
+  ready: boolean        // Connection URL ready
+  error: string | null
+  clickToConnect: () => void  // Trigger Phantom deep-link
 }
 ```
 
+**API Calls:**
+- `POST /api/auth/phantom/dl/start` - Get Phantom connect URL
+
 **Features:**
-- Detects mobile vs desktop
-- Deep-link generation for mobile
-- Universal links for iOS
+- Universal links + deep-link conversion
+- iOS preference handling
+- Cancellation support
 
 ---
 
@@ -269,18 +400,31 @@ function usePhantomConnect(): {
 
 **File:** `src/hooks/use-user-identity.ts`
 
-Gets current user identity from session.
+Normalizes and provides consistent user identity information.
 
 **Signature:**
 ```typescript
 function useUserIdentity(): {
-  user: UserIdentity | null
+  displayName: string     // Formatted user display name
+  email: string | null    // Normalized email
+  address: string | null  // Wallet address (0x... or Solana)
+  walletProvider: 'evm' | 'solana' | null
+  ens: string | null      // ENS name (always null, TODO)
+  role: 'USER' | 'ADMIN' | null
+  tier: 'free' | 'pro' | 'elite' | null
+  image: string | null    // Avatar image URL
   isLoading: boolean
-  isAuthenticated: boolean
-  tier: string
-  role: string
 }
 ```
+
+**Display Name Logic:**
+1. If wallet connected: `0x1234...5678` (short address)
+2. Else if email: normalized email
+3. Else if name: session name
+4. Fallback: "User"
+
+**localStorage:**
+- `vs_normalized_email` - Cached email for transient gaps after OAuth
 
 ---
 
@@ -288,7 +432,16 @@ function useUserIdentity(): {
 
 **File:** `src/hooks/use-enforce-single-identity.ts`
 
-Prevents multiple auth methods conflicting.
+Ensures only one active identity (disconnects unused wallets).
+
+**Signature:**
+```typescript
+function useEnforceSingleIdentity(): void
+```
+
+**Side Effects:**
+- Disconnect EVM wallet if session auth method is not 'evm'
+- Disconnect Solana wallet if session auth method is not 'solana'
 
 ---
 
@@ -298,35 +451,24 @@ Prevents multiple auth methods conflicting.
 
 **File:** `src/hooks/use-socket.ts`
 
-Manages Socket.IO connection.
+Central Socket.IO connection management for alerts and real-time events.
 
 **Signature:**
 ```typescript
 function useSocket(): {
   socket: Socket | null
-  isConnected: boolean
-  emit: (event: string, data: any) => void
-  on: (event: string, handler: Function) => void
-  off: (event: string, handler: Function) => void
 }
 ```
 
-**Features:**
-- Auto-connects when session available
-- Handles reconnection
-- Manages room joining
+**Socket.IO Configuration:**
+- URL: `NEXT_PUBLIC_SOCKET_IO_URL` or `http://localhost:3001`
+- Auth: User ID or email token
+- Query: `method: 'id'` for wallet-only users
+- Transports: WebSocket + polling
 
-**Usage:**
-```typescript
-const { socket, isConnected } = useSocket()
-
-useEffect(() => {
-  if (!socket) return
-
-  socket.on('volume-alert', handleAlert)
-  return () => socket.off('volume-alert', handleAlert)
-}, [socket])
-```
+**Side Effects:**
+- Connect/reconnect on user ID or email change
+- Disconnect on unmount or session logout
 
 ---
 
@@ -334,20 +476,18 @@ useEffect(() => {
 
 **File:** `src/hooks/use-tier-change-listener.ts`
 
-Listens for tier upgrade/downgrade events.
+Listens for tier upgrades via Socket.IO and refreshes session.
 
 **Signature:**
 ```typescript
-function useTierChangeListener(userId: string): {
-  newTier: string | null
-  acknowledge: () => void
-}
+function useTierChangeListener(): void
 ```
 
-**Features:**
-- Subscribes to Socket.IO `tier-change` event
-- Shows upgrade celebration
-- Refreshes session
+**Side Effects:**
+- Listen for `tier-changed` events
+- Update session via NextAuth `update()`
+- Refresh router on success
+- Force page reload on failure (500ms delay)
 
 ---
 
@@ -355,14 +495,25 @@ function useTierChangeListener(userId: string): {
 
 **File:** `src/hooks/use-user-deletion-listener.ts`
 
-Detects when user account is deleted.
+Listens for account deletion/suspension/ban and forces logout.
 
 **Signature:**
 ```typescript
 function useUserDeletionListener(): {
-  isDeleted: boolean
+  deletionEvent: UserDeletionEvent | null
+  clearDeletionEvent: () => void
 }
 ```
+
+**Deletion Reasons:**
+- `'deleted'` - Account deleted
+- `'banned'` - Account banned
+- `'suspended'` - Account suspended
+
+**Side Effects:**
+- Listen for `user-deleted` via Socket.IO
+- Force logout after 2-second delay
+- Redirect to `/auth` with reason in query param
 
 ---
 
@@ -372,29 +523,54 @@ function useUserDeletionListener(): {
 
 **File:** `src/hooks/use-watchlists.ts`
 
-Manages user watchlists.
+Manages user watchlists with React Query caching and tier-based limits.
 
 **Signature:**
 ```typescript
 function useWatchlists(): {
   watchlists: Watchlist[]
-  activeWatchlist: Watchlist | null
-  setActiveWatchlist: (id: string | null) => void
-  createWatchlist: (name: string) => Promise<void>
-  addSymbol: (watchlistId: string, symbol: string) => Promise<void>
-  removeSymbol: (watchlistId: string, symbol: string) => Promise<void>
-  deleteWatchlist: (id: string) => Promise<void>
+  limits: WatchlistLimits
   isLoading: boolean
+  error: Error | null
+  createWatchlist: (name: string) => void
+  updateWatchlist: (params: { watchlistId: string, name: string }) => void
+  deleteWatchlist: (watchlistId: string) => void
+  addSymbol: (params: { watchlistId: string, symbol: string }) => void
+  removeSymbol: (params: { watchlistId: string, symbol: string }) => void
+  // Async variants
+  createWatchlistAsync: (name: string) => Promise<Watchlist>
+  deleteWatchlistAsync: (watchlistId: string) => Promise<void>
+  addSymbolAsync: (params) => Promise<void>
+  removeSymbolAsync: (params) => Promise<void>
+  // Loading states
+  isCreating: boolean
+  isUpdating: boolean
+  isDeleting: boolean
+  isAddingSymbol: boolean
+  isRemovingSymbol: boolean
+}
+
+function useWatchlistLimits(): {
+  limits: WatchlistLimits
+  isLoading: boolean
+  error: Error | null
 }
 ```
 
-**Usage:**
-```typescript
-const { watchlists, activeWatchlist, addSymbol } = useWatchlists()
+**Tier-based Limits:**
+- Free: 1 watchlist, 10 symbols per watchlist
+- Pro: 5 watchlists, 50 symbols total
+- Elite: Unlimited
+- Admin: Unlimited
 
-// Add symbol to watchlist
-await addSymbol(activeWatchlist.id, 'BTCUSDT')
-```
+**API Calls:**
+- `GET /api/watchlist` - Fetch watchlists
+- `POST /api/watchlist` - Create watchlist
+- `PATCH /api/watchlist/{id}` - Update watchlist
+- `DELETE /api/watchlist/{id}` - Delete watchlist
+- `POST /api/watchlist/{id}/symbols` - Add symbol
+- `DELETE /api/watchlist/{id}/symbols/{symbol}` - Remove symbol
+- `GET /api/watchlist/limits` - Get limit status
 
 ---
 
@@ -402,20 +578,29 @@ await addSymbol(activeWatchlist.id, 'BTCUSDT')
 
 **File:** `src/hooks/use-promo-code.ts`
 
-Validates promo codes.
+Validates and applies promo codes for tier upgrades.
 
 **Signature:**
 ```typescript
-function usePromoCode(): {
-  code: string
-  setCode: (code: string) => void
-  validate: () => Promise<PromoValidation | null>
-  isValidating: boolean
-  result: PromoValidation | null
+function usePromoCode(tier: 'pro' | 'elite'): {
+  promoCode: string
+  setPromoCode: (code: string) => void
+  discountPercent: number | null
+  originalPrice: number | null
+  finalPrice: number | null
   error: string | null
-  clear: () => void
+  loading: boolean
+  isValid: boolean
+  validatePromoCode: (code: string) => Promise<void>
+  applyPromoCode: (code: string) => Promise<void>
+  clearPromoCode: () => void
 }
 ```
+
+**API Calls:**
+- `POST /api/payments/validate-promo-code`
+  - Body: `{ code, tier, paymentMethod: 'crypto' }`
+  - Requires Bearer token
 
 ---
 
@@ -423,15 +608,20 @@ function usePromoCode(): {
 
 **File:** `src/hooks/use-asset-detection.ts`
 
-Detects asset info from symbol.
+Periodically detects new assets from market data.
 
 **Signature:**
 ```typescript
-function useAssetDetection(symbol: string): {
-  asset: AssetInfo | null
-  isLoading: boolean
-}
+function useAssetDetection(marketData: Array<{ symbol: string }> | undefined): void
 ```
+
+**Side Effects:**
+- 5-minute detection interval
+- 10-second initial delay
+- Automatic manifest cache invalidation on new assets
+
+**API Calls:**
+- `POST /api/assets/detect-new` - Send symbols for detection
 
 ---
 
@@ -439,15 +629,26 @@ function useAssetDetection(symbol: string): {
 
 **File:** `src/hooks/use-asset-profile.ts`
 
-Fetches detailed asset profile (description, links, etc.).
+Fetches and caches asset profiles from CoinGecko API with manifest fallback.
 
 **Signature:**
 ```typescript
-function useAssetProfile(symbol: string): {
+function useAssetProfile(symbol?: string | null): {
   profile: AssetProfile | null
-  isLoading: boolean
+  loading: boolean
+  error: string | null
 }
 ```
+
+**Cache Strategy:**
+1. Synchronous manifest lookup (fastest)
+2. Load manifest if needed
+3. CoinGecko search + coin fetch
+4. Symbol overrides (hand-tuned mappings)
+
+**localStorage:**
+- `volspike-asset-profile-cache-v1` - Profile cache (7-day TTL)
+- `volspike:debug:assets` - Debug flag
 
 ---
 
@@ -457,7 +658,7 @@ function useAssetProfile(symbol: string): {
 
 **File:** `src/hooks/use-debounce.ts`
 
-Debounces a value.
+Simple debounce utility for values.
 
 **Signature:**
 ```typescript
@@ -469,7 +670,6 @@ function useDebounce<T>(value: T, delay: number): T
 const [search, setSearch] = useState('')
 const debouncedSearch = useDebounce(search, 300)
 
-// API call uses debouncedSearch
 useEffect(() => {
   fetchResults(debouncedSearch)
 }, [debouncedSearch])
@@ -481,15 +681,20 @@ useEffect(() => {
 
 **File:** `src/hooks/use-build-version-guard.ts`
 
-Checks for version mismatches and prompts refresh.
+Forces page reload on bundle version changes to prevent stale sessions.
 
 **Signature:**
 ```typescript
-function useBuildVersionGuard(): {
-  isOutdated: boolean
-  refresh: () => void
-}
+function useBuildVersionGuard(): void
 ```
+
+**Side Effects:**
+- Compares `NEXT_PUBLIC_BUILD_ID` with stored build ID
+- Forces page reload if mismatch
+- Persists new build ID before reload
+
+**localStorage:**
+- `volspike-build-id` - Current build ID
 
 ---
 
@@ -497,15 +702,30 @@ function useBuildVersionGuard(): {
 
 **File:** `src/hooks/use-auto-sync-payments.ts`
 
-Auto-syncs payment status for pending crypto payments.
+Auto-syncs NowPayments payment statuses with visibility-aware polling.
 
 **Signature:**
 ```typescript
-function useAutoSyncPayments(): {
-  isPending: boolean
-  lastSync: Date | null
+function useAutoSyncPayments(options: {
+  payments: Payment[]
+  enabled?: boolean      // Default: true
+  interval?: number      // Default: 30000ms
+  onPaymentUpdated?: (payment: Payment) => void
+  accessToken: string
+}): {
+  syncingPayments: Set<string>  // Currently syncing IDs
+  lastSyncTime: number | null
+  syncCount: number
+  paymentsToSyncCount: number
+  syncAllPayments: (source: string) => void
 }
 ```
+
+**Features:**
+- Polling every 30 seconds (configurable)
+- Respects page visibility (pauses when hidden)
+- Sequential syncing (500ms delay between)
+- Toast notifications on tier upgrades
 
 ---
 
@@ -515,17 +735,32 @@ function useAutoSyncPayments(): {
 
 **File:** `src/hooks/use-admin-notifications.ts`
 
-Manages admin notification bell.
+Manages admin notifications with polling and mark-as-read functionality.
 
 **Signature:**
 ```typescript
-function useAdminNotifications(): {
+function useAdminNotifications(
+  limit?: number,        // Default: 10
+  unreadOnly?: boolean   // Default: false
+): {
   notifications: AdminNotification[]
   unreadCount: number
-  markAsRead: (id: string) => void
-  markAllRead: () => void
+  loading: boolean
+  error: string | null
+  refreshNotifications: () => Promise<void>
+  markAsRead: (notificationIds?: string[]) => void
+  markAllAsRead: () => void
+  pausePolling: () => void
+  resumePolling: () => void
 }
 ```
+
+**Polling:** 30 seconds background refresh
+
+**API Calls:**
+- `GET /api/admin/notifications?limit={limit}`
+- `GET /api/admin/notifications/unread-count`
+- `POST /api/admin/notifications/mark-read`
 
 ---
 
@@ -533,84 +768,87 @@ function useAdminNotifications(): {
 
 **File:** `src/hooks/use-telegram-messages.ts`
 
-Manages Telegram message feed for admin.
+Fetches Telegram messages from backend with polling.
 
 **Signature:**
 ```typescript
-function useTelegramMessages(): {
+function useTelegramMessages(options?: {
+  limit?: number        // Default: 100
+  pollInterval?: number // Default: 30000ms
+  autoFetch?: boolean   // Default: true
+}): {
   messages: TelegramMessage[]
   isLoading: boolean
-  refresh: () => void
+  error: string | null
+  refetch: () => void
+  lastUpdate: number | null
 }
 ```
+
+**API Calls:**
+- `GET /api/telegram/messages?limit={limit}` - Public endpoint
 
 ---
 
-## Hook Composition Pattern
+## Hook Categories Summary
 
-Many features compose multiple hooks:
+| Category | Count | Hooks |
+|----------|-------|-------|
+| **Market Data** | 3 | useClientOnlyMarketData, useMarketData (legacy), useBinanceWebSocket (legacy) |
+| **Alerts** | 5 | useVolumeAlerts, useOIAlerts, useAlertSounds, useUserAlertListener, useBrowserNotifications |
+| **Authentication** | 5 | useWalletAuth, useSolanaAuth, usePhantomConnect, useUserIdentity, useEnforceSingleIdentity |
+| **Real-Time** | 3 | useSocket, useTierChangeListener, useUserDeletionListener |
+| **Features** | 5 | useWatchlists, usePromoCode, useAssetDetection, useAssetProfile |
+| **Utilities** | 3 | useDebounce, useBuildVersionGuard, useAutoSyncPayments |
+| **Admin** | 2 | useAdminNotifications, useTelegramMessages |
 
-```typescript
-// Dashboard component
-function Dashboard() {
-  // Market data
-  const { data, status } = useClientOnlyMarketData({ tier })
+---
 
-  // Alerts
-  const { alerts } = useVolumeAlerts(tier)
-  const { playSound } = useAlertSounds()
+## Deprecated/Unused Hooks
 
-  // Watchlists
-  const { watchlists, activeWatchlist } = useWatchlists()
+| Hook | Status | Replacement |
+|------|--------|-------------|
+| `use-binance-websocket.ts` | UNUSED | `use-client-only-market-data.ts` |
+| `use-market-data.ts` | UNUSED | `use-client-only-market-data.ts` |
 
-  // Real-time
-  const { socket } = useSocket()
-
-  // User
-  const { user, tier } = useUserIdentity()
-
-  // Compose into UI...
-}
-```
+**Recommendation:** Delete these files to reduce codebase complexity.
 
 ---
 
 ## Common Patterns
 
-### Handling Loading States
-
+### Hook Composition
 ```typescript
-const { data, isLoading, error } = useSomeHook()
-
-if (isLoading) return <LoadingSpinner />
-if (error) return <ErrorMessage error={error} />
-return <DisplayData data={data} />
+function Dashboard() {
+  const { data, status } = useClientOnlyMarketData({ tier })
+  const { alerts } = useVolumeAlerts({ onNewAlert: playSound })
+  const { playSound } = useAlertSounds()
+  const { watchlists } = useWatchlists()
+  const { socket } = useSocket()
+  const { tier, role } = useUserIdentity()
+  // ...
+}
 ```
 
-### Cleanup on Unmount
+### Ref-Based State for Performance
+```typescript
+const prevAlertsRef = useRef<string[]>([])
 
+useEffect(() => {
+  const newAlerts = alerts.filter(a => !prevAlertsRef.current.includes(a.id))
+  if (newAlerts.length > 0) {
+    onNewAlert?.(newAlerts)
+  }
+  prevAlertsRef.current = alerts.map(a => a.id)
+}, [alerts])
+```
+
+### Cleanup Pattern
 ```typescript
 useEffect(() => {
   const subscription = subscribe()
-
-  return () => {
-    subscription.unsubscribe()
-  }
+  return () => subscription.unsubscribe()
 }, [])
-```
-
-### Ref for Callbacks
-
-```typescript
-// Keep callback stable to avoid effect re-runs
-const callbackRef = useRef(callback)
-useEffect(() => {
-  callbackRef.current = callback
-}, [callback])
-
-useEffect(() => {
-  socket.on('event', callbackRef.current)
-}, [socket])
 ```
 
 ---
