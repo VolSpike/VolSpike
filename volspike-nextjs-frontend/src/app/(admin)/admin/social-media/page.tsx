@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, RefreshCw, Twitter, X, Send, AlertCircle, ExternalLink, Check } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import type { QueuedPostWithAlert } from '@/types/social-media'
 import { formatDistanceToNow } from 'date-fns'
@@ -16,7 +16,6 @@ import Link from 'next/link'
 
 export default function SocialMediaPage() {
   const { data: session } = useSession()
-  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState('queue')
   const [queue, setQueue] = useState<QueuedPostWithAlert[]>([])
   const [history, setHistory] = useState<QueuedPostWithAlert[]>([])
@@ -31,11 +30,7 @@ export default function SocialMediaPage() {
       setQueue(response.data || [])
     } catch (error: any) {
       console.error('[SocialMedia] Error fetching queue:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load queue',
-        variant: 'destructive',
-      })
+      toast.error('Failed to load queue')
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -49,11 +44,7 @@ export default function SocialMediaPage() {
       setHistory(response.data || [])
     } catch (error: any) {
       console.error('[SocialMedia] Error fetching history:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load history',
-        variant: 'destructive',
-      })
+      toast.error('Failed to load history')
     } finally {
       if (showLoading) setLoading(false)
     }
@@ -189,7 +180,6 @@ export default function SocialMediaPage() {
 
 // Queued Post Card Component
 function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdate: () => void }) {
-  const { toast } = useToast()
   const [caption, setCaption] = useState(post.caption)
   const [isEditing, setIsEditing] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
@@ -202,46 +192,28 @@ function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdat
   const handleSave = async () => {
     try {
       await adminAPI.updateSocialMediaPost(post.id, { caption })
-      toast({
-        title: 'Caption updated',
-        description: 'Changes saved successfully',
-      })
+      toast.success('Caption updated successfully')
       setIsEditing(false)
       onUpdate()
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to update caption',
-        variant: 'destructive',
-      })
+      toast.error(error.message || 'Failed to update caption')
     }
   }
 
   // Handle post to Twitter
   const handlePost = async () => {
     if (isOverLimit) {
-      toast({
-        title: 'Caption too long',
-        description: 'Please reduce caption to 280 characters or less',
-        variant: 'destructive',
-      })
+      toast.error('Caption too long. Please reduce to 280 characters or less')
       return
     }
 
     setIsPosting(true)
     try {
       const response = await adminAPI.postToTwitter(post.id)
-      toast({
-        title: 'Posted to Twitter!',
-        description: 'Tweet published successfully',
-      })
+      toast.success('Posted to Twitter! Tweet published successfully')
       onUpdate()
     } catch (error: any) {
-      toast({
-        title: 'Failed to post',
-        description: error.message || 'Unknown error',
-        variant: 'destructive',
-      })
+      toast.error(error.message || 'Failed to post to Twitter')
     } finally {
       setIsPosting(false)
     }
@@ -252,17 +224,10 @@ function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdat
     setIsRejecting(true)
     try {
       await adminAPI.updateSocialMediaPost(post.id, { status: 'REJECTED' })
-      toast({
-        title: 'Post rejected',
-        description: 'Removed from queue',
-      })
+      toast.success('Post rejected - removed from queue')
       onUpdate()
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to reject post',
-        variant: 'destructive',
-      })
+      toast.error(error.message || 'Failed to reject post')
     } finally {
       setIsRejecting(false)
     }

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Twitter, Loader2, Check } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import { captureAlertCard } from '@/lib/capture-alert-image'
 import type { AlertSourceType } from '@/types/social-media'
@@ -27,7 +27,6 @@ export function AddToTwitterButton({
 }: AddToTwitterButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isAdded, setIsAdded] = useState(isQueued)
-  const { toast } = useToast()
 
   const handleAddToTwitter = async () => {
     if (isAdded || disabled) return
@@ -51,10 +50,7 @@ export function AddToTwitterButton({
 
       // Success!
       setIsAdded(true)
-      toast({
-        title: 'Added to Twitter queue',
-        description: 'Review and post from the Social Media page.',
-      })
+      toast.success('Added to Twitter queue. Review and post from the Social Media page.')
 
       onSuccess?.()
     } catch (error: any) {
@@ -68,11 +64,7 @@ export function AddToTwitterButton({
         errorMessage = error.message
       }
 
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      })
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
