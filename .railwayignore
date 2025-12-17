@@ -1,0 +1,7 @@
+# Ignore frontend directory - Railway only deploys backend
+volspike-nextjs-frontend/
+human-docs/
+docs/
+Digital Ocean/
+*.md
+.git/
