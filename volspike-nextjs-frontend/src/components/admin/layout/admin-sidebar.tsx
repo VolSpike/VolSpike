@@ -22,6 +22,7 @@ import {
     Newspaper,
     Send,
     Tag,
+    Twitter,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -87,6 +88,11 @@ const navigation = [
         name: 'Telegram',
         href: '/admin/telegram',
         icon: Send,
+    },
+    {
+        name: 'Social Media',
+        href: '/admin/social-media',
+        icon: Twitter,
     },
     {
         name: 'Settings',

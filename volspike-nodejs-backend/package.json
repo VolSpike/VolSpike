@@ -51,6 +51,7 @@
         "speakeasy": "^2.0.0",
         "stripe": "^14.0.0",
         "tweetnacl": "^1.0.3",
+        "twitter-api-v2": "^1.28.0",
         "viem": "^2.38.5",
         "winston": "^3.11.0",
         "ws": "^8.14.0",

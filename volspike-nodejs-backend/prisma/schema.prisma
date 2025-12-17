@@ -610,3 +610,55 @@ model TelegramMessage {
   @@index([createdAt(sort: Desc)])
   @@map("telegram_messages")
 }
+
+// Social Media Queue Models
+model SocialMediaPost {
+  id              String            @id @default(cuid())
+
+  // Alert relationship (polymorphic - can be Volume or OI alert)
+  alertId         String
+  alertType       AlertSourceType
+
+  // Post content
+  imageUrl        String?           @db.Text // Base64 or URL
+  caption         String            @db.Text
+  suggestedCaption String?          @db.Text
+
+  // Status tracking
+  status          SocialMediaStatus @default(QUEUED)
+
+  // Twitter metadata
+  twitterPostId   String?           @unique
+  twitterUrl      String?
+
+  // Admin tracking
+  createdById     String
+  postedById      String?
+
+  // Error handling
+  errorMessage    String?
+  retryCount      Int               @default(0)
+
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  postedAt        DateTime?
+  updatedAt       DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([alertId, alertType])
+  @@index([createdById])
+  @@map("social_media_posts")
+}
+
+enum SocialMediaStatus {
+  QUEUED
+  POSTING
+  POSTED
+  FAILED
+  REJECTED
+}
+
+enum AlertSourceType {
+  VOLUME
+  OPEN_INTEREST
+}

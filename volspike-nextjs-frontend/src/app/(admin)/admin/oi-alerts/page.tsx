@@ -9,8 +9,11 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { TrendingUp, TrendingDown, Bell, RefreshCw, AlertCircle, Volume2, VolumeX, Coins, BarChart3, ExternalLink } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
+import { AddToTwitterButton } from '@/components/admin/add-to-twitter-button'
+import { useSession } from 'next-auth/react'
 
 export default function OIAlertsPage() {
+  const { data: session } = useSession()
   const [newAlertIds, setNewAlertIds] = useState<Set<string>>(new Set())
   const prevAlertsRef = useRef<OIAlert[]>([])
 
@@ -232,6 +235,7 @@ export default function OIAlertsPage() {
                   return (
                     <div
                       key={alert.id}
+                      id={`oi-alert-${alert.id}`}
                       onClick={() => handleAlertClick(alert.id)}
                       className={`p-4 rounded-lg border transition-all cursor-pointer ${
                         isLongSpike
@@ -360,6 +364,17 @@ export default function OIAlertsPage() {
                                 <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
                               </div>
                             </button>
+
+                            {/* Add to Twitter button (admin only) */}
+                            {session?.user?.role === 'ADMIN' && (
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <AddToTwitterButton
+                                  alertId={alert.id}
+                                  alertType="OPEN_INTEREST"
+                                  alertCardId={`oi-alert-${alert.id}`}
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

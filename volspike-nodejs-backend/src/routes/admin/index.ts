@@ -12,6 +12,7 @@ import { adminNotificationRoutes } from './notifications'
 import { adminNewsRoutes } from './news'
 import { adminTelegramRoutes } from './telegram'
 import promoCodesRoutes from './promo-codes'
+import socialMediaRoutes from './social-media'
 import type { AppBindings, AppVariables } from '../../types/hono'
 
 const adminRoutes = new Hono<{ Bindings: AppBindings; Variables: AppVariables }>()
@@ -41,6 +42,7 @@ adminRoutes.route('/notifications', adminNotificationRoutes)
 adminRoutes.route('/news', adminNewsRoutes)
 adminRoutes.route('/telegram', adminTelegramRoutes)
 adminRoutes.route('/promo-codes', promoCodesRoutes)
+adminRoutes.route('/social-media', socialMediaRoutes)
 
 // Admin dashboard overview
 adminRoutes.get('/', async (c) => {

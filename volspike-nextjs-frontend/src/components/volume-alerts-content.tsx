@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { GuestCTA } from '@/components/guest-cta'
 import { TrendingUp, TrendingDown, RefreshCw, AlertCircle, Volume2, VolumeX, Play, BarChart3, ExternalLink, Coins, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { AddToTwitterButton } from '@/components/admin/add-to-twitter-button'
 import {
   Tooltip,
   TooltipContent,
@@ -437,6 +438,7 @@ export function VolumeAlertsContent({
     return (
       <div
         key={alert.id}
+        id={`volume-alert-${alert.id}`}
         onClick={handleAlertClick}
         className={`cursor-pointer rounded-lg border p-3 transition-all hover:shadow-md ${
           isBullish
@@ -577,6 +579,17 @@ export function VolumeAlertsContent({
                   <ExternalLink className="absolute -top-0.5 -right-0.5 h-2 w-2 text-muted-foreground/50 group-hover/tv:text-elite-400 transition-colors" />
                 </div>
               </button>
+
+              {/* Add to Twitter button (admin only) */}
+              {session?.user?.role === 'ADMIN' && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <AddToTwitterButton
+                    alertId={alert.id}
+                    alertType="VOLUME"
+                    alertCardId={`volume-alert-${alert.id}`}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

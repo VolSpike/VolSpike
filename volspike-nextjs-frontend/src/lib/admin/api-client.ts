@@ -647,6 +647,65 @@ class AdminAPIClient {
         })
     }
 
+    // Social Media API
+    async addToSocialMediaQueue(data: {
+        alertId: string
+        alertType: 'VOLUME' | 'OPEN_INTEREST'
+        imageUrl: string
+        caption?: string
+    }): Promise<{ success: boolean; data: any }> {
+        return this.request('/api/admin/social-media/queue', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async getSocialMediaQueue(params?: {
+        status?: string
+        limit?: number
+        offset?: number
+    }): Promise<{ success: boolean; data: any[]; pagination: any }> {
+        const query = new URLSearchParams()
+        if (params?.status) query.append('status', params.status)
+        if (params?.limit) query.append('limit', String(params.limit))
+        if (params?.offset) query.append('offset', String(params.offset))
+
+        return this.request(`/api/admin/social-media/queue?${query.toString()}`)
+    }
+
+    async updateSocialMediaPost(postId: string, data: {
+        caption?: string
+        status?: 'QUEUED' | 'REJECTED'
+    }): Promise<{ success: boolean; data: any }> {
+        return this.request(`/api/admin/social-media/queue/${postId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async postToTwitter(postId: string): Promise<{ success: boolean; data: any }> {
+        return this.request(`/api/admin/social-media/post/${postId}`, {
+            method: 'POST',
+        })
+    }
+
+    async getSocialMediaHistory(params?: {
+        limit?: number
+        offset?: number
+        symbol?: string
+        startDate?: string
+        endDate?: string
+    }): Promise<{ success: boolean; data: any[]; pagination: any }> {
+        const query = new URLSearchParams()
+        if (params?.limit) query.append('limit', String(params.limit))
+        if (params?.offset) query.append('offset', String(params.offset))
+        if (params?.symbol) query.append('symbol', params.symbol)
+        if (params?.startDate) query.append('startDate', params.startDate)
+        if (params?.endDate) query.append('endDate', params.endDate)
+
+        return this.request(`/api/admin/social-media/history?${query.toString()}`)
+    }
+
     // Health check
     async healthCheck(): Promise<{ status: string; timestamp: string; version: string }> {
         return this.request<{ status: string; timestamp: string; version: string }>('/api/admin/health')
