@@ -1,469 +1,73 @@
-# CLAUDE.md - AI Assistant Guide for VolSpike
+# CLAUDE.md - AI Assistant Quick Reference
 
-## Quick Reference
+**Live Site**: https://volspike.com | **Stack**: Next.js 15 + Hono + PostgreSQL + Prisma
 
-This document provides guidance for AI assistants (like Claude) working on the VolSpike project. For comprehensive project documentation, see [AGENTS.md](AGENTS.md).
+## Documentation Index
 
-## Digital Ocean Server Access
+**For detailed information on any topic, see [human-docs/00-INDEX.md](human-docs/00-INDEX.md)**
 
-**SSH Configuration**: Claude has access to the Digital Ocean droplet via SSH.
+### Quick Links
+- **Architecture & Setup**: [Architecture](human-docs/02-ARCHITECTURE.md) | [Quick Start](human-docs/03-QUICK-START.md)
+- **Core Systems**: [Auth](human-docs/04-AUTHENTICATION.md) | [Payments](human-docs/05-PAYMENTS.md) | [Real-time Data](human-docs/06-REALTIME-DATA.md) | [Alerts](human-docs/07-ALERTS.md)
+- **Frontend**: [Overview](human-docs/08-FRONTEND-OVERVIEW.md) | [Components](human-docs/09-COMPONENTS.md) | [Hooks](human-docs/10-HOOKS.md) | [Pages](human-docs/11-PAGES-ROUTES.md)
+- **Backend**: [Overview](human-docs/12-BACKEND-OVERVIEW.md) | [API Reference](human-docs/13-API-REFERENCE.md) | [Services](human-docs/14-SERVICES.md) | [Database](human-docs/15-DATABASE.md)
+- **Admin**: [Overview](human-docs/16-ADMIN-OVERVIEW.md) | [Admin Pages](human-docs/17-ADMIN-PAGES.md)
+- **Operations**: [Digital Ocean](human-docs/18-DIGITAL-OCEAN.md) | [Deployment](human-docs/19-DEPLOYMENT.md) | [Environment](human-docs/20-ENVIRONMENT.md) | [Troubleshooting](human-docs/21-TROUBLESHOOTING.md)
+- **Reference**: [Complete File Inventory](human-docs/22-FILES.md) | [Analytics](human-docs/23-ANALYTICS.md)
 
-**Connection Details**:
-- **Host alias**: `volspike-do` (configured in `~/.ssh/config`)
-- **IP Address**: `167.71.196.5`
-- **User**: `root`
-- **SSH Key**: `~/.ssh/volspike-temp`
-- **Connection command**: `ssh volspike-do`
+---
 
-### Quick Commands
+## 🔴 CRITICAL: Client-Only Data Architecture
 
-```bash
-# Connect to server
-ssh volspike-do
+**THE MOST IMPORTANT RULE**: VolSpike uses a client-only market data architecture.
 
-# Run command remotely
-ssh volspike-do "command here"
+### Data Source Rules
 
-# Check running services
-ssh volspike-do "sudo systemctl list-units --type=service | grep -i volume"
+1. **Frontend (Browser)**:
+   - ✅ ONLY uses Binance WebSocket (`wss://fstream.binance.com/stream`)
+   - ✅ Via `useClientOnlyMarketData` hook (see [Hooks](human-docs/10-HOOKS.md))
+   - ❌ NEVER call Binance REST API
+   - ❌ NEVER fetch market data from backend
 
-# View logs
-ssh volspike-do "sudo journalctl -u volspike.service -n 50 --no-pager"
-ssh volspike-do "sudo journalctl -u volspike.service -f"  # Follow logs
-```
+2. **Backend (Railway)**:
+   - ✅ ONLY handles: Auth, Payments, User Data, Watchlists (symbols only), Alerts
+   - ❌ NEVER fetch market data from Binance REST API
+   - ❌ NEVER create market data endpoints
 
-### Deploying Python Scripts to Digital Ocean
+3. **Digital Ocean Scripts (Python)**:
+   - ✅ ONLY place that uses Binance REST API
+   - ✅ Detects volume spikes, polls OI, funding rates
+   - See [Digital Ocean Scripts](human-docs/18-DIGITAL-OCEAN.md) for deployment
 
-**CRITICAL**: Digital Ocean scripts are deployed via **SCP** (not git). Never try to `git pull` on Digital Ocean.
+**Why**: 80% cost reduction, no Redis, no IP blocking, <150ms updates
 
-**Deployment Workflow**:
+---
 
-1. **Copy script to Digital Ocean**:
-   ```bash
-   scp "Digital Ocean/hourly_volume_alert_dual_env.py" volspike-do:/home/trader/volume-spike-bot/hourly_volume_alert_dual_env.py
-   ```
+## Digital Ocean Deployment
 
-2. **Find the correct service name**:
-   ```bash
-   ssh volspike-do "sudo systemctl list-units --type=service | grep -i volume"
-   ```
+**CRITICAL**: Deploy via **SCP** (not git). Never `git pull` on Digital Ocean.
 
-   Common service names:
-   - `volspike.service` - Main volume alert service
-   - `volspike-dashboard.service` - Streamlit dashboard
+**SSH**: `ssh volspike-do` (alias for `root@167.71.196.5`)
 
-3. **Restart the service**:
-   ```bash
-   ssh volspike-do "sudo systemctl restart volspike.service"
-   ```
-
-4. **Verify service is running**:
-   ```bash
-   ssh volspike-do "sudo systemctl status volspike.service"
-   ```
-
-5. **Check logs for errors**:
-   ```bash
-   ssh volspike-do "sudo journalctl -u volspike.service -n 50 --no-pager"
-   ```
-
-**Common Mistakes to Avoid**:
-- ❌ **WRONG**: `ssh volspike-do "cd /home/trader/VolSpike && git pull origin main"`
-- ❌ **WRONG**: Using service name `hourly-volume-alert-dual-env.service` (doesn't exist)
-- ❌ **WRONG**: Using IP address directly instead of SSH alias `volspike-do`
-
-**Correct Deployment Example**:
+**Deploy Workflow**:
 ```bash
 # 1. Copy script
 scp "Digital Ocean/hourly_volume_alert_dual_env.py" volspike-do:/home/trader/volume-spike-bot/hourly_volume_alert_dual_env.py
 
-# 2. Restart service (use correct name!)
+# 2. Restart service (main service is volspike.service)
 ssh volspike-do "sudo systemctl restart volspike.service && sudo systemctl status volspike.service"
 
-# 3. Verify logs
-ssh volspike-do "sudo journalctl -u volspike.service -n 20 --no-pager"
+# 3. Check logs
+ssh volspike-do "sudo journalctl -u volspike.service -n 50 --no-pager"
 ```
 
-### Server Directory Structure
+**Details**: See [Digital Ocean Scripts Documentation](human-docs/18-DIGITAL-OCEAN.md)
 
-- **Scripts**: `/home/trader/volume-spike-bot/`
-  - `hourly_volume_alert_dual_env.py` - Main volume alert script
-  - `oi_realtime_poller.py` - Open Interest polling script
-  - `oi_liquid_universe_job.py` - Liquid symbol classification
-  - `binance_funding_ws_daemon.py` - Funding rate WebSocket daemon
-  - `funding_api_server.py` - Funding rate API server
+---
 
-- **Environment**: `/home/trader/.volspike.env`
-  - Backend URLs and API keys
-  - Telegram bot credentials
+## Tier Pricing (Single Source of Truth)
 
-- **Services**: Managed by systemd
-  - `volspike.service` - Main volume alert service
-  - `binance-funding-ws.service` - Funding WebSocket daemon
-  - `binance-funding-api.service` - Funding API server
-  - `volspike-dashboard.service` - Streamlit dashboard
-
-- **Virtual Environment**: `/home/trader/volume-spike-bot/.venv/`
-  - Python packages and dependencies
-
-### Troubleshooting
-
-**Service won't start**:
-```bash
-# Check service status
-ssh volspike-do "sudo systemctl status volspike.service"
-
-# Check full logs
-ssh volspike-do "sudo journalctl -u volspike.service -n 100 --no-pager"
-
-# Restart service
-ssh volspike-do "sudo systemctl restart volspike.service"
-```
-
-**Script not updating**:
-- Make sure you copied the script to the correct path
-- Verify the service is using the correct script file
-- Check service file: `ssh volspike-do "cat /etc/systemd/system/volspike.service"`
-
-**Permission errors**:
-- Scripts run as `trader` user, not root
-- Environment file is owned by `trader`: `ssh volspike-do "ls -la /home/trader/.volspike.env"`
-
-## Essential Reading
-
-Before working on any task, please read:
-- [AGENTS.md](AGENTS.md) - Complete project overview, architecture, and guidelines (37KB)
-- [OVERVIEW.md](OVERVIEW.md) - High-level project overview (7KB)
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) - Current state and roadmap (6KB)
-
-## Project Context
-
-VolSpike is a **production-ready** Binance Perpetual Futures trading dashboard with:
-- **Frontend**: Next.js 15.0.0 with TypeScript 5.3.2, Tailwind CSS 3.3.6, shadcn/ui
-- **Backend**: Node.js with Hono 4.10.3 framework (auth/payments only)
-- **Database**: PostgreSQL with TimescaleDB via Prisma 6.18.0 (user data only)
-- **Real-time Data**: Client-side Binance WebSocket (no Redis/server dependency)
-- **Authentication**: NextAuth.js v5 with email, Web3 wallets (EVM + Solana), OAuth
-- **Payments**: Stripe 14.0.0 + NowPayments (crypto)
-- **Deployment**: Vercel (frontend) + Railway (backend) + Neon (database)
-- **Live Site**: https://volspike.com
-
-## Key Architecture Principles
-
-### 🔴 CRITICAL: Client-Only Data Architecture
-
-**THE MOST IMPORTANT RULE**: VolSpike uses a client-only market data architecture.
-
-#### Data Source Rules:
-
-1. **VolSpike Frontend (Browser)**:
-   - ✅ **ONLY uses Binance WebSocket** (`wss://fstream.binance.com/stream`)
-   - ✅ Direct connection from user's browser to Binance
-   - ✅ Real-time data via `useClientOnlyMarketData` hook
-   - ✅ Tier-based throttling in frontend (Elite: live, Pro: 5min, Free: 15min)
-   - ✅ localStorage fallback for region-blocked users
-   - ❌ **NEVER** call Binance REST API from frontend
-   - ❌ **NEVER** fetch market data from backend REST endpoints
-
-2. **VolSpike Backend (Railway)**:
-   - ✅ **ONLY handles**: Authentication, Payments, User Data, Watchlists, Alerts
-   - ✅ Watchlists store **symbols only** (e.g., `1000PEPEUSDT`)
-   - ❌ **NEVER** fetch market data from Binance REST API
-   - ❌ **NEVER** create endpoints that fetch from Binance REST API
-   - ❌ **NEVER** provide market data endpoints (except watchlist symbols)
-
-3. **Digital Ocean Scripts** (Python):
-   - ✅ **ONLY place** that uses Binance REST API
-   - ✅ Detects volume spikes and posts alerts to backend
-   - ✅ Polls Open Interest data and posts to backend
-   - ✅ Funding rate WebSocket daemon
-   - ✅ Runs independently on Digital Ocean droplet
-
-### Common Mistakes to Avoid:
-
-❌ **WRONG**: Creating `/api/market/watchlist/:id` endpoint that calls Binance REST API
-❌ **WRONG**: Using `getMarketData()` function in backend for watchlist data
-❌ **WRONG**: Fetching market data from backend REST endpoints in frontend
-❌ **WRONG**: Assuming backend has market data - it doesn't!
-
-✅ **CORRECT**: Fetch watchlist info (symbols only) from `/api/watchlist/:id`
-✅ **CORRECT**: Filter existing WebSocket `data` array by watchlist symbols
-✅ **CORRECT**: All market data comes from `useClientOnlyMarketData` hook
-✅ **CORRECT**: Watchlist filtering is client-side only
-
-### Why This Architecture?
-
-- **80% cost reduction** vs Redis-based stack
-- **No Redis costs** or command limits
-- **No server-side data ingestion** overhead
-- **No IP blocking issues** (uses user's residential IP)
-- **Simplified infrastructure** (frontend + auth backend only)
-- **Better real-time performance** (sub-second Elite tier updates <150ms)
-- **Scalability** without server bottlenecks
-
-## Technology Stack
-
-### Frontend
-- **Framework**: Next.js 15.0.0 (App Router)
-- **Language**: TypeScript 5.3.2 (strict mode)
-- **UI Library**: React 18.2.0
-- **Styling**: Tailwind CSS 3.3.6, shadcn/ui (Radix UI primitives)
-- **Animation**: Framer Motion 10.16.16
-- **Charts**: Recharts 2.8.0
-- **Authentication**: NextAuth.js 5.0.0-beta.25
-- **Web3 (EVM)**: RainbowKit 2.1.0, Wagmi 2.0.0, SIWE 3.0.0, Viem 2.0.0
-- **Web3 (Solana)**: Solana Wallet Adapter 0.15.35, Web3.js 1.95.3
-- **Payments**: Stripe 14.0.0 (@stripe/stripe-js 2.0.0)
-- **Real-time**: Socket.IO Client 4.7.4
-- **State Management**: Zustand 4.4.7
-- **Forms**: React Hook Form 7.65.0 + Zod 3.22.0
-- **Data Fetching**: TanStack Query 5.8.4
-- **Testing**: Vitest 4.0.10 + Testing Library
-
-### Backend
-- **Framework**: Hono 4.10.3 (Edge-compatible)
-- **Runtime**: @hono/node-server 1.19.5
-- **Language**: TypeScript 5.3.2
-- **Database**: Prisma 6.18.0 + PostgreSQL (TimescaleDB)
-- **Authentication**: NextAuth.js 5.0.0-beta.25, SIWE 3.0.0, bcryptjs 2.4.3
-- **Payments**: Stripe 14.0.0, NowPayments API
-- **Real-time**: Socket.IO 4.7.4
-- **Email**: SendGrid (@sendgrid/mail 8.1.6)
-- **Logging**: Pino 8.16.0 + Winston 3.11.0
-- **Security**: Helmet 7.1.0, CORS, Rate limiting
-- **Testing**: Vitest 4.0.10
-
-### Digital Ocean Scripts
-- **Language**: Python 3.x
-- **Services**: systemd daemons
-- **Purpose**: Volume spike detection, OI polling, funding rate WebSocket
-
-## Repository Structure
-
-```
-VolSpike/
-├── volspike-nextjs-frontend/     # Next.js 15+ frontend (main app)
-│   ├── src/
-│   │   ├── app/                  # App Router pages
-│   │   │   ├── (admin)/admin/   # Admin panel (14 pages)
-│   │   │   ├── api/             # NextAuth API routes
-│   │   │   ├── auth/            # Auth pages (sign-in, sign-up)
-│   │   │   ├── dashboard/       # Main dashboard
-│   │   │   ├── checkout/        # Payment flows
-│   │   │   ├── settings/        # User settings
-│   │   │   └── ...
-│   │   ├── components/          # 59+ React components
-│   │   │   ├── market-table.tsx
-│   │   │   ├── volume-alerts-panel.tsx
-│   │   │   └── ...
-│   │   ├── hooks/               # 22 custom hooks
-│   │   │   ├── use-client-only-market-data.ts  # CORE WebSocket
-│   │   │   ├── use-volume-alerts.ts
-│   │   │   └── ...
-│   │   ├── lib/                 # Utilities
-│   │   │   ├── auth.ts          # NextAuth config
-│   │   │   ├── payments.ts      # Stripe integration
-│   │   │   └── admin/           # Admin utilities
-│   │   ├── types/               # TypeScript definitions
-│   │   └── styles/              # Global CSS
-│   └── package.json
-│
-├── volspike-nodejs-backend/      # Node.js backend (auth/payments only)
-│   ├── src/
-│   │   ├── routes/              # API endpoints
-│   │   │   ├── auth.ts          # Authentication (75KB)
-│   │   │   ├── payments.ts      # Stripe + NowPayments (131KB)
-│   │   │   ├── volume-alerts.ts
-│   │   │   ├── watchlist.ts
-│   │   │   └── admin/           # Admin API routes (11 files)
-│   │   ├── services/            # Business logic (15 services)
-│   │   │   ├── email.ts         # SendGrid (80KB)
-│   │   │   ├── asset-metadata.ts
-│   │   │   └── admin/
-│   │   ├── middleware/          # Auth, rate limiting, audit
-│   │   ├── websocket/           # Socket.IO handlers
-│   │   ├── lib/                 # Utilities
-│   │   └── prisma/              # Database schema
-│   │       └── schema.prisma    # Prisma schema
-│   └── package.json
-│
-├── Digital Ocean/               # Python scripts (ONLY place using Binance REST API)
-│   ├── hourly_volume_alert_dual_env.py     # Volume spike detection (22KB)
-│   ├── oi_realtime_poller.py               # Open Interest polling (23KB)
-│   ├── oi_liquid_universe_job.py           # Liquid symbol classification (10KB)
-│   ├── binance_funding_ws_daemon.py        # Funding rate WebSocket (13KB)
-│   ├── funding_api_server.py               # Funding rate API (11KB)
-│   ├── binance-funding-api.service         # systemd service
-│   └── binance-funding-ws.service          # systemd service
-│
-├── docs/                        # Feature documentation
-│   ├── binance_websocket_funding/
-│   └── features/
-│
-├── AGENTS.md                    # Primary AI assistant guide (37KB)
-├── OVERVIEW.md                  # High-level architecture (7KB)
-├── IMPLEMENTATION_PLAN.md       # Current state & roadmap (6KB)
-├── DEPLOYMENT_CHECKLIST.md      # Production deployment guide
-├── TIER_FEATURES_DOCUMENTATION.md
-└── docker-compose.yml           # Development environment
-```
-
-## Code Style Rules
-
-### Next.js Frontend
-
-- **TypeScript**: Use strict mode with proper typing, no `any` types
-- **Next.js Patterns**:
-  - Use App Router (not Pages Router)
-  - Server Components by default
-  - Client Components need `"use client"` directive
-  - Mark routes using cookies/headers as `export const dynamic = 'force-dynamic'`
-- **Components**:
-  - Wrap components using `useSession` with `<SessionProvider>`
-  - Use Tailwind CSS for all styling (no CSS modules or styled-components)
-  - Use shadcn/ui for component primitives
-  - Functional components with TypeScript interfaces
-- **Data Fetching**:
-  - Implement direct Binance WebSocket via `useClientOnlyMarketData` hook
-  - Use TanStack Query for server data
-  - Never fetch market data from backend
-- **Path Aliases**: Use `@/` → `src/`
-- **NO emojis** unless explicitly requested by user
-- **NO .md files**: NEVER create .md documentation files unless explicitly requested by user
-
-### Node.js Backend
-
-- **Framework**: Use Hono (not Express)
-- **Error Handling**:
-  - Implement proper try/catch blocks
-  - Return appropriate HTTP status codes
-  - Binance REST failures should return empty arrays, not crash
-- **Database**: Use Prisma ORM for all database operations
-- **Logging**: Use Pino for structured logging
-- **Validation**: Use Zod for input validation
-- **Authentication**: JWT-based with NextAuth.js
-- **NO market data processing** (handled by frontend)
-- **Rate Limiting**: Implement on all public endpoints
-
-### Security Best Practices
-
-- **Input Validation**: Use Zod schemas for all inputs
-- **Authentication**: JWT tokens with proper expiration
-- **Rate Limiting**: Protect all public endpoints
-- **Role-Based Access Control**: USER/ADMIN roles enforced
-- **Environment Variables**: Never commit `.env` files
-- **Password Security**: Use bcrypt for hashing
-- **CORS**: Proper configuration for production
-- **Security Headers**: Use Helmet middleware
-- **CSRF Protection**: Implement on sensitive endpoints
-- **SQL Injection**: Use Prisma (prevents by design)
-- **XSS Protection**: Sanitize user inputs
-
-### Git Commit Messages
-
-Use conventional commits:
-- `feat(scope): description` - New feature
-- `fix(scope): description` - Bug fix
-- `refactor(scope): description` - Code refactoring
-- `docs(scope): description` - Documentation changes
-- `test(scope): description` - Test changes
-- `chore(scope): description` - Build/config changes
-
-Examples:
-- `feat(auth): add Solana wallet authentication`
-- `fix(payments): handle NowPayments webhook fallback`
-- `refactor(admin): improve pagination logic with smart ellipsis`
-
-## Common Tasks
-
-### Adding a New Feature
-
-1. **Read Documentation**: Review relevant sections in [AGENTS.md](AGENTS.md)
-2. **Determine Scope**: Check if it's frontend-only or requires backend
-3. **Database Changes**: Check if database migration is needed
-4. **Follow Patterns**: Use TypeScript with proper typing
-5. **Test Access Controls**: Verify tier-based access (Free/Pro/Elite)
-6. **Test User Roles**: Test with multiple roles (guest, free, pro, elite, admin)
-7. **Verify WebSocket**: Ensure WebSocket connections remain stable
-8. **Commit**: Use conventional commits: `feat(scope): description`
-
-### Fixing a Bug
-
-1. **Understand Architecture**: Determine if it's client-side vs server-side
-2. **Check Docs**: Review [AGENTS.md](AGENTS.md) for troubleshooting
-3. **Read Code**: Read relevant files before modifying
-4. **Implement Fix**: Add proper error handling
-5. **Test Thoroughly**: Test all affected functionality
-6. **Commit**: Use conventional commits: `fix(scope): description`
-
-### Working with Authentication
-
-**NextAuth.js v5** is configured for multiple auth methods:
-
-1. **Email/Password**:
-   - bcrypt password hashing
-   - Email verification via SendGrid
-   - Case-insensitive login
-   - Password change detection
-
-2. **OAuth Providers**:
-   - Google (configured)
-   - GitHub (configured)
-   - Profile picture integration
-
-3. **EVM Wallets**:
-   - RainbowKit integration
-   - SIWE (Sign-In with Ethereum)
-   - Multi-chain support
-   - WalletConnect
-
-4. **Solana Wallets**:
-   - Phantom (preferred)
-   - Mobile deep-linking
-   - Message signing
-   - Universal links
-
-**Features**:
-- Multi-account linking (1 user = multiple wallets)
-- Session management with JWT
-- 2FA for admin accounts
-- Role-based access control (USER/ADMIN)
-- Account status (ACTIVE/SUSPENDED/BANNED)
-
-**See**: [AGENTS.md](AGENTS.md) Authentication section for implementation details
-
-### Working with WebSocket Data
-
-#### Market Data (Client-Side)
-- **Source**: Direct Binance WebSocket (`wss://fstream.binance.com/stream`)
-- **Hook**: `useClientOnlyMarketData` in [use-client-only-market-data.ts](volspike-nextjs-frontend/src/hooks/use-client-only-market-data.ts)
-- **Throttling**: Tier-based (Elite: live, Pro: 5min, Free: 15min)
-- **Features**:
-  - Automatic reconnection with exponential backoff
-  - localStorage fallback for region-blocked users
-  - Client-side filtering by watchlist symbols
-  - No backend dependency
-
-#### Volume Alerts (Server-Side)
-- **Source**: Socket.IO from backend
-- **Rooms**: Tier-based (`tier-free`, `tier-pro`, `tier-elite`)
-- **Auth**:
-  - Guest token: `guest` joins `tier-free` room
-  - Wallet-only users: `method=id` and token=user id
-  - Email users: Standard JWT token
-- **Batching**: Wall-clock based (15min/5min/instant)
-- **Features**:
-  - Initial 10 alerts on login
-  - Real-time streaming
-  - Sound and animation system
-
-**See**: [AGENTS.md](AGENTS.md) WebSocket section for implementation details
-
-### Working with Payments
-
-#### Tier Pricing (Single Source of Truth)
-
-**CRITICAL**: All tier prices are defined in a SINGLE location. NEVER hardcode prices anywhere else.
+**CRITICAL**: All tier prices defined in ONE location. NEVER hardcode elsewhere.
 
 | Tier | Price |
 |------|-------|
@@ -472,810 +76,189 @@ Examples:
 | Elite | $49/month |
 
 **Where prices are defined**:
-- **Frontend**: `volspike-nextjs-frontend/src/lib/pricing.ts`
-- **Backend**: `volspike-nodejs-backend/src/lib/pricing.ts`
+- Frontend: `volspike-nextjs-frontend/src/lib/pricing.ts`
+- Backend: `volspike-nodejs-backend/src/lib/pricing.ts`
 
-**How to use**:
+**Usage**:
 ```typescript
-// Frontend - for display
 import { formatPrice, TIER_PRICES } from '@/lib/pricing'
-formatPrice('pro')  // Returns "$19"
-TIER_PRICES.pro     // Returns 19
-
-// Backend - for calculations
-import { TIER_PRICES } from '../lib/pricing'
-TIER_PRICES.pro     // Returns 19
+formatPrice('pro')  // "$19"
+TIER_PRICES.pro     // 19
 ```
 
-**When changing prices**:
-1. Update BOTH `lib/pricing.ts` files (frontend AND backend)
-2. Update this documentation
-3. Note: Legal pages (`/legal/terms`) have hardcoded prices and must be updated manually
+**Details**: See [Payment System Documentation](human-docs/05-PAYMENTS.md)
 
-**DO NOT**:
-- Hardcode prices like `$19` or `$49` in components
-- Make up prices - always check the pricing files first
-- Create new price variables elsewhere
+---
 
-#### Stripe Integration
-- **Features**:
-  - Subscription management
-  - Customer portal
-  - Webhook handling
-  - Proration support
-  - Tier upgrades/downgrades
-  - Automatic renewal
-- **Files**:
-  - Frontend: [lib/payments.ts](volspike-nextjs-frontend/src/lib/payments.ts)
-  - Backend: [routes/payments.ts](volspike-nodejs-backend/src/routes/payments.ts)
+## Code Style & Conventions
 
-#### NowPayments (Crypto)
-- **Features**:
-  - Hosted invoice system
-  - IPN webhooks
-  - Supported currencies: USDT, USDC, SOL, BTC, ETH
-  - Network identifier tracking
-  - Fallback order ID parsing
-  - Test payment system ($1 for testing)
-- **CRITICAL**: Payment method display logic
-  - Currency formatting: `formatCryptoCurrency()` in `lib/admin/currency-format.ts`
-  - Network identifiers REQUIRED (e.g., `usdce` not `usdc`)
-  - Check USDCE FIRST before generic USDC
-  - **DO NOT** modify without updating AGENTS.md, OVERVIEW.md, IMPLEMENTATION_PLAN.md
+### TypeScript
+- Strict mode, no `any` types
+- Use App Router (not Pages Router)
+- Path aliases: `@/` → `src/`
 
-#### Admin Payment Tools
-- Create Payment from NowPayments dialog
-- Tier mismatch repair
-- Webhook debugging
-- Payment history
+### Next.js Patterns
+- Server Components by default
+- Client Components need `"use client"` directive
+- Mark dynamic routes: `export const dynamic = 'force-dynamic'`
 
-**See**: [AGENTS.md](AGENTS.md) Payments section for implementation details
+### Git Commits
+Use conventional commits:
+- `feat(scope): description`
+- `fix(scope): description`
+- `refactor(scope): description`
 
-### Working with Admin Panel
+**Details**: See [Architecture Documentation](human-docs/02-ARCHITECTURE.md)
 
-**Location**: `/admin` with 14 pages
-
-**Pages**:
-- Dashboard: Overview, stats, quick actions
-- Users: User management, CRUD operations
-- Subscriptions: Stripe subscription monitoring
-- Payments: Payment history, crypto payments
-- Revenue: Revenue analytics with charts
-- Audit: Audit logs, security monitoring
-- Metrics: System health, performance
-- Settings: Platform configuration
-
-**Features**:
-- Role-based access control (ADMIN role required)
-- Advanced pagination with smart ellipsis
-- Revenue time-series charts (Recharts)
-- Audit logging for all actions
-- User status management
-- Payment webhook debugging
-- Test account creation
-
-**Access Control**:
-- All admin routes require `role === 'ADMIN'`
-- Server-side protection in middleware
-- Client-side UI gating
-- 2FA enforcement (optional)
-
-**See**: [AGENTS.md](AGENTS.md) Admin section for implementation details
-
-## Environment Variables
-
-### Frontend (.env.local)
-```bash
-# NextAuth
-NEXTAUTH_URL=http://localhost:3000                    # NextAuth base URL
-NEXTAUTH_SECRET=your-nextauth-secret                  # NextAuth secret (32+ chars)
-
-# Backend API
-NEXT_PUBLIC_API_URL=http://localhost:3001             # Backend API URL
-NEXT_PUBLIC_SOCKET_IO_URL=http://localhost:3001       # Socket.IO URL
-
-# Binance WebSocket
-NEXT_PUBLIC_WS_URL=wss://fstream.binance.com/stream   # Binance WebSocket URL
-
-# Stripe
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...        # Stripe publishable key
-
-# WalletConnect
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-project-id  # WalletConnect project ID
-
-# Build
-NEXT_PUBLIC_BUILD_ID=dev                              # Build version identifier
-```
-
-### Backend (.env)
-```bash
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/volspike  # PostgreSQL connection
-
-# JWT
-JWT_SECRET=your-jwt-secret                            # JWT signing key (32+ chars)
-
-# Stripe
-STRIPE_SECRET_KEY=sk_test_...                         # Stripe secret key
-STRIPE_WEBHOOK_SECRET=whsec_...                       # Stripe webhook secret
-
-# SendGrid
-SENDGRID_API_KEY=SG.your-sendgrid-api-key            # SendGrid API key
-SENDGRID_FROM_EMAIL=noreply@volspike.com             # Sender email address
-
-# Frontend
-FRONTEND_URL=http://localhost:3000                    # Frontend URL for redirects
-
-# NowPayments
-NOWPAYMENTS_API_KEY=your-nowpayments-api-key         # NowPayments API key
-NOWPAYMENTS_IPN_SECRET=your-ipn-secret               # IPN webhook secret
-
-# Digital Ocean Scripts
-ALERT_INGEST_API_KEY=your-alert-ingest-key           # DO script authentication
-
-# Feature Flags
-DISABLE_SERVER_MARKET_POLL=true                      # Set to true in production
-
-# Environment
-NODE_ENV=development                                  # development, production, test
-```
-
-### Digital Ocean Scripts (.volspike.env)
-```bash
-# Located at: /home/trader/.volspike.env
-BACKEND_URL=https://volspike-production.up.railway.app
-ALERT_INGEST_API_KEY=your-alert-ingest-key
-```
-
-## Testing
-
-### Frontend Testing
-
-**Framework**: Vitest 4.0.10 + Testing Library
-
-```bash
-cd volspike-nextjs-frontend
-
-# Run tests
-npm run test
-
-# Run tests with UI
-npm run test:ui
-
-# Run tests with coverage
-npm run test:coverage
-
-# Watch mode
-npm run test:watch
-```
-
-**Coverage Thresholds**:
-- Lines: 60%
-- Functions: 60%
-- Branches: 50%
-- Statements: 60%
-
-**Configuration**: [vitest.config.ts](volspike-nextjs-frontend/vitest.config.ts)
-
-### Backend Testing
-
-**Framework**: Vitest 4.0.10
-
-```bash
-cd volspike-nodejs-backend
-
-# Run tests
-npm run test
-
-# Run tests with UI
-npm run test:ui
-
-# Run tests with coverage
-npm run test:coverage
-
-# Watch mode
-npm run test:watch
-```
-
-**Coverage Thresholds**:
-- Lines: 70%
-- Functions: 70%
-- Branches: 60%
-- Statements: 70%
-
-**Configuration**: [vitest.config.ts](volspike-nodejs-backend/vitest.config.ts)
-
-### Test Accounts
-
-```
-free-test@volspike.com / Test123456!
-pro-test@volspike.com / Test123456!
-```
-
-**Test Payment System**:
-- Test accounts (emails ending with `-test@volspike.com`) can use `/test-crypto-payment`
-- $1 test payments for testing crypto upgrade flows
-- Restricted to test accounts only
-
-## Development Commands
-
-### Frontend
-```bash
-cd volspike-nextjs-frontend
-
-# Install dependencies
-npm install
-
-# Start dev server (localhost:3000)
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm run start
-
-# TypeScript type checking
-npm run type-check
-
-# ESLint
-npm run lint
-```
-
-### Backend
-```bash
-cd volspike-nodejs-backend
-
-# Install dependencies
-npm install
-
-# Start dev server (localhost:3001)
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm run start
-
-# TypeScript type checking
-npm run type-check
-
-# Database operations
-npm run db:push          # Push schema to database
-npm run db:migrate       # Run migrations
-npm run db:studio        # Open Prisma Studio
-
-# Seed test users
-npm run seed:test
-```
-
-## Deployment
-
-### Environments
-
-**Development**:
-- Frontend: `localhost:3000` (Next.js dev server)
-- Backend: `localhost:3001` (Hono dev server)
-- Database: Docker PostgreSQL (`localhost:5432`)
-
-**Production**:
-- Frontend: Vercel (https://volspike.com)
-- Backend: Railway (https://volspike-production.up.railway.app)
-- Database: Neon PostgreSQL (managed)
-- Scripts: Digital Ocean droplet
-
-### Deployment Checklist
-
-**Frontend (Vercel)**:
-- [ ] All environment variables configured
-- [ ] `NEXT_PUBLIC_API_URL` points to Railway backend
-- [ ] `NEXT_PUBLIC_WS_URL` points to Binance WebSocket
-- [ ] Build succeeds without errors
-- [ ] No console errors in browser
-
-**Backend (Railway)**:
-- [ ] All environment variables configured
-- [ ] `DISABLE_SERVER_MARKET_POLL=true` is set
-- [ ] Database URL points to Neon
-- [ ] `/health` endpoint returns 200
-- [ ] Run `npx prisma migrate deploy` after schema changes
-
-**Database (Neon)**:
-- [ ] Connection pooling enabled
-- [ ] Backups configured
-- [ ] TimescaleDB extension enabled
-
-**See**: [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) for complete guide
+---
 
 ## Safety Guardrails
 
-### DO NOT Touch
-- `volspike-nodejs-backend/prisma/schema.prisma` - Database schema (requires migration)
-- `.env` files - Environment variables with secrets
-- `node_modules/` - Dependencies
-- `dist/` and `.next/` - Build outputs
-- Admin routes and middleware - Critical security
-- Payment display logic - Must update docs if modified
-
-### Git Commit Rules - CRITICAL
+### Git Rules - CRITICAL
 - **NEVER commit `.env` files** - Always check `git status` before committing
-- **NEVER use `git add -A` blindly** - Always review what's being staged first
-- **Always unstage `.env` files** if accidentally staged: `git restore --staged <file>`
-- **Check for untracked `.env` files** before any commit
-- **If `.env` files are accidentally committed**: Remove with `git rm --cached <file>` immediately
+- **NEVER use `git add -A` blindly** - Review staged files first
+- If `.env` accidentally staged: `git restore --staged <file>`
 
 ### DO NOT Create (Unless Explicitly Requested)
-- **NO .md files** - NEVER create markdown documentation files unless user specifically asks
-- **NO README files** - Don't create README.md or similar docs proactively
-- **NO guide files** - Don't create GUIDE.md, INSTRUCTIONS.md, SUMMARY.md, etc. without request
-- **Focus on code** - Implement functionality, not documentation
-- **Exception**: Bug reports, analysis documents are OK when debugging issues
+- NO .md files in root - Use `human-docs/` folder
+- NO README files
+- Focus on code, not documentation
 
-### Before Making Changes
-- [ ] Check if database migration is needed
-- [ ] Verify tier-based access controls (Free/Pro/Elite)
-- [ ] Test with multiple user roles (guest, free, pro, elite, admin)
-- [ ] Ensure WebSocket connections remain stable
-- [ ] Verify payment flows still work
-- [ ] Check admin access controls
-- [ ] Test on mobile devices
+### DO NOT Touch
+- `prisma/schema.prisma` - Requires migration
+- `.env` files - Contains secrets
+- Admin routes/middleware - Critical security
+- Payment display logic - Must update docs if modified
 
-### Architecture Verification Checklist
-- [ ] Frontend NEVER calls Binance REST API
-- [ ] Backend NEVER calls Binance REST API
-- [ ] Only Digital Ocean scripts call Binance REST API
-- [ ] Watchlists store symbols only, not market data
-- [ ] Client-side WebSocket for all market data
-- [ ] Tier-based throttling in frontend
-- [ ] No Redis dependency
+**Details**: See [Troubleshooting](human-docs/21-TROUBLESHOOTING.md)
 
-## Testing Checklist
+---
 
-Before submitting changes:
-- ✅ TypeScript type checking passes (`npm run type-check`)
-- ✅ Next.js build succeeds (`npm run build`)
-- ✅ Client-side Binance WebSocket works in browser
-- ✅ Tier-based features are properly gated (Free/Pro/Elite)
-- ✅ Authentication flows work correctly (email, OAuth, Web3)
-- ✅ Admin access controls are verified (ADMIN role required)
-- ✅ No console errors in browser
-- ✅ Payment flows work (Stripe + NowPayments)
-- ✅ Guest preview behaves correctly (top 5 rows, top 2 alerts)
-- ✅ Mobile responsive design works
-- ✅ Dark theme works correctly
+## Lessons Learned (Critical Patterns)
 
-## Key Features Overview
+### React Component Patterns
+- **Never define components inside other components** - Causes re-renders, tooltip instability
+- **Use `memo()` for stable child components** - Prevents unnecessary re-renders
+- **Extract stateful UI (tooltips, dialogs) as separate components** - Isolated state
 
-### Market Data
-- **Real-time WebSocket**: Direct connection from browser to Binance
-- **USDT Pairs Only**: Symbols with >$100M 24h volume
-- **Sorting**: By 24h volume (descending)
-- **Tier-based Symbol Limits**: Free (50), Pro (100), Elite (unlimited)
-- **Client-side Filtering**: By watchlist symbols
-- **Open Interest Column**: Pro/Elite only
-- **Export**: TradingView format (Pro/Elite)
+### NEVER Make Up Values
+- **ALWAYS search codebase first** before defining prices, limits, quotas
+- **Check**: `lib/pricing.ts` for tier prices
+- **Ask user if unsure** - Don't invent values
 
-### Volume Alerts
-- **Detection**: Digital Ocean script with Binance REST API
-- **Broadcasting**: Socket.IO with tier-based rooms
-- **Batching**: Wall-clock (15min/5min/instant)
-- **Detection**: Bullish/bearish classification
-- **Notifications**: Email (Pro), SMS (Elite - coming soon)
-- **UI**: Sound, animation, history panel
+### CSS Animations
+- **One animation per element** - Multiple animations conflict
+- **Use child elements for layered effects** - Parent = main animation, child = glow/shadow
+- **Remove non-existent classes** - Browser ignores them (good for preventing conflicts)
 
-### Watchlists
-- **User-created**: Multiple watchlists per user
-- **Symbol-only Storage**: No market data stored
-- **Client-side Filtering**: Filter WebSocket data by symbols
-- **Export**: CSV format
+### Debugging Strategy
+- **Copy working code EXACTLY first** before customizing
+- Don't overthink - match working implementation before experimenting
 
-### Guest Experience
-- **Live Dashboard Preview**: No authentication required
-- **Limited Visibility**: Top 5 market rows, top 2 alerts
-- **Blurred Content**: Additional rows/alerts blurred
-- **Locked Features**: Sorting/export disabled with tooltips
-- **Unified CTA**: Gradient pill for sign-up/upgrade
-- **Dark Theme**: Default for all users
+### NextAuth Session Bug
+- **Credentials login** needs hard navigation: `window.location.href` (not `router.push`)
+- **OAuth works differently** - Full server redirect refreshes session
+- Force NextAuth route: `export const dynamic = 'force-dynamic'`
 
-### Admin Panel
-- **14 Pages**: Dashboard, Users, Subscriptions, Payments, Revenue, Audit, Metrics, Settings
-- **Role-based Access**: ADMIN role required
-- **Advanced Pagination**: Clickable page numbers with smart ellipsis
-- **Revenue Analytics**: Time-series charts with Recharts
-- **Payment Tools**: Create payments, tier mismatch repair, webhook debugging
-- **User Management**: CRUD operations, status management
-- **Audit Logging**: All admin actions logged
+### Stripe Integration
+- Auth middleware must include `stripeCustomerId: true` in Prisma select
+- Test keys (`sk_test_...`) won't find live mode customers
 
-## Troubleshooting Common Issues
+### Tooltip Clipping
+- Use `TooltipPrimitive.Portal` to escape container boundaries
+- Portal renders at document body level
 
-### Frontend Issues
+**More Details**: See [Troubleshooting](human-docs/21-TROUBLESHOOTING.md)
 
-**WebSocket not connecting**:
-- Check `NEXT_PUBLIC_WS_URL` in `.env.local`
-- Verify Binance WebSocket is accessible from your network
-- Check browser console for connection errors
-- Review `useClientOnlyMarketData` hook logs
+---
 
-**Auth not working**:
-- Verify `NEXTAUTH_URL` and `NEXTAUTH_SECRET` in `.env.local`
-- Check backend is running on `NEXT_PUBLIC_API_URL`
-- Review browser console for auth errors
-- Verify database connection
+## Quick Decision Trees
 
-**Payment redirect fails**:
-- Check Stripe public key in `.env.local`
-- Verify `NEXT_PUBLIC_API_URL` points to backend
-- Check Stripe webhook configuration
-- Review network tab for payment API calls
+### Market Data Feature
+1. Frontend display? → Use `useClientOnlyMarketData` hook
+2. Watchlist filtering? → Filter WebSocket data client-side
+3. Backend endpoint? → STOP. Backend never fetches market data
+4. Python script? → OK, can use Binance REST API
 
-**Dark theme not working**:
-- Check `next-themes` provider in [providers.tsx](volspike-nextjs-frontend/src/components/providers.tsx)
-- Verify localStorage `theme` key
-- Check Tailwind `dark:` classes
+### Authentication Issue
+1. Email/password? → Check NextAuth config, SendGrid
+2. OAuth? → Check provider config in `lib/auth.ts`
+3. Web3 (EVM)? → Check RainbowKit, SIWE
+4. Web3 (Solana)? → Check Phantom, mobile deep-linking
+5. Session? → Check JWT secret, session management
 
-### Backend Issues
+### Payment Issue
+1. Stripe? → Check webhook config, subscription management
+2. NowPayments? → Check IPN webhook, `formatCryptoCurrency()`
+3. Admin tools? → Check `role === 'ADMIN'`
 
-**Database connection fails**:
-- Check `DATABASE_URL` in `.env`
-- Verify PostgreSQL is running
-- Test connection with `npx prisma studio`
-- Check Neon dashboard for connection pooling
+**Details**: See [Troubleshooting](human-docs/21-TROUBLESHOOTING.md)
 
-**Stripe webhooks fail**:
-- Verify `STRIPE_WEBHOOK_SECRET` in `.env`
-- Check Stripe dashboard webhook logs
-- Use Stripe CLI for local testing: `stripe listen --forward-to localhost:3001/api/payments/webhook`
-- Review backend logs for webhook errors
-
-**500 on admin endpoints**:
-- Run `npx prisma migrate deploy` on Railway
-- Check Railway logs for Prisma errors
-- Verify all migrations are applied
-- Check database schema matches Prisma schema
-
-**NowPayments webhooks fail**:
-- Verify `NOWPAYMENTS_IPN_SECRET` in `.env`
-- Check NowPayments dashboard IPN settings
-- Review backend logs for IPN errors
-- Test with `/test-crypto-payment` endpoint
-
-### Architecture Issues
-
-**No market data showing**:
-- Use `useClientOnlyMarketData` hook, NOT backend API
-- Check browser console for WebSocket errors
-- Verify `NEXT_PUBLIC_WS_URL` is set correctly
-- Check Binance WebSocket accessibility from your network
-
-**Watchlist empty**:
-- Filter WebSocket data client-side by watchlist symbols
-- Do NOT fetch market data from backend
-- Check watchlist symbols are stored correctly in database
-- Review client-side filtering logic
-
-**Slow updates**:
-- Check tier-based throttling settings
-- Verify Elite tier has live updates (<150ms)
-- Review `useClientOnlyMarketData` hook throttling logic
-- Check browser performance
-
-**Digital Ocean scripts not working**:
-- Check `/home/trader/.volspike.env` exists
-- Verify `ALERT_INGEST_API_KEY` matches backend
-- Check systemd service status: `systemctl status binance-*`
-- Review script logs
-
-## Quick Decision Tree
-
-### User asks to add feature involving market data:
-
-1. **Is it frontend display?**
-   → Use `useClientOnlyMarketData` hook
-
-2. **Is it watchlist filtering?**
-   → Filter WebSocket data client-side by symbols
-
-3. **Is it backend endpoint?**
-   → STOP. Backend never fetches market data
-
-4. **Is it Python script?**
-   → OK, can use Binance REST API
-
-### User asks to fix authentication:
-
-1. **Email/password?**
-   → Check NextAuth.js config, SendGrid, password hashing
-
-2. **OAuth?**
-   → Check provider configuration in [auth.ts](volspike-nextjs-frontend/src/lib/auth.ts)
-
-3. **Web3 (EVM)?**
-   → Check RainbowKit setup, SIWE configuration
-
-4. **Web3 (Solana)?**
-   → Check Phantom integration, mobile deep-linking
-
-5. **Session issues?**
-   → Check JWT secret and session management
-
-### User asks about payments:
-
-1. **Stripe?**
-   → Check webhook configuration, subscription management
-
-2. **NowPayments?**
-   → Check IPN webhook, currency formatting (`formatCryptoCurrency()`)
-
-3. **Admin tools?**
-   → Check role-based access control (ADMIN role required)
-
-4. **Display issues?**
-   → Check `formatCryptoCurrency()` function, NEVER modify without updating docs
-
-### User asks about admin panel:
-
-1. **Access denied?**
-   → Check `role === 'ADMIN'` in database
-
-2. **500 error?**
-   → Run `npx prisma migrate deploy` on Railway
-
-3. **Missing data?**
-   → Check Prisma queries, pagination logic
-
-4. **UI broken?**
-   → Check Tailwind classes, responsive design
-
-## Recent Critical Updates (December 2025)
-
-1. **Admin Payments Workflow**
-   - Create Payment from NowPayments dialog
-   - Tier mismatch repair
-   - Enhanced webhook debugging
-   - Detailed error logging
-
-2. **Revenue Analytics**
-   - Comprehensive `/admin/revenue` page
-   - Daily/monthly time-series charts with Recharts
-   - Period selectors (1d/7d/30d/90d/1y)
-   - Growth indicators
-   - Payment method breakdown (Stripe/Crypto)
-
-3. **UI Improvements**
-   - Advanced pagination with clickable page numbers and smart ellipsis
-   - Removed tier badges for cleaner UI
-   - Fixed horizontal scrolling on mobile
-   - Unified guest CTA pill
-   - PREVIEW badge for guest dashboard
-
-4. **Payment Fixes**
-   - Order ID parsing improvements (handles test payments)
-   - Webhook fallback auto-creation
-   - Transaction-based atomic upgrades
-   - Recovery mechanisms for failed payments
-   - Enhanced logging for remote debugging
-
-5. **Test Payment System**
-   - `/test-crypto-payment` page for testing
-   - $1 test payments restricted to test accounts (emails ending with `-test@volspike.com`)
-
-6. **Payment Method Display Fix**
-   - Fixed admin panel to correctly display cryptocurrency payment methods
-   - Currency formatting: `formatCryptoCurrency()` function
-   - Network identifier precedence: USDCE checked first before USDC
-   - **CRITICAL**: Must update AGENTS.md, OVERVIEW.md, IMPLEMENTATION_PLAN.md if modified
-
-## Getting Help
-
-For detailed information on any topic, refer to [AGENTS.md](AGENTS.md) sections:
-- **Setup & Build**: Development environment setup
-- **Repository Layout**: Detailed file structure
-- **Code Style & Rules**: Coding standards and patterns
-- **Environment Variables**: Complete list of env vars
-- **Troubleshooting**: Common issues and solutions
-- **Recent Updates & Features**: Latest changes and additions
-- **Authentication**: Multi-method auth implementation
-- **Payments**: Stripe and NowPayments integration
-- **Admin Panel**: Role-based access control
-- **WebSocket**: Real-time data architecture
-- **Testing**: Unit and integration testing
-
-## Remember
-
-- This is a **production-ready application** deployed at https://volspike.com
-- **Security is paramount** (validate inputs, protect secrets, enforce RBAC)
-- **User experience matters** (tier-based features, smooth UX, guest preview)
-- **Performance is critical** (client-side WebSocket, no server bottleneck, sub-second updates)
-- **Code quality matters** (TypeScript strict mode, proper error handling, comprehensive testing)
-- **NO emojis** unless explicitly requested by the user
-- **Architecture is unique** (client-only data, no Redis, no server-side market polling)
-- **Documentation is mandatory** (update AGENTS.md, OVERVIEW.md, IMPLEMENTATION_PLAN.md when changing critical logic)
+---
 
 ## Final Checklist
 
 Before considering any task complete:
 - [ ] Code follows TypeScript strict mode (no `any` types)
-- [ ] Architecture rules are followed (client-only data)
-- [ ] All tests pass with required coverage
-- [ ] Documentation is updated if needed
-- [ ] Commit message follows conventional commits
-- [ ] Security best practices are followed
-- [ ] Tier-based access controls are verified
-- [ ] WebSocket connections remain stable
-- [ ] Mobile responsive design works
-- [ ] No console errors or warnings
+- [ ] Architecture rules followed (client-only data)
+- [ ] Tier-based access controls verified (Free/Pro/Elite)
+- [ ] WebSocket connections stable
+- [ ] Mobile responsive
+- [ ] No console errors
 - [ ] Production build succeeds
+- [ ] Commit message follows conventions
+
+**See [Deployment Guide](human-docs/19-DEPLOYMENT.md) for full production checklist**
 
 ---
 
-## Lessons Learned (Update This Section)
+## Remember
 
-**IMPORTANT**: When encountering repeatable mistakes or discovering patterns that cause issues, ADD them here to prevent future occurrences. This section should grow over time.
+- Production-ready app at https://volspike.com
+- Security paramount (validate inputs, protect secrets, enforce RBAC)
+- NO emojis unless explicitly requested
+- Architecture is unique (client-only data, no Redis)
+- Update human-docs when changing critical logic
 
-### React Component Patterns
-- **Never define components inside other components** - Causes re-renders, tooltip instability, and state issues
-- **Use `memo()` for stable child components** - Prevents unnecessary re-renders from parent state changes
-- **Extract stateful UI elements (tooltips, dialogs) as separate components** - Each instance gets its own isolated state
-- **hideControls Pattern - External Prop Threading** - When parent manages state with `hideControls={true}`:
-  - Parent calls the hook once and passes functions as external props
-  - Child uses: `const fn = hideControls ? (externalFn || (() => {})) : hookResult.fn`
-  - Never create new hook instances in children when controls are hidden
-  - Example: Alert sounds broke when moved to tabbed view because children used no-op `() => {}` instead of external `playSound`
-  - Files: `alerts-panel.tsx` (parent), `volume-alerts-content.tsx`, `oi-alerts-content.tsx` (children)
-
-### Git Mistakes to Avoid
-- **Always check `git status` after `git add`** - Before committing, verify no `.env` files are staged
-- **Never use `git add -A` without reviewing** - Could accidentally stage secrets
-- **Immediately fix accidental commits of .env files** - Use `git rm --cached` to remove from tracking
-
-### UI/UX Patterns
-- **Tooltip max-width must accommodate content** - Test with actual content, not just estimated widths
-- **Event propagation in nested clickable elements** - Always use `e.stopPropagation()` and `e.preventDefault()`
-
-### NEVER Make Up Values - Always Search First
-- **NEVER invent prices, limits, or configuration values** - Always search the codebase first
-- **Example mistake**: Created promo code service with `pro: 30.0` when actual price was $19
-- **Why it happened**: Assumed a price instead of searching for existing price definitions
-- **The fix**: Created `lib/pricing.ts` as single source of truth for tier prices
-- **Rule**: Before defining ANY business value (prices, limits, quotas), search for:
-  - Existing constants files
-  - Configuration in the codebase
-  - Ask the user if unsure
-- **Files to check for pricing**: `lib/pricing.ts` in both frontend and backend
-
-### CSS Animation Conflicts
-- **NEVER apply multiple CSS animations to the same element** - They will conflict and reduce animation quality
-- **Problem discovered**: Volume alerts had TWO animations on one element:
-  - `animate-lightning-strike-green` (transform: translateY, scale, rotate)
-  - `animate-electric-charge-green` (boxShadow pulses)
-  - Result: Animations interfered with each other, making dramatic "slide from outside" effects appear "boring"
-- **OI alerts accidentally worked better** because `shadow-*` classes don't exist:
-  - Only main animation (`animate-*`) ran cleanly
-  - Non-existent `shadow-*` classes were ignored by browser
-  - Result: Pure, dramatic transform animations without interference
-- **The fix**: Changed Volume alerts to use non-existent `shadow-*` glow classes (matching OI)
-  - This removes the second animation layer
-  - Prevents animation conflicts
-  - Preserves dramatic "slide from outside container" effects
-- **Best practices for animations**:
-  1. **One animation per element** - Don't combine transform + shadow + opacity animations on same div
-  2. **Use child elements for layered effects** - Parent gets main animation, child gets glow/shadow
-  3. **Test animation conflicts** - If animations look "dampened", check for multiple animation classes
-  4. **Remove 3D perspective for 2D animations** - `perspective: 1000px` modifies how transforms render
-- **Files affected**:
-  - `volume-alerts-content.tsx` - Changed glow classes from `animate-*` to `shadow-*`
-  - `oi-alerts-content.tsx` - Already using `shadow-*` (working correctly)
-  - Both components now render identically dramatic animations
-
-### Debugging Strategy: Copy Working Code First
-- **CRITICAL**: When a UI component doesn't work, find a working example and copy it EXACTLY first
-- **DON'T overthink or experiment** - No special props, no CSS overrides, no "fixes" until you've copied what works
-- **Radix Tooltip lessons learned**:
-  - Don't add `!bg-[...]` or `!border-[...]` Tailwind overrides - they compete with class-based CSS
-  - Don't add `disableHoverableContent` prop unless the working example uses it (Radix default is hoverable since v1.x)
-  - Don't experiment with alignment/positioning props until basic structure matches
-- **Recommended approach**:
-  1. Find working implementation (e.g., `OILockButton` in `volume-alerts-content.tsx`)
-  2. Copy it EXACTLY (same props, same structure, same CSS classes)
-  3. Test that it works
-  4. THEN make minimal adjustments for your specific use case (positioning, content)
-- **Real-world example**: Tooltip transparency + disappearing issue was solved by:
-  - Removing unnecessary `!bg-[...]` overrides (let `.oi-teaser-tooltip` CSS handle it)
-  - Removing unnecessary `disableHoverableContent={false}` prop (Radix default is correct)
-  - Using exact same structure as working `OILockButton` component
-  - Only AFTER confirming it works, adjusting `side` and `align` for positioning
-
-### NextAuth Credentials Login vs OAuth - Session State Bug (December 2025)
-
-**The Problem**: Email/password users saw "Start Free / Sign In" in the header immediately after successful login when navigating to Settings or Billing pages. OAuth (Google) users worked correctly.
-
-**Root Cause Analysis** (Required expert consultation):
-- **Credentials login** uses `signIn('credentials', { redirect: false })` + client-side `router.push('/dashboard')`
-- This leaves NextAuth's `SessionProvider` in-memory state **stale** until a hard page reload
-- **OAuth login** does a full server redirect, so the browser always rehydrates from a fresh cookie
-- The stale session caused `useSession()` to briefly return `unauthenticated` status on navigation
-
-**Why Common Fixes Failed**:
-- Adding `status === 'loading'` guards caused infinite "Loading..." states
-- Adding `update()` calls on mount didn't refresh the in-memory session fast enough
-- Checking `status === 'unauthenticated'` and returning `null` caused black screens
-- These approaches treated symptoms, not the root cause
-
-**The Fix** (3 parts):
-
-1. **Force NextAuth route to never be cached** (`volspike-nextjs-frontend/src/app/api/auth/[...nextauth]/route.ts`):
-   ```typescript
-   export const runtime = 'nodejs'
-   export const dynamic = 'force-dynamic'
-   export const revalidate = 0
-   ```
-
-2. **Use hard navigation after credentials login** (`volspike-nextjs-frontend/src/app/auth/page.tsx`):
-   ```typescript
-   // After successful credentials signIn:
-   await update() // Refresh session
-   window.location.href = callbackUrl || '/dashboard' // Hard navigation, not router.push
-   ```
-
-3. **Header loading guard for mobile menu** (`volspike-nextjs-frontend/src/components/header.tsx`):
-   - Added check to prevent flash of unauthenticated state in mobile menu
-
-**Key Insight**: The difference between OAuth and credentials login is the navigation method:
-- OAuth: Full page redirect → fresh cookie → fresh SessionProvider state
-- Credentials: Client-side router.push → stale SessionProvider state → brief "unauthenticated" flash
-
-**Files Modified**:
-- `volspike-nextjs-frontend/src/app/api/auth/[...nextauth]/route.ts`
-- `volspike-nextjs-frontend/src/app/auth/page.tsx`
-- `volspike-nextjs-frontend/src/components/header.tsx`
-
-### Stripe Billing Portal "No Customer Found" Bug (December 2025)
-
-**The Problem**: Pro users with valid Stripe subscriptions saw "No active subscription found" and "No customer found" error on the Billing page.
-
-**Root Cause**: The auth middleware (`volspike-nodejs-backend/src/middleware/auth.ts`) was not including `stripeCustomerId` in the Prisma `select` statement when fetching user data. The `/api/payments/portal` endpoint checked `user.stripeCustomerId`, but it was always `undefined`.
-
-**The Fix**: Added `stripeCustomerId: true` to the auth middleware's Prisma select:
-```typescript
-const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-        id: true,
-        email: true,
-        tier: true,
-        role: true,
-        refreshInterval: true,
-        theme: true,
-        status: true,
-        stripeCustomerId: true, // THIS WAS MISSING
-    },
-})
-```
-
-**Debugging Note**: When testing Stripe API calls locally with test keys (`sk_test_...`), customers created in **live mode** won't be found. Production uses live keys, so always verify which Stripe environment you're querying.
-
-### Tooltip Clipping by Container Boundaries
-
-**The Problem**: Tooltips on unlink buttons in Settings were being cut off by the container's `overflow: hidden` or boundaries.
-
-**The Fix**: Added `TooltipPrimitive.Portal` wrapper in `volspike-nextjs-frontend/src/components/ui/tooltip.tsx`:
-```typescript
-const TooltipContent = React.forwardRef<...>(({ className, sideOffset = 4, ...props }, ref) => (
-  <TooltipPrimitive.Portal>
-    <TooltipPrimitive.Content ... />
-  </TooltipPrimitive.Portal>
-))
-```
-
-Portal renders the tooltip at the document body level, escaping any container clipping.
+**For everything else, see [human-docs/00-INDEX.md](human-docs/00-INDEX.md)**
 
 ---
 
-**Last Updated**: December 2025
+## CRITICAL RULES - NEVER BREAK THESE
 
-For complete details, always refer to [AGENTS.md](AGENTS.md).
+### 🚨 NEVER Upgrade Dependencies Without Explicit Approval
 
-**Live Site**: https://volspike.com
-**Repository**: https://github.com/VolSpike/VolSpike
-**Founder & Lead Engineer**: Nik Sitnikov
+**What Happened (December 2025)**:
+- Railway showed error about Next.js 16.0.1 having security vulnerabilities
+- Claude arbitrarily upgraded Next.js from 15.5.7 to 16.0.10 without checking documentation
+- Broke production deployment with Turbopack errors and compatibility issues
+- Required multiple reverts and fixes, wasting significant time
+
+**The Correct Approach**:
+1. **ALWAYS check project documentation FIRST** (CLAUDE.md, human-docs/, package.json)
+2. **NEVER upgrade major or minor versions without user approval**
+3. **Question error messages** - Railway was scanning wrong directory
+4. **Verify what version is actually being used** before making changes
+5. **Ask the user** if unsure about version compatibility
+
+**Documented Tech Stack (DO NOT CHANGE)**:
+- **Frontend**: Next.js 15.5.7 (NOT 16.x)
+- **Backend**: Node.js with Hono 4.10.3
+- **Database**: PostgreSQL with TimescaleDB via Prisma 6.18.0
+- See human-docs/00-INDEX.md and human-docs/01-PROJECT-OVERVIEW.md for full stack
+
+**Railway Deployment Issue**:
+- Backend package-lock.json had Next.js 16.0.1 from `next-auth` peer dependency
+- Backend doesn't run Next.js - it's just a Hono app
+- Solution: Regenerate backend package-lock.json to use patched Next.js 16.0.10
+- Real fix: Railway should only scan `volspike-nodejs-backend` directory (dashboard config)
+
+**If You See Security Warnings**:
+1. Check which directory is being scanned
+2. Check if the vulnerable package is actually used in that service
+3. Ask user before upgrading anything
+4. Document the decision in CLAUDE.md
+
+---
+
+**Last Updated**: December 2025 | **Founder & Lead Engineer**: Nik Sitnikov
