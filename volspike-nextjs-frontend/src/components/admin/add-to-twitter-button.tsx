@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { X, Loader2, Check } from 'lucide-react'
+import { Loader2, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
 import { captureAlertCard } from '@/lib/capture-alert-image'
@@ -92,7 +92,7 @@ export function AddToTwitterButton({
       {isLoading ? (
         <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/70" />
       ) : (
-        <X className="h-3.5 w-3.5 text-muted-foreground/70 group-hover/twitter:text-blue-400 group-hover/twitter:drop-shadow-[0_0_8px_rgba(96,165,250,0.6)] transition-all duration-200" />
+        <span className="h-3.5 w-3.5 flex items-center justify-center text-[11px] font-bold text-muted-foreground/70 group-hover/twitter:text-blue-400 group-hover/twitter:drop-shadow-[0_0_8px_rgba(96,165,250,0.6)] transition-all duration-200">𝕏</span>
       )}
     </button>
   )
