@@ -341,7 +341,7 @@ export default function OIAlertsPage() {
                           </div>
 
                           {/* Action icon buttons */}
-                          <div className="flex items-center gap-0">
+                          <div className="flex items-end gap-0">
                             {/* Binance icon button */}
                             <button
                               onClick={(e) => handleBinanceClick(alert.symbol, e)}

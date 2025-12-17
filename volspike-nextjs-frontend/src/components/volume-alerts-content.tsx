@@ -558,7 +558,7 @@ export function VolumeAlertsContent({
             </div>
 
             {/* Action icon buttons */}
-            <div className="flex items-center gap-0">
+            <div className="flex items-end gap-0">
               <button
                 onClick={(e) => handleBinanceClick(alert.asset, e)}
                 className="group/bn flex-shrink-0 p-1 rounded-md transition-all duration-200 hover:bg-warning-500/10 hover:scale-110 active:scale-95"
