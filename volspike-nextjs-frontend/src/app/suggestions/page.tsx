@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { HumanVerification, HumanVerificationHandle } from '@/components/human-verification'
-import { Lightbulb, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Lightbulb, Send, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type SuggestionType = 'feature' | 'improvement' | 'bug' | 'other'
@@ -73,6 +73,11 @@ export default function SuggestionsPage() {
       setIsVerified(false)
       // Reset human verification
       verificationRef.current?.reset()
+
+      // Auto-dismiss success message after 5 seconds
+      setTimeout(() => {
+        setSubmitStatus('idle')
+      }, 5000)
     } catch (error) {
       console.error('Error submitting suggestion:', error)
       setSubmitStatus('error')
@@ -224,13 +229,20 @@ export default function SuggestionsPage() {
 
             {/* Success Message */}
             {submitStatus === 'success' && (
-              <div className="p-6 rounded-lg border border-green-500/50 bg-gradient-to-br from-green-950/30 to-green-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
-                <div className="flex items-start gap-3">
+              <div className="relative p-6 rounded-lg border border-green-500/50 bg-gradient-to-br from-green-950/30 to-green-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
+                <button
+                  onClick={() => setSubmitStatus('idle')}
+                  className="absolute top-4 right-4 text-green-500/60 hover:text-green-500 transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <div className="flex items-start gap-3 pr-8">
                   <CheckCircle className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
                   <div className="space-y-1">
                     <h3 className="font-semibold text-green-500">Thank you for your suggestion!</h3>
                     <p className="text-sm text-green-500/80">
-                      We&apos;ve received your feedback and will review it carefully. You&apos;ll hear from us if we need more details.
+                      We&apos;ve received your feedback and will review it carefully. A confirmation email has been sent to you.
                     </p>
                   </div>
                 </div>
@@ -239,8 +251,15 @@ export default function SuggestionsPage() {
 
             {/* Error Message */}
             {submitStatus === 'error' && errorMessage && (
-              <div className="p-6 rounded-lg border border-red-500/50 bg-gradient-to-br from-red-950/30 to-red-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
-                <div className="flex items-start gap-3">
+              <div className="relative p-6 rounded-lg border border-red-500/50 bg-gradient-to-br from-red-950/30 to-red-900/20 animate-in fade-in slide-in-from-top-2 duration-500">
+                <button
+                  onClick={() => setSubmitStatus('idle')}
+                  className="absolute top-4 right-4 text-red-500/60 hover:text-red-500 transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <div className="flex items-start gap-3 pr-8">
                   <AlertCircle className="h-6 w-6 text-red-500 mt-0.5 flex-shrink-0" />
                   <div className="space-y-1">
                     <h3 className="font-semibold text-red-500">Submission Failed</h3>
