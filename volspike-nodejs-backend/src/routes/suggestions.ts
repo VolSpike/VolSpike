@@ -11,7 +11,7 @@ const suggestionSchema = z.object({
   name: z.string().max(100).optional(),
   email: z.string().email('Invalid email address'),
   type: z.enum(['feature', 'improvement', 'bug', 'other']).optional(),
-  title: z.string().min(1, 'Title is required').max(200),
+  title: z.string().max(200).optional(),
   description: z.string().min(10, 'Description must be at least 10 characters').max(5000),
 })
 

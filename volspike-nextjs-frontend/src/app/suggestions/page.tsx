@@ -210,14 +210,13 @@ export default function SuggestionsPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="title" className="text-sm font-medium">
-                    Title <span className="text-red-500">*</span>
+                    Title <span className="text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     id="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Brief summary of your suggestion"
-                    required
                   />
                 </div>
                 <div className="space-y-2">

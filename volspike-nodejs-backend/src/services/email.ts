@@ -1830,7 +1830,7 @@ Manage your alerts: https://volspike.com/settings/alerts
         name?: string
         email: string
         type?: 'feature' | 'improvement' | 'bug' | 'other'
-        title: string
+        title?: string
         description: string
     }): Promise<boolean> {
         try {
@@ -1851,6 +1851,7 @@ Manage your alerts: https://volspike.com/settings/alerts
             const typeLabel = data.type ? typeLabels[data.type] : 'General Feedback'
             const typeEmoji = data.type ? typeEmojis[data.type] : '💬'
             const displayName = data.name || 'Anonymous'
+            const displayTitle = data.title || 'Untitled Suggestion'
 
             const msg: any = {
                 to: 'support@volspike.com',
@@ -1859,14 +1860,14 @@ Manage your alerts: https://volspike.com/settings/alerts
                     name: 'VolSpike Suggestions'
                 },
                 replyTo: data.email,
-                subject: `${typeEmoji} [${typeLabel}] ${data.title}`,
+                subject: `${typeEmoji} [${typeLabel}] ${displayTitle}`,
                 html: `
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
-  <title>New Suggestion: ${data.title}</title>
+  <title>New Suggestion: ${displayTitle}</title>
 </head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;">
@@ -1898,14 +1899,14 @@ Manage your alerts: https://volspike.com/settings/alerts
               </table>
             </div>
 
-            <div style="margin-bottom:20px;">
+            ${data.title ? `<div style="margin-bottom:20px;">
               <div style="font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
                 Title
               </div>
               <div style="font:600 18px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
                 ${data.title}
               </div>
-            </div>
+            </div>` : ''}
 
             <div>
               <div style="font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
@@ -1919,7 +1920,7 @@ ${data.description}
         </tr>
         <tr>
           <td style="padding:0 32px 32px;text-align:center;">
-            <a href="mailto:${data.email}?subject=Re: ${encodeURIComponent(data.title)}" style="display:inline-block;padding:12px 32px;background:#0ea371;color:#fff;text-decoration:none;border-radius:6px;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <a href="mailto:${data.email}?subject=Re: ${encodeURIComponent(displayTitle)}" style="display:inline-block;padding:12px 32px;background:#0ea371;color:#fff;text-decoration:none;border-radius:6px;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
               Reply to ${displayName}
             </a>
           </td>
@@ -1934,9 +1935,7 @@ ${data.description}
 New Suggestion Received
 
 ${data.type ? `Type: ${typeLabel}\n` : ''}${data.name ? `From: ${data.name}\n` : ''}Email: ${data.email}
-
-Title: ${data.title}
-
+${data.title ? `\nTitle: ${data.title}\n` : ''}
 Description:
 ${data.description}
 
