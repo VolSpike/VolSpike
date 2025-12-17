@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { useSession } from 'next-auth/react'
 import { Loader2, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
@@ -25,15 +25,26 @@ export function AddToTwitterButton({
   isQueued = false,
   onSuccess,
 }: AddToTwitterButtonProps) {
+  const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [isAdded, setIsAdded] = useState(isQueued)
 
   const handleAddToTwitter = async () => {
     if (isAdded || disabled) return
 
+    // Get access token from session
+    const accessToken = (session as any)?.accessToken as string | undefined
+    if (!accessToken) {
+      toast.error('Authentication required. Please refresh the page.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
+      // Set access token for admin API
+      adminAPI.setAccessToken(accessToken)
+
       // Step 1: Capture the alert card as an image
       console.log(`[AddToTwitter] Capturing image from element: ${alertCardId}`)
       const imageDataURL = await captureAlertCard(alertCardId)
