@@ -1822,6 +1822,144 @@ Manage your alerts: https://volspike.com/settings/alerts
             return false
         }
     }
+
+    /**
+     * Send suggestion notification to team
+     */
+    async sendSuggestionNotification(data: {
+        name: string
+        email: string
+        type: 'feature' | 'improvement' | 'bug' | 'other'
+        title: string
+        description: string
+    }): Promise<boolean> {
+        try {
+            const typeLabels = {
+                feature: 'New Feature',
+                improvement: 'Improvement',
+                bug: 'Bug Report',
+                other: 'Other'
+            }
+
+            const typeEmojis = {
+                feature: '💡',
+                improvement: '⚡',
+                bug: '🐛',
+                other: '💬'
+            }
+
+            const typeLabel = typeLabels[data.type]
+            const typeEmoji = typeEmojis[data.type]
+
+            const msg: any = {
+                to: 'support@volspike.com',
+                from: {
+                    email: this.fromEmail,
+                    name: 'VolSpike Suggestions'
+                },
+                replyTo: data.email,
+                subject: `${typeEmoji} [${typeLabel}] ${data.title}`,
+                html: `
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>New Suggestion: ${data.title}</title>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;">
+    <tr><td align="center" style="padding:24px;">
+      <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:12px;">
+        <tr>
+          <td align="center" style="padding:32px;background:#0ea371;border-radius:12px 12px 0 0;">
+            <div style="font:700 24px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#fff;">
+              ${typeEmoji} New Suggestion
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;font:400 16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#334155;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;font-size:14px;">Type:</td>
+                  <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${typeLabel}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;font-size:14px;">From:</td>
+                  <td align="right" style="padding:8px 0;font-weight:600;color:#0f172a;">${data.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding:8px 0;color:#64748b;font-size:14px;">Email:</td>
+                  <td align="right" style="padding:8px 0;"><a href="mailto:${data.email}" style="color:#0ea371;text-decoration:none;">${data.email}</a></td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="margin-bottom:20px;">
+              <div style="font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+                Title
+              </div>
+              <div style="font:600 18px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+                ${data.title}
+              </div>
+            </div>
+
+            <div>
+              <div style="font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+                Description
+              </div>
+              <div style="padding:16px;background:#f8fafc;border-radius:6px;white-space:pre-wrap;font-size:14px;line-height:1.6;color:#334155;">
+${data.description}
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 32px 32px;text-align:center;">
+            <a href="mailto:${data.email}?subject=Re: ${encodeURIComponent(data.title)}" style="display:inline-block;padding:12px 32px;background:#0ea371;color:#fff;text-decoration:none;border-radius:6px;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              Reply to ${data.name}
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+                `,
+                text: `
+New Suggestion Received
+
+Type: ${typeLabel}
+From: ${data.name}
+Email: ${data.email}
+
+Title: ${data.title}
+
+Description:
+${data.description}
+
+---
+Reply to this email to respond to ${data.name}.
+                `.trim(),
+                categories: ['suggestion-notification'],
+                customArgs: {
+                    type: 'suggestion',
+                    suggestionType: data.type,
+                    timestamp: Date.now().toString()
+                }
+            }
+
+            await mail.send(msg)
+            logger.info(`Suggestion notification sent for: ${data.title} (from ${data.email})`)
+            return true
+        } catch (error) {
+            logger.error('Failed to send suggestion notification:', error)
+            return false
+        }
+    }
 }
 
 export default EmailService
