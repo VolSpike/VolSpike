@@ -1,5 +1,9 @@
 import html2canvas from 'html2canvas'
 
+// Fixed dimensions for Twitter (16:9 aspect ratio)
+export const TWITTER_CARD_WIDTH = 480
+export const TWITTER_CARD_HEIGHT = 270
+
 /**
  * Capture an alert card element as a PNG image
  * @param element The DOM element to capture (or element ID)
@@ -34,6 +38,41 @@ export async function captureAlertCard(element: HTMLElement | string): Promise<s
   } catch (error) {
     console.error('[CaptureImage] Error capturing alert card:', error)
     throw new Error(`Failed to capture image: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
+ * Capture a dedicated Twitter card element (rendered off-screen)
+ * This provides consistent sizing and styling regardless of screen size
+ * @param containerId The ID of the container element with the TwitterAlertCard
+ * @returns Base64-encoded PNG image data URL
+ */
+export async function captureTwitterCard(containerId: string): Promise<string> {
+  const container = document.getElementById(containerId)
+
+  if (!container) {
+    throw new Error('Twitter card container not found. Cannot capture image.')
+  }
+
+  try {
+    // Capture at 2x scale for high quality
+    const canvas = await html2canvas(container, {
+      backgroundColor: '#0f172a',
+      scale: 2.5, // Higher DPI for crisp text on Twitter
+      logging: false,
+      useCORS: true,
+      allowTaint: false,
+      width: TWITTER_CARD_WIDTH,
+      height: TWITTER_CARD_HEIGHT,
+    })
+
+    // Convert canvas to base64 PNG data URL
+    const dataURL = canvas.toDataURL('image/png', 1.0) // Maximum quality
+
+    return dataURL
+  } catch (error) {
+    console.error('[CaptureImage] Error capturing Twitter card:', error)
+    throw new Error(`Failed to capture Twitter card: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 

@@ -7,6 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Loader2, RefreshCw, Twitter, X, Send, AlertCircle, ExternalLink, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
@@ -21,6 +26,14 @@ export default function SocialMediaPage() {
   const [history, setHistory] = useState<QueuedPostWithAlert[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Set access token when session is available
+  useEffect(() => {
+    const accessToken = (session as any)?.accessToken as string | undefined
+    if (accessToken) {
+      adminAPI.setAccessToken(accessToken)
+    }
+  }, [session])
 
   // Fetch queue
   const fetchQueue = async (showLoading = true) => {
@@ -178,12 +191,37 @@ export default function SocialMediaPage() {
   )
 }
 
+// Image Preview Dialog Component
+function ImagePreviewDialog({
+  imageUrl,
+  open,
+  onOpenChange,
+}: {
+  imageUrl: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl p-2 bg-background/95 backdrop-blur">
+        <DialogTitle className="sr-only">Image Preview</DialogTitle>
+        <img
+          src={imageUrl}
+          alt="Alert preview (enlarged)"
+          className="w-full h-auto rounded-lg"
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // Queued Post Card Component
 function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdate: () => void }) {
   const [caption, setCaption] = useState(post.caption)
   const [isEditing, setIsEditing] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
 
   const charCount = caption.length
   const isOverLimit = charCount > 280
@@ -209,7 +247,7 @@ function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdat
 
     setIsPosting(true)
     try {
-      const response = await adminAPI.postToTwitter(post.id)
+      await adminAPI.postToTwitter(post.id)
       toast.success('Posted to Twitter! Tweet published successfully')
       onUpdate()
     } catch (error: any) {
@@ -235,7 +273,7 @@ function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdat
 
   const getAlertSymbol = () => {
     if (!post.alert) return 'Unknown'
-    return (post.alert as any).symbol || 'Unknown'
+    return (post.alert as any).symbol || (post.alert as any).asset || 'Unknown'
   }
 
   const getAlertDetails = () => {
@@ -277,15 +315,30 @@ function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdat
         </div>
       </div>
 
-      {/* Image Preview */}
+      {/* Image Preview - Clickable to enlarge */}
       {post.imageUrl && (
-        <div className="relative w-full max-w-md">
-          <img
-            src={post.imageUrl}
-            alt="Alert preview"
-            className="w-full rounded-lg border"
+        <>
+          <div
+            className="relative w-full max-w-md cursor-pointer group"
+            onClick={() => setImagePreviewOpen(true)}
+          >
+            <img
+              src={post.imageUrl}
+              alt="Alert preview"
+              className="w-full rounded-lg border transition-all group-hover:opacity-90 group-hover:ring-2 group-hover:ring-primary/50"
+            />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="bg-background/80 px-3 py-1 rounded-full text-xs font-medium">
+                Click to enlarge
+              </span>
+            </div>
+          </div>
+          <ImagePreviewDialog
+            imageUrl={post.imageUrl}
+            open={imagePreviewOpen}
+            onOpenChange={setImagePreviewOpen}
           />
-        </div>
+        </>
       )}
 
       {/* Caption */}
@@ -368,9 +421,11 @@ function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdat
 
 // History Card Component
 function HistoryCard({ post }: { post: QueuedPostWithAlert }) {
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+
   const getAlertSymbol = () => {
     if (!post.alert) return 'Unknown'
-    return (post.alert as any).symbol || 'Unknown'
+    return (post.alert as any).symbol || (post.alert as any).asset || 'Unknown'
   }
 
   const getAlertDetails = () => {
@@ -412,15 +467,25 @@ function HistoryCard({ post }: { post: QueuedPostWithAlert }) {
         )}
       </div>
 
-      {/* Image thumbnail */}
+      {/* Image thumbnail - Clickable to enlarge */}
       {post.imageUrl && (
-        <div className="relative w-32 h-20">
-          <img
-            src={post.imageUrl}
-            alt="Posted alert"
-            className="w-full h-full object-cover rounded border"
+        <>
+          <div
+            className="relative w-32 h-20 cursor-pointer group"
+            onClick={() => setImagePreviewOpen(true)}
+          >
+            <img
+              src={post.imageUrl}
+              alt="Posted alert"
+              className="w-full h-full object-cover rounded border transition-all group-hover:opacity-90 group-hover:ring-2 group-hover:ring-primary/50"
+            />
+          </div>
+          <ImagePreviewDialog
+            imageUrl={post.imageUrl}
+            open={imagePreviewOpen}
+            onOpenChange={setImagePreviewOpen}
           />
-        </div>
+        </>
       )}
 
       {/* Caption preview */}
