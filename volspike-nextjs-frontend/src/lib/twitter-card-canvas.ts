@@ -297,6 +297,10 @@ export async function renderTwitterCardDataUrl(params: {
   strokeRoundedRect(context, 0, 0, TWITTER_CARD_WIDTH, TWITTER_CARD_HEIGHT, 12, palette.border, 2)
 
   const padding = 20
+  // Keep header + badges fixed (these are the elements that were misaligned before).
+  // Only nudge the body/footer text blocks for visual parity with the previous DOM-based card.
+  const bodyNudgeY = 6
+  const footerNudgeY = 6
 
   // Header: icon + symbol (left), timestamps (right).
   const headerTop = padding
@@ -374,7 +378,7 @@ export async function renderTwitterCardDataUrl(params: {
   }
 
   // Main info.
-  const mainTop = badgesTop + 28 + 16
+  const mainTop = badgesTop + 28 + 16 + bodyNudgeY
   context.fillStyle = '#94a3b8'
   withFont(context, '400 15px system-ui, -apple-system, sans-serif')
   const lineGap = 22
@@ -406,7 +410,7 @@ export async function renderTwitterCardDataUrl(params: {
   }
 
   // Footer separator.
-  const sepY = TWITTER_CARD_HEIGHT - padding - 28
+  const sepY = TWITTER_CARD_HEIGHT - padding - 28 + footerNudgeY
   context.strokeStyle = 'rgba(100, 116, 139, 0.2)'
   context.lineWidth = 1
   context.beginPath()
@@ -415,7 +419,7 @@ export async function renderTwitterCardDataUrl(params: {
   context.stroke()
 
   // Footer metrics.
-  const footerY = TWITTER_CARD_HEIGHT - padding - 10
+  const footerY = TWITTER_CARD_HEIGHT - padding - 10 + footerNudgeY
   withFont(context, '400 13px system-ui, -apple-system, sans-serif')
   context.fillStyle = '#94a3b8'
 
