@@ -52,6 +52,9 @@ VolSpike is a production-ready Binance Perpetual Futures trading dashboard. This
 ### Analytics & Tracking
 23. [Analytics & Tracking](23-ANALYTICS.md) - Google Analytics 4 integration and event tracking
 
+### Social Media Integration
+24. [Social Media / Twitter](24-SOCIAL-MEDIA-TWITTER.md) - Twitter queue, image generation, and posting
+
 ---
 
 ## Quick Reference
