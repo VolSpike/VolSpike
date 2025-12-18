@@ -26,6 +26,7 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
   const [activeTab, setActiveTab] = useState('queue')
   const [queue, setQueue] = useState<QueuedPostWithAlert[]>([])
   const [history, setHistory] = useState<QueuedPostWithAlert[]>([])
+  const [historyCount, setHistoryCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -33,6 +34,8 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
   useEffect(() => {
     adminAPI.setAccessToken(accessToken)
     fetchQueue()
+    // Keep History count accurate even before the user opens the tab.
+    fetchHistory(false)
   }, [accessToken])
 
   // Fetch queue
@@ -54,7 +57,9 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
     if (showLoading) setLoading(true)
     try {
       const response = await adminAPI.getSocialMediaHistory({ limit: 100 })
-      setHistory(response.data || [])
+      const items = response.data || []
+      setHistory(items)
+      setHistoryCount(items.length)
     } catch (error: any) {
       console.error('[SocialMedia] Error fetching history:', error)
       toast.error('Failed to load history')
@@ -66,20 +71,15 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
   // Handle refresh
   const handleRefresh = async () => {
     setRefreshing(true)
-    if (activeTab === 'queue') {
-      await fetchQueue(false)
-    } else {
-      await fetchHistory(false)
-    }
+    // Refresh both counts in the background so tab badges stay accurate.
+    await Promise.all([fetchQueue(false), fetchHistory(false)])
     setRefreshing(false)
   }
 
   // Handle tab change
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
-    if (tab === 'history' && history.length === 0) {
-      fetchHistory()
-    }
+    if (tab === 'history' && history.length === 0) fetchHistory()
   }
 
 	  return (
@@ -106,15 +106,15 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="queue">
-              Queue ({queue.length})
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              History ({history.length})
-            </TabsTrigger>
-          </TabsList>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="queue">
+                Queue ({queue.length})
+              </TabsTrigger>
+              <TabsTrigger value="history">
+                History ({historyCount === null ? '…' : historyCount})
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="queue" className="space-y-4">
             {loading ? (
@@ -135,7 +135,7 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
 	                  <QueuedPostCard
 	                    key={post.id}
 	                    post={post}
-	                    onUpdate={() => fetchQueue(false)}
+	                    onUpdate={() => Promise.all([fetchQueue(false), fetchHistory(false)]).then(() => {})}
 	                    onOptimisticRemove={(postId) => {
 	                      setQueue((prev) => prev.filter((p) => p.id !== postId))
 	                    }}
@@ -238,6 +238,7 @@ function QueuedPostCard({
     try {
       await adminAPI.postToTwitter(post.id)
       toast.success('Posted to Twitter! Tweet published successfully')
+      onOptimisticRemove?.(post.id)
       onUpdate()
     } catch (error: any) {
       toast.error(error.message || 'Failed to post to Twitter')
