@@ -86,15 +86,12 @@ export function DashboardWalletBalances() {
         
         try {
             console.log('[WalletBalances] Fetching wallets...', { silent })
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${session.accessToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            )
+            const response = await fetch('/api/admin/wallets', {
+                headers: {
+                    'Authorization': `Bearer ${session.accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            })
 
             if (!response.ok) {
                 const errorText = await response.text()
@@ -144,15 +141,12 @@ export function DashboardWalletBalances() {
         
         try {
             console.log('[WalletBalances] Refreshing balances...', { showToast })
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets/refresh-all`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${session.accessToken}`,
-                    },
-                }
-            )
+            const response = await fetch('/api/admin/wallets/refresh-all', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.accessToken}`,
+                },
+            })
 
             if (!response.ok) {
                 const errorText = await response.text()

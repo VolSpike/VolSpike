@@ -1,7 +1,10 @@
 import { AdminUser, UserListQuery, UserListResponse, CreateUserRequest, UpdateUserRequest, BulkActionRequest, AuditLogResponse, AuditLogQuery, SystemMetrics, SubscriptionSummary, AdminSettings, TwoFactorSetup, TwoFactorVerification, UserGrowthMetrics } from '@/types/admin'
 import type { AssetRecord } from '@/lib/asset-manifest'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+// IMPORTANT: Keep admin API calls same-origin to avoid CORS preflights and
+// browser connection contention when multiple tabs are open.
+// `/api/admin/*` is proxied server-side to the backend.
+const API_BASE_URL = ''
 
 class AdminAPIError extends Error {
     constructor(

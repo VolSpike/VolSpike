@@ -34,7 +34,7 @@ export function SystemStatusIndicator() {
                     return
                 }
 
-                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+                const API_BASE_URL = ''
 
                 // Try the detailed metrics health endpoint first
                 const response = await fetch(`${API_BASE_URL}/api/admin/metrics/health`, {
@@ -198,4 +198,3 @@ export function SystemStatusIndicator() {
         </div>
     )
 }
-

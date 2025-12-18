@@ -417,7 +417,7 @@ export function AdminAssetsTable({ accessToken }: AdminAssetsTableProps) {
         setCleaningDelisted(true)
         try {
             console.log('[AdminAssetsTable] 🧹 Starting delisted assets cleanup...')
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/assets/cleanup-delisted`, {
+            const response = await fetch(`/api/admin/assets/cleanup-delisted`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,

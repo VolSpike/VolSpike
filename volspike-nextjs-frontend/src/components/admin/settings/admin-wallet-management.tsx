@@ -68,7 +68,7 @@ export function AdminWalletManagement() {
         setLoading(true)
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets`, {
+            const response = await fetch(`/api/admin/wallets`, {
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
                     'Content-Type': 'application/json',
@@ -91,7 +91,7 @@ export function AdminWalletManagement() {
 
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets`, {
+            const response = await fetch(`/api/admin/wallets`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
@@ -124,7 +124,7 @@ export function AdminWalletManagement() {
 
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets/${editingWallet.id}`, {
+            const response = await fetch(`/api/admin/wallets/${editingWallet.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
@@ -152,7 +152,7 @@ export function AdminWalletManagement() {
 
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets/${walletId}`, {
+            const response = await fetch(`/api/admin/wallets/${walletId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
@@ -174,7 +174,7 @@ export function AdminWalletManagement() {
         setRefreshing(walletId)
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets/${walletId}/refresh-balance`, {
+            const response = await fetch(`/api/admin/wallets/${walletId}/refresh-balance`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
@@ -198,7 +198,7 @@ export function AdminWalletManagement() {
         setRefreshingAll(true)
         try {
             adminAPI.setAccessToken(session.accessToken as string)
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets/refresh-all`, {
+            const response = await fetch(`/api/admin/wallets/refresh-all`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.accessToken}`,
@@ -485,4 +485,3 @@ export function AdminWalletManagement() {
         </Card>
     )
 }
-

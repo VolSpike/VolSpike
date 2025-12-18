@@ -67,15 +67,12 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         setLoading(true)
         setError(null)
         try {
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/wallets/${walletId}/multi-chain-balances`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${session.accessToken}`,
-                        'Content-Type': 'application/json',
-                    },
-                }
-            )
+            const response = await fetch(`/api/admin/wallets/${walletId}/multi-chain-balances`, {
+                headers: {
+                    'Authorization': `Bearer ${session.accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            })
 
             if (!response.ok) throw new Error('Failed to fetch multi-chain balances')
             const data = await response.json()
@@ -242,4 +239,3 @@ export function MultiChainETHBalance({ walletId, address, mainBalance, currency,
         </div>
     )
 }
-

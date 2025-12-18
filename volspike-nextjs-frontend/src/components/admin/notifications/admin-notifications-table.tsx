@@ -25,7 +25,8 @@ export function AdminNotificationsTable({ accessToken }: AdminNotificationsTable
     const [markingRead, setMarkingRead] = useState<string | null>(null)
 
     const limit = 50
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    // Use same-origin admin API proxy to avoid CORS preflights and cross-origin contention.
+    const apiBase = ''
 
     // Fetch notifications with pagination
     const fetchNotifications = useCallback(async () => {
@@ -265,4 +266,3 @@ export function AdminNotificationsTable({ accessToken }: AdminNotificationsTable
         </div>
     )
 }
-

@@ -37,7 +37,8 @@ export function useAdminNotifications(limit: number = 10, unreadOnly: boolean = 
     const isPausedRef = useRef(false)
     const hasInitialLoadRef = useRef(false)
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    // Use same-origin admin API proxy to avoid CORS preflights and cross-origin contention.
+    const apiBase = ''
 
     // Pause and resume polling
     const pausePolling = useCallback(() => {
@@ -208,4 +209,3 @@ export function useAdminNotifications(limit: number = 10, unreadOnly: boolean = 
         resumePolling,
     }
 }
-
