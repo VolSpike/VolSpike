@@ -330,9 +330,11 @@ async function getAlertDataFromCard(
   // Try to extract price and funding
   const textContent = cardElement.textContent || ''
   const priceMatch = textContent.match(/Price: ([+-]?[\d.]+)%/)
+  const oiMatch = textContent.match(/OI:\s*([+-]?[\d.]+)%/)
   const fundingMatch = textContent.match(/Funding: ([+-]?[\d.]+)%/)
 
   if (priceMatch) data.priceChange = parseFloat(priceMatch[1]) / 100
+  if (oiMatch) data.oiChange = parseFloat(oiMatch[1]) / 100
   if (fundingMatch) data.fundingRate = parseFloat(fundingMatch[1]) / 100
 
   return data

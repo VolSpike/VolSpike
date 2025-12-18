@@ -31,6 +31,7 @@ interface TwitterAlertCardProps {
 // Fixed dimensions for Twitter (16:9 aspect ratio, Twitter optimal)
 const CARD_WIDTH = 480
 const CARD_HEIGHT = 270
+const BADGE_HEIGHT = 28
 
 export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
   const isOI = alertType === 'OPEN_INTEREST'
@@ -146,49 +147,54 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
         </div>
       </div>
 
-      {/* Badges */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-        <span
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0 12px',
-            borderRadius: 6,
-            backgroundColor: badgeBg,
-            border: `1px solid ${borderColor}`,
-            color: accentColor,
-            fontSize: 16,
-            fontWeight: 600,
-            fontFamily: 'ui-monospace, monospace',
-            lineHeight: 1,
-            height: 28,
-            boxSizing: 'border-box',
-          }}
-        >
-          {getBadgeText()}
-        </span>
-        {timeframeBadge && (
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '0 12px',
-              borderRadius: 6,
-              backgroundColor: getTimeframeBadgeColor(),
-              color: '#fff',
-              fontSize: 14,
-              fontWeight: 500,
-              lineHeight: 1,
-              height: 28,
-              boxSizing: 'border-box',
-            }}
-          >
-            {timeframeBadge}
-          </span>
-        )}
-      </div>
+	      {/* Badges */}
+	      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+	        <span
+	          style={{
+	            // html2canvas has known flexbox alignment quirks; use line-height centering for reliable capture.
+	            display: 'inline-block',
+	            padding: '0 12px',
+	            borderRadius: 6,
+	            backgroundColor: badgeBg,
+	            border: `1px solid ${borderColor}`,
+	            color: accentColor,
+	            fontSize: 16,
+	            fontWeight: 600,
+	            fontFamily: 'ui-monospace, monospace',
+	            height: BADGE_HEIGHT,
+	            lineHeight: `${BADGE_HEIGHT - 2}px`,
+	            textAlign: 'center',
+	            verticalAlign: 'middle',
+	            whiteSpace: 'nowrap',
+	            boxSizing: 'border-box',
+	          }}
+	        >
+	          {getBadgeText()}
+	        </span>
+	        {timeframeBadge && (
+	          <span
+	            style={{
+	              // Keep sizing consistent with multiplier badge (transparent border keeps height math stable).
+	              display: 'inline-block',
+	              padding: '0 12px',
+	              borderRadius: 6,
+	              backgroundColor: getTimeframeBadgeColor(),
+	              border: '1px solid transparent',
+	              color: '#fff',
+	              fontSize: 14,
+	              fontWeight: 500,
+	              height: BADGE_HEIGHT,
+	              lineHeight: `${BADGE_HEIGHT - 2}px`,
+	              textAlign: 'center',
+	              verticalAlign: 'middle',
+	              whiteSpace: 'nowrap',
+	              boxSizing: 'border-box',
+	            }}
+	          >
+	            {timeframeBadge}
+	          </span>
+	        )}
+	      </div>
 
       {/* Main Info */}
       <div style={{ marginTop: 12, fontSize: 15, color: '#94a3b8', lineHeight: 1.6 }}>

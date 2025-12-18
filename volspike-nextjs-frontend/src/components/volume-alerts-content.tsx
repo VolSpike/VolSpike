@@ -570,15 +570,16 @@ export function VolumeAlertsContent({
 
               <div className="flex flex-col gap-0 items-center">
                 {/* Add to Twitter button (admin only) - positioned above TradingView */}
-                {session?.user?.role === 'ADMIN' && (
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <AddToTwitterButton
-                      alertId={alert.id}
-                      alertType="VOLUME"
-                      alertCardId={`volume-alert-${alert.id}`}
-                    />
-                  </div>
-                )}
+	                {session?.user?.role === 'ADMIN' && (
+	                  <div onClick={(e) => e.stopPropagation()}>
+	                    <AddToTwitterButton
+	                      alertId={alert.id}
+	                      alertType="VOLUME"
+	                      alertCardId={`volume-alert-${alert.id}`}
+	                      alert={alert}
+	                    />
+	                  </div>
+	                )}
 
                 <button
                   onClick={(e) => handleTradingViewClick(alert.asset, e)}
