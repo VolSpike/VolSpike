@@ -37,7 +37,7 @@ export function formatPercent(pct: number): string {
  * => "🚨 ACT volume spike: 6.55x in 1 hour! $17.24M this hour vs $2.63M last hour. Price: +9.96% #crypto #altcoin #volspike"
  */
 export function generateVolumeAlertCaption(alert: VolumeAlert): string {
-  const emoji = alert.volumeRatio >= 5 ? '🚨' : '📈'
+  const emoji = '🚨'
   const symbol = alert.symbol
   const ratio = alert.volumeRatio.toFixed(2)
   const currentVol = formatVolume(alert.currentVolume)
@@ -69,11 +69,11 @@ export function generateVolumeAlertCaption(alert: VolumeAlert): string {
  *   priceChange: "5.47",
  *   timeframe: "5 min"
  * })
- * => "🚀 USTC Open Interest spike: +3.94% in 5 min! Current OI: $651.92M (up $24.69M). Price: +5.47% #crypto #openinterest #volspike"
+ * => "🚨 USTC Open Interest spike: +3.94% in 5 min! Current OI: $651.92M (up $24.69M). Price: +5.47% #crypto #openinterest #volspike"
  */
 export function generateOIAlertCaption(alert: OpenInterestAlert): string {
   const isIncrease = alert.direction === 'increase'
-  const emoji = isIncrease ? '🚀' : '🔻'
+  const emoji = '🚨'
   const directionWord = isIncrease ? 'up' : 'down'
 
   const symbol = alert.symbol
