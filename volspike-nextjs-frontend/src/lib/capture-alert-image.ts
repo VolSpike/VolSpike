@@ -71,6 +71,21 @@ function debugCaptureRenderer(label: string, info: Record<string, unknown>) {
   console.log(`[CaptureImage] ${label}`, info)
 }
 
+function normalizeCaptureElementInClone(clonedDocument: Document, elementId: string) {
+  const el = clonedDocument.getElementById(elementId) as HTMLElement | null
+  if (!el) return
+
+  // When the real element is positioned far off-screen (e.g. left/top:-9999px),
+  // `foreignObjectRendering` can render it outside the SVG viewport, producing a blank image.
+  // Normalize positioning only in the cloned DOM used for capture.
+  el.style.position = 'fixed'
+  el.style.left = '0px'
+  el.style.top = '0px'
+  el.style.transform = 'none'
+  el.style.opacity = '1'
+  el.style.zIndex = '0'
+}
+
 /**
  * Capture an alert card element as a PNG image
  * @param element The DOM element to capture (or element ID)
@@ -104,10 +119,27 @@ export async function captureAlertCard(element: HTMLElement | string): Promise<s
     let canvas: HTMLCanvasElement
     try {
       debugCaptureRenderer('renderer', { target: 'alertCard', foreignObjectRendering: true })
-      canvas = await html2canvas(targetElement, { ...baseOptions, foreignObjectRendering: true })
+      canvas = await html2canvas(targetElement, {
+        ...baseOptions,
+        foreignObjectRendering: true,
+        onclone: typeof element === 'string'
+          ? (doc) => normalizeCaptureElementInClone(doc, element)
+          : (doc) => {
+              const id = (targetElement as HTMLElement).id
+              if (id) normalizeCaptureElementInClone(doc, id)
+            },
+      })
     } catch {
       debugCaptureRenderer('renderer', { target: 'alertCard', foreignObjectRendering: false })
-      canvas = await html2canvas(targetElement, baseOptions)
+      canvas = await html2canvas(targetElement, {
+        ...baseOptions,
+        onclone: typeof element === 'string'
+          ? (doc) => normalizeCaptureElementInClone(doc, element)
+          : (doc) => {
+              const id = (targetElement as HTMLElement).id
+              if (id) normalizeCaptureElementInClone(doc, id)
+            },
+      })
     }
 
     // Convert canvas to base64 PNG data URL
@@ -153,10 +185,17 @@ export async function captureTwitterCard(containerId: string): Promise<string> {
     let canvas: HTMLCanvasElement
     try {
       debugCaptureRenderer('renderer', { target: 'twitterCard', foreignObjectRendering: true, scale: baseOptions.scale })
-      canvas = await html2canvas(container, { ...baseOptions, foreignObjectRendering: true })
+      canvas = await html2canvas(container, {
+        ...baseOptions,
+        foreignObjectRendering: true,
+        onclone: (doc) => normalizeCaptureElementInClone(doc, containerId),
+      })
     } catch {
       debugCaptureRenderer('renderer', { target: 'twitterCard', foreignObjectRendering: false, scale: baseOptions.scale })
-      canvas = await html2canvas(container, baseOptions)
+      canvas = await html2canvas(container, {
+        ...baseOptions,
+        onclone: (doc) => normalizeCaptureElementInClone(doc, containerId),
+      })
     }
 
     // Convert canvas to base64 PNG data URL
