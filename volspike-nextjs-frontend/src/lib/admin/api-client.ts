@@ -4,7 +4,20 @@ import type { AssetRecord } from '@/lib/asset-manifest'
 // IMPORTANT: Keep admin API calls same-origin to avoid CORS preflights and
 // browser connection contention when multiple tabs are open.
 // `/api/admin/*` is proxied server-side to the backend.
-const API_BASE_URL = ''
+//
+// For client-side (browser): Use relative URLs (empty string) - browser adds origin
+// For server-side (SSR): Use absolute URL via NEXTAUTH_URL or APP_URL
+//
+// NOTE: This function is called per-request (not at module load time) to handle
+// both client and server contexts correctly.
+function getApiBaseUrl(): string {
+    // Client-side: use relative URL (browser resolves it)
+    if (typeof window !== 'undefined') {
+        return ''
+    }
+    // Server-side: need absolute URL for Node.js fetch
+    return process.env.NEXTAUTH_URL || process.env.APP_URL || 'http://localhost:3000'
+}
 
 class AdminAPIError extends Error {
     constructor(
@@ -18,11 +31,15 @@ class AdminAPIError extends Error {
 }
 
 class AdminAPIClient {
-    private baseURL: string
     private accessToken: string | null = null
 
-    constructor(baseURL: string = API_BASE_URL) {
-        this.baseURL = baseURL
+    constructor() {
+        // baseURL is computed dynamically in getBaseUrl() to handle SSR vs client
+    }
+
+    // Get base URL - computed per request to handle SSR correctly
+    private getBaseUrl(): string {
+        return getApiBaseUrl()
     }
 
     // Set access token
@@ -48,7 +65,7 @@ class AdminAPIClient {
         endpoint: string,
         options: RequestInit & { timeout?: number } = {}
     ): Promise<T> {
-        const url = `${this.baseURL}${endpoint}`
+        const url = `${this.getBaseUrl()}${endpoint}`
         const { timeout, ...fetchOptions } = options
 
         // Create abort controller for timeout
@@ -203,7 +220,7 @@ class AdminAPIClient {
             }
         })
 
-        const response = await fetch(`${this.baseURL}/api/admin/audit/export?${params.toString()}`, {
+        const response = await fetch(`${this.getBaseUrl()}/api/admin/audit/export?${params.toString()}`, {
             headers: this.getHeaders(),
         })
 
