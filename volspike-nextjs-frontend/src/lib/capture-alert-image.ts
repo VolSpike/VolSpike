@@ -9,7 +9,6 @@ async function waitForFontsAndLayout(): Promise<void> {
 
   try {
     // Ensure fonts are ready before capture (prevents baseline/metrics drift during render).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fonts = (document as any).fonts as FontFaceSet | undefined
     if (fonts?.ready) {
       await fonts.ready
