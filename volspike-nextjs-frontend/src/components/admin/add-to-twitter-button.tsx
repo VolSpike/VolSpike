@@ -56,18 +56,17 @@ export function AddToTwitterButton({
   const handleAddToTwitter = async () => {
     if (isAdded || disabled || isLoading) return
 
-    // Get access token from session first (before optimistic update)
+    // Get access token from session first
     const accessToken = (session as any)?.accessToken as string | undefined
     if (!accessToken) {
       toast.error('Authentication required. Please refresh the page.')
       return
     }
 
-    // OPTIMISTIC UPDATE: Show checkmark immediately for instant feedback
-    setIsAdded(true)
-    markAsQueued(alertId) // Optimistically mark as queued
+    // Show loading state (spinner)
+    setIsLoading(true)
 
-    // Get alert data synchronously before async work
+    // Get alert data before starting capture
     let data = alertProp
     if (!data) {
       const cardElement = document.getElementById(alertCardId)
@@ -77,14 +76,12 @@ export function AddToTwitterButton({
     }
 
     if (!data) {
-      // Revert optimistic update
-      setIsAdded(false)
-      unmarkAsQueued(alertId)
+      setIsLoading(false)
       toast.error('Could not find alert data')
       return
     }
 
-    // Do the actual work in the background
+    // Render the capture container
     setAlertData(data)
     setShowCapture(true)
 
@@ -92,8 +89,8 @@ export function AddToTwitterButton({
       // Set access token for admin API
       adminAPI.setAccessToken(accessToken)
 
-      // Wait for the Twitter card to render (reduced delay)
-      await new Promise(resolve => setTimeout(resolve, 50))
+      // Wait for the Twitter card to render
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // Capture the Twitter card
       console.log(`[AddToTwitter] Capturing Twitter card: ${captureContainerId}`)
@@ -101,6 +98,11 @@ export function AddToTwitterButton({
 
       // Hide the capture container
       setShowCapture(false)
+
+      // Show checkmark immediately after capture (optimistic for API call)
+      setIsLoading(false)
+      setIsAdded(true)
+      markAsQueued(alertId)
 
       // Send to API to add to queue
       console.log(`[AddToTwitter] Adding to queue: ${alertType} alert ${alertId}`)
@@ -121,14 +123,16 @@ export function AddToTwitterButton({
     } catch (error: any) {
       console.error('[AddToTwitter] Error:', error)
       setShowCapture(false)
+      setIsLoading(false)
 
       // Handle 409 (already exists) - keep the checkmark
       if (error?.status === 409) {
-        // Already queued or posted - optimistic state was correct
+        setIsAdded(true)
+        markAsQueued(alertId)
         return
       }
 
-      // REVERT optimistic update on failure
+      // Revert on failure
       if (mountedRef.current) {
         setIsAdded(false)
         unmarkAsQueued(alertId)
