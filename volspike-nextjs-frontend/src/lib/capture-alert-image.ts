@@ -65,6 +65,12 @@ function debugCaptureLayout(container: HTMLElement) {
   console.groupEnd()
 }
 
+function debugCaptureRenderer(label: string, info: Record<string, unknown>) {
+  if (!isDebugCaptureEnabled()) return
+  // eslint-disable-next-line no-console
+  console.log(`[CaptureImage] ${label}`, info)
+}
+
 /**
  * Capture an alert card element as a PNG image
  * @param element The DOM element to capture (or element ID)
@@ -97,8 +103,10 @@ export async function captureAlertCard(element: HTMLElement | string): Promise<s
     // Try foreignObjectRendering first for better CSS/layout fidelity; fallback to default renderer.
     let canvas: HTMLCanvasElement
     try {
+      debugCaptureRenderer('renderer', { target: 'alertCard', foreignObjectRendering: true })
       canvas = await html2canvas(targetElement, { ...baseOptions, foreignObjectRendering: true })
     } catch {
+      debugCaptureRenderer('renderer', { target: 'alertCard', foreignObjectRendering: false })
       canvas = await html2canvas(targetElement, baseOptions)
     }
 
@@ -144,8 +152,10 @@ export async function captureTwitterCard(containerId: string): Promise<string> {
     // but can fail in some browsers; fall back automatically.
     let canvas: HTMLCanvasElement
     try {
+      debugCaptureRenderer('renderer', { target: 'twitterCard', foreignObjectRendering: true, scale: baseOptions.scale })
       canvas = await html2canvas(container, { ...baseOptions, foreignObjectRendering: true })
     } catch {
+      debugCaptureRenderer('renderer', { target: 'twitterCard', foreignObjectRendering: false, scale: baseOptions.scale })
       canvas = await html2canvas(container, baseOptions)
     }
 

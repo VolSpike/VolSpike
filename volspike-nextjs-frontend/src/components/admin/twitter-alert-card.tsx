@@ -32,6 +32,7 @@ interface TwitterAlertCardProps {
 const CARD_WIDTH = 480
 const CARD_HEIGHT = 270
 const BADGE_HEIGHT = 28
+const TEXT_BASELINE_NUDGE_PX = -1
 
 export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
   const isOI = alertType === 'OPEN_INTEREST'
@@ -144,6 +145,8 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
 	              // html2canvas can render unitless line-heights slightly off; use an explicit px line-height.
 	              lineHeight: '34px',
 	              display: 'block',
+	              // Work around html2canvas canvas text baseline drift (optical centering).
+	              transform: `translateY(${TEXT_BASELINE_NUDGE_PX}px)`,
 	            }}
 	          >
 	            {symbol}
@@ -179,11 +182,12 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
 		            textAlign: 'center',
 		            verticalAlign: 'middle',
 		            whiteSpace: 'nowrap',
+		            transform: `translateY(${TEXT_BASELINE_NUDGE_PX}px)`,
 		            boxSizing: 'border-box',
-	          }}
-	        >
-	          {getBadgeText()}
-	        </span>
+		          }}
+		        >
+		          {getBadgeText()}
+		        </span>
 		        {timeframeBadge && (
 		          <span
 		            data-capture="badge-timeframe"
@@ -202,12 +206,13 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
 		              textAlign: 'center',
 		              verticalAlign: 'middle',
 		              whiteSpace: 'nowrap',
+		              transform: `translateY(${TEXT_BASELINE_NUDGE_PX}px)`,
 		              boxSizing: 'border-box',
-	            }}
-	          >
-	            {timeframeBadge}
-	          </span>
-	        )}
+		            }}
+		          >
+		            {timeframeBadge}
+		          </span>
+		        )}
 	      </div>
 
       {/* Main Info */}
