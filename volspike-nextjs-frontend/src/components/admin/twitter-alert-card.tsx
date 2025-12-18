@@ -136,6 +136,7 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
 	            <TrendingUp style={{ width: 24, height: 24, color: isUp ? '#22c55e' : '#64748b' }} />
 	          )}
 	          <span
+	            data-capture="symbol"
 	            style={{
 	              fontSize: 28,
 	              fontWeight: 700,
@@ -161,6 +162,7 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
 	      {/* Badges */}
 	      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
 		        <span
+		          data-capture="badge-primary"
 		          style={{
 		            // html2canvas has known flexbox alignment quirks; use line-height centering for reliable capture.
 		            display: 'inline-block',
@@ -182,8 +184,9 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
 	        >
 	          {getBadgeText()}
 	        </span>
-	        {timeframeBadge && (
+		        {timeframeBadge && (
 		          <span
+		            data-capture="badge-timeframe"
 		            style={{
 		              // Keep sizing consistent with multiplier badge (transparent border keeps height math stable).
 		              display: 'inline-block',

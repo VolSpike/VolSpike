@@ -4,6 +4,68 @@ import html2canvas from 'html2canvas'
 export const TWITTER_CARD_WIDTH = 480
 export const TWITTER_CARD_HEIGHT = 270
 
+async function waitForFontsAndLayout(): Promise<void> {
+  if (typeof document === 'undefined') return
+
+  try {
+    // Ensure fonts are ready before capture (prevents baseline/metrics drift during render).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fonts = (document as any).fonts as FontFaceSet | undefined
+    if (fonts?.ready) {
+      await fonts.ready
+    }
+  } catch {
+    // Ignore font readiness errors and proceed with capture.
+  }
+
+  // Give the browser at least two frames to flush layout + paint (helps html2canvas snapshot accuracy).
+  await new Promise<void>(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  )
+}
+
+function isDebugCaptureEnabled(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.localStorage?.getItem('debugTwitterCapture') === '1'
+  } catch {
+    return false
+  }
+}
+
+function debugCaptureLayout(container: HTMLElement) {
+  if (!isDebugCaptureEnabled()) return
+
+  const symbol = container.querySelector('[data-capture="symbol"]') as HTMLElement | null
+  const badgePrimary = container.querySelector('[data-capture="badge-primary"]') as HTMLElement | null
+  const badgeTimeframe = container.querySelector('[data-capture="badge-timeframe"]') as HTMLElement | null
+
+  const items = [
+    ['symbol', symbol],
+    ['badge-primary', badgePrimary],
+    ['badge-timeframe', badgeTimeframe],
+  ] as const
+
+  // eslint-disable-next-line no-console
+  console.groupCollapsed('[CaptureImage] Twitter card layout debug')
+  for (const [label, el] of items) {
+    if (!el) continue
+    const rect = el.getBoundingClientRect()
+    const style = window.getComputedStyle(el)
+    // eslint-disable-next-line no-console
+    console.log(label, {
+      text: (el.textContent || '').trim(),
+      rect: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
+      fontSize: style.fontSize,
+      lineHeight: style.lineHeight,
+      paddingTop: style.paddingTop,
+      paddingBottom: style.paddingBottom,
+      display: style.display,
+    })
+  }
+  // eslint-disable-next-line no-console
+  console.groupEnd()
+}
+
 /**
  * Capture an alert card element as a PNG image
  * @param element The DOM element to capture (or element ID)
@@ -20,8 +82,10 @@ export async function captureAlertCard(element: HTMLElement | string): Promise<s
   }
 
   try {
+    await waitForFontsAndLayout()
+
     // Use html2canvas to capture the element
-    const canvas = await html2canvas(targetElement, {
+    const baseOptions = {
       backgroundColor: '#0f172a', // Dark background (matches alert cards)
       scale: 2, // High DPI for better quality
       logging: false, // Disable console logs
@@ -29,7 +93,15 @@ export async function captureAlertCard(element: HTMLElement | string): Promise<s
       allowTaint: false, // Prevent tainting canvas
       width: targetElement.offsetWidth,
       height: targetElement.offsetHeight,
-    })
+    } as const
+
+    // Try foreignObjectRendering first for better CSS/layout fidelity; fallback to default renderer.
+    let canvas: HTMLCanvasElement
+    try {
+      canvas = await html2canvas(targetElement, { ...baseOptions, foreignObjectRendering: true })
+    } catch {
+      canvas = await html2canvas(targetElement, baseOptions)
+    }
 
     // Convert canvas to base64 PNG data URL
     const dataURL = canvas.toDataURL('image/png')
@@ -55,8 +127,11 @@ export async function captureTwitterCard(containerId: string): Promise<string> {
   }
 
   try {
+    await waitForFontsAndLayout()
+    debugCaptureLayout(container)
+
     // Capture at 2x scale for high quality
-    const canvas = await html2canvas(container, {
+    const baseOptions = {
       backgroundColor: '#0f172a',
       scale: 2.5, // Higher DPI for crisp text on Twitter
       logging: false,
@@ -64,7 +139,16 @@ export async function captureTwitterCard(containerId: string): Promise<string> {
       allowTaint: false,
       width: TWITTER_CARD_WIDTH,
       height: TWITTER_CARD_HEIGHT,
-    })
+    } as const
+
+    // foreignObjectRendering is typically more accurate for vertical alignment (flex/text metrics),
+    // but can fail in some browsers; fall back automatically.
+    let canvas: HTMLCanvasElement
+    try {
+      canvas = await html2canvas(container, { ...baseOptions, foreignObjectRendering: true })
+    } catch {
+      canvas = await html2canvas(container, baseOptions)
+    }
 
     // Convert canvas to base64 PNG data URL
     const dataURL = canvas.toDataURL('image/png', 1.0) // Maximum quality
