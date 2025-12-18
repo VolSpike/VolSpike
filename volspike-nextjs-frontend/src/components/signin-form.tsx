@@ -144,7 +144,9 @@ export function SigninForm({ onSuccess, isAdminMode = false, nextUrl = '/dashboa
                     const resp = await fetch(`${API_URL}/api/auth/signin`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: data.email, password: data.password }),
+                        // IMPORTANT: Include deviceId so this fallback does not accidentally create
+                        // a new "device" session and invalidate the user in other tabs/windows.
+                        body: JSON.stringify({ email: data.email, password: data.password, deviceId: deviceId || undefined }),
                     })
                     const body = await resp.json().catch(() => ({}))
                     if (resp.status === 401 && body?.oauthOnly) {
