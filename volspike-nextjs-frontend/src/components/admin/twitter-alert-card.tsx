@@ -98,6 +98,14 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
   const timeframeBadge = getTimeframeBadge()
   const isHourly = alert.alertType === 'FULL_UPDATE' || alert.timeframe === '1 hour'
   const is15min = alert.alertType === 'HALF_UPDATE' || alert.timeframe === '15 min'
+  const is5min = !isHourly && !is15min // Default case for OI alerts
+
+  // Timeframe badge colors: 5min = cyan, 15min = violet, 1hour = amber
+  const getTimeframeBadgeColor = () => {
+    if (isHourly) return 'rgba(245, 158, 11, 0.85)' // amber
+    if (is15min) return 'rgba(139, 92, 246, 0.85)' // violet
+    return 'rgba(6, 182, 212, 0.85)' // cyan for 5 min
+  }
 
   return (
     <div
@@ -125,7 +133,7 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
           ) : (
             <TrendingUp style={{ width: 24, height: 24, color: isUp ? '#22c55e' : '#64748b' }} />
           )}
-          <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em' }}>{symbol}</span>
+          <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>{symbol}</span>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 14, color: '#94a3b8' }}>
@@ -144,7 +152,7 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '6px 12px',
+            padding: '4px 12px',
             borderRadius: 6,
             backgroundColor: badgeBg,
             border: `1px solid ${borderColor}`,
@@ -152,6 +160,9 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
             fontSize: 16,
             fontWeight: 600,
             fontFamily: 'ui-monospace, monospace',
+            lineHeight: 1.4,
+            height: 32,
+            boxSizing: 'border-box',
           }}
         >
           {getBadgeText()}
@@ -162,12 +173,15 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '6px 12px',
+              padding: '4px 12px',
               borderRadius: 6,
-              backgroundColor: isHourly ? 'rgba(245, 158, 11, 0.7)' : is15min ? 'rgba(139, 92, 246, 0.7)' : '#334155',
+              backgroundColor: getTimeframeBadgeColor(),
               color: '#fff',
               fontSize: 14,
               fontWeight: 500,
+              lineHeight: 1.4,
+              height: 32,
+              boxSizing: 'border-box',
             }}
           >
             {timeframeBadge}

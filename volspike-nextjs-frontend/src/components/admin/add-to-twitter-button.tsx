@@ -29,9 +29,10 @@ export function AddToTwitterButton({
   onSuccess,
 }: AddToTwitterButtonProps) {
   const { data: session } = useSession()
-  const { isAlertQueued, markAsQueued, isLoaded } = useQueuedAlerts()
+  const { isAlertQueued, markAsQueued, unmarkAsQueued, getPostId, canUnqueue, isLoaded } = useQueuedAlerts()
   const [isLoading, setIsLoading] = useState(false)
   const [isAdded, setIsAdded] = useState(false)
+  const [isUnqueuing, setIsUnqueuing] = useState(false)
   const [alertData, setAlertData] = useState<any>(null)
   const [showCapture, setShowCapture] = useState(false)
   const captureContainerId = `twitter-capture-${alertId}`
@@ -55,43 +56,44 @@ export function AddToTwitterButton({
   const handleAddToTwitter = async () => {
     if (isAdded || disabled || isLoading) return
 
-    // Show loading immediately
-    setIsLoading(true)
-
-    // Get access token from session
+    // Get access token from session first (before optimistic update)
     const accessToken = (session as any)?.accessToken as string | undefined
     if (!accessToken) {
       toast.error('Authentication required. Please refresh the page.')
-      setIsLoading(false)
       return
     }
+
+    // OPTIMISTIC UPDATE: Show checkmark immediately for instant feedback
+    setIsAdded(true)
+    markAsQueued(alertId) // Optimistically mark as queued
+
+    // Get alert data synchronously before async work
+    let data = alertProp
+    if (!data) {
+      const cardElement = document.getElementById(alertCardId)
+      if (cardElement) {
+        data = await getAlertDataFromCard(cardElement, alertId, alertType)
+      }
+    }
+
+    if (!data) {
+      // Revert optimistic update
+      setIsAdded(false)
+      unmarkAsQueued(alertId)
+      toast.error('Could not find alert data')
+      return
+    }
+
+    // Do the actual work in the background
+    setAlertData(data)
+    setShowCapture(true)
 
     try {
       // Set access token for admin API
       adminAPI.setAccessToken(accessToken)
 
-      // Get alert data from DOM element's data attributes or props
-      let data = alertProp
-
-      if (!data) {
-        // Try to extract alert data from the DOM element
-        const cardElement = document.getElementById(alertCardId)
-        if (cardElement) {
-          // Parse data from the card - we'll need to extract it
-          // For now, make an API call to get alert details
-          data = await getAlertDataFromCard(cardElement, alertId, alertType)
-        }
-      }
-
-      if (!data) {
-        throw new Error('Could not find alert data')
-      }
-
-      setAlertData(data)
-      setShowCapture(true)
-
-      // Wait for the Twitter card to render
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Wait for the Twitter card to render (reduced delay)
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       // Capture the Twitter card
       console.log(`[AddToTwitter] Capturing Twitter card: ${captureContainerId}`)
@@ -110,12 +112,9 @@ export function AddToTwitterButton({
 
       console.log('[AddToTwitter] Successfully added to queue:', response)
 
-      // Update cache and UI
-      markAsQueued(alertId)
-
-      if (mountedRef.current) {
-        setIsAdded(true)
-        toast.success('Added to Twitter queue')
+      // Update cache with the actual postId for unqueue functionality
+      if (response.data?.id) {
+        markAsQueued(alertId, response.data.id)
       }
 
       onSuccess?.()
@@ -123,34 +122,86 @@ export function AddToTwitterButton({
       console.error('[AddToTwitter] Error:', error)
       setShowCapture(false)
 
-      let errorMessage = 'Failed to add to Twitter queue'
+      // Handle 409 (already exists) - keep the checkmark
       if (error?.status === 409) {
-        errorMessage = 'Already queued or posted'
-        markAsQueued(alertId)
-        if (mountedRef.current) {
-          setIsAdded(true)
-        }
-      } else if (error?.message) {
-        errorMessage = error.message
+        // Already queued or posted - optimistic state was correct
+        return
       }
 
+      // REVERT optimistic update on failure
+      if (mountedRef.current) {
+        setIsAdded(false)
+        unmarkAsQueued(alertId)
+      }
+
+      let errorMessage = 'Failed to add to Twitter queue'
+      if (error?.message) {
+        errorMessage = error.message
+      }
       toast.error(errorMessage)
+    }
+  }
+
+  // Handle unqueue
+  const handleUnqueue = async () => {
+    if (isUnqueuing || isLoading) return
+
+    const postId = getPostId(alertId)
+    if (!postId) {
+      toast.error('Cannot unqueue: post ID not found')
+      return
+    }
+
+    // Get access token from session
+    const accessToken = (session as any)?.accessToken as string | undefined
+    if (!accessToken) {
+      toast.error('Authentication required. Please refresh the page.')
+      return
+    }
+
+    setIsUnqueuing(true)
+
+    try {
+      adminAPI.setAccessToken(accessToken)
+      await adminAPI.updateSocialMediaPost(postId, { status: 'REJECTED' })
+
+      // Update cache and UI
+      unmarkAsQueued(alertId)
+
+      if (mountedRef.current) {
+        setIsAdded(false)
+        toast.success('Removed from Twitter queue')
+      }
+    } catch (error: any) {
+      console.error('[AddToTwitter] Unqueue error:', error)
+      toast.error(error?.message || 'Failed to remove from queue')
     } finally {
       if (mountedRef.current) {
-        setIsLoading(false)
+        setIsUnqueuing(false)
       }
     }
   }
 
   // Render the checkmark if already added
   if (isAdded) {
+    const canBeUnqueued = canUnqueue(alertId)
+
     return (
       <button
-        disabled
-        className="p-1 rounded-md text-green-500 cursor-not-allowed"
-        title="Already queued for Twitter"
+        onClick={canBeUnqueued ? handleUnqueue : undefined}
+        disabled={isUnqueuing || !canBeUnqueued}
+        className={`p-1 rounded-md transition-all duration-200 ${
+          canBeUnqueued
+            ? 'text-green-500 hover:bg-red-500/10 hover:text-red-400 cursor-pointer hover:scale-110 active:scale-95'
+            : 'text-green-500/50 cursor-not-allowed'
+        }`}
+        title={canBeUnqueued ? 'Click to remove from queue' : 'Already posted to Twitter'}
       >
-        <Check className="h-3.5 w-3.5" />
+        {isUnqueuing ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Check className="h-3.5 w-3.5" />
+        )}
       </button>
     )
   }
