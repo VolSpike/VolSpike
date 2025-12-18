@@ -82,7 +82,7 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
     }
   }
 
-  return (
+	  return (
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
@@ -131,16 +131,19 @@ export function SocialMediaClient({ accessToken }: SocialMediaClientProps) {
               </div>
             ) : (
               <div className="space-y-4">
-                {queue.map((post) => (
-                  <QueuedPostCard
-                    key={post.id}
-                    post={post}
-                    onUpdate={fetchQueue}
-                  />
-                ))}
-              </div>
-            )}
-          </TabsContent>
+	                {queue.map((post) => (
+	                  <QueuedPostCard
+	                    key={post.id}
+	                    post={post}
+	                    onUpdate={() => fetchQueue(false)}
+	                    onOptimisticRemove={(postId) => {
+	                      setQueue((prev) => prev.filter((p) => p.id !== postId))
+	                    }}
+	                  />
+	                ))}
+	              </div>
+	            )}
+	          </TabsContent>
 
           <TabsContent value="history" className="space-y-4">
             {loading ? (
@@ -194,7 +197,15 @@ function ImagePreviewDialog({
 }
 
 // Queued Post Card Component
-function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdate: () => void }) {
+function QueuedPostCard({
+  post,
+  onUpdate,
+  onOptimisticRemove,
+}: {
+  post: QueuedPostWithAlert
+  onUpdate: () => void
+  onOptimisticRemove?: (postId: string) => void
+}) {
   const [caption, setCaption] = useState(post.caption)
   const [isEditing, setIsEditing] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
@@ -239,11 +250,15 @@ function QueuedPostCard({ post, onUpdate }: { post: QueuedPostWithAlert; onUpdat
   const handleReject = async () => {
     setIsRejecting(true)
     try {
+      // Optimistically remove from UI so the list collapses smoothly without flashing a loading state.
+      onOptimisticRemove?.(post.id)
       await adminAPI.updateSocialMediaPost(post.id, { status: 'REJECTED' })
       toast.success('Post rejected - removed from queue')
       onUpdate()
     } catch (error: any) {
       toast.error(error.message || 'Failed to reject post')
+      // Restore from server truth (keeps UI consistent if optimistic removal happened).
+      onUpdate()
     } finally {
       setIsRejecting(false)
     }
