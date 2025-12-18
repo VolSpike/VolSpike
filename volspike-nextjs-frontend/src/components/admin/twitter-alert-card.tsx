@@ -21,6 +21,7 @@ interface TwitterAlertCardProps {
     previousVolume?: number
     priceChange?: number | null
     fundingRate?: number | null
+    oiChange?: number | null // OI % change for Volume alerts
     ts?: string
     timestamp?: string
   }
@@ -149,10 +150,10 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
         <span
           style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '4px 12px',
+            padding: '0 12px',
             borderRadius: 6,
             backgroundColor: badgeBg,
             border: `1px solid ${borderColor}`,
@@ -160,8 +161,8 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
             fontSize: 16,
             fontWeight: 600,
             fontFamily: 'ui-monospace, monospace',
-            lineHeight: 1.4,
-            height: 32,
+            lineHeight: 1,
+            height: 28,
             boxSizing: 'border-box',
           }}
         >
@@ -170,17 +171,17 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
         {timeframeBadge && (
           <span
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '4px 12px',
+              padding: '0 12px',
               borderRadius: 6,
               backgroundColor: getTimeframeBadgeColor(),
               color: '#fff',
               fontSize: 14,
               fontWeight: 500,
-              lineHeight: 1.4,
-              height: 32,
+              lineHeight: 1,
+              height: 28,
               boxSizing: 'border-box',
             }}
           >
@@ -204,21 +205,30 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
         )}
       </div>
 
-      {/* Footer: Price + Funding */}
+      {/* Footer: Price + OI + Funding */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         marginTop: 'auto',
         paddingTop: 12,
         borderTop: '1px solid rgba(100, 116, 139, 0.2)',
       }}>
-        <div style={{ display: 'flex', gap: 20, fontSize: 13, color: '#94a3b8' }}>
+        <div style={{ display: 'flex', gap: 16, fontSize: 13, color: '#94a3b8' }}>
           {alert.priceChange !== undefined && alert.priceChange !== null && (
             <span>
               Price:{' '}
               <span style={{ color: (alert.priceChange >= 0) ? '#22c55e' : '#ef4444' }}>
                 {alert.priceChange >= 0 ? '+' : ''}{(alert.priceChange * 100).toFixed(2)}%
+              </span>
+            </span>
+          )}
+          {/* OI change for Volume alerts */}
+          {!isOI && alert.oiChange !== undefined && alert.oiChange !== null && (
+            <span>
+              OI:{' '}
+              <span style={{ color: (alert.oiChange >= 0) ? '#22c55e' : '#ef4444' }}>
+                {alert.oiChange >= 0 ? '+' : ''}{(alert.oiChange * 100).toFixed(2)}%
               </span>
             </span>
           )}

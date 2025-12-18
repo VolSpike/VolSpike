@@ -103,6 +103,7 @@ export function AddToTwitterButton({
       setIsLoading(false)
       setIsAdded(true)
       markAsQueued(alertId)
+      toast.success('Added to Twitter queue')
 
       // Send to API to add to queue
       console.log(`[AddToTwitter] Adding to queue: ${alertType} alert ${alertId}`)
