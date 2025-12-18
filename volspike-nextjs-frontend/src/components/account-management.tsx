@@ -29,6 +29,7 @@ import { base58 } from '@scure/base'
 import { toast } from 'react-hot-toast'
 import { SiweMessage } from 'siwe'
 import { WalletConnectButton } from '@/components/wallet-connect-button'
+import { getOrCreateDeviceId } from '@/lib/device-id'
 import {
     Dialog,
     DialogContent,
@@ -176,6 +177,8 @@ export function AccountManagement() {
     const handleLinkGoogle = async () => {
         try {
             setIsLinking(true)
+            // Ensure we have a stable device ID cookie before starting OAuth.
+            getOrCreateDeviceId()
             // Trigger NextAuth Google sign-in with account selection
             await signIn('google', { 
                 callbackUrl: '/settings?tab=wallets&link=google',

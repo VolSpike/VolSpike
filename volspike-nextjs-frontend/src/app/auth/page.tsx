@@ -17,6 +17,7 @@ import { SolanaProvider } from '@/components/solana-providers'
 import { PhantomSignInSection } from '@/components/phantom-signin-section'
 import { WalletConnectButton } from '@/components/wallet-connect-button'
 import { useSession } from 'next-auth/react'
+import { getOrCreateDeviceId } from '@/lib/device-id'
 
 // Dynamically import ConnectButton to handle hydration safely
 const DynamicConnectButton = dynamic(
@@ -173,6 +174,8 @@ function AuthPageContent() {
         setIsGoogleLoading(true)
 
         try {
+            // Ensure we have a stable device ID cookie before starting OAuth.
+            getOrCreateDeviceId()
             const callbackUrl = isAdminMode ? '/admin' : '/'
             // Force account selection by adding prompt parameter
             await signIn('google', {

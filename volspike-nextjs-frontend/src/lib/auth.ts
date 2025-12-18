@@ -2,12 +2,36 @@ import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import type { NextAuthConfig } from 'next-auth'
+import { cookies } from 'next/headers'
 
 const BACKEND_API_URL = process.env.BACKEND_API_URL
     || process.env.NEXT_PUBLIC_API_URL
     || (typeof window === 'undefined' && process.env.NODE_ENV === 'production'
         ? 'https://volspike-production.up.railway.app'
         : 'http://localhost:3001')
+
+const DEVICE_ID_COOKIE_NAME = 'volspike-device-id'
+
+function getCookieValue(cookieHeader: string | null, name: string): string | undefined {
+    if (!cookieHeader) return undefined
+    const parts = cookieHeader.split(';')
+    for (const part of parts) {
+        const [rawKey, ...rawValue] = part.trim().split('=')
+        if (rawKey === name) {
+            return decodeURIComponent(rawValue.join('=') || '')
+        }
+    }
+    return undefined
+}
+
+async function getDeviceIdFromRequestCookies(): Promise<string | undefined> {
+    try {
+        const cookieStore = await cookies()
+        return cookieStore.get(DEVICE_ID_COOKIE_NAME)?.value
+    } catch {
+        return undefined
+    }
+}
 
 export const authConfig: NextAuthConfig = {
     debug: process.env.NODE_ENV === 'development',
@@ -44,14 +68,17 @@ export const authConfig: NextAuthConfig = {
                 password: { label: 'Password', type: 'password' },
                 deviceId: { label: 'Device ID', type: 'text' } // Client-generated device ID for session tracking
             },
-            async authorize(credentials) {
+            async authorize(credentials, request) {
                 if (!credentials?.email || !credentials?.password) {
                     return null
                 }
 
                 try {
+                    const cookieDeviceId = getCookieValue(request?.headers?.get?.('cookie') ?? null, DEVICE_ID_COOKIE_NAME)
+                    const effectiveDeviceId = credentials.deviceId || cookieDeviceId || undefined
+
                     console.log('[NextAuth] Calling backend:', `${BACKEND_API_URL}/api/auth/signin`)
-                    console.log('[NextAuth] Credentials:', { email: credentials.email, hasPassword: !!credentials.password, hasDeviceId: !!credentials.deviceId })
+                    console.log('[NextAuth] Credentials:', { email: credentials.email, hasPassword: !!credentials.password, hasDeviceId: !!effectiveDeviceId })
 
                     const response = await fetch(`${BACKEND_API_URL}/api/auth/signin`, {
                         method: 'POST',
@@ -61,7 +88,7 @@ export const authConfig: NextAuthConfig = {
                         body: JSON.stringify({
                             email: credentials.email,
                             password: credentials.password,
-                            deviceId: credentials.deviceId || undefined, // Pass deviceId to backend for session tracking
+                            deviceId: effectiveDeviceId, // Pass deviceId to backend for session tracking
                         }),
                     })
 
@@ -439,9 +466,10 @@ export const authConfig: NextAuthConfig = {
                         console.warn('[NextAuth] ⚠️ Google OAuth user object missing image field:', user)
                     }
 
-                    // Generate a deviceId for OAuth users (server-side, so use crypto.randomUUID)
-                    // This ensures OAuth users get session tracking just like credentials users
-                    const oauthDeviceId = crypto.randomUUID()
+                    // Prefer the browser-issued device ID cookie so OAuth sign-ins map to the
+                    // same "device" as credentials sign-ins in this browser.
+                    // Fall back to a random UUID if cookie access isn't available.
+                    const oauthDeviceId = (await getDeviceIdFromRequestCookies()) || crypto.randomUUID()
 
                     const requestBody: any = {
                         // Send normalized email to backend for consistent linking
