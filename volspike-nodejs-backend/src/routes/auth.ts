@@ -95,7 +95,7 @@ function broadcastSessionInvalidations(invalidatedSessions: InvalidatedSession[]
 const signInSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
-    deviceId: z.string().uuid().optional(), // Client-generated device ID
+    deviceId: z.string().min(1).max(128).optional(), // Client-generated device ID (fingerprint/uuid)
 })
 
 // Shared password validation schema
@@ -124,7 +124,7 @@ const oauthLinkSchema = z.object({
     image: z.string().optional(),
     provider: z.string(),
     providerId: z.string(),
-    deviceId: z.string().uuid().optional(), // Client-generated device ID
+    deviceId: z.string().min(1).max(128).optional(), // Client-generated device ID (fingerprint/uuid)
 })
 
 const requestVerificationSchema = z.object({
