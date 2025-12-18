@@ -129,15 +129,26 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
     >
       {/* Header: Symbol + Timestamp */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {isDown ? (
-            <TrendingDown style={{ width: 24, height: 24, color: '#ef4444' }} />
-          ) : (
-            <TrendingUp style={{ width: 24, height: 24, color: isUp ? '#22c55e' : '#64748b' }} />
-          )}
-          <span style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>{symbol}</span>
-        </div>
-        <div style={{ textAlign: 'right' }}>
+	        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+	          {isDown ? (
+	            <TrendingDown style={{ width: 24, height: 24, color: '#ef4444' }} />
+	          ) : (
+	            <TrendingUp style={{ width: 24, height: 24, color: isUp ? '#22c55e' : '#64748b' }} />
+	          )}
+	          <span
+	            style={{
+	              fontSize: 28,
+	              fontWeight: 700,
+	              letterSpacing: '-0.02em',
+	              // html2canvas can render unitless line-heights slightly off; use an explicit px line-height.
+	              lineHeight: '34px',
+	              display: 'block',
+	            }}
+	          >
+	            {symbol}
+	          </span>
+	        </div>
+	        <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 14, color: '#94a3b8' }}>
             {timestamp && formatExactTime(timestamp)}
           </div>
@@ -149,46 +160,46 @@ export function TwitterAlertCard({ alert, alertType }: TwitterAlertCardProps) {
 
 	      {/* Badges */}
 	      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-	        <span
-	          style={{
-	            // html2canvas has known flexbox alignment quirks; use line-height centering for reliable capture.
-	            display: 'inline-block',
-	            padding: '0 12px',
+		        <span
+		          style={{
+		            // html2canvas has known flexbox alignment quirks; use line-height centering for reliable capture.
+		            display: 'inline-block',
+		            padding: '0 12px',
 	            borderRadius: 6,
 	            backgroundColor: badgeBg,
 	            border: `1px solid ${borderColor}`,
 	            color: accentColor,
-	            fontSize: 16,
-	            fontWeight: 600,
-	            fontFamily: 'ui-monospace, monospace',
-	            height: BADGE_HEIGHT,
-	            lineHeight: `${BADGE_HEIGHT - 2}px`,
-	            textAlign: 'center',
-	            verticalAlign: 'middle',
-	            whiteSpace: 'nowrap',
-	            boxSizing: 'border-box',
+		            fontSize: 16,
+		            fontWeight: 600,
+		            fontFamily: 'ui-monospace, monospace',
+		            height: BADGE_HEIGHT,
+		            lineHeight: `${BADGE_HEIGHT}px`,
+		            textAlign: 'center',
+		            verticalAlign: 'middle',
+		            whiteSpace: 'nowrap',
+		            boxSizing: 'border-box',
 	          }}
 	        >
 	          {getBadgeText()}
 	        </span>
 	        {timeframeBadge && (
-	          <span
-	            style={{
-	              // Keep sizing consistent with multiplier badge (transparent border keeps height math stable).
-	              display: 'inline-block',
-	              padding: '0 12px',
+		          <span
+		            style={{
+		              // Keep sizing consistent with multiplier badge (transparent border keeps height math stable).
+		              display: 'inline-block',
+		              padding: '0 12px',
 	              borderRadius: 6,
 	              backgroundColor: getTimeframeBadgeColor(),
 	              border: '1px solid transparent',
-	              color: '#fff',
-	              fontSize: 14,
-	              fontWeight: 500,
-	              height: BADGE_HEIGHT,
-	              lineHeight: `${BADGE_HEIGHT - 2}px`,
-	              textAlign: 'center',
-	              verticalAlign: 'middle',
-	              whiteSpace: 'nowrap',
-	              boxSizing: 'border-box',
+		              color: '#fff',
+		              fontSize: 14,
+		              fontWeight: 500,
+		              height: BADGE_HEIGHT,
+		              lineHeight: `${BADGE_HEIGHT}px`,
+		              textAlign: 'center',
+		              verticalAlign: 'middle',
+		              whiteSpace: 'nowrap',
+		              boxSizing: 'border-box',
 	            }}
 	          >
 	            {timeframeBadge}
