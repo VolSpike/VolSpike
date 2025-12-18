@@ -71,6 +71,60 @@ function debugCaptureRenderer(label: string, info: Record<string, unknown>) {
   console.log(`[CaptureImage] ${label}`, info)
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = hex.trim().replace('#', '')
+  if (normalized.length !== 6) return null
+  const value = Number.parseInt(normalized, 16)
+  if (Number.isNaN(value)) return null
+  return {
+    r: (value >> 16) & 0xff,
+    g: (value >> 8) & 0xff,
+    b: value & 0xff,
+  }
+}
+
+function isPixelCloseToRgb(
+  pixel: Uint8ClampedArray,
+  rgb: { r: number; g: number; b: number },
+  tolerance: number
+): boolean {
+  const dr = Math.abs(pixel[0] - rgb.r)
+  const dg = Math.abs(pixel[1] - rgb.g)
+  const db = Math.abs(pixel[2] - rgb.b)
+  return dr <= tolerance && dg <= tolerance && db <= tolerance
+}
+
+function isCanvasLikelyBlank(canvas: HTMLCanvasElement, backgroundHex: string): boolean {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return false
+
+  const bg = hexToRgb(backgroundHex)
+  if (!bg) return false
+
+  // Sample a small grid of pixels; if they're all near the background color,
+  // `foreignObjectRendering` likely produced a blank snapshot (common in some browsers).
+  const w = canvas.width
+  const h = canvas.height
+  const samplePoints: Array<[number, number]> = [
+    [Math.floor(w * 0.1), Math.floor(h * 0.1)],
+    [Math.floor(w * 0.5), Math.floor(h * 0.1)],
+    [Math.floor(w * 0.9), Math.floor(h * 0.1)],
+    [Math.floor(w * 0.1), Math.floor(h * 0.5)],
+    [Math.floor(w * 0.5), Math.floor(h * 0.5)],
+    [Math.floor(w * 0.9), Math.floor(h * 0.5)],
+    [Math.floor(w * 0.1), Math.floor(h * 0.9)],
+    [Math.floor(w * 0.5), Math.floor(h * 0.9)],
+    [Math.floor(w * 0.9), Math.floor(h * 0.9)],
+  ]
+
+  const tolerance = 6
+  for (const [x, y] of samplePoints) {
+    const pixel = ctx.getImageData(x, y, 1, 1).data
+    if (!isPixelCloseToRgb(pixel, bg, tolerance)) return false
+  }
+  return true
+}
+
 function normalizeCaptureElementInClone(clonedDocument: Document, elementId: string) {
   const el = clonedDocument.getElementById(elementId) as HTMLElement | null
   if (!el) return
@@ -119,7 +173,7 @@ export async function captureAlertCard(element: HTMLElement | string): Promise<s
     let canvas: HTMLCanvasElement
     try {
       debugCaptureRenderer('renderer', { target: 'alertCard', foreignObjectRendering: true })
-      canvas = await html2canvas(targetElement, {
+      const attempted = await html2canvas(targetElement, {
         ...baseOptions,
         foreignObjectRendering: true,
         onclone: typeof element === 'string'
@@ -129,6 +183,11 @@ export async function captureAlertCard(element: HTMLElement | string): Promise<s
               if (id) normalizeCaptureElementInClone(doc, id)
             },
       })
+      if (isCanvasLikelyBlank(attempted, baseOptions.backgroundColor)) {
+        debugCaptureRenderer('blank-detected', { target: 'alertCard', foreignObjectRendering: true })
+        throw new Error('Blank canvas detected')
+      }
+      canvas = attempted
     } catch {
       debugCaptureRenderer('renderer', { target: 'alertCard', foreignObjectRendering: false })
       canvas = await html2canvas(targetElement, {
@@ -185,11 +244,16 @@ export async function captureTwitterCard(containerId: string): Promise<string> {
     let canvas: HTMLCanvasElement
     try {
       debugCaptureRenderer('renderer', { target: 'twitterCard', foreignObjectRendering: true, scale: baseOptions.scale })
-      canvas = await html2canvas(container, {
+      const attempted = await html2canvas(container, {
         ...baseOptions,
         foreignObjectRendering: true,
         onclone: (doc) => normalizeCaptureElementInClone(doc, containerId),
       })
+      if (isCanvasLikelyBlank(attempted, baseOptions.backgroundColor)) {
+        debugCaptureRenderer('blank-detected', { target: 'twitterCard', foreignObjectRendering: true })
+        throw new Error('Blank canvas detected')
+      }
+      canvas = attempted
     } catch {
       debugCaptureRenderer('renderer', { target: 'twitterCard', foreignObjectRendering: false, scale: baseOptions.scale })
       canvas = await html2canvas(container, {
