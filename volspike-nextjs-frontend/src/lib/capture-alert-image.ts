@@ -83,17 +83,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   }
 }
 
-function isPixelCloseToRgb(
-  pixel: Uint8ClampedArray,
-  rgb: { r: number; g: number; b: number },
-  tolerance: number
-): boolean {
-  const dr = Math.abs(pixel[0] - rgb.r)
-  const dg = Math.abs(pixel[1] - rgb.g)
-  const db = Math.abs(pixel[2] - rgb.b)
-  return dr <= tolerance && dg <= tolerance && db <= tolerance
-}
-
 function isCanvasLikelyBlank(canvas: HTMLCanvasElement, backgroundHex: string): boolean {
   const ctx = canvas.getContext('2d')
   if (!ctx) return false
@@ -101,11 +90,13 @@ function isCanvasLikelyBlank(canvas: HTMLCanvasElement, backgroundHex: string): 
   const bg = hexToRgb(backgroundHex)
   if (!bg) return false
 
-  // Sample a small grid of pixels; if they're all near the background color,
-  // `foreignObjectRendering` likely produced a blank snapshot (common in some browsers).
+  // Detect the "blank snapshot" case where html2canvas returns a solid background canvas
+  // (common when `foreignObjectRendering` silently fails). Avoid false positives on our
+  // cards by requiring the canvas to be near-uniform AND match the background color.
   const w = canvas.width
   const h = canvas.height
   const samplePoints: Array<[number, number]> = [
+    [1, 1],
     [Math.floor(w * 0.1), Math.floor(h * 0.1)],
     [Math.floor(w * 0.5), Math.floor(h * 0.1)],
     [Math.floor(w * 0.9), Math.floor(h * 0.1)],
@@ -115,14 +106,36 @@ function isCanvasLikelyBlank(canvas: HTMLCanvasElement, backgroundHex: string): 
     [Math.floor(w * 0.1), Math.floor(h * 0.9)],
     [Math.floor(w * 0.5), Math.floor(h * 0.9)],
     [Math.floor(w * 0.9), Math.floor(h * 0.9)],
+    [w - 2, h - 2],
   ]
 
-  const tolerance = 6
+  const uniformTolerance = 2
+  const bgTolerance = 6
+  const first = ctx.getImageData(samplePoints[0][0], samplePoints[0][1], 1, 1).data
+
+  // If any point differs from the first point, it's not a uniform/blank canvas.
   for (const [x, y] of samplePoints) {
     const pixel = ctx.getImageData(x, y, 1, 1).data
-    if (!isPixelCloseToRgb(pixel, bg, tolerance)) return false
+    if (
+      Math.abs(pixel[0] - first[0]) > uniformTolerance ||
+      Math.abs(pixel[1] - first[1]) > uniformTolerance ||
+      Math.abs(pixel[2] - first[2]) > uniformTolerance ||
+      Math.abs(pixel[3] - first[3]) > uniformTolerance
+    ) {
+      return false
+    }
   }
-  return true
+
+  // Uniform canvas: treat as blank only if it's (roughly) the configured background color.
+  if (
+    Math.abs(first[0] - bg.r) <= bgTolerance &&
+    Math.abs(first[1] - bg.g) <= bgTolerance &&
+    Math.abs(first[2] - bg.b) <= bgTolerance &&
+    first[3] >= 250
+  ) {
+    return true
+  }
+  return false
 }
 
 function normalizeCaptureElementInClone(clonedDocument: Document, elementId: string) {
