@@ -6,7 +6,8 @@ import { useSession } from 'next-auth/react'
 import { Loader2, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
-import { captureTwitterCard, TWITTER_CARD_WIDTH, TWITTER_CARD_HEIGHT } from '@/lib/capture-alert-image'
+import { captureTwitterCard } from '@/lib/capture-alert-image'
+import { renderTwitterCardDataUrl, TWITTER_CARD_WIDTH, TWITTER_CARD_HEIGHT } from '@/lib/twitter-card-canvas'
 import { TwitterAlertCard } from './twitter-alert-card'
 import { useQueuedAlerts } from '@/hooks/use-queued-alerts'
 import type { AlertSourceType } from '@/types/social-media'
@@ -92,9 +93,15 @@ export function AddToTwitterButton({
       // Wait for the Twitter card to render
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      // Capture the Twitter card
-      console.log(`[AddToTwitter] Capturing Twitter card: ${captureContainerId}`)
-      const imageDataURL = await captureTwitterCard(captureContainerId)
+      // Prefer deterministic canvas rendering (avoids html2canvas text-baseline bugs).
+      let imageDataURL: string
+      try {
+        imageDataURL = await renderTwitterCardDataUrl({ alert: data, alertType })
+      } catch (err) {
+        console.warn('[AddToTwitter] Canvas renderer failed, falling back to html2canvas:', err)
+        console.log(`[AddToTwitter] Capturing Twitter card: ${captureContainerId}`)
+        imageDataURL = await captureTwitterCard(captureContainerId)
+      }
 
       // Hide the capture container
       setShowCapture(false)
