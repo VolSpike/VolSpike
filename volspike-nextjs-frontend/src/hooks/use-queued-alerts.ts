@@ -3,12 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { adminAPI } from '@/lib/admin/api-client'
+import type { SocialMediaStatus } from '@/types/social-media'
 
 // Global cache for queued alert IDs and their post IDs (shared across all button instances)
 // Map: alertId -> { postId, status }
-let queuedAlerts: Map<string, { postId: string; status: string }> = new Map()
+let queuedAlerts: Map<string, { postId: string; status: SocialMediaStatus }> = new Map()
 let lastFetchTime = 0
 const CACHE_TTL = 30000 // 30 seconds cache
+const PAGE_SIZE = 100
+const MAX_PAGES = 10 // hard cap to avoid runaway loops
 
 // Callbacks to notify all instances when cache updates
 const listeners: Set<() => void> = new Set()
@@ -62,15 +65,40 @@ export function useQueuedAlerts() {
 
       try {
         adminAPI.setAccessToken(accessToken)
-        const response = await adminAPI.getSocialMediaQueue()
+        const newCache = new Map<string, { postId: string; status: SocialMediaStatus }>()
 
-        // Only track alerts that are currently QUEUED (not posted/rejected)
-        // This allows re-queueing alerts after they've been posted or rejected
-        const newCache = new Map<string, { postId: string; status: string }>()
-        for (const post of response.data || []) {
-          if (post.alertId && post.status === 'QUEUED') {
-            newCache.set(post.alertId, { postId: post.id, status: post.status })
+        // Fetch all queue pages (default endpoint returns QUEUED + FAILED)
+        let offset = 0
+        for (let page = 0; page < MAX_PAGES; page += 1) {
+          const response = await adminAPI.getSocialMediaQueue({ limit: PAGE_SIZE, offset })
+          const items = response.data || []
+
+          for (const post of items) {
+            if (!post?.alertId) continue
+            if (post.status === 'QUEUED' || post.status === 'FAILED') {
+              // Keep the newest post for a given alertId (API returns newest-first).
+              if (!newCache.has(post.alertId)) {
+                newCache.set(post.alertId, { postId: post.id, status: post.status })
+              }
+            }
           }
+
+          if (items.length < PAGE_SIZE) break
+          offset += items.length
+        }
+
+        // Also fetch POSTING items (they can block re-queueing and should be visible on dashboard)
+        try {
+          const posting = await adminAPI.getSocialMediaQueue({ status: 'POSTING', limit: PAGE_SIZE, offset: 0 })
+          for (const post of posting.data || []) {
+            if (!post?.alertId) continue
+            if (!newCache.has(post.alertId)) {
+              newCache.set(post.alertId, { postId: post.id, status: 'POSTING' })
+            }
+          }
+        } catch (err) {
+          // Non-fatal: dashboard can still operate with QUEUED/FAILED only
+          console.warn('[useQueuedAlerts] Failed to fetch POSTING items:', err)
         }
 
         queuedAlerts = newCache
@@ -97,15 +125,19 @@ export function useQueuedAlerts() {
     return queuedAlerts.get(alertId)?.postId || null
   }, [])
 
+  const getStatus = useCallback((alertId: string): SocialMediaStatus | null => {
+    return queuedAlerts.get(alertId)?.status || null
+  }, [])
+
   // Check if an alert can be unqueued (only QUEUED or FAILED status, not POSTED)
   const canUnqueue = useCallback((alertId: string): boolean => {
     const entry = queuedAlerts.get(alertId)
-    return entry ? (entry.status === 'QUEUED' || entry.status === 'FAILED') : false
+    return entry ? Boolean(entry.postId) && (entry.status === 'QUEUED' || entry.status === 'FAILED') : false
   }, [])
 
   // Add an alert to the cache (called after successful queue addition)
-  const markAsQueued = useCallback((alertId: string, postId?: string) => {
-    queuedAlerts.set(alertId, { postId: postId || '', status: 'QUEUED' })
+  const markAsQueued = useCallback((alertId: string, postId?: string, status: SocialMediaStatus = 'QUEUED') => {
+    queuedAlerts.set(alertId, { postId: postId || '', status })
     notifyListeners()
   }, [])
 
@@ -125,6 +157,7 @@ export function useQueuedAlerts() {
     isLoaded,
     isAlertQueued,
     getPostId,
+    getStatus,
     canUnqueue,
     markAsQueued,
     unmarkAsQueued,

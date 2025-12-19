@@ -12,6 +12,8 @@ import { TwitterAlertCard } from './twitter-alert-card'
 import { useQueuedAlerts } from '@/hooks/use-queued-alerts'
 import type { AlertSourceType } from '@/types/social-media'
 
+const STALE_POSTING_MS = 2 * 60 * 1000
+
 interface AddToTwitterButtonProps {
   alertId: string
   alertType: AlertSourceType
@@ -30,21 +32,14 @@ export function AddToTwitterButton({
   onSuccess,
 }: AddToTwitterButtonProps) {
   const { data: session } = useSession()
-  const { isAlertQueued, markAsQueued, unmarkAsQueued, getPostId, canUnqueue, isLoaded } = useQueuedAlerts()
+  const { isAlertQueued, markAsQueued, unmarkAsQueued, getPostId, getStatus, canUnqueue } = useQueuedAlerts()
   const [isLoading, setIsLoading] = useState(false)
-  const [isAdded, setIsAdded] = useState(false)
+  const [optimisticQueued, setOptimisticQueued] = useState(false)
   const [isUnqueuing, setIsUnqueuing] = useState(false)
   const [alertData, setAlertData] = useState<any>(null)
   const [showCapture, setShowCapture] = useState(false)
   const captureContainerId = `twitter-capture-${alertId}`
   const mountedRef = useRef(true)
-
-  // Check if already queued on mount or when cache updates
-  useEffect(() => {
-    if (isLoaded && isAlertQueued(alertId)) {
-      setIsAdded(true)
-    }
-  }, [isLoaded, alertId, isAlertQueued])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -54,8 +49,13 @@ export function AddToTwitterButton({
     }
   }, [])
 
+  // Prefer cache truth; it can also be updated optimistically via markAsQueued().
+  const queued = isAlertQueued(alertId)
+  const queuedStatus = queued ? getStatus(alertId) : null
+  const displayQueued = queued || optimisticQueued
+
   const handleAddToTwitter = async () => {
-    if (isAdded || disabled || isLoading) return
+    if (queued || optimisticQueued || disabled || isLoading) return
 
     // Get access token from session first
     const accessToken = (session as any)?.accessToken as string | undefined
@@ -63,6 +63,9 @@ export function AddToTwitterButton({
       toast.error('Authentication required. Please refresh the page.')
       return
     }
+
+    // Optimistically show the green check immediately; revert if the API later fails.
+    setOptimisticQueued(true)
 
     // Show loading state (spinner)
     setIsLoading(true)
@@ -86,6 +89,8 @@ export function AddToTwitterButton({
     setAlertData(data)
     setShowCapture(true)
 
+    let capturedImageDataURL: string | null = null
+
     try {
       // Set access token for admin API
       adminAPI.setAccessToken(accessToken)
@@ -94,63 +99,117 @@ export function AddToTwitterButton({
       await new Promise(resolve => setTimeout(resolve, 100))
 
       // Prefer deterministic canvas rendering (avoids html2canvas text-baseline bugs).
-      let imageDataURL: string
       try {
-        imageDataURL = await renderTwitterCardDataUrl({ alert: data, alertType })
+        capturedImageDataURL = await renderTwitterCardDataUrl({ alert: data, alertType })
       } catch (err) {
         console.warn('[AddToTwitter] Canvas renderer failed, falling back to html2canvas:', err)
         console.log(`[AddToTwitter] Capturing Twitter card: ${captureContainerId}`)
-        imageDataURL = await captureTwitterCard(captureContainerId)
+        capturedImageDataURL = await captureTwitterCard(captureContainerId)
       }
 
       // Hide the capture container
       setShowCapture(false)
-
-      // Show checkmark immediately after capture (optimistic for API call)
-      setIsLoading(false)
-      setIsAdded(true)
-      markAsQueued(alertId)
-      toast.success('Added to Twitter queue')
 
       // Send to API to add to queue
       console.log(`[AddToTwitter] Adding to queue: ${alertType} alert ${alertId}`)
       const response = await adminAPI.addToSocialMediaQueue({
         alertId,
         alertType,
-        imageUrl: imageDataURL,
+        imageUrl: capturedImageDataURL,
       })
 
       console.log('[AddToTwitter] Successfully added to queue:', response)
 
       // Update cache with the actual postId for unqueue functionality
       if (response.data?.id) {
-        markAsQueued(alertId, response.data.id)
+        markAsQueued(alertId, response.data.id, response.data.status || 'QUEUED')
+      }
+
+      if (mountedRef.current) {
+        setOptimisticQueued(false)
+        toast.success('Added to Twitter queue')
       }
 
       onSuccess?.()
     } catch (error: any) {
       console.error('[AddToTwitter] Error:', error)
-      setShowCapture(false)
-      setIsLoading(false)
 
-      // Handle 409 (already exists) - keep the checkmark
+      // Handle 409 (already exists): sync with existing post (and optionally recover stale POSTING rows)
       if (error?.status === 409) {
-        setIsAdded(true)
-        markAsQueued(alertId)
+        const existingPost = error?.response?.existingPost
+        const existingId = existingPost?.id as string | undefined
+        const existingStatus = existingPost?.status as string | undefined
+
+        if (existingId && existingStatus) {
+          // If a post is stuck in POSTING, allow a recovery path by rejecting it after a short timeout,
+          // then re-adding to the queue so it becomes visible in the admin Queue tab again.
+          if (existingStatus === 'POSTING') {
+            const updatedAt = existingPost?.updatedAt ? new Date(existingPost.updatedAt).getTime() : null
+            const isStale = updatedAt ? (Date.now() - updatedAt > STALE_POSTING_MS) : false
+
+            if (isStale) {
+              try {
+                await adminAPI.updateSocialMediaPost(existingId, { status: 'REJECTED' })
+                const retry = await adminAPI.addToSocialMediaQueue({
+                  alertId,
+                  alertType,
+                  imageUrl: capturedImageDataURL || existingPost?.imageUrl || '',
+                })
+                if (retry.data?.id) {
+                  markAsQueued(alertId, retry.data.id, retry.data.status || 'QUEUED')
+                  if (mountedRef.current) setOptimisticQueued(false)
+                  toast.success('Re-added to Twitter queue')
+                  return
+                }
+              } catch (recoveryError) {
+                console.warn('[AddToTwitter] Failed to recover stale POSTING post:', recoveryError)
+              }
+
+              markAsQueued(alertId, existingId, 'POSTING')
+              if (mountedRef.current) setOptimisticQueued(false)
+              toast.error('A previous tweet is stuck in POSTING; open Social Media admin to review')
+              return
+            }
+
+            markAsQueued(alertId, existingId, 'POSTING')
+            if (mountedRef.current) setOptimisticQueued(false)
+            toast.success('Already posting to Twitter')
+            return
+          }
+
+          // Existing QUEUED / FAILED entries: just reflect server truth and allow unqueue.
+          if (existingStatus === 'QUEUED' || existingStatus === 'FAILED') {
+            markAsQueued(alertId, existingId, existingStatus)
+            if (mountedRef.current) setOptimisticQueued(false)
+            toast.success(existingStatus === 'FAILED' ? 'Already in queue (failed)' : 'Already in queue')
+            return
+          }
+
+          // If backend ever returns other statuses, reflect it but don't pretend it's queued.
+          if (mountedRef.current) setOptimisticQueued(false)
+          toast.error(`Cannot queue: existing post is ${existingStatus}`)
+          return
+        }
+
+        if (mountedRef.current) setOptimisticQueued(false)
+        toast.error('Cannot queue: already exists')
         return
       }
 
       // Revert on failure
-      if (mountedRef.current) {
-        setIsAdded(false)
-        unmarkAsQueued(alertId)
-      }
+      unmarkAsQueued(alertId)
+      if (mountedRef.current) setOptimisticQueued(false)
 
       let errorMessage = 'Failed to add to Twitter queue'
       if (error?.message) {
         errorMessage = error.message
       }
       toast.error(errorMessage)
+    } finally {
+      if (mountedRef.current) {
+        setShowCapture(false)
+        setIsLoading(false)
+      }
     }
   }
 
@@ -181,7 +240,6 @@ export function AddToTwitterButton({
       unmarkAsQueued(alertId)
 
       if (mountedRef.current) {
-        setIsAdded(false)
         toast.success('Removed from Twitter queue')
       }
     } catch (error: any) {
@@ -194,22 +252,33 @@ export function AddToTwitterButton({
     }
   }
 
-  // Render the checkmark if already added
-  if (isAdded) {
+  // Render the state icon if already queued/posting
+  if (displayQueued) {
     const canBeUnqueued = canUnqueue(alertId)
+    const status = queuedStatus
 
     return (
       <button
-        onClick={canBeUnqueued ? handleUnqueue : undefined}
-        disabled={isUnqueuing || !canBeUnqueued}
+        onClick={queued && canBeUnqueued ? handleUnqueue : undefined}
+        disabled={isUnqueuing || !queued || !canBeUnqueued}
         className={`p-1 rounded-md transition-all duration-200 ${
           canBeUnqueued
             ? 'text-green-500 hover:bg-red-500/10 hover:text-red-400 cursor-pointer hover:scale-110 active:scale-95'
             : 'text-green-500/50 cursor-not-allowed'
         }`}
-        title={canBeUnqueued ? 'Click to remove from queue' : 'Already posted to Twitter'}
+        title={
+          canBeUnqueued
+            ? 'Click to remove from queue'
+            : optimisticQueued
+              ? 'Queueing…'
+              : status === 'POSTING'
+              ? 'Posting to Twitter…'
+              : 'Already posted to Twitter'
+        }
       >
         {isUnqueuing ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : status === 'POSTING' ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : (
           <Check className="h-3.5 w-3.5" />
