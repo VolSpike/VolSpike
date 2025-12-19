@@ -432,8 +432,31 @@ Added for debug logging:
 | GET | `/api/admin/social-media/queue` | Get queued posts |
 | GET | `/api/admin/social-media/history` | Get posted tweets |
 | POST | `/api/admin/social-media/queue` | Add alert to queue |
-| PATCH | `/api/admin/social-media/:id` | Update post (edit caption, reject) |
-| POST | `/api/admin/social-media/:id/post` | Post to Twitter |
+| PATCH | `/api/admin/social-media/queue/:id` | Update post (edit caption, reject) |
+| POST | `/api/admin/social-media/post/:id` | Post to Twitter |
+
+### Automatic Caption Generation
+
+When the admin does not provide a custom caption, the backend generates one based on the alert type in `volspike-nodejs-backend/src/lib/caption-generator.ts`.
+
+**Shared formatting rules**
+- **Ticker formatting**: remove `USDT` suffix and prefix with `$` (e.g. `WCTUSDT` → `$WCT`).
+- **Percent storage**: `%` fields are stored as fractions (e.g. `0.0942` means `+9.42%`) and must be multiplied by `100` for display.
+- **Length limit**: captions are truncated to 280 chars (with `...` if needed).
+
+**Volume alert caption**
+- Symbol source: uses `alert.asset` when available (preferred), otherwise derives from `alert.symbol`.
+- Template:
+  - `🚨 $SYMBOL volume spike: {ratio}x in 1 hour! ${thisHour} this hour vs ${lastHour} last hour. Price: {pricePct} #crypto #altcoin #volspike`
+- `thisHour/lastHour`: formatted as `$8.17M`, `$864K`, etc.
+
+**Open Interest alert caption**
+- OI units are **contracts** (not dollars): **no `$`** prefix for `Current OI` or the `(up/down ...)` value.
+- Direction:
+  - Uses `alert.direction` (`UP` → `up`, `DOWN` → `down`).
+  - `absChange` is formatted using the **absolute value** (no leading `-` since `down` already conveys direction).
+- Template:
+  - `🚨 $SYMBOL Open Interest spike: {oiPct} in {timeframe}! Current OI: {currentOI} ({up/down} {absChange}). Price: {pricePct} #crypto #openinterest #volspike`
 
 ### Database Schema
 
@@ -586,6 +609,7 @@ useEffect(() => {
 - [ ] Click X on OI alert - image generated with correct data
 - [ ] Checkmark appears immediately after click
 - [ ] Checkmark persists after page refresh
+- [ ] Captions: `$SYMBOL` (no `USDT`), correct % values, and OI units have no `$`
 - [ ] Click checkmark to unqueue - reverts to X
 - [ ] Badge text centered vertically in image
 - [ ] OI shows in Volume alert footer
