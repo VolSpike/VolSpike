@@ -18,6 +18,17 @@ function notifyListeners() {
 }
 
 /**
+ * Global function to invalidate the queued alerts cache.
+ * Call this after posting/rejecting from social-media admin page
+ * so dashboard buttons update correctly.
+ */
+export function invalidateQueuedAlertsCache() {
+  lastFetchTime = 0
+  queuedAlerts.clear()
+  notifyListeners()
+}
+
+/**
  * Hook to check if alerts are already queued for Twitter
  * Fetches once and caches, shared across all button instances
  */
@@ -53,18 +64,11 @@ export function useQueuedAlerts() {
         adminAPI.setAccessToken(accessToken)
         const response = await adminAPI.getSocialMediaQueue()
 
-        // Extract alert IDs and post IDs from queue
+        // Only track alerts that are currently QUEUED (not posted/rejected)
+        // This allows re-queueing alerts after they've been posted or rejected
         const newCache = new Map<string, { postId: string; status: string }>()
         for (const post of response.data || []) {
-          if (post.alertId) {
-            newCache.set(post.alertId, { postId: post.id, status: post.status })
-          }
-        }
-
-        // Also fetch history (posted alerts should also show as "done")
-        const historyResponse = await adminAPI.getSocialMediaHistory({ limit: 200 })
-        for (const post of historyResponse.data || []) {
-          if (post.alertId && !newCache.has(post.alertId)) {
+          if (post.alertId && post.status === 'QUEUED') {
             newCache.set(post.alertId, { postId: post.id, status: post.status })
           }
         }

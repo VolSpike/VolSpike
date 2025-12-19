@@ -14,6 +14,7 @@ import {
 import { Loader2, RefreshCw, Twitter, X, Send, AlertCircle, ExternalLink, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { adminAPI } from '@/lib/admin/api-client'
+import { invalidateQueuedAlertsCache } from '@/hooks/use-queued-alerts'
 import type { QueuedPostWithAlert } from '@/types/social-media'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
@@ -239,6 +240,8 @@ function QueuedPostCard({
       await adminAPI.postToTwitter(post.id)
       toast.success('Posted to Twitter! Tweet published successfully')
       onOptimisticRemove?.(post.id)
+      // Invalidate dashboard cache so the alert can be re-queued
+      invalidateQueuedAlertsCache()
       onUpdate()
     } catch (error: any) {
       toast.error(error.message || 'Failed to post to Twitter')
@@ -255,6 +258,8 @@ function QueuedPostCard({
       onOptimisticRemove?.(post.id)
       await adminAPI.updateSocialMediaPost(post.id, { status: 'REJECTED' })
       toast.success('Post rejected - removed from queue')
+      // Invalidate dashboard cache so the alert can be re-queued
+      invalidateQueuedAlertsCache()
       onUpdate()
     } catch (error: any) {
       toast.error(error.message || 'Failed to reject post')
