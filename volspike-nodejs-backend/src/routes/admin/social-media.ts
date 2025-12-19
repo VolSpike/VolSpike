@@ -27,6 +27,10 @@ const getQueueSchema = z.object({
   status: z.enum(['QUEUED', 'POSTING', 'POSTED', 'FAILED', 'REJECTED']).optional(),
   limit: z.coerce.number().min(1).max(100).default(50),
   offset: z.coerce.number().min(0).default(0),
+  includeImages: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
 })
 
 const getHistorySchema = z.object({
@@ -35,7 +39,22 @@ const getHistorySchema = z.object({
   symbol: z.string().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
+  includeImages: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
 })
+
+function withImageRedacted<T extends { imageUrl: string | null }>(post: T) {
+  const hasImage = Boolean(post.imageUrl)
+  return { ...post, imageUrl: null, hasImage }
+}
+
+function getDataUrlParts(imageUrl: string): { mime: string; base64: string } | null {
+  const match = imageUrl.match(/^data:(.+?);base64,(.+)$/)
+  if (!match) return null
+  return { mime: match[1], base64: match[2] }
+}
 
 /**
  * POST /api/admin/social-media/queue
@@ -95,18 +114,18 @@ socialMediaRoutes.post('/queue', async (c) => {
       }
     }
 
-    // Create social media post
-    const post = await prisma.socialMediaPost.create({
-      data: {
-        alertId: data.alertId,
-        alertType: data.alertType,
-        imageUrl: data.imageUrl,
-        caption: caption,
-        suggestedCaption: caption,
-        status: 'QUEUED',
-        createdById: user.id,
-      },
-    })
+	    // Create social media post
+	    const post = await prisma.socialMediaPost.create({
+	      data: {
+	        alertId: data.alertId,
+	        alertType: data.alertType,
+	        imageUrl: data.imageUrl,
+	        caption: caption,
+	        suggestedCaption: caption,
+	        status: 'QUEUED',
+	        createdById: user.id,
+	      },
+	    })
 
     logger.info('[SocialMedia] Post added to queue', {
       postId: post.id,
@@ -115,11 +134,11 @@ socialMediaRoutes.post('/queue', async (c) => {
       userId: user.id,
     })
 
-    return c.json({
-      success: true,
-      data: post,
-    }, 201)
-  } catch (error) {
+	    return c.json({
+	      success: true,
+	      data: withImageRedacted(post),
+	    }, 201)
+	  } catch (error) {
     logger.error('[SocialMedia] Error adding to queue:', {
       error: error instanceof Error ? error.message : String(error),
     })
@@ -179,9 +198,9 @@ socialMediaRoutes.get('/queue', async (c) => {
       skip: params.offset,
     })
 
-    // Fetch related alerts
-    const enrichedPosts = await Promise.all(
-      posts.map(async (post) => {
+	    // Fetch related alerts
+	    const enrichedPosts = await Promise.all(
+	      posts.map(async (post) => {
         let alert: any = null
         if (post.alertType === 'VOLUME') {
           alert = await prisma.volumeAlert.findUnique({
@@ -192,12 +211,12 @@ socialMediaRoutes.get('/queue', async (c) => {
             where: { id: post.alertId },
           })
         }
-        return {
-          ...post,
-          alert,
-        }
-      })
-    )
+	        return {
+	          ...(params.includeImages ? post : withImageRedacted(post)),
+	          alert,
+	        }
+	      })
+	    )
 
     return c.json({
       success: true,
@@ -262,11 +281,11 @@ socialMediaRoutes.patch('/queue/:id', async (c) => {
       changes: data,
     })
 
-    return c.json({
-      success: true,
-      data: updatedPost,
-    })
-  } catch (error) {
+	    return c.json({
+	      success: true,
+	      data: withImageRedacted(updatedPost),
+	    })
+	  } catch (error) {
     logger.error('[SocialMedia] Error updating post:', {
       error: error instanceof Error ? error.message : String(error),
     })
@@ -377,11 +396,11 @@ socialMediaRoutes.post('/post/:id', async (c) => {
         userId: user.id,
       })
 
-      return c.json({
-        success: true,
-        data: updatedPost,
-      })
-    } catch (twitterError: any) {
+	      return c.json({
+	        success: true,
+	        data: withImageRedacted(updatedPost),
+	      })
+	    } catch (twitterError: any) {
       // Update post with error
       const errorMessage = twitterError.message || 'Unknown Twitter API error'
 
@@ -463,8 +482,8 @@ socialMediaRoutes.get('/history', async (c) => {
     })
 
     // Fetch related alerts and filter by symbol if requested
-    let enrichedPosts = await Promise.all(
-      posts.map(async (post) => {
+	    let enrichedPosts = await Promise.all(
+	      posts.map(async (post) => {
         let alert: any = null
         if (post.alertType === 'VOLUME') {
           alert = await prisma.volumeAlert.findUnique({
@@ -475,12 +494,12 @@ socialMediaRoutes.get('/history', async (c) => {
             where: { id: post.alertId },
           })
         }
-        return {
-          ...post,
-          alert,
-        }
-      })
-    )
+	        return {
+	          ...(params.includeImages ? post : withImageRedacted(post)),
+	          alert,
+	        }
+	      })
+	    )
 
     // Filter by symbol if provided
     if (params.symbol) {
@@ -489,9 +508,9 @@ socialMediaRoutes.get('/history', async (c) => {
       )
     }
 
-    return c.json({
-      success: true,
-      data: enrichedPosts,
+	    return c.json({
+	      success: true,
+	      data: enrichedPosts,
       pagination: {
         total: params.symbol ? enrichedPosts.length : total,
         limit: params.limit,
@@ -508,6 +527,46 @@ socialMediaRoutes.get('/history', async (c) => {
         error: 'Failed to fetch history',
         details: error instanceof Error ? error.message : String(error),
       },
+      500
+    )
+  }
+ })
+
+/**
+ * GET /api/admin/social-media/image/:id
+ * Fetch a queued post image as binary (avoids huge base64 blobs in JSON responses).
+ */
+socialMediaRoutes.get('/image/:id', async (c) => {
+  try {
+    const user = c.get('adminUser')
+    if (!user) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+
+    const postId = c.req.param('id')
+    const post = await prisma.socialMediaPost.findUnique({
+      where: { id: postId },
+      select: { imageUrl: true },
+    })
+
+    if (!post?.imageUrl) {
+      return c.json({ error: 'Image not found' }, 404)
+    }
+
+    const parts = getDataUrlParts(post.imageUrl)
+    const mime = parts?.mime || 'image/png'
+    const base64 = parts?.base64 || post.imageUrl
+    const bytes = Buffer.from(base64, 'base64')
+
+    c.header('Content-Type', mime)
+    c.header('Cache-Control', 'private, max-age=86400')
+    return c.body(bytes)
+  } catch (error) {
+    logger.error('[SocialMedia] Error fetching image:', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return c.json(
+      { error: 'Failed to fetch image', details: error instanceof Error ? error.message : String(error) },
       500
     )
   }

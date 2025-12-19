@@ -6,6 +6,7 @@ export interface SocialMediaPost {
   alertId: string
   alertType: AlertSourceType
   imageUrl: string | null
+  hasImage?: boolean
   caption: string
   suggestedCaption: string | null
   status: SocialMediaStatus

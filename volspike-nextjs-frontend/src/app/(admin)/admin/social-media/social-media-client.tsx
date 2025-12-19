@@ -191,6 +191,7 @@ function ImagePreviewDialog({
           src={imageUrl}
           alt="Alert preview (enlarged)"
           className="w-full h-auto rounded-lg"
+          loading="lazy"
         />
       </DialogContent>
     </Dialog>
@@ -286,6 +287,8 @@ function QueuedPostCard({
     }
   }
 
+  const imageSrc = post.imageUrl || (post.hasImage ? `/api/admin/social-media/image/${post.id}` : null)
+
   return (
     <div className="border rounded-lg p-4 space-y-4">
       {/* Alert Info */}
@@ -315,16 +318,17 @@ function QueuedPostCard({
       </div>
 
       {/* Image Preview - Clickable to enlarge */}
-      {post.imageUrl && (
+      {imageSrc && (
         <>
           <div
             className="relative w-full max-w-md cursor-pointer group"
             onClick={() => setImagePreviewOpen(true)}
           >
             <img
-              src={post.imageUrl}
+              src={imageSrc}
               alt="Alert preview"
               className="w-full rounded-lg border transition-all group-hover:opacity-90 group-hover:ring-2 group-hover:ring-primary/50"
+              loading="lazy"
             />
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
               <span className="bg-background/80 px-3 py-1 rounded-full text-xs font-medium">
@@ -333,7 +337,7 @@ function QueuedPostCard({
             </div>
           </div>
           <ImagePreviewDialog
-            imageUrl={post.imageUrl}
+            imageUrl={imageSrc}
             open={imagePreviewOpen}
             onOpenChange={setImagePreviewOpen}
           />
@@ -421,6 +425,7 @@ function QueuedPostCard({
 // History Card Component
 function HistoryCard({ post }: { post: QueuedPostWithAlert }) {
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false)
+  const imageSrc = post.imageUrl || (post.hasImage ? `/api/admin/social-media/image/${post.id}` : null)
 
   const getAlertSymbol = () => {
     if (!post.alert) return 'Unknown'
@@ -467,20 +472,21 @@ function HistoryCard({ post }: { post: QueuedPostWithAlert }) {
       </div>
 
       {/* Image thumbnail - Clickable to enlarge */}
-      {post.imageUrl && (
+      {imageSrc && (
         <>
           <div
             className="relative w-32 h-20 cursor-pointer group"
             onClick={() => setImagePreviewOpen(true)}
           >
             <img
-              src={post.imageUrl}
+              src={imageSrc}
               alt="Posted alert"
               className="w-full h-full object-cover rounded border transition-all group-hover:opacity-90 group-hover:ring-2 group-hover:ring-primary/50"
+              loading="lazy"
             />
           </div>
           <ImagePreviewDialog
-            imageUrl={post.imageUrl}
+            imageUrl={imageSrc}
             open={imagePreviewOpen}
             onOpenChange={setImagePreviewOpen}
           />
