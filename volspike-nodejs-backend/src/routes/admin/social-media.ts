@@ -51,13 +51,14 @@ socialMediaRoutes.post('/queue', async (c) => {
     const body = await c.req.json()
     const data = createPostSchema.parse(body)
 
-    // Check if alert already has a queued or posted entry
+    // Check if alert is currently in queue (QUEUED or POSTING)
+    // Allow re-queueing alerts that were already POSTED or REJECTED
     const existing = await prisma.socialMediaPost.findFirst({
       where: {
         alertId: data.alertId,
         alertType: data.alertType,
         status: {
-          in: ['QUEUED', 'POSTING', 'POSTED'],
+          in: ['QUEUED', 'POSTING'],
         },
       },
     })
@@ -65,7 +66,7 @@ socialMediaRoutes.post('/queue', async (c) => {
     if (existing) {
       return c.json(
         {
-          error: 'Alert already queued or posted',
+          error: 'Alert is already in the queue',
           existingPost: existing,
         },
         409
