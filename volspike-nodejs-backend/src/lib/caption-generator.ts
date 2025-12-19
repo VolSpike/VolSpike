@@ -1,5 +1,10 @@
 import type { VolumeAlert, OpenInterestAlert } from '@prisma/client'
 
+function formatTickerSymbol(symbolOrAsset: string): string {
+  const trimmed = symbolOrAsset.toUpperCase().replace(/USDT$/, '')
+  return `$${trimmed}`
+}
+
 /**
  * Format volume value to human-readable string
  * @example formatVolume(17240000) => "17.24M"
@@ -16,12 +21,34 @@ export function formatVolume(volume: number): string {
 }
 
 /**
+ * Format a large number (e.g. contracts) to a human-readable string without currency sign.
+ * @example formatCompactNumber(651920000) => "651.92M"
+ */
+export function formatCompactNumber(value: number): string {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(2)}M`
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(0)}K`
+  }
+  return value.toFixed(0)
+}
+
+/**
  * Format percentage value with + or - sign
  * @example formatPercent(9.96) => "+9.96%"
  * @example formatPercent(-3.45) => "-3.45%"
  */
 export function formatPercent(pct: number): string {
   return pct > 0 ? `+${pct.toFixed(2)}%` : `${pct.toFixed(2)}%`
+}
+
+/**
+ * Format a percentage stored as a fractional value.
+ * @example formatPercentFromFraction(0.0942) => "+9.42%"
+ */
+export function formatPercentFromFraction(fraction: number): string {
+  return formatPercent(fraction * 100)
 }
 
 /**
@@ -38,12 +65,12 @@ export function formatPercent(pct: number): string {
  */
 export function generateVolumeAlertCaption(alert: VolumeAlert): string {
   const emoji = '🚨'
-  const symbol = alert.symbol
+  const symbol = formatTickerSymbol(alert.asset || alert.symbol)
   const ratio = alert.volumeRatio.toFixed(2)
   const currentVol = formatVolume(alert.currentVolume)
   const prevVol = formatVolume(alert.previousVolume)
   const priceChange = alert.priceChange !== null && alert.priceChange !== undefined
-    ? formatPercent(alert.priceChange)
+    ? formatPercentFromFraction(alert.priceChange)
     : 'N/A'
 
   const caption = `${emoji} ${symbol} volume spike: ${ratio}x in 1 hour! $${currentVol} this hour vs $${prevVol} last hour. Price: ${priceChange} #crypto #altcoin #volspike`
@@ -72,20 +99,20 @@ export function generateVolumeAlertCaption(alert: VolumeAlert): string {
  * => "🚨 USTC Open Interest spike: +3.94% in 5 min! Current OI: $651.92M (up $24.69M). Price: +5.47% #crypto #openinterest #volspike"
  */
 export function generateOIAlertCaption(alert: OpenInterestAlert): string {
-  const isIncrease = alert.direction === 'increase'
+  const isIncrease = alert.direction === 'UP'
   const emoji = '🚨'
   const directionWord = isIncrease ? 'up' : 'down'
 
-  const symbol = alert.symbol
-  const pctChange = formatPercent(Number(alert.pctChange))
+  const symbol = formatTickerSymbol(alert.symbol)
+  const pctChange = formatPercentFromFraction(Number(alert.pctChange))
   const timeframe = alert.timeframe
-  const currentOI = formatVolume(Number(alert.current))
-  const absChange = formatVolume(Number(alert.absChange))
+  const currentOI = formatCompactNumber(Number(alert.current))
+  const absChange = formatCompactNumber(Number(alert.absChange))
   const priceChange = alert.priceChange !== null && alert.priceChange !== undefined
-    ? formatPercent(Number(alert.priceChange))
+    ? formatPercentFromFraction(Number(alert.priceChange))
     : 'N/A'
 
-  const caption = `${emoji} ${symbol} Open Interest spike: ${pctChange} in ${timeframe}! Current OI: $${currentOI} (${directionWord} $${absChange}). Price: ${priceChange} #crypto #openinterest #volspike`
+  const caption = `${emoji} ${symbol} Open Interest spike: ${pctChange} in ${timeframe}! Current OI: ${currentOI} (${directionWord} ${absChange}). Price: ${priceChange} #crypto #openinterest #volspike`
 
   // Ensure caption is within Twitter's 280 character limit
   if (caption.length > 280) {
