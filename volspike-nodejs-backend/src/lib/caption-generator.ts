@@ -107,7 +107,8 @@ export function generateOIAlertCaption(alert: OpenInterestAlert): string {
   const pctChange = formatPercentFromFraction(Number(alert.pctChange))
   const timeframe = alert.timeframe
   const currentOI = formatCompactNumber(Number(alert.current))
-  const absChange = formatCompactNumber(Number(alert.absChange))
+  // absChange may be stored as a signed number; captions already include directionWord.
+  const absChange = formatCompactNumber(Math.abs(Number(alert.absChange)))
   const priceChange = alert.priceChange !== null && alert.priceChange !== undefined
     ? formatPercentFromFraction(Number(alert.priceChange))
     : 'N/A'

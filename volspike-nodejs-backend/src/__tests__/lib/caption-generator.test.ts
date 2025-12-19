@@ -59,7 +59,7 @@ describe('caption-generator', () => {
       baseline: '1000000',
       current: '900000',
       pctChange: '-0.1',
-      absChange: '100000',
+      absChange: '-100000',
       priceChange: '-0.0123',
       fundingRate: null,
       timeframe: '15 min',
@@ -70,6 +70,7 @@ describe('caption-generator', () => {
 
     expect(caption).toContain('$ABC Open Interest spike: -10.00% in 15 min!')
     expect(caption).toContain('Current OI: 900K (down 100K).')
+    expect(caption).not.toContain('(down -')
     expect(caption).toContain('Price: -1.23%')
   })
 })
