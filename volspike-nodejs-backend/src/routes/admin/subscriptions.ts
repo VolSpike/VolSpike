@@ -19,6 +19,7 @@ const adminSubscriptionRoutes = new Hono<{ Bindings: AppBindings; Variables: App
 
 // Validation schemas
 const subscriptionListSchema = z.object({
+    userId: z.string().optional(), // Search by user ID or email
     status: z.string().optional(),
     tier: z.enum(['free', 'pro', 'elite']).optional(),
     page: z.coerce.number().min(1).default(1),
@@ -35,6 +36,19 @@ adminSubscriptionRoutes.get('/', async (c) => {
 
         // Build where clause
         const where: any = {}
+
+        // Search by user ID or email (partial match for email)
+        if (params.userId) {
+            const trimmedSearch = params.userId.trim()
+            // Check if it looks like a user ID (cuid format) or email search
+            if (trimmedSearch.includes('@') || trimmedSearch.length < 20) {
+                // Treat as email search - use partial match
+                where.email = { contains: trimmedSearch, mode: 'insensitive' }
+            } else {
+                // Treat as user ID - exact match
+                where.id = trimmedSearch
+            }
+        }
 
         if (params.tier) {
             where.tier = params.tier
