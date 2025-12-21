@@ -46,14 +46,16 @@ adminPaymentRoutes.get('/', async (c) => {
         const trimmedEmail = params.email?.trim()
 
         if (trimmedEmail) {
-            const user = await prisma.user.findFirst({
-                where: { email: { equals: trimmedEmail, mode: 'insensitive' } },
+            // Use contains for partial matching (e.g., "mel" finds "melnikovkk@gmail.com")
+            const users = await prisma.user.findMany({
+                where: { email: { contains: trimmedEmail, mode: 'insensitive' } },
                 select: { id: true },
             })
-            if (user) {
-                where.userId = user.id
+            if (users.length > 0) {
+                // Filter payments by any matching user
+                where.userId = { in: users.map(u => u.id) }
             } else {
-                // Return empty if user not found
+                // Return empty if no users match
                 return c.json({
                     payments: [],
                     pagination: {
