@@ -660,6 +660,34 @@ adminUserRoutes.patch('/:id', async (c) => {
         const adminUser = c.get('adminUser')
         logger.info(`User ${userId} updated by admin ${adminUser?.email || 'unknown'}`)
 
+        // FIX: When admin manually changes tier, invalidate expired crypto payments
+        // This prevents the auto-downgrade job from reverting admin-granted tiers
+        if (data.tier && data.tier !== 'free') {
+            const now = new Date()
+            const expiredPayments = await prisma.cryptoPayment.updateMany({
+                where: {
+                    userId: userId,
+                    paymentStatus: 'finished',
+                    expiresAt: {
+                        lt: now, // Already expired
+                    },
+                },
+                data: {
+                    // Set expiresAt to null so the downgrade job ignores these payments
+                    expiresAt: null,
+                },
+            })
+
+            if (expiredPayments.count > 0) {
+                logger.info(`Cleared expiresAt on ${expiredPayments.count} expired crypto payment(s) for user ${userId} - admin granted tier ${data.tier}`, {
+                    userId,
+                    newTier: data.tier,
+                    adminEmail: adminUser?.email,
+                    clearedPayments: expiredPayments.count,
+                })
+            }
+        }
+
         return c.json({ user })
     } catch (error) {
         logger.error('Update user error:', error)

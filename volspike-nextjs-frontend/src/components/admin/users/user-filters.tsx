@@ -31,11 +31,14 @@ interface UserFiltersProps {
 export function UserFilters({ currentFilters }: UserFiltersProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    
+
     // Ref to track programmatic updates and prevent state sync loops
     const isProgrammaticUpdate = useRef(false)
     const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    
+    // Track when user is actively typing to prevent sync-back from overwriting input
+    const isTypingRef = useRef(false)
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
     const [filters, setFilters] = useState({
         search: currentFilters.search || '',
         role: currentFilters.role || '',
@@ -43,24 +46,7 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
         status: currentFilters.status || '',
     })
 
-    // Debug: Log render state (only in development)
-    useEffect(() => {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('[UserFilters] Render:', {
-                localState: filters,
-                urlParams: {
-                    search: currentFilters.search,
-                    role: currentFilters.role,
-                    tier: currentFilters.tier,
-                    status: currentFilters.status,
-                },
-                searchParamsString: searchParams.toString(),
-                isProgrammatic: isProgrammaticUpdate.current,
-            })
-        }
-    })
-
-    // FIX: Sync filters with currentFilters when they change (but not during programmatic updates)
+    // FIX: Sync filters with currentFilters when they change (but not during programmatic updates or typing)
     useEffect(() => {
         // Skip sync if this is a programmatic update we initiated
         if (isProgrammaticUpdate.current) {
@@ -68,8 +54,13 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
             return
         }
 
+        // Skip sync if user is actively typing in the search field
+        if (isTypingRef.current) {
+            return
+        }
+
         // Only sync if URL params actually changed from external source
-        const hasChanges = 
+        const hasChanges =
             filters.search !== (currentFilters.search || '') ||
             filters.role !== (currentFilters.role || '') ||
             filters.tier !== (currentFilters.tier || '') ||
@@ -197,23 +188,29 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
     const clearFilters = () => {
         // Set flag to prevent state sync loop
         isProgrammaticUpdate.current = true
-        
+        // Also reset typing flag
+        isTypingRef.current = false
+
         // Clear any pending timeouts
         if (updateTimeoutRef.current) {
             clearTimeout(updateTimeoutRef.current)
             updateTimeoutRef.current = null
         }
-        
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current)
+            typingTimeoutRef.current = null
+        }
+
         setFilters({
             search: '',
             role: '',
             tier: '',
             status: '',
         })
-        
+
         // Use replace to avoid adding history entry
         router.replace('/admin/users', { scroll: false })
-        
+
         // Reset flag after navigation
         setTimeout(() => {
             isProgrammaticUpdate.current = false
@@ -233,7 +230,19 @@ export function UserFilters({ currentFilters }: UserFiltersProps) {
                         <Input
                             placeholder="Search users by email or wallet..."
                             value={filters.search}
-                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                            onChange={(e) => {
+                                // Mark as typing to prevent sync-back from URL params
+                                isTypingRef.current = true
+                                // Clear previous typing timeout
+                                if (typingTimeoutRef.current) {
+                                    clearTimeout(typingTimeoutRef.current)
+                                }
+                                // Reset typing flag after debounce delay + buffer
+                                typingTimeoutRef.current = setTimeout(() => {
+                                    isTypingRef.current = false
+                                }, 600) // 500ms debounce + 100ms buffer
+                                setFilters(prev => ({ ...prev, search: e.target.value }))
+                            }}
                             className="pl-10 h-11 border-2 border-border/60 bg-background/50 hover:border-blue-500/40 focus:border-blue-500/60 transition-colors"
                         />
                     </div>

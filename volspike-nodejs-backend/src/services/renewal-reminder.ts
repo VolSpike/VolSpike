@@ -225,6 +225,42 @@ export async function checkAndDowngradeExpiredSubscriptions() {
             // (they might have upgraded via Stripe in the meantime)
             if (payment.user.tier === payment.tier) {
                 try {
+                    // SAFETY CHECK: Before downgrading, verify user doesn't have an active Stripe subscription
+                    // This prevents reverting admin-granted tiers or tiers from other payment sources
+                    const user = await prisma.user.findUnique({
+                        where: { id: payment.userId },
+                        select: { stripeCustomerId: true },
+                    })
+
+                    if (user?.stripeCustomerId) {
+                        // Check if user has any active Stripe subscriptions
+                        try {
+                            const Stripe = (await import('stripe')).default
+                            const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+                                apiVersion: '2023-10-16',
+                            })
+                            const subscriptions = await stripe.subscriptions.list({
+                                customer: user.stripeCustomerId,
+                                status: 'active',
+                                limit: 1,
+                            })
+
+                            if (subscriptions.data.length > 0) {
+                                logger.info(`Skipping downgrade for user ${payment.userId} - has active Stripe subscription`, {
+                                    userId: payment.userId,
+                                    stripeCustomerId: user.stripeCustomerId,
+                                    expiredCryptoPaymentId: payment.id,
+                                })
+                                continue // Skip this user, they have an active Stripe subscription
+                            }
+                        } catch (stripeError) {
+                            logger.warn(`Could not verify Stripe subscription for user ${payment.userId}:`, {
+                                error: stripeError instanceof Error ? stripeError.message : String(stripeError),
+                            })
+                            // Continue with downgrade if we can't verify Stripe status
+                        }
+                    }
+
                     // Delete all watchlists before downgrading (no grandfathering)
                     const { WatchlistService } = await import('./watchlist-service')
                     try {
