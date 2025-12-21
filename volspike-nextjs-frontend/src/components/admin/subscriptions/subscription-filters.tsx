@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -44,11 +44,36 @@ const tierOptions = [
 
 export function SubscriptionFilters({ currentFilters }: SubscriptionFiltersProps) {
     const router = useRouter()
+
+    // Track when user is actively typing to prevent sync-back from overwriting input
+    const isTypingRef = useRef(false)
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
     const [filters, setFilters] = useState({
         userId: currentFilters.userId || '',
         status: currentFilters.status || 'all',
         tier: currentFilters.tier || 'all',
     })
+
+    // Sync filters with currentFilters when they change (but not during typing)
+    useEffect(() => {
+        if (isTypingRef.current) {
+            return
+        }
+
+        const hasChanges =
+            filters.userId !== (currentFilters.userId || '') ||
+            filters.status !== (currentFilters.status || 'all') ||
+            filters.tier !== (currentFilters.tier || 'all')
+
+        if (hasChanges) {
+            setFilters({
+                userId: currentFilters.userId || '',
+                status: currentFilters.status || 'all',
+                tier: currentFilters.tier || 'all',
+            })
+        }
+    }, [currentFilters.userId, currentFilters.status, currentFilters.tier])
 
     // Debounce search input to avoid too many requests
     const debouncedUserId = useDebounce(filters.userId, 500)
@@ -64,23 +89,23 @@ export function SubscriptionFilters({ currentFilters }: SubscriptionFiltersProps
         })
 
         params.set('page', '1')
-        router.push(`/admin/subscriptions?${params.toString()}`)
+        router.replace(`/admin/subscriptions?${params.toString()}`, { scroll: false })
     }, [filters, router])
 
     // Auto-apply when dropdowns change (immediate)
     useEffect(() => {
         const statusChanged = filters.status !== (currentFilters.status || 'all')
         const tierChanged = filters.tier !== (currentFilters.tier || 'all')
-        
+
         if (statusChanged || tierChanged) {
             const params = new URLSearchParams()
-            
+
             if (filters.userId) params.set('userId', filters.userId)
             if (filters.status && filters.status !== 'all') params.set('status', filters.status)
             if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-            
+
             params.set('page', '1')
-            router.push(`/admin/subscriptions?${params.toString()}`)
+            router.replace(`/admin/subscriptions?${params.toString()}`, { scroll: false })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.status, filters.tier, router])
@@ -89,27 +114,32 @@ export function SubscriptionFilters({ currentFilters }: SubscriptionFiltersProps
     useEffect(() => {
         if (debouncedUserId !== (currentFilters.userId || '')) {
             const params = new URLSearchParams()
-            
+
             if (debouncedUserId) params.set('userId', debouncedUserId)
             if (filters.status && filters.status !== 'all') params.set('status', filters.status)
             if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
-            
+
             params.set('page', '1')
-            router.push(`/admin/subscriptions?${params.toString()}`)
+            router.replace(`/admin/subscriptions?${params.toString()}`, { scroll: false })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedUserId, router])
 
     const clearFilters = () => {
+        isTypingRef.current = false
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current)
+            typingTimeoutRef.current = null
+        }
         setFilters({
             userId: '',
             status: 'all',
             tier: 'all',
         })
-        router.push('/admin/subscriptions')
+        router.replace('/admin/subscriptions', { scroll: false })
     }
 
-    const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+    const hasActiveFilters = Object.entries(filters).some(([, value]) => {
         return value && value !== 'all'
     })
 
@@ -124,7 +154,17 @@ export function SubscriptionFilters({ currentFilters }: SubscriptionFiltersProps
                         <Input
                             placeholder="Search by user ID or email..."
                             value={filters.userId}
-                            onChange={(e) => setFilters(prev => ({ ...prev, userId: e.target.value }))}
+                            onChange={(e) => {
+                                // Mark as typing to prevent sync-back from URL params
+                                isTypingRef.current = true
+                                if (typingTimeoutRef.current) {
+                                    clearTimeout(typingTimeoutRef.current)
+                                }
+                                typingTimeoutRef.current = setTimeout(() => {
+                                    isTypingRef.current = false
+                                }, 600)
+                                setFilters(prev => ({ ...prev, userId: e.target.value }))
+                            }}
                             className="pl-10 h-11 border-2 border-border/60 bg-background/50 hover:border-blue-500/40 focus:border-blue-500/60 transition-colors"
                         />
                     </div>
@@ -176,13 +216,14 @@ export function SubscriptionFilters({ currentFilters }: SubscriptionFiltersProps
                     {filters.userId && (
                         <button
                             onClick={() => {
+                                isTypingRef.current = false
                                 setFilters(prev => ({ ...prev, userId: '' }))
                                 setTimeout(() => {
                                     const params = new URLSearchParams()
                                     if (filters.status && filters.status !== 'all') params.set('status', filters.status)
                                     if (filters.tier && filters.tier !== 'all') params.set('tier', filters.tier)
                                     params.set('page', '1')
-                                    router.push(`/admin/subscriptions?${params.toString()}`)
+                                    router.replace(`/admin/subscriptions?${params.toString()}`, { scroll: false })
                                 }, 0)
                             }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors border border-blue-300/50 dark:border-blue-700/50"

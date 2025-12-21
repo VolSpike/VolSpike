@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Search, X } from 'lucide-react'
+import { useDebounce } from '@/hooks/use-debounce'
 
 interface PaymentFiltersProps {
     currentFilters: {
@@ -28,19 +30,131 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
 
-    const updateFilter = (key: string, value: string | undefined) => {
-        const params = new URLSearchParams(searchParams.toString())
-        if (value) {
-            params.set(key, value)
-        } else {
-            params.delete(key)
+    // Track when user is actively typing to prevent sync-back from overwriting input
+    const isTypingRef = useRef<Record<string, boolean>>({})
+    const typingTimeoutRef = useRef<Record<string, NodeJS.Timeout | null>>({})
+
+    const [filters, setFilters] = useState({
+        email: currentFilters.email || '',
+        paymentStatus: currentFilters.paymentStatus || '',
+        tier: currentFilters.tier || '',
+        paymentId: currentFilters.paymentId || '',
+        invoiceId: currentFilters.invoiceId || '',
+        orderId: currentFilters.orderId || '',
+    })
+
+    // Debounce text inputs
+    const debouncedEmail = useDebounce(filters.email, 500)
+    const debouncedPaymentId = useDebounce(filters.paymentId, 500)
+    const debouncedInvoiceId = useDebounce(filters.invoiceId, 500)
+    const debouncedOrderId = useDebounce(filters.orderId, 500)
+
+    // Sync filters with currentFilters when they change (but not during typing)
+    useEffect(() => {
+        const newFilters: typeof filters = {
+            email: currentFilters.email || '',
+            paymentStatus: currentFilters.paymentStatus || '',
+            tier: currentFilters.tier || '',
+            paymentId: currentFilters.paymentId || '',
+            invoiceId: currentFilters.invoiceId || '',
+            orderId: currentFilters.orderId || '',
         }
-        params.set('page', '1') // Reset to first page
-        router.push(`/admin/payments?${params.toString()}`)
+
+        // Only sync fields that aren't being typed in
+        const syncedFilters = { ...filters }
+        let hasChanges = false
+
+        for (const key of Object.keys(newFilters) as (keyof typeof newFilters)[]) {
+            if (!isTypingRef.current[key] && syncedFilters[key] !== newFilters[key]) {
+                syncedFilters[key] = newFilters[key]
+                hasChanges = true
+            }
+        }
+
+        if (hasChanges) {
+            setFilters(syncedFilters)
+        }
+    }, [currentFilters.email, currentFilters.paymentStatus, currentFilters.tier, currentFilters.paymentId, currentFilters.invoiceId, currentFilters.orderId])
+
+    const updateUrl = (updates: Record<string, string | undefined>) => {
+        const params = new URLSearchParams(searchParams.toString())
+        for (const [key, value] of Object.entries(updates)) {
+            if (value) {
+                params.set(key, value)
+            } else {
+                params.delete(key)
+            }
+        }
+        params.set('page', '1')
+        router.replace(`/admin/payments?${params.toString()}`, { scroll: false })
     }
 
+    // Handle text input changes with typing tracking
+    const handleTextInputChange = (key: string, value: string) => {
+        isTypingRef.current[key] = true
+        if (typingTimeoutRef.current[key]) {
+            clearTimeout(typingTimeoutRef.current[key]!)
+        }
+        typingTimeoutRef.current[key] = setTimeout(() => {
+            isTypingRef.current[key] = false
+        }, 600)
+        setFilters(prev => ({ ...prev, [key]: value }))
+    }
+
+    // Handle select changes (immediate)
+    const handleSelectChange = (key: string, value: string) => {
+        setFilters(prev => ({ ...prev, [key]: value === 'all' ? '' : value }))
+        updateUrl({ [key]: value === 'all' ? undefined : value })
+    }
+
+    // Auto-apply debounced text filters
+    useEffect(() => {
+        if (debouncedEmail !== (currentFilters.email || '')) {
+            updateUrl({ email: debouncedEmail || undefined })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedEmail])
+
+    useEffect(() => {
+        if (debouncedPaymentId !== (currentFilters.paymentId || '')) {
+            updateUrl({ paymentId: debouncedPaymentId || undefined })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedPaymentId])
+
+    useEffect(() => {
+        if (debouncedInvoiceId !== (currentFilters.invoiceId || '')) {
+            updateUrl({ invoiceId: debouncedInvoiceId || undefined })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedInvoiceId])
+
+    useEffect(() => {
+        if (debouncedOrderId !== (currentFilters.orderId || '')) {
+            updateUrl({ orderId: debouncedOrderId || undefined })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedOrderId])
+
     const clearFilters = () => {
-        router.push('/admin/payments')
+        // Reset typing refs
+        isTypingRef.current = {}
+        for (const key of Object.keys(typingTimeoutRef.current)) {
+            if (typingTimeoutRef.current[key]) {
+                clearTimeout(typingTimeoutRef.current[key]!)
+            }
+        }
+        typingTimeoutRef.current = {}
+
+        setFilters({
+            email: '',
+            paymentStatus: '',
+            tier: '',
+            paymentId: '',
+            invoiceId: '',
+            orderId: '',
+        })
+        router.replace('/admin/payments', { scroll: false })
     }
 
     const hasActiveFilters = Object.values(currentFilters).some(v => v)
@@ -71,8 +185,8 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                         <Input
                             id="email"
                             placeholder="user@example.com"
-                            value={currentFilters.email || ''}
-                            onChange={(e) => updateFilter('email', e.target.value || undefined)}
+                            value={filters.email}
+                            onChange={(e) => handleTextInputChange('email', e.target.value)}
                             className="pl-8"
                         />
                     </div>
@@ -82,10 +196,8 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                 <div className="space-y-2">
                     <Label htmlFor="paymentStatus">Payment Status</Label>
                     <Select
-                        value={currentFilters.paymentStatus || 'all'}
-                        onValueChange={(value) =>
-                            updateFilter('paymentStatus', value === 'all' ? undefined : value)
-                        }
+                        value={filters.paymentStatus || 'all'}
+                        onValueChange={(value) => handleSelectChange('paymentStatus', value)}
                     >
                         <SelectTrigger id="paymentStatus">
                             <SelectValue placeholder="All statuses" />
@@ -109,10 +221,8 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                 <div className="space-y-2">
                     <Label htmlFor="tier">Tier</Label>
                     <Select
-                        value={currentFilters.tier || 'all'}
-                        onValueChange={(value) =>
-                            updateFilter('tier', value === 'all' ? undefined : value)
-                        }
+                        value={filters.tier || 'all'}
+                        onValueChange={(value) => handleSelectChange('tier', value)}
                     >
                         <SelectTrigger id="tier">
                             <SelectValue placeholder="All tiers" />
@@ -131,8 +241,8 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                     <Input
                         id="paymentId"
                         placeholder="5804360523"
-                        value={currentFilters.paymentId || ''}
-                        onChange={(e) => updateFilter('paymentId', e.target.value || undefined)}
+                        value={filters.paymentId}
+                        onChange={(e) => handleTextInputChange('paymentId', e.target.value)}
                     />
                 </div>
             </div>
@@ -144,8 +254,8 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                     <Input
                         id="invoiceId"
                         placeholder="Invoice ID"
-                        value={currentFilters.invoiceId || ''}
-                        onChange={(e) => updateFilter('invoiceId', e.target.value || undefined)}
+                        value={filters.invoiceId}
+                        onChange={(e) => handleTextInputChange('invoiceId', e.target.value)}
                     />
                 </div>
 
@@ -154,8 +264,8 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                     <Input
                         id="orderId"
                         placeholder="Order ID"
-                        value={currentFilters.orderId || ''}
-                        onChange={(e) => updateFilter('orderId', e.target.value || undefined)}
+                        value={filters.orderId}
+                        onChange={(e) => handleTextInputChange('orderId', e.target.value)}
                     />
                 </div>
             </div>
