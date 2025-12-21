@@ -188,6 +188,9 @@ export function PaymentFilters({ currentFilters }: PaymentFiltersProps) {
                             value={filters.email}
                             onChange={(e) => handleTextInputChange('email', e.target.value)}
                             className="pl-8"
+                            autoComplete="off"
+                            data-1p-ignore
+                            data-lpignore="true"
                         />
                     </div>
                 </div>
