@@ -660,30 +660,30 @@ adminUserRoutes.patch('/:id', async (c) => {
         const adminUser = c.get('adminUser')
         logger.info(`User ${userId} updated by admin ${adminUser?.email || 'unknown'}`)
 
-        // FIX: When admin manually changes tier, invalidate expired crypto payments
+        // FIX: When admin manually changes tier, mark all crypto payments as "admin_override"
         // This prevents the auto-downgrade job from reverting admin-granted tiers
+        // We change paymentStatus to 'admin_override' so these payments are ignored by:
+        // 1. The downgrade job (only looks at 'finished' status)
+        // 2. The subscription display logic (only shows 'finished' or 'confirmed')
         if (data.tier && data.tier !== 'free') {
-            const now = new Date()
-            const expiredPayments = await prisma.cryptoPayment.updateMany({
+            const overriddenPayments = await prisma.cryptoPayment.updateMany({
                 where: {
                     userId: userId,
-                    paymentStatus: 'finished',
-                    expiresAt: {
-                        lt: now, // Already expired
+                    paymentStatus: {
+                        in: ['finished', 'confirmed'],
                     },
                 },
                 data: {
-                    // Set expiresAt to null so the downgrade job ignores these payments
-                    expiresAt: null,
+                    paymentStatus: 'admin_override',
                 },
             })
 
-            if (expiredPayments.count > 0) {
-                logger.info(`Cleared expiresAt on ${expiredPayments.count} expired crypto payment(s) for user ${userId} - admin granted tier ${data.tier}`, {
+            if (overriddenPayments.count > 0) {
+                logger.info(`Marked ${overriddenPayments.count} crypto payment(s) as admin_override for user ${userId} - admin granted tier ${data.tier}`, {
                     userId,
                     newTier: data.tier,
                     adminEmail: adminUser?.email,
-                    clearedPayments: expiredPayments.count,
+                    overriddenPayments: overriddenPayments.count,
                 })
             }
         }
