@@ -48,6 +48,7 @@ model User {
   userCrossAlerts      UserCrossAlert[]
   createdPromoCodes    PromoCode[]      @relation("PromoCodeCreator")
   promoCodeUsages      PromoCodeUsage[] @relation("PromoCodeUsages")
+  academyProgress      AcademyProgress[]
 
   @@map("users")
 }
@@ -661,4 +662,124 @@ enum SocialMediaStatus {
 enum AlertSourceType {
   VOLUME
   OPEN_INTEREST
+}
+
+// VolSpike Academy Models
+model AcademyLearningPath {
+  id          String          @id @default(cuid())
+  title       String
+  slug        String          @unique
+  description String          @db.Text
+  difficulty  String          // beginner, intermediate, advanced
+  order       Int             @default(0)
+  isPublished Boolean         @default(false)
+  introduction String?        @db.Text
+  whatYoullLearn String[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  modules     AcademyModule[]
+
+  @@index([isPublished, order])
+  @@map("academy_learning_paths")
+}
+
+model AcademyModule {
+  id           String              @id @default(cuid())
+  pathId       String
+  title        String
+  slug         String              @unique
+  description  String              @db.Text
+  order        Int                 @default(0)
+  introduction String?             @db.Text
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  path         AcademyLearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  lessons      AcademyLesson[]
+
+  @@index([pathId, order])
+  @@map("academy_modules")
+}
+
+model AcademyLesson {
+  id                  String               @id @default(cuid())
+  moduleId            String
+  title               String
+  slug                String               @unique
+  originalTitle       String?              // Original title before transformation
+  content             String               @db.Text
+  transformedContent  String?              @db.Text // Content with VolSpike voice
+  summary             String               @db.Text
+  lessonIntro         String?              @db.Text
+  lessonSummary       String?              @db.Text
+  difficulty          String               // beginner, intermediate, advanced
+  topics              String[]
+  prerequisites       String[]
+  keyTakeaways        String[]
+  order               Int                  @default(0)
+  isFree              Boolean              @default(false)
+  estimatedMinutes    Int?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  module              AcademyModule        @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  images              AcademyImage[]
+  quizQuestions       AcademyQuizQuestion[]
+  progress            AcademyProgress[]
+
+  @@index([moduleId, order])
+  @@index([isFree])
+  @@map("academy_lessons")
+}
+
+model AcademyImage {
+  id          String        @id @default(cuid())
+  lessonId    String
+  filename    String
+  url         String?       // CDN URL after upload
+  position    Int           @default(0)
+  altText     String?
+  analysis    Json?         // LLM analysis of chart
+  createdAt   DateTime      @default(now())
+
+  lesson      AcademyLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, position])
+  @@map("academy_images")
+}
+
+model AcademyQuizQuestion {
+  id            String        @id @default(cuid())
+  lessonId      String
+  question      String        @db.Text
+  options       String[]
+  correctAnswer String
+  explanation   String?       @db.Text
+  order         Int           @default(0)
+  createdAt     DateTime      @default(now())
+
+  lesson        AcademyLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId, order])
+  @@map("academy_quiz_questions")
+}
+
+model AcademyProgress {
+  id          String        @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean       @default(false)
+  quizScore   Int?          // Percentage score on quiz
+  quizPassed  Boolean?
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime      @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      AcademyLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId, completed])
+  @@map("academy_progress")
 }

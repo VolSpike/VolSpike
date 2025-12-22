@@ -23,6 +23,7 @@ import {
     Send,
     Tag,
     Twitter,
+    GraduationCap,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Separator } from '@/components/ui/separator'
@@ -93,6 +94,11 @@ const navigation = [
         name: 'Social Media',
         href: '/admin/social-media',
         icon: Twitter,
+    },
+    {
+        name: 'Academy',
+        href: '/admin/academy',
+        icon: GraduationCap,
     },
     {
         name: 'Settings',

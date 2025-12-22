@@ -730,6 +730,88 @@ class AdminAPIClient {
     async healthCheck(): Promise<{ status: string; timestamp: string; version: string }> {
         return this.request<{ status: string; timestamp: string; version: string }>('/api/admin/health')
     }
+
+    // Academy API
+    async getAcademyStats(): Promise<{
+        stats: {
+            paths: number
+            publishedPaths: number
+            modules: number
+            lessons: number
+            quizQuestions: number
+        }
+    }> {
+        return this.request('/api/admin/academy/stats')
+    }
+
+    async getAcademyPaths(): Promise<{ paths: any[] }> {
+        return this.request('/api/admin/academy/paths')
+    }
+
+    async getAcademyPath(pathId: string): Promise<{ path: any }> {
+        return this.request(`/api/admin/academy/paths/${pathId}`)
+    }
+
+    async createAcademyPath(data: any): Promise<{ path: any }> {
+        return this.request('/api/admin/academy/paths', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async updateAcademyPath(pathId: string, data: any): Promise<{ path: any }> {
+        return this.request(`/api/admin/academy/paths/${pathId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async deleteAcademyPath(pathId: string): Promise<{ success: boolean }> {
+        return this.request(`/api/admin/academy/paths/${pathId}`, {
+            method: 'DELETE',
+        })
+    }
+
+    async getAcademyLessons(query: { moduleId?: string; pathId?: string } = {}): Promise<{ lessons: any[] }> {
+        const params = new URLSearchParams()
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                params.append(key, String(value))
+            }
+        })
+        return this.request(`/api/admin/academy/lessons?${params.toString()}`)
+    }
+
+    async getAcademyLesson(lessonId: string): Promise<{ lesson: any }> {
+        return this.request(`/api/admin/academy/lessons/${lessonId}`)
+    }
+
+    async updateAcademyLesson(lessonId: string, data: any): Promise<{ lesson: any }> {
+        return this.request(`/api/admin/academy/lessons/${lessonId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        })
+    }
+
+    async importAcademyContent(data: {
+        curriculumProposal: any
+        moduleContent: any
+        transformedContent: any
+    }): Promise<{
+        success: boolean
+        imported: {
+            paths: number
+            modules: number
+            lessons: number
+            quizQuestions: number
+        }
+    }> {
+        return this.request('/api/admin/academy/import', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            timeout: 120000, // 2 minutes for import
+        })
+    }
 }
 
 // Create singleton instance
