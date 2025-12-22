@@ -526,7 +526,10 @@ export function AcademyPreview({ accessToken }: AcademyPreviewProps) {
                         {/* Lesson Content */}
                         <article className="prose prose-sm dark:prose-invert max-w-none mb-12">
                             <ReactMarkdown>
-                                {selectedLesson.transformedContent || selectedLesson.content || ''}
+                                {(selectedLesson.transformedContent || selectedLesson.content || '')
+                                    // Remove image markdown since original images cannot be reused
+                                    // Future: Replace with AI-generated educational diagrams
+                                    .replace(/!\[.*?\]\(.*?\)/g, '')}
                             </ReactMarkdown>
                         </article>
 

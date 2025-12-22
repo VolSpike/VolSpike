@@ -272,14 +272,34 @@ Navigate to `/admin/academy` in your browser (requires admin login).
 
 ---
 
+## Important: Image Strategy
+
+**Original images from source documents cannot be reused** in the Academy. The image analysis performed during processing captures metadata about each image (chart type, timeframe, asset, annotations, key observations) for future reference.
+
+**Current Status**:
+- Image markdown references (`![image1](images/image1.png)`) are stripped from displayed content
+- Image analysis data is preserved in `image*-analysis.json` files for each lesson
+- The `AcademyImage` database model stores image analysis metadata
+
+**Future Implementation** (Phase 2+):
+1. Use image analysis metadata to generate replacement educational diagrams
+2. Options include:
+   - AI-generated chart illustrations based on analysis descriptions
+   - Simplified diagrams created by designers using analysis as spec
+   - Generic educational graphics that convey the same concepts
+3. Upload replacement images to CDN and update lesson content
+
+---
+
 ## Recommended Next Steps
 
-1. **RUN MIGRATION** - Execute Prisma migration to create database tables
-2. **IMPORT CONTENT** - Use import-payload.json to populate database
-3. **VERIFY** - Check admin UI at `/admin/academy`
+1. ~~**RUN MIGRATION**~~ - COMPLETE
+2. ~~**IMPORT CONTENT**~~ - COMPLETE
+3. ~~**VERIFY**~~ - COMPLETE via `/admin/academy` and `/admin/academy/preview`
 4. **DECIDE** - Approve to proceed with full 303 document processing
 5. **SCALE** - Run pipeline on complete dataset
 6. **PUBLIC FRONTEND** - Build user-facing Academy pages
+7. **IMAGE RECREATION** - Generate replacement images for lessons that need visual aids
 
 ---
 
