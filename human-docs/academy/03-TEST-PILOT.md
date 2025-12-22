@@ -72,6 +72,8 @@ test-output/
 
 ### Step 2: Analyze Images (20 total)
 
+**Important**: Original images cannot be reused in the Academy (copyrighted TradingView charts). Image analysis captures metadata for future replacement image creation.
+
 Send each image to Claude Vision with prompt:
 ```
 Analyze this TradingView chart image. Extract:
@@ -85,7 +87,7 @@ Analyze this TradingView chart image. Extract:
 Return as structured JSON.
 ```
 
-**Output**: `image-analysis.json` for each image
+**Output**: `image-analysis.json` for each image (used for future image recreation, NOT for display)
 
 ### Step 3: Summarize Content (12 docs)
 
@@ -135,10 +137,12 @@ You review the outputs and evaluate:
 |-----------|------|------|
 | Text extraction | Readable, structured markdown | Garbled or missing content |
 | Image extraction | All images saved correctly | Missing or corrupted images |
-| Image analysis | Accurately describes charts | Misses key annotations |
+| Image analysis | Accurately describes charts (for future recreation) | Misses key annotations |
 | Summarization | Captures main teaching points | Generic or inaccurate |
 | Topic tagging | Consistent, useful categories | Random or unhelpful tags |
 | Curriculum | Logical groupings suggested | Nonsensical organization |
+
+**Note on Images**: Image analysis quality is evaluated based on whether the metadata captured is sufficient to recreate equivalent educational visuals in the future. The original images will NOT be displayed in the Academy.
 
 ---
 

@@ -390,9 +390,46 @@ if (!canAccess) {
 
 ---
 
-## Image Hosting
+## Image Strategy
 
-### Options
+### Critical: Original Images Cannot Be Reused
+
+**The source document images are copyrighted TradingView charts and cannot be published in the Academy.** Image analysis is performed to capture metadata for future reference, but the original images will NOT be displayed.
+
+### Current Approach
+
+1. **Extract & Analyze** - Images are extracted and analyzed by Claude Vision to capture:
+   - Chart type, timeframe, asset
+   - Annotations (trend lines, support/resistance, entry/exit points)
+   - Key observations and teaching purpose
+
+2. **Store Metadata** - Analysis is saved in `AcademyImage` database records and JSON files
+
+3. **Strip from Display** - Image markdown (`![...]()`) is removed from lesson content in the frontend
+
+4. **Future: Create Replacements** - Options include:
+   - AI-generated educational diagrams based on analysis descriptions
+   - Designer-created simplified charts using analysis as specifications
+   - Generic educational graphics that convey the same concepts
+   - Stock trading images with appropriate licensing
+
+### Database Model
+
+The `AcademyImage` model stores analysis metadata for future image recreation:
+```prisma
+model AcademyImage {
+  id        String @id @default(cuid())
+  lessonId  String
+  filename  String
+  position  Int
+  altText   String
+  analysis  Json   // Chart type, timeframe, annotations, observations
+}
+```
+
+### Image Hosting (For Future Replacement Images)
+
+Options when replacement images are created:
 
 1. **Vercel Blob** - Simple, integrated with Next.js
 2. **Cloudinary** - Free tier, image optimization
