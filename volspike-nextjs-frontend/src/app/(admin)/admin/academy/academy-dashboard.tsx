@@ -208,6 +208,13 @@ export function AcademyDashboard({ accessToken }: AcademyDashboardProps) {
                     <p className="text-muted-foreground">Manage learning paths, modules, and lessons</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <a
+                        href="/admin/academy/preview"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                    >
+                        <Eye className="h-4 w-4" />
+                        <span className="text-sm font-medium">Preview as User</span>
+                    </a>
                     <label className="cursor-pointer">
                         <input
                             type="file"
