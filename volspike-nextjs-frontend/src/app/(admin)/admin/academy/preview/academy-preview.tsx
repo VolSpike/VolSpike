@@ -156,10 +156,10 @@ export function AcademyPreview({ accessToken }: AcademyPreviewProps) {
     const getAdjacentLessons = () => {
         if (!selectedPath || !selectedLesson) return { prev: null, next: null }
 
-        const allLessons: { lesson: Lesson; module: Module }[] = []
-        for (const module of selectedPath.modules) {
-            for (const lesson of module.lessons) {
-                allLessons.push({ lesson, module })
+        const allLessons: { lesson: Lesson; parentModule: Module }[] = []
+        for (const mod of selectedPath.modules) {
+            for (const les of mod.lessons) {
+                allLessons.push({ lesson: les, parentModule: mod })
             }
         }
 
@@ -356,7 +356,7 @@ export function AcademyPreview({ accessToken }: AcademyPreviewProps) {
                 {/* What You'll Learn */}
                 {selectedPath.whatYoullLearn && selectedPath.whatYoullLearn.length > 0 && (
                     <div className="max-w-6xl mx-auto px-4 pb-8">
-                        <h2 className="text-xl font-semibold mb-4">What you'll learn</h2>
+                        <h2 className="text-xl font-semibold mb-4">What you&apos;ll learn</h2>
                         <div className="grid md:grid-cols-2 gap-3">
                             {selectedPath.whatYoullLearn.map((item, i) => (
                                 <div key={i} className="flex items-start gap-3">
@@ -460,17 +460,17 @@ export function AcademyPreview({ accessToken }: AcademyPreviewProps) {
                                         Module {moduleIndex + 1}
                                     </h3>
                                     <div className="space-y-1">
-                                        {module.lessons.map((lesson) => (
+                                        {module.lessons.map((lessonItem) => (
                                             <button
-                                                key={lesson.id}
-                                                onClick={() => selectLesson(lesson.id)}
+                                                key={lessonItem.id}
+                                                onClick={() => selectLesson(lessonItem.id)}
                                                 className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                                                    selectedLesson.id === lesson.id
+                                                    selectedLesson.id === lessonItem.id
                                                         ? 'bg-blue-500/10 text-blue-500 font-medium'
                                                         : 'hover:bg-accent text-muted-foreground hover:text-foreground'
                                                 }`}
                                             >
-                                                {lesson.title}
+                                                {lessonItem.title}
                                             </button>
                                         ))}
                                     </div>
