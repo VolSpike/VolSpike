@@ -42,6 +42,7 @@ export function useUserAlerts() {
         },
         enabled: !!session?.user?.id,
         staleTime: 30000, // 30 seconds
+        refetchOnMount: true,
     })
 
     const alerts: UserAlert[] = alertsData?.alerts || []
