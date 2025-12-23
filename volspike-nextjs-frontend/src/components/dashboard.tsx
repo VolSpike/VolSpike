@@ -130,7 +130,7 @@ export function Dashboard() {
 
     // Alert builder handlers (defined early to avoid hoisting issues)
     const handleCreateAlert = (symbol: string) => {
-        setAlertBuilderSymbol(symbol.replace(/USDT$/i, ''))
+        setAlertBuilderSymbol(symbol)
         setAlertBuilderOpen(true)
     }
 

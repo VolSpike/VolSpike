@@ -16,6 +16,8 @@ export interface UserAlert {
     createdAt: string
 }
 
+const normalizeSymbol = (symbol: string) => symbol.toUpperCase().replace(/USDT$/i, '')
+
 export function useUserAlerts() {
     const { data: session } = useSession()
     const queryClient = useQueryClient()
@@ -51,22 +53,24 @@ export function useUserAlerts() {
 
     // Create a set of symbols with active alerts for quick lookup
     const symbolsWithActiveAlerts = useMemo(() => {
-        return new Set(activeAlerts.map(a => a.symbol.toUpperCase()))
+        return new Set(activeAlerts.map(a => normalizeSymbol(a.symbol)))
     }, [activeAlerts])
 
     // Check if a symbol has an active alert
     const hasActiveAlert = useCallback((symbol: string) => {
-        return symbolsWithActiveAlerts.has(symbol.toUpperCase())
+        return symbolsWithActiveAlerts.has(normalizeSymbol(symbol))
     }, [symbolsWithActiveAlerts])
 
     // Get alerts for a specific symbol
     const getAlertsForSymbol = useCallback((symbol: string) => {
-        return alerts.filter(a => a.symbol.toUpperCase() === symbol.toUpperCase())
+        const normalized = normalizeSymbol(symbol)
+        return alerts.filter(a => normalizeSymbol(a.symbol) === normalized)
     }, [alerts])
 
     // Get active alerts for a specific symbol
     const getActiveAlertsForSymbol = useCallback((symbol: string) => {
-        return activeAlerts.filter(a => a.symbol.toUpperCase() === symbol.toUpperCase())
+        const normalized = normalizeSymbol(symbol)
+        return activeAlerts.filter(a => normalizeSymbol(a.symbol) === normalized)
     }, [activeAlerts])
 
     // Delete alert mutation

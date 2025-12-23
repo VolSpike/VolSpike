@@ -92,17 +92,7 @@ export function MarketTable({
 }: MarketTableProps) {
     const { data: session } = useSession()
     const { watchlists, addSymbol, removeSymbol } = useWatchlists()
-    const { activeAlerts } = useUserAlerts()
-
-    // Create a set of symbols with active alerts for quick lookup (same pattern as watchlist)
-    const symbolsWithActiveAlerts = useMemo(() => {
-        return new Set(activeAlerts.map(a => a.symbol.toUpperCase()))
-    }, [activeAlerts])
-
-    // Check if a symbol has an active alert
-    const hasActiveAlert = useCallback((symbol: string) => {
-        return symbolsWithActiveAlerts.has(symbol.toUpperCase())
-    }, [symbolsWithActiveAlerts])
+    const { hasActiveAlert } = useUserAlerts()
     const queryClient = useQueryClient()
     type SortColumn = 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest' | 'watchlist'
     const DEFAULT_SORT: { column: SortColumn; order: 'asc' | 'desc' } = { column: 'volume', order: 'desc' }
