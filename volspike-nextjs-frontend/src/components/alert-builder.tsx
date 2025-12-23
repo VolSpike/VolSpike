@@ -30,6 +30,7 @@ import {
     BarChart3,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { useUserAlerts } from '@/hooks/use-user-alerts'
 
 interface AlertBuilderProps {
     open: boolean
@@ -75,11 +76,11 @@ const alertTypes = [
 
 export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free' }: AlertBuilderProps) {
     const { data: session } = useSession()
+    const { createAlertAsync, isCreating } = useUserAlerts()
     const [selectedType, setSelectedType] = useState<AlertType>('PRICE_CROSS')
     const [alertValue, setAlertValue] = useState('')
     const [displayValue, setDisplayValue] = useState('') // Formatted display value
     const [deliveryMethod, setDeliveryMethod] = useState<'DASHBOARD' | 'EMAIL' | 'BOTH'>('DASHBOARD')
-    const [isCreating, setIsCreating] = useState(false)
 
     const currentType = alertTypes.find(t => t.id === selectedType)
 
@@ -147,11 +148,7 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
             return
         }
 
-        setIsCreating(true)
         try {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const token = session.user.id
-
             // Convert value based on alert type
             let threshold = parseFloat(alertValue)
             if (selectedType === 'FUNDING_CROSS') {
@@ -159,27 +156,12 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                 threshold = threshold / 100
             }
 
-            const response = await fetch(`${API_URL}/api/user-alerts`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    symbol: symbol.toUpperCase(),
-                    alertType: selectedType,
-                    threshold,
-                    deliveryMethod,
-                }),
+            await createAlertAsync({
+                symbol: symbol.toUpperCase(),
+                alertType: selectedType,
+                threshold,
+                deliveryMethod,
             })
-
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to create alert')
-            }
-
-            const alert = await response.json()
 
             toast.success(
                 `Alert created! You'll be notified when ${symbol} ${currentType?.name.toLowerCase()} crosses ${alertValue}${currentType?.unit}`,
@@ -190,8 +172,6 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to create alert'
             toast.error(errorMessage)
-        } finally {
-            setIsCreating(false)
         }
     }
 

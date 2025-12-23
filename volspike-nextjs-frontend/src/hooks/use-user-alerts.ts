@@ -148,6 +148,34 @@ export function useUserAlerts() {
         },
     })
 
+    // Create alert mutation
+    const createMutation = useMutation({
+        mutationFn: async (data: { symbol: string; alertType: string; threshold: number; deliveryMethod: string }) => {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+            const token = session?.user?.id
+
+            const response = await fetch(`${API_URL}/api/user-alerts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                credentials: 'include',
+                body: JSON.stringify(data),
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.error || 'Failed to create alert')
+            }
+
+            return response.json()
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['user-cross-alerts'] })
+        },
+    })
+
     return {
         alerts,
         activeAlerts,
@@ -167,5 +195,8 @@ export function useUserAlerts() {
         updateAlert: updateMutation.mutate,
         updateAlertAsync: updateMutation.mutateAsync,
         isUpdating: updateMutation.isPending,
+        createAlert: createMutation.mutate,
+        createAlertAsync: createMutation.mutateAsync,
+        isCreating: createMutation.isPending,
     }
 }
