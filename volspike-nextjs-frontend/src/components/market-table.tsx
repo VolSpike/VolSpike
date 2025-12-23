@@ -37,6 +37,7 @@ import { OITeaserCell, OITeaserHeader } from '@/components/oi-teaser-cell'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
+import { useUserAlerts } from '@/hooks/use-user-alerts'
 
 const FUNDING_ALERT_THRESHOLD = 0.0003
 
@@ -91,6 +92,7 @@ export function MarketTable({
 }: MarketTableProps) {
     const { data: session } = useSession()
     const { watchlists, addSymbol, removeSymbol } = useWatchlists()
+    const { hasActiveAlert } = useUserAlerts()
     const queryClient = useQueryClient()
     type SortColumn = 'symbol' | 'volume' | 'change' | 'price' | 'funding' | 'openInterest' | 'watchlist'
     const DEFAULT_SORT: { column: SortColumn; order: 'asc' | 'desc' } = { column: 'volume', order: 'desc' }
@@ -1194,18 +1196,32 @@ export function MarketTable({
                                                 </Button>
                                                     </div>
                                                 )}
-                                                {/* Bell icon: Always hover-only on desktop, always visible on mobile */}
-                                                <div className="pointer-events-none opacity-100 md:opacity-0 md:group-hover/row:opacity-100 transition-opacity duration-150">
+                                                {/* Bell icon: Always visible if has alert, otherwise hover-only on desktop */}
+                                                {session?.user && !guestMode && (
+                                                    <div className={`pointer-events-none ${
+                                                        hasActiveAlert(item.symbol)
+                                                            ? 'opacity-100' // Always visible if has active alert
+                                                            : 'opacity-100 md:opacity-0 md:group-hover/row:opacity-100' // Hover-only on desktop if no alert
+                                                    } transition-opacity duration-150`}>
                                                 <Button
-                                                    className="pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400"
+                                                    className={`pointer-events-auto h-7 w-7 hover:bg-sec-500/10 hover:text-sec-600 dark:hover:text-sec-400 ${
+                                                        hasActiveAlert(item.symbol)
+                                                            ? 'text-sec-600 dark:text-sec-400'
+                                                            : ''
+                                                    }`}
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={(e) => handleCreateAlert(e, item)}
-                                                    title="Create alert"
+                                                    title={hasActiveAlert(item.symbol) ? 'Manage alerts' : 'Create alert'}
                                                 >
-                                                    <Bell className="h-3.5 w-3.5 opacity-30 md:opacity-100 text-muted-foreground/40 md:text-foreground" />
+                                                    <Bell className={`h-3.5 w-3.5 ${
+                                                        hasActiveAlert(item.symbol)
+                                                            ? 'fill-sec-500 text-sec-600 dark:text-sec-400'
+                                                            : 'opacity-30 md:opacity-100 text-muted-foreground/40 md:text-foreground'
+                                                    }`} />
                                                 </Button>
                                                 </div>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

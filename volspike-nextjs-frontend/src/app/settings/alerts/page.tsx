@@ -2,11 +2,27 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 import {
     Bell,
     Trash2,
@@ -17,21 +33,11 @@ import {
     Mail,
     Monitor,
     AlertCircle,
+    Pencil,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
-
-interface UserAlert {
-    id: string
-    symbol: string
-    alertType: 'PRICE_CROSS' | 'FUNDING_CROSS' | 'OI_CROSS'
-    threshold: number
-    isActive: boolean
-    deliveryMethod: 'DASHBOARD' | 'EMAIL' | 'BOTH'
-    triggeredAt: string | null
-    triggeredValue: number | null
-    createdAt: string
-}
+import { useUserAlerts, type UserAlert } from '@/hooks/use-user-alerts'
 
 const ALERT_TYPE_ICONS: Record<string, any> = {
     PRICE_CROSS: TrendingUp,
@@ -47,35 +53,29 @@ const ALERT_TYPE_NAMES: Record<string, string> = {
 
 export default function AlertsPage() {
     const { data: session } = useSession()
-    const queryClient = useQueryClient()
     const [activeTab, setActiveTab] = useState('active')
 
-    // Fetch alerts
-    const { data: alertsData, isLoading } = useQuery({
-        queryKey: ['user-cross-alerts'],
-        queryFn: async () => {
-            if (!session?.user?.id) throw new Error('Not authenticated')
+    // Dialog states
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+    const [selectedAlert, setSelectedAlert] = useState<UserAlert | null>(null)
+    const [editThreshold, setEditThreshold] = useState('')
+    const [editDisplayThreshold, setEditDisplayThreshold] = useState('')
+    const [editDeliveryMethod, setEditDeliveryMethod] = useState<'DASHBOARD' | 'EMAIL' | 'BOTH'>('DASHBOARD')
 
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const token = session.user.id
-
-            const response = await fetch(`${API_URL}/api/user-alerts`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include',
-            })
-
-            if (!response.ok) throw new Error('Failed to fetch alerts')
-
-            return response.json()
-        },
-        enabled: !!session?.user?.id,
-    })
-
-    const alerts: UserAlert[] = alertsData?.alerts || []
-    const activeAlerts = alerts.filter(a => a.isActive)
-    const inactiveAlerts = alerts.filter(a => !a.isActive)
+    // Use the centralized hook
+    const {
+        alerts,
+        activeAlerts,
+        inactiveAlerts,
+        isLoading,
+        deleteAlertAsync,
+        isDeleting,
+        reactivateAlert,
+        isReactivating,
+        updateAlertAsync,
+        isUpdating,
+    } = useUserAlerts()
 
     // Get user tier info
     const userTier = (session?.user as any)?.tier || 'free'
@@ -85,66 +85,99 @@ export default function AlertsPage() {
         elite: 999999,
     }
     const maxAlerts = tierLimits[userTier] || 3
+    const canUseEmail = userTier === 'pro' || userTier === 'elite'
 
-    // Delete mutation
-    const deleteMutation = useMutation({
-        mutationFn: async (alertId: string) => {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const token = session?.user?.id
+    // Format number with thousand separators
+    const formatNumberWithCommas = (value: string): string => {
+        const cleaned = value.replace(/[^\d.]/g, '')
+        const parts = cleaned.split('.')
+        const integerPart = parts[0]
+        const decimalPart = parts[1]
+        const formatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+        return decimalPart !== undefined ? `${formatted}.${decimalPart}` : formatted
+    }
 
-            const response = await fetch(`${API_URL}/api/user-alerts/${alertId}`, {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include',
-            })
+    const unformatNumber = (value: string): string => {
+        return value.replace(/,/g, '')
+    }
 
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to delete alert')
+    const handleEditThresholdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const input = e.target.value
+        const unformatted = unformatNumber(input)
+
+        if (selectedAlert?.alertType === 'FUNDING_CROSS') {
+            setEditThreshold(input)
+            setEditDisplayThreshold(input)
+        } else {
+            setEditThreshold(unformatted)
+            setEditDisplayThreshold(formatNumberWithCommas(input))
+        }
+    }
+
+    const openEditDialog = (alert: UserAlert) => {
+        setSelectedAlert(alert)
+        // Format threshold for display
+        if (alert.alertType === 'FUNDING_CROSS') {
+            const displayValue = (alert.threshold * 100).toFixed(4)
+            setEditThreshold(displayValue)
+            setEditDisplayThreshold(displayValue)
+        } else {
+            const displayValue = alert.threshold.toString()
+            setEditThreshold(displayValue)
+            setEditDisplayThreshold(formatNumberWithCommas(displayValue))
+        }
+        setEditDeliveryMethod(alert.deliveryMethod)
+        setEditDialogOpen(true)
+    }
+
+    const handleEdit = async () => {
+        if (!selectedAlert) return
+
+        try {
+            let threshold = parseFloat(editThreshold)
+            if (selectedAlert.alertType === 'FUNDING_CROSS') {
+                threshold = threshold / 100
             }
 
-            return response.json()
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['user-cross-alerts'] })
+            await updateAlertAsync({
+                alertId: selectedAlert.id,
+                data: {
+                    threshold,
+                    deliveryMethod: editDeliveryMethod,
+                },
+            })
+            toast.success('Alert updated successfully')
+            setEditDialogOpen(false)
+            setSelectedAlert(null)
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update alert')
+        }
+    }
+
+    const openDeleteDialog = (alert: UserAlert) => {
+        setSelectedAlert(alert)
+        setDeleteDialogOpen(true)
+    }
+
+    const handleDelete = async () => {
+        if (!selectedAlert) return
+
+        try {
+            await deleteAlertAsync(selectedAlert.id)
             toast.success('Alert deleted successfully')
-        },
-        onError: (error: Error) => {
-            toast.error(error.message)
-        },
-    })
+            setDeleteDialogOpen(false)
+            setSelectedAlert(null)
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to delete alert')
+        }
+    }
 
-    // Reactivate mutation
-    const reactivateMutation = useMutation({
-        mutationFn: async (alertId: string) => {
-            const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const token = session?.user?.id
-
-            const response = await fetch(`${API_URL}/api/user-alerts/${alertId}/reactivate`, {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include',
-            })
-
-            if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to reactivate alert')
-            }
-
-            return response.json()
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['user-cross-alerts'] })
-            toast.success('Alert reactivated successfully')
-        },
-        onError: (error: Error) => {
-            toast.error(error.message)
-        },
-    })
+    const handleReactivate = (alertId: string) => {
+        reactivateAlert(alertId, {
+            onSuccess: () => toast.success('Alert reactivated successfully'),
+            onError: (error) => toast.error(error.message),
+        })
+    }
 
     const formatValue = (value: number, type: string): string => {
         if (type === 'PRICE_CROSS' || type === 'OI_CROSS') {
@@ -231,22 +264,26 @@ export default function AlertsPage() {
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => reactivateMutation.mutate(alert.id)}
-                                    disabled={reactivateMutation.isPending}
+                                    onClick={() => handleReactivate(alert.id)}
+                                    disabled={isReactivating}
                                 >
-                                    <RefreshCw className={`h-4 w-4 mr-2 ${reactivateMutation.isPending ? 'animate-spin' : ''}`} />
+                                    <RefreshCw className={`h-4 w-4 mr-2 ${isReactivating ? 'animate-spin' : ''}`} />
                                     Reactivate
                                 </Button>
                             )}
                             <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                    if (confirm('Are you sure you want to delete this alert?')) {
-                                        deleteMutation.mutate(alert.id)
-                                    }
-                                }}
-                                disabled={deleteMutation.isPending}
+                                onClick={() => openEditDialog(alert)}
+                                title="Edit alert"
+                            >
+                                <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openDeleteDialog(alert)}
+                                title="Delete alert"
                             >
                                 <Trash2 className="h-4 w-4 text-danger-600 dark:text-danger-400" />
                             </Button>
@@ -371,6 +408,128 @@ export default function AlertsPage() {
                     </TabsContent>
                 </Tabs>
             </div>
+
+            {/* Edit Alert Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Edit Alert</DialogTitle>
+                        <DialogDescription>
+                            Update the threshold value or delivery method for your {selectedAlert && formatSymbol(selectedAlert.symbol)} {selectedAlert && ALERT_TYPE_NAMES[selectedAlert.alertType]} alert.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-threshold">
+                                Value ({selectedAlert?.alertType === 'FUNDING_CROSS' ? '%' : '$'})
+                            </Label>
+                            <Input
+                                id="edit-threshold"
+                                type="text"
+                                inputMode="decimal"
+                                value={editDisplayThreshold}
+                                onChange={handleEditThresholdChange}
+                                onFocus={(e) => e.target.select()}
+                                className="font-mono-tabular"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Delivery Method</Label>
+                            <Select
+                                value={editDeliveryMethod}
+                                onValueChange={(value: any) => setEditDeliveryMethod(value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="DASHBOARD">
+                                        Dashboard Notifications
+                                    </SelectItem>
+                                    <SelectItem value="EMAIL" disabled={!canUseEmail}>
+                                        <span className="flex items-center gap-2">
+                                            Email
+                                            {!canUseEmail && (
+                                                <Badge variant="outline" className="text-[10px] ml-auto">
+                                                    Pro+
+                                                </Badge>
+                                            )}
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem value="BOTH" disabled={!canUseEmail}>
+                                        <span className="flex items-center gap-2">
+                                            Dashboard + Email
+                                            {!canUseEmail && (
+                                                <Badge variant="outline" className="text-[10px] ml-auto">
+                                                    Pro+
+                                                </Badge>
+                                            )}
+                                        </span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleEdit} disabled={isUpdating}>
+                            {isUpdating ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Delete Alert</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this alert? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedAlert && (
+                        <div className="py-4">
+                            <Card className="bg-muted/50">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center gap-3">
+                                        {(() => {
+                                            const Icon = ALERT_TYPE_ICONS[selectedAlert.alertType]
+                                            return (
+                                                <div className="p-2 rounded-md bg-brand-500/10">
+                                                    <Icon className="h-5 w-5 text-brand-600 dark:text-brand-400" />
+                                                </div>
+                                            )
+                                        })()}
+                                        <div>
+                                            <p className="font-semibold">
+                                                {formatSymbol(selectedAlert.symbol)} - {ALERT_TYPE_NAMES[selectedAlert.alertType]}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Threshold: {formatValue(selectedAlert.threshold, selectedAlert.alertType)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete Alert'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
