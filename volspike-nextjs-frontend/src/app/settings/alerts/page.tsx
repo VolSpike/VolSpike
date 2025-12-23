@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { HeaderWithBanner } from '@/components/header-with-banner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -296,23 +297,28 @@ export default function AlertsPage() {
 
     if (!session) {
         return (
-            <div className="container max-w-4xl py-8">
-                <Card>
-                    <CardContent className="p-12 text-center">
-                        <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                        <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
-                        <p className="text-muted-foreground">
-                            Please sign in to manage your alerts.
-                        </p>
-                    </CardContent>
-                </Card>
+            <div className="flex-1 bg-background">
+                <HeaderWithBanner />
+                <main className="container mx-auto px-4 py-8 max-w-4xl">
+                    <Card>
+                        <CardContent className="p-12 text-center">
+                            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+                            <p className="text-muted-foreground">
+                                Please sign in to manage your alerts.
+                            </p>
+                        </CardContent>
+                    </Card>
+                </main>
             </div>
         )
     }
 
     return (
-        <div className="container max-w-4xl py-8">
-            <div className="space-y-6">
+        <div className="flex-1 bg-background">
+            <HeaderWithBanner />
+            <main className="container mx-auto px-4 py-8 max-w-4xl">
+                <div className="space-y-6">
                 <div>
                     <h1 className="text-3xl font-bold mb-2">Alerts</h1>
                     <p className="text-muted-foreground">
@@ -407,7 +413,8 @@ export default function AlertsPage() {
                         )}
                     </TabsContent>
                 </Tabs>
-            </div>
+                </div>
+            </main>
 
             {/* Edit Alert Dialog */}
             <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

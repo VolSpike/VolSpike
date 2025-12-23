@@ -149,6 +149,9 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
         }
 
         try {
+            const upperSymbol = symbol.toUpperCase()
+            const alertSymbol = upperSymbol.endsWith('USDT') ? upperSymbol : `${upperSymbol}USDT`
+
             // Convert value based on alert type
             let threshold = parseFloat(alertValue)
             if (selectedType === 'FUNDING_CROSS') {
@@ -157,14 +160,19 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
             }
 
             await createAlertAsync({
-                symbol: symbol.toUpperCase(),
+                symbol: alertSymbol,
                 alertType: selectedType,
                 threshold,
                 deliveryMethod,
             })
 
+            // Format the value with proper unit placement
+            const formattedValue = currentType?.unit === '$'
+                ? `$${alertValue}`
+                : `${alertValue}${currentType?.unit}`
+
             toast.success(
-                `Alert created! You'll be notified when ${symbol} ${currentType?.name.toLowerCase()} crosses ${alertValue}${currentType?.unit}`,
+                `Alert created! You'll be notified when ${displaySymbol} ${currentType?.name.toLowerCase()} crosses ${formattedValue}`,
                 { duration: 5000 }
             )
 
