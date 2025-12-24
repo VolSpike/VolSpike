@@ -361,9 +361,17 @@ Users can set custom alerts for specific conditions.
 enum CrossAlertType {
   PRICE_CROSS    // Price crosses threshold
   FUNDING_CROSS  // Funding rate crosses threshold
-  OI_CROSS       // OI crosses threshold
+  OI_CROSS       // OI crosses threshold (Pro+ only)
 }
 ```
+
+### Tier-Based Alert Checking
+
+| Tier | Check Interval | OI Alerts |
+|------|----------------|-----------|
+| Free | Every 5 minutes | Not available |
+| Pro | Every 30 seconds | Available |
+| Elite | Every 30 seconds | Available |
 
 ### Data Model
 
@@ -371,7 +379,7 @@ enum CrossAlertType {
 model UserCrossAlert {
   id               String             @id @default(cuid())
   userId           String
-  symbol           String
+  symbol           String             // Always stored as BTCUSDT format
   alertType        CrossAlertType
   threshold        Float
   lastCheckedValue Float?
@@ -387,12 +395,61 @@ model UserCrossAlert {
 
 enum AlertDeliveryMethod {
   DASHBOARD  // In-app only
-  EMAIL      // Email notification
-  BOTH       // Dashboard + Email
+  EMAIL      // Email notification (Pro+ only)
+  BOTH       // Dashboard + Email (Pro+ only)
 }
 ```
 
-### Alert Checking
+### Symbol Normalization (CRITICAL)
+
+**Problem**: Market data uses `BTCUSDT` format, but users might create alerts with `BTC` or `btcusdt`.
+
+**Solution**: The `useUserAlerts` hook normalizes symbols for matching:
+
+```typescript
+// In use-user-alerts.ts
+const normalizeSymbol = (symbol: string) => symbol.toUpperCase().replace(/USDT$/i, '')
+
+// When checking if symbol has alert:
+const hasActiveAlert = (symbol: string) => {
+  return symbolsWithActiveAlerts.has(normalizeSymbol(symbol))
+}
+```
+
+**Storage**: Alerts are always stored with full `BTCUSDT` format:
+
+```typescript
+// In alert-builder.tsx
+const upperSymbol = symbol.toUpperCase()
+const alertSymbol = upperSymbol.endsWith('USDT') ? upperSymbol : `${upperSymbol}USDT`
+```
+
+This ensures:
+1. Bell icon in market table lights up correctly (compares `BTC` to `BTC`)
+2. Backend checker can match alerts to Binance data (uses `BTCUSDT`)
+3. Legacy alerts (stored as `BTC`) still work (normalized to `BTC`)
+
+### Bell Icon State Sync
+
+The bell icon in the market table indicates if a symbol has an active alert:
+
+```typescript
+// In market-table.tsx
+const { hasActiveAlert } = useUserAlerts()
+
+// Bell icon styling
+<Bell className={hasActiveAlert(item.symbol)
+  ? 'fill-sec-500 text-sec-600'  // Filled = has alert
+  : 'text-muted-foreground'       // Outline = no alert
+} />
+```
+
+The `useUserAlerts` hook uses TanStack Query with cache invalidation:
+- Creating an alert invalidates `['user-cross-alerts']` query
+- Market table re-renders with updated `hasActiveAlert` function
+- Bell icon immediately reflects new state
+
+### Alert Checking Script
 
 Located in `Digital Ocean/user_alert_checker.py`:
 

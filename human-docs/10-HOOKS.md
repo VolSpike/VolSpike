@@ -2,9 +2,9 @@
 
 ## Overview
 
-VolSpike has 25 custom React hooks that handle data fetching, authentication, real-time connections, and UI state. This document provides comprehensive documentation based on actual code review.
+VolSpike has 26 custom React hooks that handle data fetching, authentication, real-time connections, and UI state. This document provides comprehensive documentation based on actual code review.
 
-**Total Hooks**: 25 files in `/volspike-nextjs-frontend/src/hooks/`
+**Total Hooks**: 26 files in `/volspike-nextjs-frontend/src/hooks/`
 
 ---
 
@@ -271,6 +271,83 @@ function useUserAlertListener(): void
 - Shows toast notification (react-hot-toast, 8s duration)
 - Requests browser notification permission on first alert
 - Shows browser notification if permitted
+
+---
+
+### useUserAlerts
+
+**File:** `src/hooks/use-user-alerts.ts`
+
+Centralized hook for managing user cross alerts (price, funding, OI). Used by market table for bell icon state and alerts page for CRUD operations.
+
+**Signature:**
+```typescript
+function useUserAlerts(): {
+  // Data
+  alerts: UserAlert[]
+  activeAlerts: UserAlert[]
+  inactiveAlerts: UserAlert[]
+  isLoading: boolean
+  error: Error | null
+
+  // Symbol checking
+  hasActiveAlert: (symbol: string) => boolean
+  getAlertsForSymbol: (symbol: string) => UserAlert[]
+  getActiveAlertsForSymbol: (symbol: string) => UserAlert[]
+  symbolsWithActiveAlerts: Set<string>
+
+  // Mutations
+  createAlert: (data: CreateAlertData) => void
+  createAlertAsync: (data: CreateAlertData) => Promise<UserAlert>
+  deleteAlert: (alertId: string) => void
+  deleteAlertAsync: (alertId: string) => Promise<void>
+  updateAlert: (params: { alertId: string; data: UpdateData }) => void
+  updateAlertAsync: (params: { alertId: string; data: UpdateData }) => Promise<void>
+  reactivateAlert: (alertId: string) => void
+  reactivateAlertAsync: (alertId: string) => Promise<void>
+
+  // Loading states
+  isCreating: boolean
+  isDeleting: boolean
+  isUpdating: boolean
+  isReactivating: boolean
+}
+```
+
+**Symbol Normalization (CRITICAL):**
+
+The hook normalizes symbols to ensure bell icon state syncs correctly:
+
+```typescript
+const normalizeSymbol = (symbol: string) => symbol.toUpperCase().replace(/USDT$/i, '')
+
+// hasActiveAlert('BTCUSDT') matches alert stored as 'BTC' or 'BTCUSDT'
+```
+
+**Query Key:** `['user-cross-alerts']`
+
+All mutations invalidate this key on success, causing immediate UI updates.
+
+**API Calls:**
+- `GET /api/user-alerts` - Fetch user's alerts
+- `POST /api/user-alerts` - Create alert
+- `PUT /api/user-alerts/:id` - Update alert
+- `DELETE /api/user-alerts/:id` - Delete alert
+- `POST /api/user-alerts/:id/reactivate` - Reactivate triggered alert
+
+**Usage:**
+```typescript
+// In market-table.tsx - bell icon highlighting
+const { hasActiveAlert } = useUserAlerts()
+<Bell className={hasActiveAlert(item.symbol) ? 'fill-current' : ''} />
+
+// In alert-builder.tsx - creating alerts
+const { createAlertAsync, isCreating } = useUserAlerts()
+await createAlertAsync({ symbol: 'BTCUSDT', alertType: 'PRICE_CROSS', threshold: 50000 })
+
+// In alerts page - managing alerts
+const { activeAlerts, deleteAlertAsync, updateAlertAsync } = useUserAlerts()
+```
 
 ---
 
@@ -795,7 +872,7 @@ function useTelegramMessages(options?: {
 | Category | Count | Hooks |
 |----------|-------|-------|
 | **Market Data** | 3 | useClientOnlyMarketData, useMarketData (legacy), useBinanceWebSocket (legacy) |
-| **Alerts** | 5 | useVolumeAlerts, useOIAlerts, useAlertSounds, useUserAlertListener, useBrowserNotifications |
+| **Alerts** | 6 | useVolumeAlerts, useOIAlerts, useAlertSounds, useUserAlertListener, useUserAlerts, useBrowserNotifications |
 | **Authentication** | 5 | useWalletAuth, useSolanaAuth, usePhantomConnect, useUserIdentity, useEnforceSingleIdentity |
 | **Real-Time** | 3 | useSocket, useTierChangeListener, useUserDeletionListener |
 | **Features** | 5 | useWatchlists, usePromoCode, useAssetDetection, useAssetProfile |
