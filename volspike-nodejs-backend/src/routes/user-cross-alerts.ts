@@ -102,6 +102,23 @@ userCrossAlerts.post('/', async (c) => {
             }, 403)
         }
 
+        // Check for duplicate alert with same threshold
+        const existing = await prisma.userCrossAlert.findFirst({
+            where: {
+                userId: user.id,
+                symbol,
+                alertType,
+                threshold,
+                isActive: true,
+            }
+        })
+
+        if (existing) {
+            return c.json({
+                error: `You already have an active alert for ${symbol} at this threshold`,
+            }, 409)
+        }
+
         // Create alert
         const alert = await prisma.userCrossAlert.create({
             data: {
