@@ -65,7 +65,8 @@ export async function broadcastUserAlert(payload: UserAlertPayload) {
         }
 
         // Broadcast to user's personal room
-        const userRoom = `user:${payload.userId}`
+        // Note: Room name uses hyphen to match handlers.ts socket.join(`user-${userId}`)
+        const userRoom = `user-${payload.userId}`
         ioInstance.to(userRoom).emit('user-alert-triggered', message)
 
         logger.info('User alert broadcasted via Socket.IO', {
