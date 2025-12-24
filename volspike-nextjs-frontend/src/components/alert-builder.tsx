@@ -41,6 +41,7 @@ interface AlertBuilderProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     symbol?: string
+    seedPrice?: number
     userTier?: 'free' | 'pro' | 'elite'
 }
 
@@ -79,7 +80,7 @@ const alertTypes = [
     },
 ]
 
-export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free' }: AlertBuilderProps) {
+export function AlertBuilder({ open, onOpenChange, symbol = '', seedPrice, userTier = 'free' }: AlertBuilderProps) {
     const { data: session } = useSession()
     const {
         createAlertAsync,
@@ -309,6 +310,9 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                 alertType: selectedType,
                 threshold,
                 deliveryMethod,
+                lastCheckedValue: selectedType === 'PRICE_CROSS' && Number.isFinite(seedPrice ?? NaN)
+                    ? seedPrice
+                    : undefined,
             })
 
             // Format the value with proper unit placement
@@ -354,7 +358,7 @@ export function AlertBuilder({ open, onOpenChange, symbol = '', userTier = 'free
                 </SheetHeader>
 
                 <div className="space-y-6 py-6">
-                    {symbol && (
+                    {symbol && symbolAlerts.length > 0 && (
                         <div className="rounded-xl border border-border/50 bg-gradient-to-br from-brand-500/8 via-background/80 to-sec-500/10 p-4 shadow-sm">
                             <div className="flex items-start justify-between gap-4">
                                 <div>

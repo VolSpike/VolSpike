@@ -15,6 +15,7 @@ const createCrossAlertSchema = z.object({
     alertType: z.enum(['PRICE_CROSS', 'FUNDING_CROSS', 'OI_CROSS']),
     threshold: z.number().positive(),
     deliveryMethod: z.enum(['DASHBOARD', 'EMAIL', 'BOTH']).optional().default('DASHBOARD'),
+    lastCheckedValue: z.number().finite().optional(),
 })
 
 const updateCrossAlertSchema = z.object({
@@ -68,7 +69,7 @@ userCrossAlerts.post('/', async (c) => {
     try {
         const user = requireUser(c)
         const body = await c.req.json()
-        const { symbol, alertType, threshold, deliveryMethod } = createCrossAlertSchema.parse(body)
+        const { symbol, alertType, threshold, deliveryMethod, lastCheckedValue } = createCrossAlertSchema.parse(body)
 
         // Check tier limits
         const userTier = user.tier || 'free'
@@ -125,6 +126,8 @@ userCrossAlerts.post('/', async (c) => {
                 alertType,
                 threshold,
                 deliveryMethod: deliveryMethod || 'DASHBOARD',
+                lastCheckedValue,
+                lastCheckedAt: lastCheckedValue !== undefined ? new Date() : undefined,
             },
         })
 

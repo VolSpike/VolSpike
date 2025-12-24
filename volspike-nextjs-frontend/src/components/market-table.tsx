@@ -59,7 +59,7 @@ interface MarketTableProps {
     withContainer?: boolean
     lastUpdate?: number
     isConnected?: boolean
-    onCreateAlert?: (symbol: string) => void
+    onCreateAlert?: (symbol: string, currentPrice?: number) => void
     openInterestAsOf?: number
     // Guest preview controls
     guestMode?: boolean
@@ -704,7 +704,7 @@ export function MarketTable({
     const handleCreateAlert = (e: React.MouseEvent, item: MarketData) => {
         e.stopPropagation()
         if (onCreateAlert) {
-            onCreateAlert(item.symbol)
+            onCreateAlert(item.symbol, item.price)
         }
     }
 
@@ -1448,7 +1448,7 @@ export function MarketTable({
                                         className="w-full bg-sec-600 hover:bg-sec-700 text-white"
                                         onClick={() => {
                                             if (onCreateAlert) {
-                                                onCreateAlert(selectedSymbol.symbol)
+                                                onCreateAlert(selectedSymbol.symbol, selectedSymbol.price)
                                                 setSelectedSymbol(null)
                                             }
                                         }}

@@ -37,6 +37,7 @@ export function Dashboard() {
     const [alerts, setAlerts] = useState<any[]>([])
     const [alertBuilderOpen, setAlertBuilderOpen] = useState(false)
     const [alertBuilderSymbol, setAlertBuilderSymbol] = useState('')
+    const [alertBuilderSeedPrice, setAlertBuilderSeedPrice] = useState<number | undefined>(undefined)
     const [currentTab, setCurrentTab] = useState<'market' | 'alerts'>(() => {
         if (typeof window === 'undefined') {
             return 'market'
@@ -129,8 +130,9 @@ export function Dashboard() {
     }, [])
 
     // Alert builder handlers (defined early to avoid hoisting issues)
-    const handleCreateAlert = (symbol: string) => {
+    const handleCreateAlert = (symbol: string, currentPrice?: number) => {
         setAlertBuilderSymbol(symbol)
+        setAlertBuilderSeedPrice(typeof currentPrice === 'number' ? currentPrice : undefined)
         setAlertBuilderOpen(true)
     }
 
@@ -398,6 +400,7 @@ export function Dashboard() {
                 userTier={userTier as 'free' | 'pro' | 'elite'}
                 onCreateAlert={() => {
                     setAlertBuilderSymbol('')
+                    setAlertBuilderSeedPrice(undefined)
                     setAlertBuilderOpen(true)
                 }}
             />
@@ -407,6 +410,7 @@ export function Dashboard() {
                 open={alertBuilderOpen}
                 onOpenChange={setAlertBuilderOpen}
                 symbol={alertBuilderSymbol}
+                seedPrice={alertBuilderSeedPrice}
                 userTier={userTier as 'free' | 'pro' | 'elite'}
             />
         </div>

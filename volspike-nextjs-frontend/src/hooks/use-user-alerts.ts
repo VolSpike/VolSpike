@@ -155,7 +155,7 @@ export function useUserAlerts() {
 
     // Create alert mutation
     const createMutation = useMutation({
-        mutationFn: async (data: { symbol: string; alertType: string; threshold: number; deliveryMethod: string }) => {
+        mutationFn: async (data: { symbol: string; alertType: string; threshold: number; deliveryMethod: string; lastCheckedValue?: number }) => {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
             const token = session?.user?.id
 
