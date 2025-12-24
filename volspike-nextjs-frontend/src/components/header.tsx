@@ -9,7 +9,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Bell, Zap, Star, Sparkles, Menu, X, Home, LayoutDashboard, Tag, Settings, LogOut, GraduationCap } from 'lucide-react'
+import { Bell, Zap, Star, Sparkles, Menu, X, Home, LayoutDashboard, Tag, Settings, LogOut, GraduationCap, Check, Trash2 } from 'lucide-react'
 import { UserMenu } from '@/components/user-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
@@ -21,6 +21,7 @@ import {
 import { signOut } from 'next-auth/react'
 import { useEnforceSingleIdentity } from '@/hooks/use-enforce-single-identity'
 import { SafeNavLink } from '@/components/safe-nav-link'
+import { useTriggeredAlerts } from '@/hooks/use-triggered-alerts'
 
 export function Header({ hideWalletConnect = false }: { hideWalletConnect?: boolean }) {
     const { data: session, status } = useSession()
@@ -28,6 +29,13 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
     const pathname = usePathname()
     const tier = session?.user?.tier || 'free'
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+    // Triggered alerts for notification bell
+    const triggeredAlerts = useTriggeredAlerts((state) => state.alerts)
+    const unreadCount = useTriggeredAlerts((state) => state.unreadCount)()
+    const markAsRead = useTriggeredAlerts((state) => state.markAsRead)
+    const markAllAsRead = useTriggeredAlerts((state) => state.markAllAsRead)
+    const clearAll = useTriggeredAlerts((state) => state.clearAll)
 
     // Ensure only one active identity at a time
     useEnforceSingleIdentity()
@@ -322,7 +330,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                 </span>
                             </Button>
 
-                            {/* Notification Bell - Empty state for future implementation */}
+                            {/* Notification Bell */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button
@@ -332,21 +340,99 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                         aria-label="Notifications"
                                     >
                                         <Bell className="h-4 w-4" />
+                                        {unreadCount > 0 && (
+                                            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-500 px-1 text-[10px] font-bold text-white">
+                                                {unreadCount > 9 ? '9+' : unreadCount}
+                                            </span>
+                                        )}
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent
                                     align="end"
-                                    className="w-[320px] p-0 backdrop-blur-lg bg-popover/95 border-border/50 shadow-lg-dark dark:shadow-lg-dark animate-scale-in rounded-xl"
+                                    className="w-[360px] p-0 backdrop-blur-lg bg-popover/95 border-border/50 shadow-lg-dark dark:shadow-lg-dark animate-scale-in rounded-xl"
                                 >
                                     {/* Header */}
-                                    <div className="p-4 border-b border-border/50 bg-gradient-to-br from-brand-500/5 to-sec-500/5">
-                                        <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
+                                    <div className="p-3 border-b border-border/50 bg-gradient-to-br from-brand-500/5 to-sec-500/5 flex items-center justify-between">
+                                        <h3 className="text-sm font-semibold text-foreground">
+                                            Triggered Alerts
+                                            {unreadCount > 0 && (
+                                                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                                    ({unreadCount} unread)
+                                                </span>
+                                            )}
+                                        </h3>
+                                        {triggeredAlerts.length > 0 && (
+                                            <div className="flex items-center gap-1">
+                                                {unreadCount > 0 && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 px-2 text-xs"
+                                                        onClick={markAllAsRead}
+                                                    >
+                                                        <Check className="h-3 w-3 mr-1" />
+                                                        Mark all read
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 px-2 text-xs text-muted-foreground hover:text-danger-500"
+                                                    onClick={clearAll}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
-                                    {/* Empty state */}
-                                    <div className="p-8 text-center">
-                                        <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
-                                        <p className="text-sm text-muted-foreground">No new notifications</p>
-                                    </div>
+                                    {/* Alert list */}
+                                    {triggeredAlerts.length === 0 ? (
+                                        <div className="p-8 text-center">
+                                            <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                                            <p className="text-sm text-muted-foreground">No triggered alerts</p>
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                Create alerts from the dashboard
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="max-h-[400px] overflow-y-auto">
+                                            {triggeredAlerts.slice(0, 20).map((alert) => (
+                                                <div
+                                                    key={alert.id}
+                                                    className={`p-3 border-b border-border/30 last:border-0 hover:bg-muted/50 transition-colors cursor-pointer ${
+                                                        !alert.read ? 'bg-brand-500/5' : ''
+                                                    }`}
+                                                    onClick={() => markAsRead(alert.id)}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                                            !alert.read ? 'bg-brand-500/20' : 'bg-muted'
+                                                        }`}>
+                                                            <Bell className={`h-4 w-4 ${!alert.read ? 'text-brand-500' : 'text-muted-foreground'}`} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-semibold text-sm">{alert.symbol}</span>
+                                                                <span className="text-xs text-muted-foreground">{alert.alertTypeName}</span>
+                                                                {!alert.read && (
+                                                                    <span className="w-2 h-2 rounded-full bg-brand-500" />
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                                Crossed {alert.direction} <span className="font-mono text-foreground">{alert.thresholdFormatted}</span>
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Current: <span className="font-mono text-foreground">{alert.currentValueFormatted}</span>
+                                                            </p>
+                                                            <p className="text-[10px] text-muted-foreground mt-1">
+                                                                {new Date(alert.timestamp).toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </DropdownMenuContent>
                             </DropdownMenu>
 

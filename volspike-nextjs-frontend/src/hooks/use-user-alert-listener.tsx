@@ -1,8 +1,12 @@
-import { useEffect, useCallback } from 'react'
+'use client'
+
+import { useEffect, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { useQueryClient } from '@tanstack/react-query'
+import { Bell, X } from 'lucide-react'
 import { useBrowserNotifications } from './use-browser-notifications'
 import { useSocket } from './use-socket'
+import { useTriggeredAlerts } from './use-triggered-alerts'
 
 export interface UserAlertEvent {
     id: string
@@ -59,10 +63,8 @@ export function useUserAlertListener() {
     const { socket } = useSocket()
     const { showNotification, requestPermission, permission } = useBrowserNotifications()
     const queryClient = useQueryClient()
-
-    const dismissToast = useCallback((toastId: string) => {
-        toast.dismiss(toastId)
-    }, [])
+    const addAlert = useTriggeredAlerts((state) => state.addAlert)
+    const activeToastRef = useRef<string | null>(null)
 
     useEffect(() => {
         if (!socket) return
@@ -79,38 +81,74 @@ export function useUserAlertListener() {
             // Format symbol for display
             const symbol = data.symbol.replace(/USDT$/i, '')
 
-            // Show persistent toast that requires user dismissal
-            toast.custom(
+            // Add to triggered alerts store (for header bell)
+            addAlert({
+                id: data.id,
+                symbol,
+                alertType: data.alertType,
+                alertTypeName: data.alertTypeName,
+                thresholdFormatted: data.thresholdFormatted,
+                currentValueFormatted: data.currentValueFormatted,
+                direction: data.direction,
+                timestamp: data.timestamp,
+            })
+
+            // Dismiss existing toast if any
+            if (activeToastRef.current) {
+                toast.dismiss(activeToastRef.current)
+                activeToastRef.current = null
+            }
+
+            // Show persistent toast in bottom-right
+            const toastId = toast.custom(
                 (t) => (
                     <div
                         className={`${
-                            t.visible ? 'animate-in fade-in slide-in-from-top-2' : 'animate-out fade-out slide-out-to-top-2'
-                        } max-w-md w-full bg-background shadow-2xl rounded-xl pointer-events-auto border-2 border-brand-500 ring-4 ring-brand-500/20`}
+                            t.visible ? 'animate-in fade-in slide-in-from-bottom-4' : 'animate-out fade-out slide-out-to-bottom-4'
+                        } max-w-sm w-full bg-background/95 backdrop-blur-xl shadow-2xl rounded-xl pointer-events-auto border border-brand-500/50 overflow-hidden`}
                     >
-                        <div className="p-5">
-                            <div className="flex items-start gap-4">
-                                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-brand-500/20 flex items-center justify-center">
-                                    <span className="text-2xl">🔔</span>
+                        {/* Accent bar */}
+                        <div className="h-1 bg-gradient-to-r from-brand-500 to-sec-500" />
+
+                        <div className="p-4">
+                            <div className="flex items-start gap-3">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-500/15 flex items-center justify-center">
+                                    <Bell className="h-5 w-5 text-brand-500" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-base font-bold text-brand-600 dark:text-brand-400">
-                                        Alert Triggered!
-                                    </p>
-                                    <p className="mt-1 text-lg font-semibold text-foreground">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">
+                                            Alert Triggered
+                                        </p>
+                                        <button
+                                            onClick={() => {
+                                                toast.dismiss(t.id)
+                                                activeToastRef.current = null
+                                            }}
+                                            className="text-muted-foreground hover:text-foreground transition-colors p-1 -m-1 rounded"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    <p className="mt-0.5 text-base font-semibold text-foreground">
                                         {symbol} {data.alertTypeName}
                                     </p>
                                     <p className="mt-1 text-sm text-muted-foreground">
-                                        Crossed {data.direction} <span className="font-mono font-semibold text-foreground">{data.thresholdFormatted}</span>
+                                        Crossed {data.direction}{' '}
+                                        <span className="font-mono text-foreground">{data.thresholdFormatted}</span>
                                     </p>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Current: <span className="font-mono font-semibold text-foreground">{data.currentValueFormatted}</span>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Current: <span className="font-mono text-foreground">{data.currentValueFormatted}</span>
                                     </p>
                                 </div>
                             </div>
-                            <div className="mt-4 flex justify-end">
+                            <div className="mt-3 flex justify-end">
                                 <button
-                                    onClick={() => dismissToast(t.id)}
-                                    className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-semibold transition-colors"
+                                    onClick={() => {
+                                        toast.dismiss(t.id)
+                                        activeToastRef.current = null
+                                    }}
+                                    className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium transition-colors"
                                 >
                                     Dismiss
                                 </button>
@@ -120,9 +158,11 @@ export function useUserAlertListener() {
                 ),
                 {
                     duration: Infinity,
-                    position: 'top-center',
+                    position: 'bottom-right',
+                    id: `alert-${data.id}`, // Use unique ID to prevent duplicates
                 }
             )
+            activeToastRef.current = toastId
 
             // Show browser notification if permission granted
             if (permission === 'granted') {
@@ -153,5 +193,5 @@ export function useUserAlertListener() {
         return () => {
             socket.off('user-alert-triggered', handleUserAlert)
         }
-    }, [socket, showNotification, requestPermission, permission, queryClient, dismissToast])
+    }, [socket, showNotification, requestPermission, permission, queryClient, addAlert])
 }
