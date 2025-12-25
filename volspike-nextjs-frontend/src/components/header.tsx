@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSession, signIn } from 'next-auth/react'
@@ -23,16 +23,12 @@ import { useEnforceSingleIdentity } from '@/hooks/use-enforce-single-identity'
 import { SafeNavLink } from '@/components/safe-nav-link'
 import { useTriggeredAlerts } from '@/hooks/use-triggered-alerts'
 
-// Delay before auto-marking notifications as read (allows user to see badge)
-const AUTO_READ_DELAY_MS = 300
-
 export function Header({ hideWalletConnect = false }: { hideWalletConnect?: boolean }) {
     const { data: session, status } = useSession()
     const router = useRouter()
     const pathname = usePathname()
     const tier = session?.user?.tier || 'free'
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-    const [dropdownOpen, setDropdownOpen] = useState(false)
 
     // Triggered alerts for notification bell
     const triggeredAlerts = useTriggeredAlerts((state) => state.alerts)
@@ -42,13 +38,17 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
     const dismissAlert = useTriggeredAlerts((state) => state.dismissAlert)
     const clearAll = useTriggeredAlerts((state) => state.clearAll)
 
-    // Auto-mark notifications as read when dropdown opens
-    useEffect(() => {
-        if (dropdownOpen && unreadCount > 0) {
-            const timer = setTimeout(markAllAsRead, AUTO_READ_DELAY_MS)
-            return () => clearTimeout(timer)
+    // Handler for marking notification as read on hover (desktop only)
+    const handleNotificationHover = useCallback((alertId: string, isRead: boolean) => {
+        if (isRead) return // Already read, skip
+
+        // Only mark as read on hover for desktop (pointer device)
+        // Mobile users must explicitly dismiss or use "Mark all read"
+        const hasPointer = window.matchMedia('(pointer: fine)').matches
+        if (hasPointer) {
+            markAsRead(alertId)
         }
-    }, [dropdownOpen, unreadCount, markAllAsRead])
+    }, [markAsRead])
 
     // Ensure only one active identity at a time
     useEnforceSingleIdentity()
@@ -344,10 +344,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                             </Button>
 
                             {/* Notification Bell */}
-                            <DropdownMenu
-                                open={dropdownOpen}
-                                onOpenChange={setDropdownOpen}
-                            >
+                            <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button
                                         variant="ghost"
@@ -415,6 +412,7 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                             {triggeredAlerts.slice(0, 20).map((alert) => (
                                                 <div
                                                     key={alert.id}
+                                                    onMouseEnter={() => handleNotificationHover(alert.id, alert.read)}
                                                     className={`group relative p-3 pr-10 border-b border-border/30 last:border-0 transition-all ${
                                                         !alert.read ? 'bg-brand-500/5' : ''
                                                     }`}
