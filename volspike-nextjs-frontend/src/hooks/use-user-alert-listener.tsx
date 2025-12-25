@@ -93,73 +93,72 @@ export function useUserAlertListener() {
                 timestamp: data.timestamp,
             })
 
-            // Dismiss existing toast if any
+            // Remove existing toast if any (instant removal)
             if (activeToastRef.current) {
-                toast.dismiss(activeToastRef.current)
+                toast.remove(activeToastRef.current)
                 activeToastRef.current = null
             }
 
             // Show persistent toast in bottom-right
             const toastId = toast.custom(
-                (t) => (
-                    <div
-                        className={`${
-                            t.visible ? 'animate-in fade-in slide-in-from-bottom-4' : 'animate-out fade-out slide-out-to-bottom-4'
-                        } max-w-sm w-full bg-background/95 backdrop-blur-xl shadow-2xl rounded-xl pointer-events-auto border border-brand-500/50 overflow-hidden`}
-                    >
-                        {/* Accent bar */}
-                        <div className="h-1 bg-gradient-to-r from-brand-500 to-sec-500" />
+                (t) => {
+                    // Create dismiss handler that removes immediately
+                    const handleDismiss = () => {
+                        toast.remove(t.id) // Use remove instead of dismiss for instant removal
+                        activeToastRef.current = null
+                    }
 
-                        <div className="p-4">
-                            <div className="flex items-start gap-3">
-                                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-500/15 flex items-center justify-center">
-                                    <Bell className="h-5 w-5 text-brand-500" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">
-                                            Alert Triggered
-                                        </p>
-                                        <button
-                                            onClick={() => {
-                                                toast.dismiss(t.id)
-                                                activeToastRef.current = null
-                                            }}
-                                            className="text-muted-foreground hover:text-foreground transition-colors p-1 -m-1 rounded"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
+                    return (
+                        <div className="max-w-sm w-full bg-background/95 backdrop-blur-xl shadow-2xl rounded-xl pointer-events-auto border border-brand-500/50 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            {/* Accent bar */}
+                            <div className="h-1 bg-gradient-to-r from-brand-500 to-sec-500" />
+
+                            <div className="p-4">
+                                <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-brand-500/15 flex items-center justify-center">
+                                        <Bell className="h-5 w-5 text-brand-500" />
                                     </div>
-                                    <p className="mt-0.5 text-base font-semibold text-foreground">
-                                        {symbol} {data.alertTypeName}
-                                    </p>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Crossed {data.direction}{' '}
-                                        <span className="font-mono text-foreground">{data.thresholdFormatted}</span>
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                        Current: <span className="font-mono text-foreground">{data.currentValueFormatted}</span>
-                                    </p>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-semibold text-brand-600 dark:text-brand-400">
+                                                Alert Triggered
+                                            </p>
+                                            <button
+                                                onClick={handleDismiss}
+                                                className="text-muted-foreground hover:text-foreground transition-colors p-1 -m-1 rounded"
+                                                aria-label="Close"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <p className="mt-0.5 text-base font-semibold text-foreground">
+                                            {symbol} {data.alertTypeName}
+                                        </p>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Crossed {data.direction}{' '}
+                                            <span className="font-mono text-foreground">{data.thresholdFormatted}</span>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Current: <span className="font-mono text-foreground">{data.currentValueFormatted}</span>
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="mt-3 flex justify-end">
-                                <button
-                                    onClick={() => {
-                                        toast.dismiss(t.id)
-                                        activeToastRef.current = null
-                                    }}
-                                    className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium transition-colors"
-                                >
-                                    Dismiss
-                                </button>
+                                <div className="mt-3 flex justify-end">
+                                    <button
+                                        onClick={handleDismiss}
+                                        className="px-3 py-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-sm font-medium transition-colors"
+                                    >
+                                        Dismiss
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ),
+                    )
+                },
                 {
                     duration: Infinity,
                     position: 'bottom-right',
-                    id: `alert-${data.id}`, // Use unique ID to prevent duplicates
+                    id: `alert-${data.id}`,
                 }
             )
             activeToastRef.current = toastId
