@@ -23,19 +23,32 @@ import { useEnforceSingleIdentity } from '@/hooks/use-enforce-single-identity'
 import { SafeNavLink } from '@/components/safe-nav-link'
 import { useTriggeredAlerts } from '@/hooks/use-triggered-alerts'
 
+// Delay before auto-marking notifications as read (allows user to see badge)
+const AUTO_READ_DELAY_MS = 300
+
 export function Header({ hideWalletConnect = false }: { hideWalletConnect?: boolean }) {
     const { data: session, status } = useSession()
     const router = useRouter()
     const pathname = usePathname()
     const tier = session?.user?.tier || 'free'
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const [dropdownOpen, setDropdownOpen] = useState(false)
 
     // Triggered alerts for notification bell
     const triggeredAlerts = useTriggeredAlerts((state) => state.alerts)
     const unreadCount = useTriggeredAlerts((state) => state.unreadCount)()
     const markAsRead = useTriggeredAlerts((state) => state.markAsRead)
     const markAllAsRead = useTriggeredAlerts((state) => state.markAllAsRead)
+    const dismissAlert = useTriggeredAlerts((state) => state.dismissAlert)
     const clearAll = useTriggeredAlerts((state) => state.clearAll)
+
+    // Auto-mark notifications as read when dropdown opens
+    useEffect(() => {
+        if (dropdownOpen && unreadCount > 0) {
+            const timer = setTimeout(markAllAsRead, AUTO_READ_DELAY_MS)
+            return () => clearTimeout(timer)
+        }
+    }, [dropdownOpen, unreadCount, markAllAsRead])
 
     // Ensure only one active identity at a time
     useEnforceSingleIdentity()
@@ -331,7 +344,10 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                             </Button>
 
                             {/* Notification Bell */}
-                            <DropdownMenu>
+                            <DropdownMenu
+                                open={dropdownOpen}
+                                onOpenChange={setDropdownOpen}
+                            >
                                 <DropdownMenuTrigger asChild>
                                     <Button
                                         variant="ghost"
@@ -399,12 +415,11 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                             {triggeredAlerts.slice(0, 20).map((alert) => (
                                                 <div
                                                     key={alert.id}
-                                                    className={`p-3 border-b border-border/30 last:border-0 hover:bg-muted/50 transition-colors cursor-pointer ${
+                                                    className={`group relative p-3 pr-10 border-b border-border/30 last:border-0 transition-all ${
                                                         !alert.read ? 'bg-brand-500/5' : ''
                                                     }`}
-                                                    onClick={() => markAsRead(alert.id)}
                                                 >
-                                                    <div className="flex items-start gap-3">
+                                                    <div className="flex items-start gap-2">
                                                         <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                                                             !alert.read ? 'bg-brand-500/20' : 'bg-muted'
                                                         }`}>
@@ -429,6 +444,15 @@ export function Header({ hideWalletConnect = false }: { hideWalletConnect?: bool
                                                             </p>
                                                         </div>
                                                     </div>
+                                                    {/* Dismiss button */}
+                                                    <button
+                                                        onClick={() => dismissAlert(alert.id)}
+                                                        className="absolute top-2 right-2 p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 active:bg-muted transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+                                                        aria-label={`Dismiss ${alert.symbol} alert`}
+                                                        title="Dismiss"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>
