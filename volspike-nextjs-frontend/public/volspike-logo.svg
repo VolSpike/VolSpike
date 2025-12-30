@@ -4,12 +4,7 @@
       <stop offset="0%" stop-color="#4ADE80"/>
       <stop offset="100%" stop-color="#22C55E"/>
     </radialGradient>
-    <filter id="volspike-shadow" x="-40%" y="-40%" width="180%" height="180%">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#22C55E" flood-opacity="0.25"/>
-    </filter>
   </defs>
-  <g filter="url(#volspike-shadow)">
-    <circle cx="32" cy="32" r="24" fill="url(#volspike-glow)"/>
-    <path d="M28 16L20 32H30L28 48L44 28H34L36 16H28Z" fill="white"/>
-  </g>
+  <circle cx="32" cy="32" r="24" fill="url(#volspike-glow)"/>
+  <path d="M28 16L20 32H30L28 48L44 28H34L36 16H28Z" fill="white"/>
 </svg>
