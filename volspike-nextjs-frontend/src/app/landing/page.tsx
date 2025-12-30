@@ -79,7 +79,7 @@ const Hero = () => {
                     transition={{ duration: 0.8, delay: 0.1, ease: [0.2, 0.65, 0.3, 0.9] }}
                     className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter text-white mb-6 leading-[1.1]"
                 >
-                    Don't guess. <br className="hidden md:block" />
+                    Don&apos;t guess. <br className="hidden md:block" />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-white">
                         Just follow the volume.
                     </span>
