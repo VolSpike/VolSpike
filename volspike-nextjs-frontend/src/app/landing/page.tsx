@@ -196,7 +196,7 @@ const Features = () => {
                         </div>
                         <h3 className="text-xl font-bold text-white mb-4">Visual Intelligence</h3>
                         <p className="text-zinc-400 leading-relaxed">
-                            Don't read numbers. See the flow. Our heatmaps and custom charts make institutional movement obvious.
+                            Don&apos;t read numbers. See the flow. Our heatmaps and custom charts make institutional movement obvious.
                         </p>
                     </SpotlightCard>
                     <SpotlightCard className="p-8 rounded-3xl h-full">
